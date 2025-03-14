@@ -1,0 +1,254 @@
+/* src/components/Reader/Reader.css */
+.reader {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.reader-header {
+  background-color: #fff;
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.reader-nav {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.reader-nav h2 {
+  margin: 0 0 0 1rem;
+  font-size: 1.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-nav .author {
+  margin-left: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.back-button {
+  background-color: transparent;
+  border: none;
+  color: #4a69bd;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.5rem 0;
+  transition: color 0.3s;
+}
+
+.back-button:hover {
+  color: #3867a9;
+}
+
+.reader-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  background-color: #f9f9f9;
+}
+
+.reader-sidebar {
+  width: 250px;
+  background-color: #fff;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+  padding: 1rem;
+  flex-shrink: 0;
+}
+
+.reader-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  align-items: center;
+}
+
+/* TOC styles */
+.toc-container {
+  margin-bottom: 1rem;
+}
+
+.toc-heading {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.toc-list {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 0;
+}
+
+.toc-item {
+  margin-bottom: 0.5rem;
+}
+
+.toc-button {
+  background: none;
+  border: none;
+  color: #4a69bd;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-align: left;
+  padding: 0.25rem 0;
+  width: 100%;
+  transition: color 0.2s;
+}
+
+.toc-button:hover {
+  color: #3867a9;
+  text-decoration: underline;
+}
+
+.toc-children {
+  margin-top: 0.25rem;
+  padding-left: 1rem;
+}
+
+.no-toc {
+  color: #666;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+/* Search styles */
+.search-container {
+  display: flex;
+  padding: 1rem;
+  gap: 0.5rem;
+  background-color: #fff;
+  border-bottom: 1px solid #ddd;
+  width: 100%;
+  max-width: 800px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.search-button,
+.clear-button {
+  padding: 0.5rem 1rem;
+  background-color: #4a69bd;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.clear-button {
+  background-color: #6c757d;
+}
+
+.search-button:hover {
+  background-color: #3867a9;
+}
+
+.clear-button:hover {
+  background-color: #5a6268;
+}
+
+/* Content area */
+.epub-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  background-color: #fff;
+  margin: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-family: Georgia, 'Times New Roman', Times, serif;
+  line-height: 1.6;
+  max-width: 800px;
+  width: 100%;
+}
+
+.epub-content h1, 
+.epub-content h2, 
+.epub-content h3, 
+.epub-content h4, 
+.epub-content h5, 
+.epub-content h6 {
+  text-align: center;
+  margin: 1.5rem 0 1rem;
+}
+
+.epub-content p {
+  margin-bottom: 1rem;
+  text-align: justify;
+}
+
+.epub-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Search highlighting */
+.search-highlight {
+  background-color: #ffeb3b;
+  padding: 0 2px;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.loading-spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #4a69bd;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .reader-header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .reader-sidebar {
+    display: none;
+  }
+  
+  .epub-content {
+    padding: 1rem;
+    margin: 0.5rem;
+  }
+}

@@ -1,0 +1,63 @@
+/* src/components/Reader/Controls.css */
+.reader-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.control-button {
+  background-color: #4a69bd;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s, opacity 0.3s;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.control-button:hover:not(:disabled) {
+  background-color: #3867a9;
+}
+
+.control-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.control-button.active {
+  background-color: #e74c3c;
+}
+
+.control-button.active:hover {
+  background-color: #c0392b;
+}
+
+.page-info {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0 0.5rem;
+  white-space: nowrap;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .reader-controls {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .control-button {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  .page-info {
+    width: 100%;
+    text-align: center;
+    order: -1;
+    margin-bottom: 0.5rem;
+  }
+}
