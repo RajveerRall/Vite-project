@@ -5,6 +5,7 @@ export interface BookData {
   author: string;
   coverUrl: string | null;
   currentPage: number;
+  lastChapter?: TOCItem | null;
   file: File;
   lastRead: string;
 }

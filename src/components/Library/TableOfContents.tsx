@@ -1,6 +1,6 @@
 // src/components/Reader/TableOfContents.tsx
 import React from 'react';
-import { TOCItem } from '../../types/book';
+import { TOCItem } from '../../types/books';
 
 interface TableOfContentsProps {
   items: TOCItem[];

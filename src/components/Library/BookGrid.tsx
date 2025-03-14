@@ -1,6 +1,6 @@
 // src/components/Library/BookGrid.tsx
 import React from 'react';
-import { BookData } from '../../types/book';
+import { BookData } from '../../types/books';
 import { useBook } from '../../context/BookContext';
 
 interface BookGridProps {

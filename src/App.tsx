@@ -1,179 +1,179 @@
-// // // // // // // // // // // import React, { useState, useEffect } from 'react';
-// // // // // // // // // // // import { KokoroTTS } from 'kokoro-js';
+// import React, { useState, useEffect } from 'react';
+// import { KokoroTTS } from 'kokoro-js';
 
-// // // // // // // // // // // function App() {
-// // // // // // // // // // //   const [text, setText] = useState('Life is like a box of chocolates. You never know what you\'re gonna get.');
-// // // // // // // // // // //   const [selectedVoice, setSelectedVoice] = useState('af_heart');
-// // // // // // // // // // //   const [isLoading, setIsLoading] = useState(true);
-// // // // // // // // // // //   const [isGenerating, setIsGenerating] = useState(false);
-// // // // // // // // // // //   const [tts, setTTS] = useState(null);
-// // // // // // // // // // //   const [error, setError] = useState(null);
-// // // // // // // // // // //   const [voices, setVoices] = useState([]);
-// // // // // // // // // // //   const [audioResults, setAudioResults] = useState([]);
+// function App() {
+//   const [text, setText] = useState('Life is like a box of chocolates. You never know what you\'re gonna get.');
+//   const [selectedVoice, setSelectedVoice] = useState('af_heart');
+//   const [isLoading, setIsLoading] = useState(true);
+//   const [isGenerating, setIsGenerating] = useState(false);
+//   const [tts, setTTS] = useState(null);
+//   const [error, setError] = useState(null);
+//   const [voices, setVoices] = useState([]);
+//   const [audioResults, setAudioResults] = useState([]);
 
-// // // // // // // // // // //   // Load the model directly
-// // // // // // // // // // //   useEffect(() => {
-// // // // // // // // // // //     async function loadModel() {
-// // // // // // // // // // //       try {
-// // // // // // // // // // //         console.log("Loading Kokoro model...");
-// // // // // // // // // // //         const model = await KokoroTTS.from_pretrained(
-// // // // // // // // // // //           "onnx-community/Kokoro-82M-ONNX",
-// // // // // // // // // // //           { dtype: "q8" }
-// // // // // // // // // // //         );
+//   // Load the model directly
+//   useEffect(() => {
+//     async function loadModel() {
+//       try {
+//         console.log("Loading Kokoro model...");
+//         const model = await KokoroTTS.from_pretrained(
+//           "onnx-community/Kokoro-82M-ONNX",
+//           { dtype: "q8" }
+//         );
         
-// // // // // // // // // // //         console.log("Model loaded successfully");
-// // // // // // // // // // //         setTTS(model);
+//         console.log("Model loaded successfully");
+//         setTTS(model);
         
-// // // // // // // // // // //         // Get available voices
-// // // // // // // // // // //         try {
-// // // // // // // // // // //           console.log("Getting available voices...");
-// // // // // // // // // // //           const availableVoices = model.list_voices();
-// // // // // // // // // // //           console.log("Available voices:", availableVoices);
+//         // Get available voices
+//         try {
+//           console.log("Getting available voices...");
+//           const availableVoices = model.list_voices();
+//           console.log("Available voices:", availableVoices);
           
-// // // // // // // // // // //           if (availableVoices && availableVoices.length > 0) {
-// // // // // // // // // // //             setVoices(availableVoices);
-// // // // // // // // // // //           } else {
-// // // // // // // // // // //             console.warn("No voices returned from list_voices(), using fallback list");
-// // // // // // // // // // //             setVoices(['af_heart', 'af_bella', 'af_sky', 'af_nicole', 'am_michael', 'bf_emma']);
-// // // // // // // // // // //           }
-// // // // // // // // // // //         } catch (voiceError) {
-// // // // // // // // // // //           console.warn("Could not get voices:", voiceError);
-// // // // // // // // // // //           // Fallback voices
-// // // // // // // // // // //           setVoices(['af_heart', 'af_bella', 'af_sky', 'af_nicole', 'am_michael', 'bf_emma']);
-// // // // // // // // // // //         }
+//           if (availableVoices && availableVoices.length > 0) {
+//             setVoices(availableVoices);
+//           } else {
+//             console.warn("No voices returned from list_voices(), using fallback list");
+//             setVoices(['af_heart', 'af_bella', 'af_sky', 'af_nicole', 'am_michael', 'bf_emma']);
+//           }
+//         } catch (voiceError) {
+//           console.warn("Could not get voices:", voiceError);
+//           // Fallback voices
+//           setVoices(['af_heart', 'af_bella', 'af_sky', 'af_nicole', 'am_michael', 'bf_emma']);
+//         }
         
-// // // // // // // // // // //       } catch (err) {
-// // // // // // // // // // //         console.error("Error loading model:", err);
-// // // // // // // // // // //         setError(`Error loading model: ${err.message || String(err)}`);
-// // // // // // // // // // //       } finally {
-// // // // // // // // // // //         setIsLoading(false);
-// // // // // // // // // // //       }
-// // // // // // // // // // //     }
+//       } catch (err) {
+//         console.error("Error loading model:", err);
+//         setError(`Error loading model: ${err.message || String(err)}`);
+//       } finally {
+//         setIsLoading(false);
+//       }
+//     }
     
-// // // // // // // // // // //     loadModel();
-// // // // // // // // // // //   }, []);
+//     loadModel();
+//   }, []);
 
-// // // // // // // // // // //   // Handle text-to-speech generation
-// // // // // // // // // // //   const handleGenerate = async () => {
-// // // // // // // // // // //     if (!tts || !text.trim() || isGenerating) return;
+//   // Handle text-to-speech generation
+//   const handleGenerate = async () => {
+//     if (!tts || !text.trim() || isGenerating) return;
     
-// // // // // // // // // // //     setIsGenerating(true);
-// // // // // // // // // // //     try {
-// // // // // // // // // // //       console.log(`Generating speech for: "${text}" with voice: ${selectedVoice}`);
+//     setIsGenerating(true);
+//     try {
+//       console.log(`Generating speech for: "${text}" with voice: ${selectedVoice}`);
       
-// // // // // // // // // // //       const audio = await tts.generate(text, { voice: selectedVoice });
-// // // // // // // // // // //       console.log("Audio generated:", audio);
+//       const audio = await tts.generate(text, { voice: selectedVoice });
+//       console.log("Audio generated:", audio);
       
-// // // // // // // // // // //       // Convert to a playable format
-// // // // // // // // // // //       const blob = audio.toBlob();
-// // // // // // // // // // //       const url = URL.createObjectURL(blob);
+//       // Convert to a playable format
+//       const blob = audio.toBlob();
+//       const url = URL.createObjectURL(blob);
       
-// // // // // // // // // // //       // Add to results
-// // // // // // // // // // //       setAudioResults(prev => [{ text, url, timestamp: new Date() }, ...prev]);
+//       // Add to results
+//       setAudioResults(prev => [{ text, url, timestamp: new Date() }, ...prev]);
       
-// // // // // // // // // // //     } catch (err) {
-// // // // // // // // // // //       console.error("Error generating speech:", err);
-// // // // // // // // // // //       setError(`Error generating speech: ${err.message || String(err)}`);
-// // // // // // // // // // //     } finally {
-// // // // // // // // // // //       setIsGenerating(false);
-// // // // // // // // // // //     }
-// // // // // // // // // // //   };
+//     } catch (err) {
+//       console.error("Error generating speech:", err);
+//       setError(`Error generating speech: ${err.message || String(err)}`);
+//     } finally {
+//       setIsGenerating(false);
+//     }
+//   };
 
-// // // // // // // // // // //   return (
-// // // // // // // // // // //     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
-// // // // // // // // // // //       <div className="max-w-2xl mx-auto">
-// // // // // // // // // // //         <div className="bg-white rounded-xl shadow-lg p-8">
-// // // // // // // // // // //           <h1 className="text-3xl font-bold text-gray-800 mb-6">Kokoro Text to Speech</h1>
+//   return (
+//     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
+//       <div className="max-w-2xl mx-auto">
+//         <div className="bg-white rounded-xl shadow-lg p-8">
+//           <h1 className="text-3xl font-bold text-gray-800 mb-6">Kokoro Text to Speech</h1>
           
-// // // // // // // // // // //           {isLoading ? (
-// // // // // // // // // // //             <div className="flex items-center justify-center p-12">
-// // // // // // // // // // //               <div className="animate-spin h-8 w-8 border-4 border-purple-500 rounded-full border-t-transparent"></div>
-// // // // // // // // // // //               <span className="ml-3 text-gray-600">Loading TTS model...</span>
-// // // // // // // // // // //             </div>
-// // // // // // // // // // //           ) : (
-// // // // // // // // // // //             <>
-// // // // // // // // // // //               {error && (
-// // // // // // // // // // //                 <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-// // // // // // // // // // //                   {error}
-// // // // // // // // // // //                 </div>
-// // // // // // // // // // //               )}
+//           {isLoading ? (
+//             <div className="flex items-center justify-center p-12">
+//               <div className="animate-spin h-8 w-8 border-4 border-purple-500 rounded-full border-t-transparent"></div>
+//               <span className="ml-3 text-gray-600">Loading TTS model...</span>
+//             </div>
+//           ) : (
+//             <>
+//               {error && (
+//                 <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+//                   {error}
+//                 </div>
+//               )}
               
-// // // // // // // // // // //               <div className="mb-6">
-// // // // // // // // // // //                 <label className="block text-sm font-medium text-gray-700 mb-2">
-// // // // // // // // // // //                   Select Voice
-// // // // // // // // // // //                 </label>
-// // // // // // // // // // //                 <select
-// // // // // // // // // // //                   value={selectedVoice}
-// // // // // // // // // // //                   onChange={(e) => setSelectedVoice(e.target.value)}
-// // // // // // // // // // //                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-// // // // // // // // // // //                 >
-// // // // // // // // // // //                   {voices.map((voice) => (
-// // // // // // // // // // //                     <option key={voice} value={voice}>
-// // // // // // // // // // //                       {voice}
-// // // // // // // // // // //                     </option>
-// // // // // // // // // // //                   ))}
-// // // // // // // // // // //                 </select>
-// // // // // // // // // // //               </div>
+//               <div className="mb-6">
+//                 <label className="block text-sm font-medium text-gray-700 mb-2">
+//                   Select Voice
+//                 </label>
+//                 <select
+//                   value={selectedVoice}
+//                   onChange={(e) => setSelectedVoice(e.target.value)}
+//                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+//                 >
+//                   {voices.map((voice) => (
+//                     <option key={voice} value={voice}>
+//                       {voice}
+//                     </option>
+//                   ))}
+//                 </select>
+//               </div>
 
-// // // // // // // // // // //               <div className="mb-6">
-// // // // // // // // // // //                 <label className="block text-sm font-medium text-gray-700 mb-2">
-// // // // // // // // // // //                   Enter Text
-// // // // // // // // // // //                 </label>
-// // // // // // // // // // //                 <textarea
-// // // // // // // // // // //                   value={text}
-// // // // // // // // // // //                   onChange={(e) => setText(e.target.value)}
-// // // // // // // // // // //                   placeholder="Type something to hear it spoken..."
-// // // // // // // // // // //                   className="w-full h-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-// // // // // // // // // // //                 />
-// // // // // // // // // // //               </div>
+//               <div className="mb-6">
+//                 <label className="block text-sm font-medium text-gray-700 mb-2">
+//                   Enter Text
+//                 </label>
+//                 <textarea
+//                   value={text}
+//                   onChange={(e) => setText(e.target.value)}
+//                   placeholder="Type something to hear it spoken..."
+//                   className="w-full h-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+//                 />
+//               </div>
 
-// // // // // // // // // // //               <button
-// // // // // // // // // // //                 onClick={handleGenerate}
-// // // // // // // // // // //                 disabled={!tts || isGenerating || !text.trim()}
-// // // // // // // // // // //                 className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-white font-medium transition
-// // // // // // // // // // //                   ${!tts || isGenerating || !text.trim() 
-// // // // // // // // // // //                     ? 'bg-gray-400 cursor-not-allowed' 
-// // // // // // // // // // //                     : 'bg-purple-600 hover:bg-purple-700'}`}
-// // // // // // // // // // //               >
-// // // // // // // // // // //                 {isGenerating ? (
-// // // // // // // // // // //                   <>
-// // // // // // // // // // //                     <div className="animate-spin h-5 w-5 border-2 border-white rounded-full border-t-transparent"></div>
-// // // // // // // // // // //                     Generating...
-// // // // // // // // // // //                   </>
-// // // // // // // // // // //                 ) : (
-// // // // // // // // // // //                   <>
-// // // // // // // // // // //                     Generate
-// // // // // // // // // // //                   </>
-// // // // // // // // // // //                 )}
-// // // // // // // // // // //               </button>
+//               <button
+//                 onClick={handleGenerate}
+//                 disabled={!tts || isGenerating || !text.trim()}
+//                 className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-white font-medium transition
+//                   ${!tts || isGenerating || !text.trim() 
+//                     ? 'bg-gray-400 cursor-not-allowed' 
+//                     : 'bg-purple-600 hover:bg-purple-700'}`}
+//               >
+//                 {isGenerating ? (
+//                   <>
+//                     <div className="animate-spin h-5 w-5 border-2 border-white rounded-full border-t-transparent"></div>
+//                     Generating...
+//                   </>
+//                 ) : (
+//                   <>
+//                     Generate
+//                   </>
+//                 )}
+//               </button>
               
-// // // // // // // // // // //               {audioResults.length > 0 && (
-// // // // // // // // // // //                 <div className="mt-8">
-// // // // // // // // // // //                   <h2 className="text-xl font-bold text-gray-800 mb-4">Generated Audio</h2>
-// // // // // // // // // // //                   <div className="space-y-4 max-h-[300px] overflow-y-auto">
-// // // // // // // // // // //                     {audioResults.map((result, index) => (
-// // // // // // // // // // //                       <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-// // // // // // // // // // //                         <p className="text-gray-700 mb-2">{result.text}</p>
-// // // // // // // // // // //                         <audio 
-// // // // // // // // // // //                           controls 
-// // // // // // // // // // //                           src={result.url} 
-// // // // // // // // // // //                           className="w-full"
-// // // // // // // // // // //                           onEnded={() => URL.revokeObjectURL(result.url)}
-// // // // // // // // // // //                         >
-// // // // // // // // // // //                           Your browser does not support audio playback.
-// // // // // // // // // // //                         </audio>
-// // // // // // // // // // //                       </div>
-// // // // // // // // // // //                     ))}
-// // // // // // // // // // //                   </div>
-// // // // // // // // // // //                 </div>
-// // // // // // // // // // //               )}
-// // // // // // // // // // //             </>
-// // // // // // // // // // //           )}
-// // // // // // // // // // //         </div>
-// // // // // // // // // // //       </div>
-// // // // // // // // // // //     </div>
-// // // // // // // // // // //   );
-// // // // // // // // // // // }
+//               {audioResults.length > 0 && (
+//                 <div className="mt-8">
+//                   <h2 className="text-xl font-bold text-gray-800 mb-4">Generated Audio</h2>
+//                   <div className="space-y-4 max-h-[300px] overflow-y-auto">
+//                     {audioResults.map((result, index) => (
+//                       <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+//                         <p className="text-gray-700 mb-2">{result.text}</p>
+//                         <audio 
+//                           controls 
+//                           src={result.url} 
+//                           className="w-full"
+//                           onEnded={() => URL.revokeObjectURL(result.url)}
+//                         >
+//                           Your browser does not support audio playback.
+//                         </audio>
+//                       </div>
+//                     ))}
+//                   </div>
+//                 </div>
+//               )}
+//             </>
+//           )}
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
 
 // // // // // // // // // // // export default App;
 // // // // // // // // // import React from 'react'
