@@ -133,7 +133,27 @@ export class KokoroTTSService {
       const stream = this.tts.stream(splitter);
       this.stream = stream;
       
-      // Process the stream
+      // // Process the stream
+      // (async () => {
+      //   try {
+      //     let fullText = '';
+          
+      //     for await (const chunk of stream) {
+      //       // Check if we've been aborted
+      //       if (signal.aborted) break;
+            
+      //       // Extract text and audio from the chunk
+      //       const { text, audio } = chunk as TTSAudioChunk;
+      //       console.log("Received chunk:", { text, hasAudio: !!audio });
+            
+      //       fullText += text;
+      //       this.onTextUpdate?.(fullText);
+            
+      //       if (!audio) {
+      //         console.warn("No audio in chunk");
+      //         continue;
+      //       }
+
       (async () => {
         try {
           let fullText = '';
@@ -146,8 +166,11 @@ export class KokoroTTSService {
             const { text, audio } = chunk as TTSAudioChunk;
             console.log("Received chunk:", { text, hasAudio: !!audio });
             
+            // CHANGE THIS LINE: Pass only the current chunk's text, not the accumulated text
+            this.onTextUpdate?.(text);
+            
+            // Still update fullText for internal tracking if needed
             fullText += text;
-            this.onTextUpdate?.(fullText);
             
             if (!audio) {
               console.warn("No audio in chunk");
