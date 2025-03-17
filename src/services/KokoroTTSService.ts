@@ -2,9 +2,9 @@ import { KokoroTTS, TextSplitterStream } from 'kokoro-js';
 
 // Define interfaces
 export interface ProgressInfo {
-  progress: number;
-  loaded: number;
-  total: number;
+  progress?: number;
+  loaded?: number;
+  total?: number;
 }
 
 export interface TTSAudioChunk {
@@ -42,37 +42,41 @@ export class KokoroTTSService {
   /**
    * Initialize the TTS engine
    */
+  // Update the progress callback to ensure values are within the correct range
   public async initialize(progressCallback: ProgressCallback): Promise<void> {
     try {
       // Set callback
       this.onProgressUpdate = progressCallback;
       progressCallback(10);
-      
+
       console.log("Initializing Kokoro TTS...");
-      
+
       // Check for WebGPU support
       const supportsWebGPU = 'gpu' in navigator;
       console.log("WebGPU supported:", supportsWebGPU);
-      
+
       // Initialize Kokoro TTS
       const model_id = "onnx-community/Kokoro-82M-v1.0-ONNX";
       progressCallback(30);
-      
+
       // Initialize the model
       this.tts = await KokoroTTS.from_pretrained(model_id, {
         dtype: "fp32", // Options: "fp32", "fp16", "q8", "q4", "q4f16"
         device: supportsWebGPU ? "webgpu" : "wasm", // Use WebGPU if available
-        progress_callback: (progressInfo: ProgressInfo) => {
+        progress_callback: (progressInfo: any) => {
           console.log("Loading progress:", progressInfo);
           // Ensure we're using a number for calculations
           const progressValue = typeof progressInfo === 'number' 
             ? progressInfo 
             : (progressInfo.progress || 0);
-            
-          this.onProgressUpdate?.(30 + Math.round(progressValue * 70));
+          
+          // Ensure progressValue is within 0 to 1 range
+          const clampedProgressValue = Math.max(0, Math.min(1, progressValue));
+          
+          this.onProgressUpdate?.(30 + Math.round(clampedProgressValue * 70));
         }
       });
-      
+
       console.log("Kokoro TTS model loaded successfully");
       this.modelLoaded = true;
       progressCallback(100);

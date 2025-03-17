@@ -8,6 +8,7 @@ export interface BookData {
   lastChapter?: TOCItem | null;
   file: File;
   lastRead: string;
+  totalPages: number;
 }
 
 export interface TOCItem {
