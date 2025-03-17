@@ -5,13 +5,105 @@
   height: 100vh;
 }
 
+/* Header layout improvements */
 .reader-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   background-color: #fff;
-  padding: 1rem 2rem;
+  padding: 0.75rem 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 10;
 }
 
+.reader-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.reader-center {
+  flex: 2;
+  text-align: center;
+}
+
+.reader-right {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.book-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.book-author {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.controls-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.tts-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.tts-toggle-label {
+  color: #666;
+}
+
+.tts-toggle-button {
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tts-toggle-button.kokoro-active {
+  background-color: #4a69bd;
+  color: white;
+}
+
+.tts-toggle-button.basic-active {
+  background-color: #6c757d;
+  color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .reader-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.5rem 1rem;
+  }
+  
+  .reader-left, .reader-center, .reader-right {
+    margin-bottom: 0.5rem;
+  }
+  
+  .reader-right {
+    justify-content: center;
+  }
+  
+  .controls-container {
+    align-items: center;
+    width: 100%;
+  }
+}
 .reader-nav {
   display: flex;
   align-items: center;
