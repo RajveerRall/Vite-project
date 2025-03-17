@@ -1113,6 +1113,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
         author,
         coverUrl, // Now this is a base64 string or null
         currentPage: 0,
+        totalPages: 0,
         file,
         lastRead: new Date().toISOString(),
         lastChapter: undefined // Optional, can be omitted
@@ -1148,6 +1149,149 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     // Remove from state
     setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
   };
+
+  // // Open a book to read
+  // const openBook = async (book: BookData): Promise<void> => {
+  //   setIsLoading(true);
+  //   setBookTitle(book.title);
+  //   setBookAuthor(book.author);
+  //   setCurrentPage(book.currentPage || 0);
+  //   setCurrentBook(book);
+    
+  //   try {
+  //     // Load the epub file again
+  //     const zip = new JSZip();
+  //     const content = await zip.loadAsync(book.file);
+  //     setBookZip(content);
+      
+  //     // Find the container.xml file
+  //     const containerXml = await content.file('META-INF/container.xml')?.async('text');
+  //     if (!containerXml) {
+  //       throw new Error('Invalid EPUB: container.xml not found');
+  //     }
+      
+  //     // Parse the container.xml to find the OPF file
+  //     const parser = new DOMParser();
+  //     const containerDoc = parser.parseFromString(containerXml, 'application/xml');
+  //     const rootfiles = containerDoc.getElementsByTagName('rootfile');
+      
+  //     if (rootfiles.length === 0) {
+  //       throw new Error('Invalid EPUB: No rootfile found in container.xml');
+  //     }
+      
+  //     // Get the path to the OPF file
+  //     const opf = rootfiles[0].getAttribute('full-path') || '';
+  //     setOpfPath(opf);
+      
+  //     // Load the OPF file
+  //     const opfContent = await content.file(opf)?.async('text');
+  //     if (!opfContent) {
+  //       throw new Error('Invalid EPUB: OPF file not found');
+  //     }
+      
+  //     // Parse the OPF file
+  //     const opfDoc = parser.parseFromString(opfContent, 'application/xml');
+      
+  //     // Get the spine - this defines the reading order
+  //     const spine = opfDoc.getElementsByTagName('spine')[0];
+  //     const itemrefs = spine.getElementsByTagName('itemref');
+      
+  //     // Get the manifest - this maps IDs to file paths
+  //     const manifest = opfDoc.getElementsByTagName('manifest')[0];
+  //     const items = manifest.getElementsByTagName('item');
+      
+  //     // Map the spine items to their file paths
+  //     const fileOrder: string[] = [];
+  //     for (let i = 0; i < itemrefs.length; i++) {
+  //       const idref = itemrefs[i].getAttribute('idref');
+  //       for (let j = 0; j < items.length; j++) {
+  //         if (items[j].getAttribute('id') === idref) {
+  //           const href = items[j].getAttribute('href') || '';
+  //           // Get the directory of the OPF file to resolve relative paths
+  //           const opfDir = opf.substring(0, opf.lastIndexOf('/') + 1);
+  //           fileOrder.push(opfDir + href);
+  //           break;
+  //         }
+  //       }
+  //     }
+      
+  //     setHtmlFiles(fileOrder);
+  //     setTotalPages(fileOrder.length);
+      
+  //     // Extract table of contents (keep your existing TOC extraction logic)
+  //     // Extract table of contents
+  //     const extractToc = async (): Promise<TOCItem[]> => {
+  //       let tocPath = '';
+  //       let tocItems: TOCItem[] = [];
+  //       let tocFound = false;
+        
+  //       // Method 1: Check for nav document (EPUB3)
+  //       for (let i = 0; i < items.length; i++) {
+  //         const item = items[i];
+  //         const properties = item.getAttribute('properties');
+  //         if (properties && properties.includes('nav')) {
+  //           const href = item.getAttribute('href') || '';
+  //           const opfDir = opf.substring(0, opf.lastIndexOf('/') + 1);
+  //           tocPath = opfDir + href;
+            
+  //           try {
+  //             const tocContent = await content.file(tocPath)?.async('text');
+  //             if (tocContent) {
+  //               const tocDoc = parser.parseFromString(tocContent, 'text/html');
+  //               const navs = tocDoc.getElementsByTagName('nav');
+                
+  //               for (let i = 0; i < navs.length; i++) {
+  //                 const nav = navs[i];
+  //                 const type = nav.getAttribute('epub:type');
+  //                 if (type === 'toc') {
+  //                   const ol = nav.getElementsByTagName('ol')[0];
+  //                   if (ol) {
+  //                     const parseTocItems = (ol: Element): TOCItem[] => {
+  //                       const items: TOCItem[] = [];
+  //                       const lis = ol.getElementsByTagName('li');
+                        
+  //                       for (let j = 0; j < lis.length; j++) {
+  //                         const li = lis[j];
+  //                         const a = li.getElementsByTagName('a')[0];
+  //                         if (a) {
+  //                           const href = a.getAttribute('href') || '';
+  //                           const label = a.textContent || '';
+  //                           const id = `toc-${j}`;
+                            
+  //                           const item: TOCItem = {
+  //                             id,
+  //                             href,
+  //                             label,
+  //                             children: []
+  //                           };
+                            
+  //                           const nestedOl = li.getElementsByTagName('ol')[0];
+  //                           if (nestedOl) {
+  //                             item.children = parseTocItems(nestedOl);
+  //                           }
+                            
+  //                           items.push(item);
+  //                         }
+  //                       }
+                        
+  //                       return items;
+  //                     };
+                      
+  //                     tocItems = parseTocItems(ol);
+  //                     tocFound = true;
+  //                     break;
+  //                   }
+  //                 }
+  //               }
+  //             }
+  //           } catch (error) {
+  //             console.error("Error parsing EPUB3 nav document:", error);
+  //           }
+            
+  //           break;
+  //         }
+  //       }
+
 
   // Open a book to read
   const openBook = async (book: BookData): Promise<void> => {
@@ -1214,12 +1358,14 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
         }
       }
       
+      // Set the HTML files array
       setHtmlFiles(fileOrder);
       setTotalPages(fileOrder.length);
       
-      // Extract table of contents (keep your existing TOC extraction logic)
       // Extract table of contents
       const extractToc = async (): Promise<TOCItem[]> => {
+        // Existing TOC extraction code ...
+        // (keeping the implementation the same)
         let tocPath = '';
         let tocItems: TOCItem[] = [];
         let tocFound = false;
@@ -1383,8 +1529,28 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
           }
         }
         
-        // Method 3: Create from spine if no TOC found
-        if (!tocFound) {
+      //   // Method 3: Create from spine if no TOC found
+      //   if (!tocFound) {
+      //     for (let i = 0; i < fileOrder.length; i++) {
+      //       const filePath = fileOrder[i];
+      //       const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+      //       const label = fileName.replace(/\.x?html?$/, '').replace(/[-_]/g, ' ');
+            
+      //       tocItems.push({
+      //         id: `toc-${i}`,
+      //         label: label.charAt(0).toUpperCase() + label.slice(1), // Capitalize first letter
+      //         href: filePath.substring(opf.substring(0, opf.lastIndexOf('/') + 1).length),
+      //         children: []
+      //       });
+      //     }
+      //   }
+        
+      //   return tocItems;
+      // };
+
+
+      // Method 3: Create from spine if no TOC found
+      if (!tocFound) {
           for (let i = 0; i < fileOrder.length; i++) {
             const filePath = fileOrder[i];
             const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
@@ -1424,19 +1590,50 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       // //   )
       // // );
 
-          // Determine the page to load
-      let pageToLoad = book.currentPage || 0;
+      //     // Determine the page to load
+      // let pageToLoad = book.currentPage || 0;
+
+      //   // If there's a last chapter, find its corresponding page
+      //   if (book.lastChapter) {
+      //     const chapterIndex = toc.findIndex(item => 
+      //       item.id === book.lastChapter?.id
+      //     );
+
+      //     if (chapterIndex !== -1) {
+      //       // Find the first page that matches the chapter's file
+      //       const chapterFilePath = book.lastChapter?.href.split('#')[0];
+      //       const pageIndex = htmlFiles.findIndex(file => 
+      //         file.endsWith(chapterFilePath || '')
+      //       );
+
+      //       if (pageIndex !== -1) {
+      //         pageToLoad = pageIndex;
+      //       }
+      //     }
+      //   }
+
+      //   // Load the appropriate page
+      //   if (htmlFiles.length > 0) {
+      //     await loadPage(pageToLoad);
+      // } else {
+      //     throw new Error('No HTML files found in the EPUB');
+      // }
+
+          // CHECK HERE: We need to check fileOrder directly, not htmlFiles
+      if (fileOrder.length > 0) {
+        // Determine the page to load
+        let pageToLoad = book.currentPage || 0;
 
         // If there's a last chapter, find its corresponding page
         if (book.lastChapter) {
-          const chapterIndex = toc.findIndex(item => 
+          const chapterIndex = tocItems.findIndex(item => 
             item.id === book.lastChapter?.id
           );
 
           if (chapterIndex !== -1) {
             // Find the first page that matches the chapter's file
             const chapterFilePath = book.lastChapter?.href.split('#')[0];
-            const pageIndex = htmlFiles.findIndex(file => 
+            const pageIndex = fileOrder.findIndex(file => 
               file.endsWith(chapterFilePath || '')
             );
 
@@ -1446,22 +1643,36 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
           }
         }
 
-        // Load the appropriate page
-        if (htmlFiles.length > 0) {
-          await loadPage(pageToLoad);
+        // Load the appropriate page using fileOrder directly
+        await loadPage(pageToLoad);
       } else {
-          throw new Error('No HTML files found in the EPUB');
+        throw new Error('No HTML files found in the EPUB');
       }
+
 
       // Update the last read date and last chapter for this book
       // Update the last read date and last chapter for this book
+      // setBooks(prevBooks => 
+      //   prevBooks.map(b => 
+      //     b.id === book.id 
+      //       ? { 
+      //           ...b, 
+      //           lastRead: new Date().toISOString(),
+      //           lastChapter: toc.length > 0 ? findChapterForPage(book.currentPage || 0) : undefined
+      //         } as BookData
+      //       : b
+      //   )
+      // );
+
+
+          // Update the last read date and last chapter for this book
       setBooks(prevBooks => 
         prevBooks.map(b => 
           b.id === book.id 
             ? { 
                 ...b, 
                 lastRead: new Date().toISOString(),
-                lastChapter: toc.length > 0 ? findChapterForPage(book.currentPage || 0) : undefined
+                lastChapter: tocItems.length > 0 ? findChapterForPage(book.currentPage || 0) : undefined
               } as BookData
             : b
         )
@@ -1601,14 +1812,29 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
 
   // Load a specific page
   const loadPage = async (pageIndex: number): Promise<void> => {
+    // console.log('Loading page:', {
+    //   pageIndex,
+    //   bookZipExists: !!bookZip,
+    //   htmlFilesLength: htmlFiles.length
+    // });
+
+    // if (!bookZip || pageIndex < 0 || pageIndex >= htmlFiles.length) {
+    //   console.error('Invalid page load conditions');
+    //   return;
+    // }
+
     console.log('Loading page:', {
       pageIndex,
       bookZipExists: !!bookZip,
       htmlFilesLength: htmlFiles.length
     });
-
+  
     if (!bookZip || pageIndex < 0 || pageIndex >= htmlFiles.length) {
-      console.error('Invalid page load conditions');
+      console.error('Invalid page load conditions', {
+        bookZipExists: !!bookZip,
+        pageIndex,
+        htmlFilesLength: htmlFiles.length
+      });
       return;
     }
     
