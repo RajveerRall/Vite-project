@@ -1,56 +1,56 @@
-// // // import type { NextApiRequest, NextApiResponse } from 'next';
-// // // import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
+// import type { NextApiRequest, NextApiResponse } from 'next';
+// import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 
-// // // // Speaker-to-Voice Mapping
-// // // const speakerVoiceMap: { [key: string]: string } = {
-// // //   "Narrator": "en-US-AndrewNeural",
-// // //   "Speaker 1": "en-US-BrianMultilingualNeural",
-// // //   "Speaker 2": "en-US-SteffanNeural",
-// // //   "Speaker 3": "en-US-BrianMultilingualNeural",
-// // //   "Speaker 4": "en-US-RogerNeural",
-// // // };
+// // Speaker-to-Voice Mapping
+// const speakerVoiceMap: { [key: string]: string } = {
+//   "Narrator": "en-US-AndrewNeural",
+//   "Speaker 1": "en-US-BrianMultilingualNeural",
+//   "Speaker 2": "en-US-SteffanNeural",
+//   "Speaker 3": "en-US-BrianMultilingualNeural",
+//   "Speaker 4": "en-US-RogerNeural",
+// };
 
-// // // export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-// // //   if (req.method !== 'GET') {
-// // //     return res.status(405).json({ error: 'Method not allowed. Use GET.' });
-// // //   }
+// export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+//   if (req.method !== 'GET') {
+//     return res.status(405).json({ error: 'Method not allowed. Use GET.' });
+//   }
 
-// // //   const { text, speaker } = req.query;
-// // //   if (!text || !speaker) {
-// // //     return res.status(400).json({ error: 'Missing text or speaker' });
-// // //   }
+//   const { text, speaker } = req.query;
+//   if (!text || !speaker) {
+//     return res.status(400).json({ error: 'Missing text or speaker' });
+//   }
 
-// // //   // Map the provided speaker to a voice; default if not found.
-// // //   const voice = speakerVoiceMap[speaker as string] || "en-US-AndrewNeural";
+//   // Map the provided speaker to a voice; default if not found.
+//   const voice = speakerVoiceMap[speaker as string] || "en-US-AndrewNeural";
 
-// // //   try {
-// // //     console.log(`🎤 Generating audio for speaker: ${speaker}, using voice: ${voice}`);
+//   try {
+//     console.log(`🎤 Generating audio for speaker: ${speaker}, using voice: ${voice}`);
 
-// // //     // Initialize the MsEdgeTTS instance.
-// // //     const tts = new MsEdgeTTS();
-// // //     // Set metadata with the chosen voice and desired output format.
-// // //     await tts.setMetadata(voice, OUTPUT_FORMAT.WEBM_24KHZ_16BIT_MONO_OPUS);
+//     // Initialize the MsEdgeTTS instance.
+//     const tts = new MsEdgeTTS();
+//     // Set metadata with the chosen voice and desired output format.
+//     await tts.setMetadata(voice, OUTPUT_FORMAT.WEBM_24KHZ_16BIT_MONO_OPUS);
 
-// // //     console.log(`✅ TTS metadata set. Sending request for text: "${text}"`);
+//     console.log(`✅ TTS metadata set. Sending request for text: "${text}"`);
 
-// // //     // Generate the audio stream.
-// // //     const { audioStream } = tts.toStream(text as string);
+//     // Generate the audio stream.
+//     const { audioStream } = tts.toStream(text as string);
 
-// // //     // Set headers to stream audio (WebM format in this example).
-// // //     res.setHeader('Content-Type', 'audio/webm');
-// // //     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-// // //     res.setHeader('Pragma', 'no-cache');
-// // //     res.setHeader('Expires', '0');
+//     // Set headers to stream audio (WebM format in this example).
+//     res.setHeader('Content-Type', 'audio/webm');
+//     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+//     res.setHeader('Pragma', 'no-cache');
+//     res.setHeader('Expires', '0');
 
-// // //     // Pipe the generated audio stream directly to the response.
-// // //     audioStream.pipe(res);
+//     // Pipe the generated audio stream directly to the response.
+//     audioStream.pipe(res);
 
-// // //     console.log("✅ Audio stream sent.");
-// // //   } catch (error: any) {
-// // //     console.error("❌ TTS Error:", error.message || error);
-// // //     res.status(500).json({ error: "TTS failed" });
-// // //   }
-// // // }
+//     console.log("✅ Audio stream sent.");
+//   } catch (error: any) {
+//     console.error("❌ TTS Error:", error.message || error);
+//     res.status(500).json({ error: "TTS failed" });
+//   }
+// }
 
 
 // import type { NextApiRequest, NextApiResponse } from "next";
