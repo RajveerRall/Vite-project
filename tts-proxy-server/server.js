@@ -83,7 +83,7 @@ const { MsEdgeTTS, OUTPUT_FORMAT } = require('msedge-tts');
 const xmlEscape = require('xml-escape');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5100;
 
 // Enable CORS with more permissive settings
 app.use(cors({
@@ -92,6 +92,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+app.use(cors()); // <-- Add this line
 app.use(express.json());
 
 // A function to handle TTS for both GET and POST requests
