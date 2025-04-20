@@ -381,7 +381,7 @@ export class TTSService {
 
   private constructor() {
     // The URL of your proxy server
-    this.serverUrl = import.meta.env.VITE_TTS_SERVER_URL || 'http://localhost:5000/api/tts';
+    this.serverUrl = import.meta.env.VITE_TTS_SERVER_URL || 'http://localhost:5100/api/tts';
   }
 
   public static getInstance(): TTSService {
