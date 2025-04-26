@@ -151,7 +151,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         type="text"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        placeholder="Search in current page..."
+        placeholder="INFO: Select the sentence from where you want to read then click on Read"
         onKeyPress={handleKeyPress}
         className="search-input"
       />
