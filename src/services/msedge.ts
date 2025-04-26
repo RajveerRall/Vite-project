@@ -1107,8 +1107,14 @@ export class TTSService {
   private currentChunkIndex: number = -1; // Index of the chunk currently playing or just finished (-1 if inactive)
   // --- End New Tracking State ---
 
+  // private constructor() {
+  //   this.serverUrl = import.meta.env.VITE_TTS_SERVER_URL || 'http://localhost:5100/api/tts';
+  // }
+
   private constructor() {
-    this.serverUrl = import.meta.env.VITE_TTS_SERVER_URL || 'http://localhost:5100/api/tts';
+    // Use the environment variable if provided during build,
+    // otherwise default to a relative path '/api/tts'.
+    this.serverUrl = import.meta.env.VITE_TTS_SERVER_URL || '/api/tts';
   }
 
   public static getInstance(): TTSService {
@@ -1480,9 +1486,6 @@ export class TTSService {
      console.warn("streamAudio is deprecated, use speakTextInChunks");
      return this.speakTextInChunks(text, options);
   }
-
-
-
 
   // async streamAudio(text: string, options: TTSOptions = {}): Promise<void> { /* ... */ }
 }
