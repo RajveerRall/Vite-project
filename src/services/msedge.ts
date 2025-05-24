@@ -1111,9 +1111,11 @@ export class TTSService {
   //   this.serverUrl = import.meta.env.VITE_TTS_SERVER_URL || 'http://localhost:5100/api/tts';
   // }
 
+
   private constructor() {
     // Use the environment variable if provided during build,
     // otherwise default to a relative path '/api/tts'.
+    // REMOVE the hardcoded localhost URL and the semicolon!
     this.serverUrl = import.meta.env.VITE_TTS_SERVER_URL || '/api/tts';
   }
 
