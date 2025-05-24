@@ -6,12 +6,18 @@ const xmlEscape = require('xml-escape');
 const path = require('path'); // Import path
 
 const app = express();
-// Fly.io sets the PORT environment variable. Default to 5100 locally if not set.
-const PORT = process.env.PORT || 5100;
 
-// CORS - Keep this, it might still be useful depending on how you make requests
+
+// --------> ADD THIS DEBUG LINE <--------
+console.log(`--->>> DEBUG: Value of process.env.PORT is: '${process.env.PORT}' (Type: ${typeof process.env.PORT})`);
+// --------> END DEBUG LINE <--------
+
+const PORT = 8080;
+
+console.log(`--->>> DEBUG: PORT constant determined as: ${PORT}`); // Add this too
+
 app.use(cors({
-  origin: '*', // Consider restricting this in production if possible
+  origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -120,16 +126,23 @@ app.get('*', (req, res) => {
 });
 
 
-// --- Start Server ---
-app.listen(PORT, () => {
-  // Listen on 0.0.0.0 to be accessible within the container network
-  // Note: Express listens on all available IPv4 interfaces by default,
-  // but specifying '0.0.0.0' can sometimes be necessary in container environments.
-  // Fly.io handles mapping external requests to this internal port.
-  console.log(`Server running on port ${PORT}, serving frontend and API`);
-});
+// // --- Start Server ---
+// app.listen(PORT, () => {
+//   // Listen on 0.0.0.0 to be accessible within the container network
+//   // Note: Express listens on all available IPv4 interfaces by default,
+//   // but specifying '0.0.0.0' can sometimes be necessary in container environments.
+//   // Fly.io handles mapping external requests to this internal port.
+//   console.log(`Server running on port ${PORT}, serving frontend and API`);
+// });
 
-// Optional: Explicitly listen on 0.0.0.0 if needed
+// Ensure only ONE app.listen call exists if you modified it
+if (typeof PORT !== 'undefined') { // Check to prevent duplicate listen if PORT was also defined
+  app.listen(PORT, '0.0.0.0', () => {
+     console.log(`Server running on 0.0.0.0:${PORT}, serving frontend and API`);
+  });
+}
+
+// //Optional: Explicitly listen on 0.0.0.0 if needed
 // app.listen(PORT, '0.0.0.0', () => {
 //   console.log(`Server running on 0.0.0.0:${PORT}, serving frontend and API`);
 // });
