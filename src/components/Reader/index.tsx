@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useBook } from '../../context/BookContext';
 import { TTSService } from '../../services/msedge';
 import SimplePlayMode from './SimplePlayMode';
@@ -38,6 +38,9 @@ const Reader: React.FC = () => {
   const [resumeIndex, setResumeIndex] = useState<number | null>(null);
   const [hasFinishedPlayback, setHasFinishedPlayback] = useState<boolean>(false);
   const [showFeatureHighlight, setShowFeatureHighlight] = useState<boolean>(true);
+
+  // Ref to store the character offset within currentPageText from which the current TTS playback started
+  const currentTTSBaseOffsetRef = useRef<number>(0);
 
   const getStorageKey = useCallback((): string | null => {
     if (!bookTitle) return null;
@@ -106,6 +109,7 @@ const Reader: React.FC = () => {
       setHasFinishedPlayback(false);
     } else if (!bookTitle) {
       setResumeIndex(null);
+      currentTTSBaseOffsetRef.current = 0;
     }
   }, [currentPage, bookTitle, loadResumeIndex, currentPageText]);
 
@@ -126,6 +130,7 @@ const Reader: React.FC = () => {
         console.log("Playback session appears to have finished naturally.");
         setHasFinishedPlayback(true);
         clearResumeIndex();
+        currentTTSBaseOffsetRef.current = 0;
       }
       wasActiveLastCheck = sessionActive;
     };
@@ -136,21 +141,21 @@ const Reader: React.FC = () => {
   }, [clearResumeIndex]);
 
   const saveCurrentProgress = useCallback(() => {
-    if (ttsService.isSessionActive()) {
-      const currentIndex = ttsService.getCurrentPlaybackStartIndex();
-      if (currentIndex >= 0) {
-        saveResumeIndex(currentIndex);
+    if (ttsService.isSessionActive() || ttsService.isCurrentlyPaused()) {
+      const pausedIndexInSpokenSegment = ttsService.getCurrentPlaybackStartIndex();
+      if (pausedIndexInSpokenSegment >= 0) {
+        const absoluteIndex = currentTTSBaseOffsetRef.current + pausedIndexInSpokenSegment;
+        saveResumeIndex(absoluteIndex);
         setHasFinishedPlayback(false);
       } else {
-        console.warn("Tried to save progress, but got invalid index:", currentIndex);
+        console.warn("Tried to save progress, but got invalid index from TTS service:", pausedIndexInSpokenSegment);
       }
-    } else {
     }
   }, [saveResumeIndex]);
 
   useEffect(() => {
     return () => {
-      if (ttsService.isSessionActive()) {
+      if (ttsService.isSessionActive() || ttsService.isCurrentlyPaused()) {
         console.log("Reader cleanup: Saving progress before stopping TTS.");
         saveCurrentProgress();
         console.log("Reader cleanup: Stopping active TTS session.");
@@ -174,47 +179,59 @@ const Reader: React.FC = () => {
 
     if (!isProcessing && currentPageText) {
       let textToSpeak = currentPageText;
+      let speakFromOffset = 0;
 
-      if (resumeIndex !== null && resumeIndex >= 0 && !isSpeaking && !isPaused) {
-          console.log(`Reader: Resuming from saved index: ${resumeIndex}`);
-          textToSpeak = currentPageText.substring(resumeIndex);
-          clearResumeIndex();
+      if (resumeIndex !== null && resumeIndex >= 0 && !hasFinishedPlayback) {
+          if (resumeIndex < currentPageText.length) {
+            console.log(`Reader: Attempting to resume from saved index: ${resumeIndex}`);
+            speakFromOffset = resumeIndex;
+            textToSpeak = currentPageText.substring(resumeIndex);
+          } else {
+            console.warn(`Reader: Saved resumeIndex ${resumeIndex} is out of bounds for currentPageText. Reading from start.`);
+            clearResumeIndex();
+            speakFromOffset = 0;
+            textToSpeak = currentPageText;
+          }
       }
       else {
           const selection = window.getSelection();
           const selectedText = selection?.toString().trim();
+
           if (selectedText && selection?.anchorNode?.parentElement?.closest('.epub-content')) {
               console.log(`Reader: User selected text: "${selectedText.substring(0, 50)}..."`);
               const startIndex = currentPageText.indexOf(selectedText);
               if (startIndex !== -1) {
                   console.log(`Reader: Found selection at index ${startIndex}. Reading from selection.`);
+                  speakFromOffset = startIndex;
                   textToSpeak = currentPageText.substring(startIndex);
                   clearResumeIndex();
               } else {
                   console.warn(`Reader: Could not match selection. Reading full page.`);
                   clearResumeIndex();
+                  speakFromOffset = 0;
+                  textToSpeak = currentPageText;
               }
-          } else {
-              if(resumeIndex !== null) {
-                 console.log("Reader: No selection and not resuming. Clearing previously loaded resume index.");
-                 clearResumeIndex();
-              }
-              console.log("Reader: Reading full page.");
+          }
+          else {
+              console.log("Reader: Reading full page from the beginning.");
+              clearResumeIndex();
+              speakFromOffset = 0;
+              textToSpeak = currentPageText;
           }
       }
 
       if (!textToSpeak) {
-          console.warn("Reader: No text determined to speak (possibly empty selection/resume point).");
+          console.warn("Reader: No text determined to speak.");
           setIsProcessing(false);
           return;
       }
 
-      console.log(`Reader: Attempting to speak text (first 100 chars): "${textToSpeak.substring(0, 100)}..."`);
+      console.log(`Reader: Attempting to speak text (first 100 chars): "${textToSpeak.substring(0, 100)}..." from offset ${speakFromOffset}`);
+      currentTTSBaseOffsetRef.current = speakFromOffset;
       setHasFinishedPlayback(false);
+
       try {
         setIsProcessing(true);
-        setIsSpeaking(false);
-        setIsPaused(false);
 
         await ttsService.speakTextInChunks(textToSpeak, {
           voice: 'en-US-BrianMultilingualNeural',
@@ -228,45 +245,62 @@ const Reader: React.FC = () => {
         setIsSpeaking(false);
         setIsPaused(false);
         setIsProcessing(false);
-        clearResumeIndex();
+        currentTTSBaseOffsetRef.current = 0;
       }
     } else if (!currentPageText) {
-        console.warn("Reader: Cannot start TTS, currentPageText is empty.");
-    } else {
+        console.warn("Reader: Cannot start TTS, currentPageText is empty or undefined.");
+    } else if (isProcessing) {
         console.log("Reader: Already processing TTS, ignoring request.");
     }
-  }, [ isPaused, isSpeaking, isProcessing, currentPageText, resumeIndex, saveCurrentProgress, clearResumeIndex ]);
+  }, [
+    isPaused,
+    isSpeaking,
+    isProcessing,
+    currentPageText,
+    resumeIndex,
+    hasFinishedPlayback,
+    saveCurrentProgress,
+    clearResumeIndex,
+  ]);
 
   const handleNavigateToTocItem = useCallback((item: TOCItem) => {
-      if (ttsService.isSessionActive()) {
+      if (ttsService.isSessionActive() || ttsService.isCurrentlyPaused()) {
           saveCurrentProgress();
           ttsService.stopAudio();
       }
       navigateToTocItem(item);
+      currentTTSBaseOffsetRef.current = 0;
+      setResumeIndex(null);
   }, [navigateToTocItem, saveCurrentProgress]);
 
   const handlePrevPage = useCallback(() => {
-      if (ttsService.isSessionActive()) {
+      if (ttsService.isSessionActive() || ttsService.isCurrentlyPaused()) {
         saveCurrentProgress();
         ttsService.stopAudio();
       }
       prevPage();
+      currentTTSBaseOffsetRef.current = 0;
+      setResumeIndex(null);
   }, [prevPage, saveCurrentProgress]);
 
   const handleNextPage = useCallback(() => {
-      if (ttsService.isSessionActive()) {
-          saveCurrentProgress();
-          ttsService.stopAudio();
+      if (ttsService.isSessionActive() || ttsService.isCurrentlyPaused()) {
+        saveCurrentProgress();
+        ttsService.stopAudio();
       }
       nextPage();
+      currentTTSBaseOffsetRef.current = 0;
+      setResumeIndex(null);
   }, [nextPage, saveCurrentProgress]);
 
   const handleCloseBook = useCallback(() => {
-        if (ttsService.isSessionActive()) {
+        if (ttsService.isSessionActive() || ttsService.isCurrentlyPaused()) {
             saveCurrentProgress();
             ttsService.stopAudio();
         }
         closeBook();
+        currentTTSBaseOffsetRef.current = 0;
+        setResumeIndex(null);
   }, [closeBook, saveCurrentProgress]);
 
   return (
