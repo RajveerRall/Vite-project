@@ -7,12 +7,12 @@ const path = require('path'); // Import path
 
 const app = express();
 
-
+const PORT = process.env.PORT || 8080;
 // --------> ADD THIS DEBUG LINE <--------
 console.log(`--->>> DEBUG: Value of process.env.PORT is: '${process.env.PORT}' (Type: ${typeof process.env.PORT})`);
 // --------> END DEBUG LINE <--------
 
-const PORT = 8080;
+// const PORT = 8080;
 
 console.log(`--->>> DEBUG: PORT constant determined as: ${PORT}`); // Add this too
 
