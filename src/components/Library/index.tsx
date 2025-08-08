@@ -3,6 +3,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useBook } from '../../context/BookContext';
 import BookGrid from './BookGrid';
 import './Library.css';
+import { trackEvent } from '../../lib/analytics'; // Make sure to import it
+
 
 const Library: React.FC = () => {
   const { books, addBook, isLoading } = useBook();
@@ -14,6 +16,10 @@ const Library: React.FC = () => {
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
   
   const handleUploadClick = () => {
+      // TRACK THE INTENT
+    trackEvent('add_book_start', {
+      method: 'browse_click'
+    });
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -21,10 +27,15 @@ const Library: React.FC = () => {
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
+      // TRACK THE INTENT
+      trackEvent('add_book_start', {
+        method: 'drag_and_drop'
+      });
       try {
         const fileName = e.target.files[0].name;
         await addBook(e.target.files[0]);
         e.target.value = ''; // Reset the input
+
         
         // Show success toast
         setToastMessage(`"${fileName}" has been added to your library`);
@@ -88,6 +99,17 @@ const Library: React.FC = () => {
   const sortedBooks = [...books].sort((a, b) => 
     new Date(b.lastRead).getTime() - new Date(a.lastRead).getTime()
   );
+
+
+  const handleExternalLinkClick = (sourceName: string, url: string) => {
+    // Track the user's choice
+    trackEvent('select_content_source', {
+      source_name: sourceName
+    });
+  
+    // Open the link in a new tab
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
   
   return (
     <div className="library min-h-screen bg-white text-gray-800">
@@ -187,7 +209,7 @@ const Library: React.FC = () => {
         </div>
 
         {/* eBook Resource Links - reduced margin */}
-        <div className="mb-5 text-center">
+        {/* <div className="mb-5 text-center">
           <p className="text-gray-600 mb-1.5">Find free eBooks:</p>
           <div className="flex items-center justify-center space-x-6">
             <a 
@@ -206,6 +228,26 @@ const Library: React.FC = () => {
             >
               Planet eBook
             </a>
+          </div>
+        </div> */}
+
+
+        <div className="mb-5 text-center">
+        <p className="text-gray-600 mb-1.5">Find free eBooks:</p>
+        <div className="flex items-center justify-center space-x-6">
+            {/* Updated links to use the handler */}
+            <button 
+              onClick={() => handleExternalLinkClick('Project Gutenberg', 'https://www.gutenberg.org')} 
+              className="text-amber-800 hover:underline"
+            >
+              Project Gutenberg
+            </button>
+            <button 
+              onClick={() => handleExternalLinkClick('Planet eBook', 'https://www.planetebook.com')} 
+              className="text-amber-800 hover:underline"
+            >
+              Planet eBook
+            </button>
           </div>
         </div>
 
