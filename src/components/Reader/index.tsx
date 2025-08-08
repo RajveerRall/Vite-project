@@ -415,6 +415,8 @@ const Reader: React.FC = () => {
   const [showFeatureHighlight, setShowFeatureHighlight] = useState<boolean>(true);
   const [useKokoroTTS, setUseKokoroTTS] = useState<boolean>(false);
   const [highlightedContent, setHighlightedContent] = useState<string>(currentContent);
+  // Add this near your other useState declarations
+  const audioBuffer = useRef<Record<number, string>>({});
 
 
   // Refs
@@ -511,76 +513,291 @@ const Reader: React.FC = () => {
     };
   }, []);
 
-  // === Play chunk audio by index ===
+
+
+  // Cleanup for all buffered audio blobs on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(audioBuffer.current).forEach(URL.revokeObjectURL);
+    };
+  }, []);
+
+  // // === Play chunk audio by index ===
+  // const playChunk = useCallback(async (index: number) => {
+  //   if (index < 0 || index >= chunks.length) {
+  //     // Finished all chunks
+  //     setIsSpeaking(false);
+  //     setIsPaused(false);
+  //     setHasFinishedPlayback(true);
+  //     setCurrentChunkIndex(null);
+  //     clearResumeIndex();
+  //     ttsIntentActiveRef.current = false;
+  //     return;
+  //   }
+
+  //   setCurrentChunkIndex(index);
+  //   setIsSpeaking(true);
+  //   setIsPaused(false);
+  //   setHasFinishedPlayback(false);
+
+  //   // Abort previous fetch if any
+  //   if (abortControllerRef.current) {
+  //     abortControllerRef.current.abort();
+  //   }
+  //   abortControllerRef.current = new AbortController();
+
+  //   const textChunk = chunks[index];
+  //   console.log(`[${readerInstanceId}][playChunk] Playing chunk #${index}: "${textChunk.substring(0,30)}..."`);
+
+  //   try {
+  //     // Fetch TTS audio blob from backend /api/tts
+  //     const response = await fetch(`/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`, {
+  //       method: 'GET',
+  //       signal: abortControllerRef.current.signal,
+  //     });
+  //     if (!response.ok) throw new Error(`Failed to fetch TTS audio: ${response.statusText}`);
+
+  //     const audioBlob = await response.blob();
+  //     const audioUrl = URL.createObjectURL(audioBlob);
+
+  //     if (audioRef.current) {
+  //       audioRef.current.pause();
+  //       URL.revokeObjectURL(audioRef.current.src);
+  //     } else {
+  //       audioRef.current = new Audio();
+  //     }
+
+  //     audioRef.current.src = audioUrl;
+  //     audioRef.current.onended = () => {
+  //       playChunk(index + 1); // Play next chunk automatically
+  //     };
+  //     audioRef.current.onerror = (e) => {
+  //       console.error(`[${readerInstanceId}][playChunk] Audio playback error:`, e);
+  //       setIsSpeaking(false);
+  //       setIsPaused(false);
+  //       setCurrentChunkIndex(null);
+  //       ttsIntentActiveRef.current = false;
+  //     };
+
+  //     await audioRef.current.play();
+  //   } catch (error) {
+  //     if ((error as any).name === 'AbortError') {
+  //       console.log(`[${readerInstanceId}][playChunk] Playback aborted for chunk ${index}`);
+  //     } else {
+  //       console.error(`[${readerInstanceId}][playChunk] Error fetching/playing audio:`, error);
+  //       setIsSpeaking(false);
+  //       setIsPaused(false);
+  //       setCurrentChunkIndex(null);
+  //       ttsIntentActiveRef.current = false;
+  //     }
+  //   }
+  // }, [chunks, clearResumeIndex, readerInstanceId]);
+
+
+  
+
+
+
+  // In Reader.tsx, add this new useCallback function
+
+  // const prefetchChunks = useCallback(async (startIndex: number) => {
+  //   // Let's pre-fetch the next 2 chunks.
+  //   const chunksToFetch = chunks.slice(startIndex, startIndex + 2);
+  //   if (chunksToFetch.length === 0) return;
+
+  //   console.log(`[Prefetch] Starting pre-fetch for chunks from index ${startIndex}`);
+
+  //   for (let i = 0; i < chunksToFetch.length; i++) {
+  //     const chunkIndex = startIndex + i;
+  //     // Don't re-fetch if it's already in the buffer or currently being played
+  //     if (audioBuffer[chunkIndex] || currentChunkIndex === chunkIndex) continue;
+
+  //     try {
+  //       const textChunk = chunksToFetch[i];
+  //       const response = await fetch(`/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
+  //       if (!response.ok) continue; // Silently fail on prefetch error
+
+  //       const audioBlob = await response.blob();
+  //       const audioUrl = URL.createObjectURL(audioBlob);
+
+  //       // Add the fetched audio URL to our buffer
+  //       setAudioBuffer(prev => ({ ...prev, [chunkIndex]: audioUrl }));
+  //       console.log(`[Prefetch] Successfully buffered chunk #${chunkIndex}`);
+
+  //     } catch (error) {
+  //       console.warn(`[Prefetch] Failed to pre-fetch chunk #${chunkIndex}`, error);
+  //     }
+  //   }
+  // }, [chunks, audioBuffer, currentChunkIndex]);
+
+  // In Reader.tsx
+  const prefetchChunks = useCallback(async (startIndex: number) => {
+    const chunksToFetch = chunks.slice(startIndex, startIndex + 2);
+    if (chunksToFetch.length === 0) return;
+
+    console.log(`[Prefetch] Starting pre-fetch for chunks from index ${startIndex}`);
+
+    for (let i = 0; i < chunksToFetch.length; i++) {
+      const chunkIndex = startIndex + i;
+      // Use .current to access the ref's value
+      if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex) continue;
+
+      try {
+        const textChunk = chunksToFetch[i];
+        const response = await fetch(`/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
+        if (!response.ok) continue;
+
+        const audioBlob = await response.blob();
+        // --- FIX: VALIDATE THE BLOB BEFORE USING IT ---
+        if (audioBlob.size === 0) {
+          console.warn(`[Prefetch] Received empty audio blob for chunk #${chunkIndex}. Skipping.`);
+          continue; // Do not buffer an empty or invalid audio file
+        }
+        // --- END FIX ---
+
+
+
+        const audioUrl = URL.createObjectURL(audioBlob);
+
+        // Directly modify the .current property of the ref
+        audioBuffer.current[chunkIndex] = audioUrl;
+        console.log(`[Prefetch] Successfully buffered chunk #${chunkIndex}`);
+
+      } catch (error) {
+        console.warn(`[Prefetch] Failed to pre-fetch chunk #${chunkIndex}`, error);
+      }
+    }
+  }, [chunks, currentChunkIndex]); // No longer depends on audioBuffer
+
+
+  // === Play chunk audio by index (with buffering) ===
+  // const playChunk = useCallback(async (index: number) => {
+  //   if (index < 0 || index >= chunks.length) {
+  //     // ... (rest of the end-of-playback logic is the same)
+  //     setIsSpeaking(false);
+  //     setIsPaused(false);
+  //     setHasFinishedPlayback(true);
+  //     setCurrentChunkIndex(null);
+  //     clearResumeIndex();
+  //     ttsIntentActiveRef.current = false;
+  //     return;
+  //   }
+
+  //   setCurrentChunkIndex(index);
+  //   setIsSpeaking(true);
+  //   setIsPaused(false);
+  //   setHasFinishedPlayback(false);
+
+  //   const playAudio = (audioUrl: string) => {
+  //     if (audioRef.current) {
+  //       audioRef.current.pause();
+  //     } else {
+  //       audioRef.current = new Audio();
+  //     }
+  //     audioRef.current.src = audioUrl;
+  //     audioRef.current.onended = () => {
+  //       // Clean up the blob URL for the chunk that just finished
+  //       URL.revokeObjectURL(audioUrl);
+  //       playChunk(index + 1); // Play next chunk automatically
+  //     };
+  //     audioRef.current.onerror = (e) => { /* ... error handling is the same ... */ };
+  //     audioRef.current.play();
+      
+  //     // *** CRITICAL: PRE-FETCH THE NEXT CHUNKS WHILE THIS ONE PLAYS ***
+  //     prefetchChunks(index + 1);
+  //   };
+
+  //   // 1. Check if the audio is already in our buffer
+  //   if (audioBuffer[index]) {
+  //     console.log(`[playChunk] Playing chunk #${index} from BUFFER.`);
+  //     playAudio(audioBuffer[index]);
+  //   } else {
+  //     // 2. If not, fetch it on-demand (this will happen for the first chunk)
+  //     console.log(`[playChunk] Playing chunk #${index} from NETWORK.`);
+  //     try {
+  //       const textChunk = chunks[index];
+  //       const response = await fetch(`/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
+  //       if (!response.ok) throw new Error(`Failed to fetch TTS audio: ${response.statusText}`);
+  //       const audioBlob = await response.blob();
+  //       const audioUrl = URL.createObjectURL(audioBlob);
+  //       playAudio(audioUrl);
+  //     } catch (error) {
+  //       // ... (error handling is the same) ...
+  //     if ((error as any).name === 'AbortError') {
+  //       console.log(`[${readerInstanceId}][playChunk] Playback aborted for chunk ${index}`);
+  //     } else {
+  //       console.error(`[${readerInstanceId}][playChunk] Error fetching/playing audio:`, error);
+  //       setIsSpeaking(false);
+  //       setIsPaused(false);
+  //       setCurrentChunkIndex(null);
+  //       ttsIntentActiveRef.current = false;
+  //     }
+  //     }
+  //   }
+  // }, [chunks, clearResumeIndex, audioBuffer, prefetchChunks]);
+
+
   const playChunk = useCallback(async (index: number) => {
     if (index < 0 || index >= chunks.length) {
-      // Finished all chunks
-      setIsSpeaking(false);
-      setIsPaused(false);
-      setHasFinishedPlayback(true);
-      setCurrentChunkIndex(null);
-      clearResumeIndex();
-      ttsIntentActiveRef.current = false;
+      // ... (end-of-playback logic is the same)
+      setIsSpeaking(false); setIsPaused(false); setHasFinishedPlayback(true);
+      setCurrentChunkIndex(null); clearResumeIndex(); ttsIntentActiveRef.current = false;
       return;
     }
 
     setCurrentChunkIndex(index);
-    setIsSpeaking(true);
-    setIsPaused(false);
-    setHasFinishedPlayback(false);
+    setIsSpeaking(true); setIsPaused(false); setHasFinishedPlayback(false);
 
-    // Abort previous fetch if any
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-
-    const textChunk = chunks[index];
-    console.log(`[${readerInstanceId}][playChunk] Playing chunk #${index}: "${textChunk.substring(0,30)}..."`);
-
-    try {
-      // Fetch TTS audio blob from backend /api/tts
-      const response = await fetch(`/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`, {
-        method: 'GET',
-        signal: abortControllerRef.current.signal,
-      });
-      if (!response.ok) throw new Error(`Failed to fetch TTS audio: ${response.statusText}`);
-
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-
-      if (audioRef.current) {
-        audioRef.current.pause();
-        URL.revokeObjectURL(audioRef.current.src);
-      } else {
-        audioRef.current = new Audio();
-      }
+    const playAudio = (audioUrl: string) => {
+      if (audioRef.current) audioRef.current.pause();
+      else audioRef.current = new Audio();
 
       audioRef.current.src = audioUrl;
       audioRef.current.onended = () => {
-        playChunk(index + 1); // Play next chunk automatically
+        // Don't revoke here, do it in a cleanup effect
+        playChunk(index + 1);
       };
-      audioRef.current.onerror = (e) => {
-        console.error(`[${readerInstanceId}][playChunk] Audio playback error:`, e);
-        setIsSpeaking(false);
-        setIsPaused(false);
-        setCurrentChunkIndex(null);
-        ttsIntentActiveRef.current = false;
+      audioRef.current.onerror = (e) => { /* ... error handling is the same ... */
+          console.error(`[${readerInstanceId}][playChunk] Audio playback error:`, e);
+          setIsSpeaking(false); setIsPaused(false); setCurrentChunkIndex(null);
+          ttsIntentActiveRef.current = false;
       };
+      audioRef.current.play();
+      prefetchChunks(index + 1);
+    };
 
-      await audioRef.current.play();
-    } catch (error) {
-      if ((error as any).name === 'AbortError') {
-        console.log(`[${readerInstanceId}][playChunk] Playback aborted for chunk ${index}`);
-      } else {
-        console.error(`[${readerInstanceId}][playChunk] Error fetching/playing audio:`, error);
-        setIsSpeaking(false);
-        setIsPaused(false);
-        setCurrentChunkIndex(null);
-        ttsIntentActiveRef.current = false;
+    // *** THE CRITICAL FIX: Check the .current property of the ref ***
+    if (audioBuffer.current[index]) {
+      console.log(`[playChunk] Playing chunk #${index} from BUFFER.`);
+      playAudio(audioBuffer.current[index]);
+    } else {
+      console.log(`[playChunk] Playing chunk #${index} from NETWORK.`);
+      try {
+        const textChunk = chunks[index];
+        const response = await fetch(`/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
+        if (!response.ok) throw new Error(`Failed to fetch TTS audio: ${response.statusText}`);
+        const audioBlob = await response.blob();
+        // --- FIX: VALIDATE THE BLOB BEFORE USING IT --- 
+        if (audioBlob.size === 0) {
+          throw new Error(`Received empty audio blob for chunk #${index}`);
+        }
+        // --- END FIX ---
+
+
+
+        const audioUrl = URL.createObjectURL(audioBlob);
+        // Also store the newly fetched URL in the buffer for safety
+        audioBuffer.current[index] = audioUrl;
+        playAudio(audioUrl);
+      } catch (error) {
+          if ((error as any).name !== 'AbortError') {
+              console.error(`[${readerInstanceId}][playChunk] Error fetching/playing audio:`, error);
+              setIsSpeaking(false); setIsPaused(false); setCurrentChunkIndex(null);
+              ttsIntentActiveRef.current = false;
+          }
       }
     }
-  }, [chunks, clearResumeIndex, readerInstanceId]);
+  }, [chunks, clearResumeIndex, prefetchChunks, readerInstanceId]); // No longer depends on audioBuffer
 
 
   // === Pause playback ===
@@ -761,7 +978,16 @@ const handleStopTTS = useCallback(() => {
     }
     // --- END: NEW AND RESTORED LOGIC ---
 
-    playChunk(startChunk);
+    // playChunk(startChunk);
+
+
+    const startPlayback = async () => {
+      setIsProcessing(true); 
+      await prefetchChunks(startChunk);
+      setIsProcessing(false);
+      playChunk(startChunk);
+    };
+    startPlayback();
 
   }, [isPaused, isSpeaking, resumeIndex, chunks, currentPageText, readerInstanceId, pausePlayback, resumePlayback, playChunk]);
 
@@ -1015,8 +1241,7 @@ const commonTTSStopAndSaveLogic = useCallback(() => {
       }
     `}</style>
   </div>
-);
-
+ );
 };
 
 export default Reader;
