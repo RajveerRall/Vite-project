@@ -414,6 +414,8 @@ const Reader: React.FC = () => {
   const [hasFinishedPlayback, setHasFinishedPlayback] = useState<boolean>(false);
   const [showFeatureHighlight, setShowFeatureHighlight] = useState<boolean>(true);
   const [useKokoroTTS, setUseKokoroTTS] = useState<boolean>(false);
+  const [highlightedContent, setHighlightedContent] = useState<string>(currentContent);
+
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -742,12 +744,42 @@ const handleTTS = useCallback(() => {
     }
   }, [currentChunkIndex, chunks, saveResumeIndex]);
 
-  // === Load resume index on page load ===
+  // // === Load resume index on page load ===
+  // useEffect(() => {
+  //   const loadedIndex = loadResumeIndex();
+  //   setResumeIndex(loadedIndex);
+  //   setHasFinishedPlayback(false);
+    
+  // }, [loadResumeIndex, currentPageDisplay]);
+
+
   useEffect(() => {
-    const loadedIndex = loadResumeIndex();
-    setResumeIndex(loadedIndex);
-    setHasFinishedPlayback(false);
-  }, [loadResumeIndex, currentPageDisplay]);
+  const loadedIndex = loadResumeIndex();
+  setResumeIndex(loadedIndex);
+  setHasFinishedPlayback(false);
+
+  if (!currentPageText || loadedIndex === null) {
+    setHighlightedContent(currentContent); // no highlight, just normal content
+    return;
+  }
+
+  const highlightLength = 30; // number of characters to highlight
+  const start = loadedIndex;
+  const end = Math.min(start + highlightLength, currentPageText.length);
+
+  // Simple HTML escape function to avoid breaking markup
+  const escapeHtml = (str: string) =>
+    str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const before = escapeHtml(currentPageText.substring(0, start));
+  const highlight = escapeHtml(currentPageText.substring(start, end));
+  const after = escapeHtml(currentPageText.substring(end));
+
+  const highlightedHtml = `${before}<span class="highlight">${highlight}</span>${after}`;
+  setHighlightedContent(highlightedHtml);
+
+}, [loadResumeIndex, currentPageDisplay, currentContent, currentPageText]);
+
 
   // === Handle stopping playback on page navigation or close ===
   const commonTTSStopAndSaveLogic = useCallback(() => {
@@ -797,74 +829,146 @@ const handleTTS = useCallback(() => {
     ));
   };
 
+  // return (
+  //   <div className="reader">
+  //     <header className="reader-header">
+  //       <div className="reader-left">
+  //         <button onClick={handleCloseBookCB} className="back-button"> ← Back to Library </button>
+  //       </div>
+  //       <div className="reader-center">
+  //         <h2 className="book-title">{bookTitle}</h2>
+  //         <p className="book-author">{bookAuthor}</p>
+  //       </div>
+  //       <div className="reader-right">
+  //         <div className="controls-container">
+  //           <Controls
+  //             currentPage={currentPageDisplay}
+  //             totalPages={totalPages}
+  //             onPrevious={handlePrevPage}
+  //             onNext={handleNextPage}
+  //             onReadAloud={handleTTS}
+  //             onStopTTS={stopPlayback}
+  //             isReading={isSpeaking}
+  //             isPaused={isPaused}
+  //             isProcessing={isProcessing && !(isSpeaking || isPaused)}
+  //             canResume={canTTSResume}
+  //             onAudiobook={togglePlayMode}
+  //             isPlayModeActive={isPlayModeVisible}
+  //             isReadButtonActive={isSpeaking || isPaused || canTTSResume}
+  //           />
+  //         </div>
+  //       </div>
+  //     </header>
+
+  //     <div className="reader-container">
+  //       {((isLoading && !currentContent && !isPlayModeVisible) || (isProcessing && !isSpeaking && !isPaused && !isPlayModeVisible)) ? (
+  //         <div className="loading-overlay">
+  //           <div className="loading-spinner"></div>
+  //           <p>
+  //             {isLoading && !currentContent && !isProcessing ? 'Loading book content...' : ''}
+  //             {isProcessing && !isSpeaking && !isPaused ? 'Preparing audio...' : ''}
+  //           </p>
+  //         </div>
+  //       ) : null}
+  //       <div className="reader-sidebar">
+  //         <TableOfContents items={toc} onItemClick={handleNavigateToTocItem} />
+  //       </div>
+  //       <div className="reader-main">
+  //         <SearchBar />
+  //         <div className="epub-content" style={{ whiteSpace: 'pre-wrap' }}>
+  //           {renderContentWithHighlight()}
+  //         </div>
+  //       </div>
+  //       {isPlayModeVisible && (
+  //         useKokoroTTS ? (
+  //           <KokoroPlayMode currentPageContent={currentPageText} onClose={togglePlayMode} />
+  //         ) : (
+  //           <SimplePlayMode currentPageContent={currentPageText} onClose={togglePlayMode} />
+  //         )
+  //       )}
+  //     </div>
+  //     {showFeatureHighlight && (<FeatureHighlight onClose={() => setShowFeatureHighlight(false)} />)}
+
+  //     <style>{`
+  //       .${CHUNK_HIGHLIGHT_CLASS} {
+  //         background-color: #fffb91;
+  //         border-radius: 3px;
+  //       }
+  //     `}</style>
+  //   </div>
+  // );
+
+
   return (
-    <div className="reader">
-      <header className="reader-header">
-        <div className="reader-left">
-          <button onClick={handleCloseBookCB} className="back-button"> ← Back to Library </button>
-        </div>
-        <div className="reader-center">
-          <h2 className="book-title">{bookTitle}</h2>
-          <p className="book-author">{bookAuthor}</p>
-        </div>
-        <div className="reader-right">
-          <div className="controls-container">
-            <Controls
-              currentPage={currentPageDisplay}
-              totalPages={totalPages}
-              onPrevious={handlePrevPage}
-              onNext={handleNextPage}
-              onReadAloud={handleTTS}
-              onStopTTS={stopPlayback}
-              isReading={isSpeaking}
-              isPaused={isPaused}
-              isProcessing={isProcessing && !(isSpeaking || isPaused)}
-              canResume={canTTSResume}
-              onAudiobook={togglePlayMode}
-              isPlayModeActive={isPlayModeVisible}
-              isReadButtonActive={isSpeaking || isPaused || canTTSResume}
-            />
-          </div>
-        </div>
-      </header>
-
-      <div className="reader-container">
-        {((isLoading && !currentContent && !isPlayModeVisible) || (isProcessing && !isSpeaking && !isPaused && !isPlayModeVisible)) ? (
-          <div className="loading-overlay">
-            <div className="loading-spinner"></div>
-            <p>
-              {isLoading && !currentContent && !isProcessing ? 'Loading book content...' : ''}
-              {isProcessing && !isSpeaking && !isPaused ? 'Preparing audio...' : ''}
-            </p>
-          </div>
-        ) : null}
-        <div className="reader-sidebar">
-          <TableOfContents items={toc} onItemClick={handleNavigateToTocItem} />
-        </div>
-        <div className="reader-main">
-          <SearchBar />
-          <div className="epub-content" style={{ whiteSpace: 'pre-wrap' }}>
-            {renderContentWithHighlight()}
-          </div>
-        </div>
-        {isPlayModeVisible && (
-          useKokoroTTS ? (
-            <KokoroPlayMode currentPageContent={currentPageText} onClose={togglePlayMode} />
-          ) : (
-            <SimplePlayMode currentPageContent={currentPageText} onClose={togglePlayMode} />
-          )
-        )}
+  <div className="reader">
+    <header className="reader-header">
+      <div className="reader-left">
+        <button onClick={handleCloseBookCB} className="back-button"> ← Back to Library </button>
       </div>
-      {showFeatureHighlight && (<FeatureHighlight onClose={() => setShowFeatureHighlight(false)} />)}
+      <div className="reader-center">
+        <h2 className="book-title">{bookTitle}</h2>
+        <p className="book-author">{bookAuthor}</p>
+      </div>
+      <div className="reader-right">
+        <div className="controls-container">
+          <Controls
+            currentPage={currentPageDisplay}
+            totalPages={totalPages}
+            onPrevious={handlePrevPage}
+            onNext={handleNextPage}
+            onReadAloud={handleTTS}
+            onStopTTS={stopPlayback}
+            isReading={isSpeaking}
+            isPaused={isPaused}
+            isProcessing={isProcessing && !(isSpeaking || isPaused)}
+            canResume={canTTSResume}
+            onAudiobook={togglePlayMode}
+            isPlayModeActive={isPlayModeVisible}
+            isReadButtonActive={isSpeaking || isPaused || canTTSResume}
+          />
+        </div>
+      </div>
+    </header>
 
-      <style>{`
-        .${CHUNK_HIGHLIGHT_CLASS} {
-          background-color: #fffb91;
-          border-radius: 3px;
-        }
-      `}</style>
+    <div className="reader-container">
+      {((isLoading && !currentContent && !isPlayModeVisible) || (isProcessing && !isSpeaking && !isPaused && !isPlayModeVisible)) ? (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <p>
+            {isLoading && !currentContent && !isProcessing ? 'Loading book content...' : ''}
+            {isProcessing && !isSpeaking && !isPaused ? 'Preparing audio...' : ''}
+          </p>
+        </div>
+      ) : null}
+      <div className="reader-sidebar">
+        <TableOfContents items={toc} onItemClick={handleNavigateToTocItem} />
+      </div>
+      <div className="reader-main">
+        <SearchBar />
+        {/* Render React nodes here, no dangerouslySetInnerHTML */}
+        <div className="epub-content" style={{ whiteSpace: 'pre-wrap' }}>
+          {renderContentWithHighlight()}
+        </div>
+      </div>
+      {isPlayModeVisible && (
+        useKokoroTTS ? (
+          <KokoroPlayMode currentPageContent={currentPageText} onClose={togglePlayMode} />
+        ) : (
+          <SimplePlayMode currentPageContent={currentPageText} onClose={togglePlayMode} />
+        )
+      )}
     </div>
-  );
+    {showFeatureHighlight && (<FeatureHighlight onClose={() => setShowFeatureHighlight(false)} />)}
+
+    <style>{`
+      .${CHUNK_HIGHLIGHT_CLASS} {
+        background-color: #fffb91;
+        border-radius: 3px;
+      }
+    `}</style>
+  </div>
+);
+
 };
 
 export default Reader;
