@@ -132,6 +132,58 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   }, []); // Empty dependency array: runs once on mount
 
 
+  // =================================================================
+// PASTE THIS ENTIRE BLOCK INTO YOUR BookContext.tsx FILE
+// =================================================================
+
+// 2. Save books to LocalForage whenever the 'books' array changes
+useEffect(() => {
+  // This is a safety check. It prevents the app from saving an empty
+  // book list when it first starts, before it has loaded your library.
+  if (!isInitialLoadComplete) {
+    return;
+  }
+
+  const saveBooksToStorage = async () => {
+    console.log(`[LocalForage Save] A change was detected. Saving ${books.length} books.`);
+    try {
+      // To correctly handle book removals, we will find all keys for books
+      // that are no longer in our current library state and remove them.
+      const allKeysInStorage = await localforage.keys();
+      const currentBookIds = new Set(books.map(b => b.id));
+
+      for (const key of allKeysInStorage) {
+        if (key.startsWith('book_metadata_') || key.startsWith('book_file_')) {
+          const bookIdInKey = key.replace('book_metadata_', '').replace('book_file_', '');
+          if (!currentBookIds.has(bookIdInKey)) {
+            console.log(`[LocalForage Save] Removing stale book key: ${key}`);
+            await localforage.removeItem(key);
+          }
+        }
+      }
+
+      // Now, save each book that is currently in the state.
+      for (const book of books) {
+        // We separate the large file from its metadata for efficiency
+        const { file, ...metadata } = book;
+        await localforage.setItem(`book_metadata_${book.id}`, metadata);
+        await localforage.setItem(`book_file_${book.id}`, file);
+      }
+
+      console.log("[LocalForage Save] All books have been successfully saved.");
+
+    } catch (error) {
+      console.error('[LocalForage Save] An error occurred while saving books:', error);
+    }
+  };
+
+  saveBooksToStorage();
+
+}, [books, isInitialLoadComplete]); // This hook runs ONLY when the 'books' array changes.
+
+// =================================================================
+
+
   // *** NEW: Function to load the default sample book ***
   const loadDefaultBook = async (): Promise<BookData | null> => {
     // Note: I saw `/1984.epub` in your logs. I'll use that.
