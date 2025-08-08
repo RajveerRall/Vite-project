@@ -489,7 +489,7 @@ const Reader: React.FC = () => {
       setIsPaused(false);
       setIsProcessing(false);
       setHasFinishedPlayback(false);
-      setResumeIndex(null);
+      // setResumeIndex(null);
       currentTTSBaseOffsetRef.current = 0;
       ttsIntentActiveRef.current = false;
     } else {
@@ -582,70 +582,6 @@ const Reader: React.FC = () => {
     }
   }, [chunks, clearResumeIndex, readerInstanceId]);
 
-  // // === Pause playback ===
-  // const pausePlayback = useCallback(() => {
-  //   if (audioRef.current && isSpeaking) {
-  //     audioRef.current.pause();
-  //     setIsPaused(true);
-  //     setIsSpeaking(false);
-  //   }
-  // }, [isSpeaking]);
-
-  // // === Resume playback ===
-  // const resumePlayback = useCallback(() => {
-  //   if (audioRef.current && isPaused) {
-  //     audioRef.current.play();
-  //     setIsPaused(false);
-  //     setIsSpeaking(true);
-  //   } else if (!audioRef.current && currentChunkIndex !== null) {
-  //     playChunk(currentChunkIndex);
-  //   }
-  // }, [isPaused, currentChunkIndex, playChunk]);
-
-  // // === Stop playback ===
-  // const stopPlayback = useCallback(() => {
-  //   if (audioRef.current) {
-  //     audioRef.current.pause();
-  //     audioRef.current.src = '';
-  //     URL.revokeObjectURL(audioRef.current.src);
-  //     audioRef.current = null;
-  //   }
-  //   if (abortControllerRef.current) {
-  //     abortControllerRef.current.abort();
-  //   }
-  //   setIsSpeaking(false);
-  //   setIsPaused(false);
-  //   setCurrentChunkIndex(null);
-  //   setHasFinishedPlayback(true);
-  //   clearResumeIndex();
-  //   ttsIntentActiveRef.current = false;
-  // }, [clearResumeIndex]);
-
-  // // === Handle main TTS button pressed ===
-  // const handleTTS = useCallback(() => {
-  //   ttsIntentActiveRef.current = true;
-  //   if (isPaused) {
-  //     resumePlayback();
-  //   } else if (isSpeaking) {
-  //     pausePlayback();
-  //   } else {
-  //     // Start playback from resumeIndex chunk if possible
-  //     let startChunk = 0;
-  //     if (resumeIndex !== null && resumeIndex >= 0) {
-  //       // Find which chunk contains the resumeIndex character
-  //       let accumulatedLength = 0;
-  //       for (let i = 0; i < chunks.length; i++) {
-  //         accumulatedLength += chunks[i].length + 1; // +1 for space/newline
-  //         if (resumeIndex < accumulatedLength) {
-  //           startChunk = i;
-  //           break;
-  //         }
-  //       }
-  //     }
-  //     playChunk(startChunk);
-  //   }
-  // }, [isPaused, isSpeaking, resumeIndex, chunks, pausePlayback, resumePlayback, playChunk]);
-
 
   // === Pause playback ===
 const pausePlayback = useCallback(() => {
@@ -686,10 +622,33 @@ const resumePlayback = useCallback(() => {
 }, [isPaused, currentChunkIndex, playChunk]);
 
 // === Stop playback ===
-const stopPlayback = useCallback(() => {
+// const stopPlayback = useCallback(() => {
+//   if (audioRef.current) {
+//     audioRef.current.pause();
+//     URL.revokeObjectURL(audioRef.current.src);
+//     audioRef.current.src = '';
+//     audioRef.current = null;
+//   }
+//   if (abortControllerRef.current) {
+//     abortControllerRef.current.abort();
+//   }
+//   setIsSpeaking(false);
+//   setIsPaused(false);
+//   setCurrentChunkIndex(null);
+//   setHasFinishedPlayback(true);
+//   clearResumeIndex();
+//   ttsIntentActiveRef.current = false;
+// }, [clearResumeIndex]);
+
+
+// === Halt playback (for navigation or stopping) ===
+// This function ONLY stops the audio; it does not clear resume progress.
+const haltPlayback = useCallback(() => {
   if (audioRef.current) {
     audioRef.current.pause();
-    URL.revokeObjectURL(audioRef.current.src);
+    if (audioRef.current.src) {
+      URL.revokeObjectURL(audioRef.current.src);
+    }
     audioRef.current.src = '';
     audioRef.current = null;
   }
@@ -699,22 +658,93 @@ const stopPlayback = useCallback(() => {
   setIsSpeaking(false);
   setIsPaused(false);
   setCurrentChunkIndex(null);
-  setHasFinishedPlayback(true);
+  // NOTE: clearResumeIndex() is intentionally removed.
+}, []);
+
+
+// === Handle user clicking the STOP button ===
+// This stops playback AND clears the resume progress for the page.
+const handleStopTTS = useCallback(() => {
+  haltPlayback();
   clearResumeIndex();
   ttsIntentActiveRef.current = false;
-}, [clearResumeIndex]);
+}, [haltPlayback, clearResumeIndex]);
+
+
 
 // === Handle main TTS button pressed ===
-const handleTTS = useCallback(() => {
-  ttsIntentActiveRef.current = true;
-  if (isPaused) {
-    resumePlayback();
-  } else if (isSpeaking) {
-    pausePlayback();
-  } else {
-    // Start playback from resumeIndex chunk if possible
+// const handleTTS = useCallback(() => {
+//   ttsIntentActiveRef.current = true;
+//   if (isPaused) {
+//     resumePlayback();
+//   } else if (isSpeaking) {
+//     pausePlayback();
+//   } else {
+//     // Start playback from resumeIndex chunk if possible
+//     let startChunk = 0;
+//     if (resumeIndex !== null && resumeIndex >= 0) {
+//       let accumulatedLength = 0;
+//       for (let i = 0; i < chunks.length; i++) {
+//         accumulatedLength += chunks[i].length + 1; // +1 for space/newline
+//         if (resumeIndex < accumulatedLength) {
+//           startChunk = i;
+//           break;
+//         }
+//       }
+//     }
+//     playChunk(startChunk);
+//   }
+// }, [isPaused, isSpeaking, resumeIndex, chunks, pausePlayback, resumePlayback, playChunk]);
+
+
+// In your UPDATED Reader.tsx file, replace the existing handleTTS function with this one.
+
+  const handleTTS = useCallback(() => {
+    ttsIntentActiveRef.current = true;
+
+    if (isPaused) {
+      resumePlayback();
+      return;
+    }
+    if (isSpeaking) {
+      pausePlayback();
+      return;
+    }
+
+    // --- START: NEW AND RESTORED LOGIC ---
     let startChunk = 0;
-    if (resumeIndex !== null && resumeIndex >= 0) {
+
+    // 1. Check for user-highlighted text first. This takes highest priority.
+    const selection = window.getSelection();
+    const selectedText = selection?.toString().trim();
+
+    if (selectedText && selection?.anchorNode?.parentElement?.closest('.epub-content')) {
+      const startIndexInPage = currentPageText.indexOf(selectedText);
+
+      if (startIndexInPage !== -1) {
+        console.log(`[${readerInstanceId}][handleTTS] User selected text. Index: ${startIndexInPage}.`);
+        // Find which chunk the selected text starts in
+        let accumulatedLength = 0;
+        let foundChunk = false;
+        for (let i = 0; i < chunks.length; i++) {
+          if (startIndexInPage < accumulatedLength + chunks[i].length) {
+            startChunk = i;
+            foundChunk = true;
+            break;
+          }
+          accumulatedLength += chunks[i].length + 1; // +1 for the space separator
+        }
+        if (foundChunk) {
+          console.log(`[${readerInstanceId}][handleTTS] Starting from selected text in chunk #${startChunk}.`);
+        } else {
+          console.warn(`[${readerInstanceId}][handleTTS] Could not map selected text to a chunk. Starting from beginning.`);
+        }
+      } else {
+          console.warn(`[${readerInstanceId}][handleTTS] Could not find selected text in page content. Starting from beginning.`);
+      }
+    }
+    // 2. If no text is selected, try to use the resumeIndex from localStorage.
+    else if (resumeIndex !== null && resumeIndex >= 0) {
       let accumulatedLength = 0;
       for (let i = 0; i < chunks.length; i++) {
         accumulatedLength += chunks[i].length + 1; // +1 for space/newline
@@ -723,12 +753,17 @@ const handleTTS = useCallback(() => {
           break;
         }
       }
+      console.log(`[${readerInstanceId}][handleTTS] Resuming from saved index ${resumeIndex}, which corresponds to chunk #${startChunk}.`);
     }
+    // 3. If neither of the above, start from the beginning (startChunk is already 0).
+    else {
+      console.log(`[${readerInstanceId}][handleTTS] No selection or resume index. Starting from beginning.`);
+    }
+    // --- END: NEW AND RESTORED LOGIC ---
+
     playChunk(startChunk);
-  }
-}, [isPaused, isSpeaking, resumeIndex, chunks, pausePlayback, resumePlayback, playChunk]);
 
-
+  }, [isPaused, isSpeaking, resumeIndex, chunks, currentPageText, readerInstanceId, pausePlayback, resumePlayback, playChunk]);
 
   // === Save progress periodically on chunk change ===
   useEffect(() => {
@@ -782,15 +817,28 @@ const handleTTS = useCallback(() => {
 
 
   // === Handle stopping playback on page navigation or close ===
-  const commonTTSStopAndSaveLogic = useCallback(() => {
-    if (ttsIntentActiveRef.current && (isSpeaking || isPaused)) {
-      saveResumeIndex(currentTTSBaseOffsetRef.current);
-      stopPlayback();
-    } else {
-      stopPlayback();
-    }
-    ttsIntentActiveRef.current = false;
-  }, [isSpeaking, isPaused, saveResumeIndex, stopPlayback]);
+  // const commonTTSStopAndSaveLogic = useCallback(() => {
+  //   if (ttsIntentActiveRef.current && (isSpeaking || isPaused)) {
+  //     saveResumeIndex(currentTTSBaseOffsetRef.current);
+  //     stopPlayback();
+  //   } else {
+  //     stopPlayback();
+  //   }
+  //   ttsIntentActiveRef.current = false;
+  // }, [isSpeaking, isPaused, saveResumeIndex, stopPlayback]);
+
+
+  // === Handle stopping playback on page navigation or close ===
+const commonTTSStopAndSaveLogic = useCallback(() => {
+  // If the user was actively listening or paused...
+  if (ttsIntentActiveRef.current && (isSpeaking || isPaused)) {
+    // ...save their current spot.
+    saveResumeIndex(currentTTSBaseOffsetRef.current);
+  }
+  // ALWAYS halt the audio playback without deleting the saved spot.
+  haltPlayback();
+  ttsIntentActiveRef.current = false;
+}, [isSpeaking, isPaused, saveResumeIndex, haltPlayback]);
 
   // Navigation handlers wrapped to stop TTS
   const handleNavigateToTocItem = useCallback((item: TOCItem) => {
@@ -917,7 +965,7 @@ const handleTTS = useCallback(() => {
             onPrevious={handlePrevPage}
             onNext={handleNextPage}
             onReadAloud={handleTTS}
-            onStopTTS={stopPlayback}
+            onStopTTS={handleStopTTS}
             isReading={isSpeaking}
             isPaused={isPaused}
             isProcessing={isProcessing && !(isSpeaking || isPaused)}
