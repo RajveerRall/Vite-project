@@ -1,4 +1,5 @@
 // src/context/BookContext.tsx
+import { trackEvent } from '../lib/analytics';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import localforage from 'localforage';
 import JSZip from 'jszip'; // Make sure this is the JSZip you intend, not AdmZip
@@ -6,6 +7,7 @@ import { DOMParser } from 'xmldom';
 import { getDirectoryPath, resolveRelativePath } from '../utils/pathUtils';
 import { processHtmlContent, extractTextFromHtml } from '../utils/textExtraction';
 import { BookData, TOCItem } from '@/types/books'; // Ensure BookData includes all necessary fields like lastChapter
+
 
 localforage.config({
   name: "EbookReaderApp",  // Database name
@@ -74,6 +76,8 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   const [isPlayModeVisible, setIsPlayModeVisible] = useState<boolean>(false);
   // *** NEW: Add a ref to ensure the default book is only loaded once per session ***
   const defaultBookLoadAttempted = useRef(false);
+    // 2. Add a ref to track when a book reading session starts
+  const readingStartTimestamp = useRef<number | null>(null);
 
 
   // 1. Load books from LocalForage on initial mount
@@ -277,6 +281,12 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
         console.log(`[addBook] Adding book to state. Previous count: ${prevBooks.length}`);
         return [...prevBooks, newBook];
       });
+
+      // 3. TRACK THE EVENT!
+      trackEvent('add_book', {
+      // You can add more details, e.g., distinguish between upload and drag-drop if you want
+        method: 'upload', 
+      });
     } catch (error) {
       console.error('[addBook] Error processing EPUB file:', error);
       alert(`Error adding book: ${(error as Error).message}`);
@@ -412,6 +422,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     if (bookToRemove?.coverUrl?.startsWith('blob:')) {
       URL.revokeObjectURL(bookToRemove.coverUrl);
     }
+    trackEvent('remove_book');
     console.log(`[removeBook] Removing book ID: ${bookId}`);
     setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
     // Save will be triggered by useEffect watching `books`
@@ -550,12 +561,29 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       setCurrentPageToLoad(pageIdxToLoadInitially); setCurrentPageDisplay(pageIdxToLoadInitially);
       console.log(`[openBook] Successfully prepared: ${book.title}. Page to load: ${pageIdxToLoadInitially}`);
       setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? { ...b, lastRead: new Date().toISOString() } : b));
+      // 4. TRACK THE EVENT AND START THE TIMER
+      trackEvent('open_book', {
+        book_title: book.title, // Add context about the book
+      });
+      readingStartTimestamp.current = Date.now(); // Start the timer
     } catch (error) {
       console.error('[openBook ERROR]', error); closeBook(true); alert(`Error opening book: ${(error as Error).message}`);
     } finally { setIsLoading(false); }
   };
 
   const closeBook = (resetGlobalLoading = true): void => { /* Unchanged */
+        // 5. TRACK THE EVENT AND CALCULATE DURATION
+    if (readingStartTimestamp.current && currentBook) {
+      const endTime = Date.now();
+      const durationInSeconds = Math.round((endTime - readingStartTimestamp.current) / 1000);
+      
+      trackEvent('close_book', {
+        book_title: currentBook.title,
+        reading_duration_seconds: durationInSeconds,
+      });
+
+      readingStartTimestamp.current = null; // Reset the timer
+    }
     console.log("[closeBook] Closing book."); setIsReading(false); setCurrentBook(null); setBookZip(null);
     setOpfPath(''); setHtmlFiles([]); setToc([]); setCurrentContent(''); setBookTitle('');
     setBookAuthor(''); setIsPlayModeVisible(false); setCurrentPageText('');
@@ -566,23 +594,40 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
 
   const nextPage = (): void => { /* Unchanged */
     if (isReading && currentPageToLoad < totalPages - 1) {
+      // 6. TRACK PAGE TURNS
+      trackEvent('turn_page', {
+        direction: 'next',
+        page_number: currentPageToLoad + 1,
+      });
       console.log(`[nextPage] current: ${currentPageToLoad}, total: ${totalPages}`);
       setCurrentPageToLoad(prev => prev + 1);
     }
   };
   const prevPage = (): void => { /* Unchanged */
     if (isReading && currentPageToLoad > 0) {
+
+      // 6. TRACK PAGE TURNS
+      trackEvent('turn_page', {
+        direction: 'previous',
+        page_number: currentPageToLoad - 1,
+      });
       console.log(`[prevPage] current: ${currentPageToLoad}`);
       setCurrentPageToLoad(prev => prev - 1);
     }
   };
   const navigateToTocItem = (item: TOCItem): void => { /* Unchanged */
     if (!isReading || !htmlFiles || htmlFiles.length === 0) {
-        console.warn("[navigateToTocItem] Aborted: Not reading or no HTML files."); return; }
+    
+    console.warn("[navigateToTocItem] Aborted: Not reading or no HTML files."); return; }
     const [pathPart, fragment] = item.href.split('#');
     console.log(`[navigateToTocItem] To href: ${item.href} (pathPart: ${pathPart})`);
     const fileIndex = htmlFiles.findIndex(file => file === pathPart);
     if (fileIndex !== -1) {
+          // THIS is the point of success. Track the event here.
+      trackEvent('use_feature', {
+        feature_name: 'table_of_contents',
+        chapter_title: item.label,
+      });
       console.log(`[navigateToTocItem] Found file at index: ${fileIndex}. Loading.`);
       setCurrentPageToLoad(fileIndex);
       if (fragment) { setTimeout(() => { /* fragment scrolling - unchanged */
@@ -593,7 +638,17 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     } else { console.warn(`[navigateToTocItem] Could not find file for TOC item: ${item.href}`); }
   };
 
-  const togglePlayMode = (): void => setIsPlayModeVisible(!isPlayModeVisible); /* Unchanged */
+  // const togglePlayMode = (): void => setIsPlayModeVisible(!isPlayModeVisible); /* Unchanged */
+
+  const togglePlayMode = (): void => {
+    // 8. TRACK TEXT-TO-SPEECH USAGE
+    if (!isPlayModeVisible) { // Only track when the user STARTS it
+        trackEvent('use_feature', {
+            feature_name: 'text_to_speech'
+        });
+    }
+    setIsPlayModeVisible(!isPlayModeVisible);
+  };
 
 
   const value: BookContextValue = {
