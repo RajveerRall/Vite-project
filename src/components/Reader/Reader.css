@@ -387,3 +387,10 @@
     margin: 0.5rem;
   }
 }
+
+
+.tts-highlight {
+  background-color: #fffb91;
+  border-radius: 3px;
+  transition: background-color 0.3s ease;
+}
