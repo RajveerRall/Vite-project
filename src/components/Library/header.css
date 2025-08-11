@@ -1,0 +1,7 @@
+/* This styles Clerk's default button to look a bit nicer */
+.sign-in-button-container .cl-button-root {
+  background-color: #78350f; /* amber-900 */
+}
+.sign-in-button-container .cl-button-root:hover {
+  background-color: #451a03; /* amber-950 */
+}

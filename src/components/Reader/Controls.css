@@ -64,7 +64,7 @@
 
 
 /* src/components/Reader/Controls.css */
-.reader-controls {
+/* .reader-controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -126,15 +126,82 @@
 .button-text {
   font-size: 0.8rem;
   display: none;
+} */
+
+/*
+ * This file is now the primary source of truth for component appearance.
+ * Tailwind is used in the JSX for layout (flexbox, grid, etc).
+*/
+
+.control-button {
+  /* Base styles for all buttons */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem; /* Space between icon and text */
+  padding: 0.5rem 0.75rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  
+  /* Default Appearance (non-active) */
+  background-color: #f9fafb; /* gray-50 */
+  border: 1px solid #e5e7eb; /* gray-200 */
+  color: #374151; /* gray-700 */
 }
 
-/* Show text on larger screens */
+/* --- HOVER STATE --- */
+.control-button:hover:not(:disabled) {
+  border-color: #d1d5db; /* gray-300 */
+  background-color: #f3f4f6; /* gray-100 */
+}
+
+/* --- DISABLED STATE --- */
+.control-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* --- ACTIVE (AMBER THEME) --- */
+.control-button.active {
+  background-color: #92400e; /* amber-800 */
+  border-color: #92400e;
+  color: white;
+}
+.control-button.active:hover:not(:disabled) {
+  background-color: #78350f; /* amber-900 */
+}
+
+/* --- STOP BUTTON (RED THEME) --- */
+.control-button.stop-button {
+  background-color: #fef2f2; /* red-50 */
+  border-color: #fecaca; /* red-200 */
+  color: #b91c1c; /* red-700 */
+}
+.control-button.stop-button:hover:not(:disabled) {
+  background-color: #fee2e2; /* red-100 */
+  border-color: #fca5a5; /* red-300 */
+}
+
+
+/* --- Page Counter --- */
+.page-info {
+  font-size: 0.9rem;
+  color: #4b5563; /* gray-600 */
+  min-width: 3.5rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* --- Button Text --- */
+.button-text {
+  font-size: 0.875rem; /* 14px */
+  display: none; /* Hidden by default on small screens */
+}
+/* Show text on medium screens and up */
 @media (min-width: 768px) {
   .button-text {
     display: inline;
-  }
-  
-  .control-button {
-    padding: 0.35rem 0.75rem;
   }
 }

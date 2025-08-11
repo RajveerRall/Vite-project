@@ -3,6 +3,7 @@ import React from 'react';
 import { BookProvider, useBook } from './context/BookContext';
 import Library from './components/Library';
 import Reader from './components/Reader';
+import Header from "./components/Library/header";
 import './App.css';
 
 const AppContent: React.FC = () => {
@@ -10,6 +11,8 @@ const AppContent: React.FC = () => {
   
   return (
     <div className="app">
+      <Header />
+      {/* Render the Library or Reader component based on the context */}
       {isReading ? <Reader /> : <Library />}
     </div>
   );
