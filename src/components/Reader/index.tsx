@@ -368,11 +368,13 @@ import { TTSService } from '../../services/msedge';
 import SimplePlayMode from './SimplePlayMode';
 import KokoroPlayMode from './SimplePlayMode';
 import TableOfContents from '../Library/TableOfContents';
-import SearchBar from '../Library/SearchBar';
+// import SearchBar from '../Library/SearchBar';
 import Controls from './Controls';
 import { TOCItem } from '../../types/books';
 import './Reader.css';
 import FeatureHighlight from './FeatureHighlight';
+import { ChevronLeft, ChevronRight, Play, Headphones } from 'lucide-react'; // Or your preferred icon library
+
 
 const ttsService = TTSService.getInstance();
 const LOCAL_STORAGE_PREFIX = 'ebookReaderProgress_';
@@ -417,6 +419,9 @@ const Reader: React.FC = () => {
   const [highlightedContent, setHighlightedContent] = useState<string>(currentContent);
   // Add this near your other useState declarations
   const audioBuffer = useRef<Record<number, string>>({});
+    // Determine if the pagination buttons should be disabled
+  const canGoPrev = currentPageDisplay > 0;
+  const canGoNext = currentPageDisplay < totalPages - 1;
 
 
   // Refs
@@ -1177,8 +1182,15 @@ const commonTTSStopAndSaveLogic = useCallback(() => {
   <div className="reader">
     <header className="reader-header">
       <div className="reader-left">
-        <button onClick={handleCloseBookCB} className="back-button"> ← Back to Library </button>
-      </div>
+        {/* <button onClick={handleCloseBookCB} className="back-button"> ← Back to Library </button> */}
+          <button 
+          onClick={handleCloseBookCB} 
+          className="back-button text-sm font-medium text-gray-600 hover:text-amber-800 flex items-center gap-x-1"
+        >
+          <ChevronLeft className="w-4 h-4" /> 
+          Back to Library
+        </button>
+            </div>
       <div className="reader-center">
         <h2 className="book-title">{bookTitle}</h2>
         <p className="book-author">{bookAuthor}</p>
@@ -1218,7 +1230,7 @@ const commonTTSStopAndSaveLogic = useCallback(() => {
         <TableOfContents items={toc} onItemClick={handleNavigateToTocItem} />
       </div>
       <div className="reader-main">
-        <SearchBar />
+        {/* <SearchBar /> */}
         {/* Render React nodes here, no dangerouslySetInnerHTML */}
         <div className="epub-content" style={{ whiteSpace: 'pre-wrap' }}>
           {renderContentWithHighlight()}

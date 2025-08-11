@@ -7,7 +7,7 @@ import { DOMParser } from 'xmldom';
 import { getDirectoryPath, resolveRelativePath } from '../utils/pathUtils';
 import { processHtmlContent, extractTextFromHtml } from '../utils/textExtraction';
 import { BookData, TOCItem } from '@/types/books'; // Ensure BookData includes all necessary fields like lastChapter
-
+import { useAuth } from "@clerk/clerk-react";
 
 localforage.config({
   name: "EbookReaderApp",  // Database name
@@ -55,6 +55,7 @@ interface BookProviderProps {
 }
 
 export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
+  const { isSignedIn, userId, getToken } = useAuth();
   const [books, setBooks] = useState<BookData[]>([]);
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false); // New state
   // ... (all other state declarations from the previous full version remain the same)
@@ -251,101 +252,208 @@ useEffect(() => {
     }
   };
 
-  const addBook = async (file: File): Promise<void> => {
-    // This function is now only used for USER uploads, not the default book.
-    console.log(`[addBook] Attempting to add book: ${file.name}`);
-    if (file.name.split('.').pop()?.toLowerCase() !== 'epub') {
-      alert('Please upload an EPUB file.');
-      return;
-    }
-    setIsLoading(true); // Global loading for adding a book
-    try {
-      const zip = new JSZip(); // Using JSZip from BookContext
-      const loadedZip = await zip.loadAsync(file);
+  // const addBook = async (file: File): Promise<void> => {
+  //   // This function is now only used for USER uploads, not the default book.
+  //   console.log(`[addBook] Attempting to add book: ${file.name}`);
+  //   if (file.name.split('.').pop()?.toLowerCase() !== 'epub') {
+  //     alert('Please upload an EPUB file.');
+  //     return;
+  //   }
+  //   setIsLoading(true); // Global loading for adding a book
+  //   try {
+  //     const zip = new JSZip(); // Using JSZip from BookContext
+  //     const loadedZip = await zip.loadAsync(file);
 
+  //     const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
+  //     if (!containerXml) throw new Error('Invalid EPUB: container.xml not found');
+  //     const parser = new DOMParser();
+  //     const containerDoc = parser.parseFromString(containerXml, 'application/xml');
+  //     const rootfiles = containerDoc.getElementsByTagName('rootfile');
+  //     if (rootfiles.length === 0) throw new Error('Invalid EPUB: No rootfile found');
+  //     const currentOpfPath = rootfiles[0].getAttribute('full-path') || '';
+  //     const opfContent = await loadedZip.file(currentOpfPath)?.async('text');
+  //     if (!opfContent) throw new Error('Invalid EPUB: OPF file not found');
+  //     const opfDoc = parser.parseFromString(opfContent, 'application/xml');
+
+  //     const titleElements = opfDoc.getElementsByTagName('dc:title');
+  //     const title = titleElements.length > 0 ? titleElements[0].textContent?.trim() || 'Unknown Title' : 'Unknown Title';
+  //     const creatorElements = opfDoc.getElementsByTagName('dc:creator');
+  //     const author = creatorElements.length > 0 ? creatorElements[0].textContent?.trim() || 'Unknown Author' : 'Unknown Author';
+  //     // Simple ID generation, ensure it's unique enough for your needs
+  //     const id = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+
+  //     let coverUrl: string | null = null;
+  //     const metaTags = opfDoc.getElementsByTagName('meta');
+  //     let coverId = '';
+  //     for (let i = 0; i < metaTags.length; i++) {
+  //       if (metaTags[i].getAttribute('name') === 'cover') {
+  //         coverId = metaTags[i].getAttribute('content') || '';
+  //         break;
+  //       }
+  //     }
+  //     if (coverId) {
+  //       const items = opfDoc.getElementsByTagName('item');
+  //       for (let i = 0; i < items.length; i++) {
+  //         if (items[i].getAttribute('id') === coverId) {
+  //           const href = items[i].getAttribute('href');
+  //           if (href) {
+  //             const coverPath = resolveRelativePath(getDirectoryPath(currentOpfPath), href);
+  //             const coverBlob = await loadedZip.file(coverPath)?.async('blob');
+  //             if (coverBlob) {
+  //               coverUrl = await new Promise<string>((resolve) => {
+  //                 const reader = new FileReader();
+  //                 reader.onloadend = () => resolve(reader.result as string);
+  //                 reader.readAsDataURL(coverBlob);
+  //               });
+  //             }
+  //           }
+  //           break;
+  //         }
+  //       }
+  //     }
+
+  //     const newBook: BookData = {
+  //       id,
+  //       title,
+  //       author,
+  //       coverUrl,
+  //       currentPage: 0,
+  //       totalPages: 0, // This will be calculated when the book is opened
+  //       file, // The actual File object
+  //       lastRead: new Date().toISOString(),
+  //       // lastChapter: undefined, // Initialized as undefined
+  //     };
+  //     console.log(`[addBook] New book created: ${newBook.title}, ID: ${newBook.id}`);
+  //     setBooks(prevBooks => {
+  //       // Check if book with same ID already exists to prevent duplicates
+  //       if (prevBooks.find(b => b.id === newBook.id)) {
+  //           console.warn(`[addBook] Book with ID ${newBook.id} already exists. Not adding duplicate.`);
+  //           alert(`Book "${newBook.title}" is already in your library.`);
+  //           return prevBooks;
+  //       }
+  //       console.log(`[addBook] Adding book to state. Previous count: ${prevBooks.length}`);
+  //       return [...prevBooks, newBook];
+  //     });
+
+  //     // 3. TRACK THE EVENT!
+  //     trackEvent('add_book', {
+  //     // You can add more details, e.g., distinguish between upload and drag-drop if you want
+  //       method: 'upload', 
+  //     });
+  //   } catch (error) {
+  //     console.error('[addBook] Error processing EPUB file:', error);
+  //     alert(`Error adding book: ${(error as Error).message}`);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
+
+    // 👇 THIS IS THE NEW, UNIVERSAL addBook FUNCTION BASED ON YOUR PROVEN LOGIC 👇
+  const addBook = async (file: File): Promise<void> => {
+    setIsLoading(true);
+    try {
+      // Step 1: Process the book locally to get its metadata.
+      // This is the universal foundation, used for all users.
+      const zip = new JSZip();
+      const loadedZip = await zip.loadAsync(file);
       const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
       if (!containerXml) throw new Error('Invalid EPUB: container.xml not found');
+
       const parser = new DOMParser();
       const containerDoc = parser.parseFromString(containerXml, 'application/xml');
       const rootfiles = containerDoc.getElementsByTagName('rootfile');
       if (rootfiles.length === 0) throw new Error('Invalid EPUB: No rootfile found');
-      const currentOpfPath = rootfiles[0].getAttribute('full-path') || '';
-      const opfContent = await loadedZip.file(currentOpfPath)?.async('text');
-      if (!opfContent) throw new Error('Invalid EPUB: OPF file not found');
-      const opfDoc = parser.parseFromString(opfContent, 'application/xml');
 
-      const titleElements = opfDoc.getElementsByTagName('dc:title');
-      const title = titleElements.length > 0 ? titleElements[0].textContent?.trim() || 'Unknown Title' : 'Unknown Title';
-      const creatorElements = opfDoc.getElementsByTagName('dc:creator');
-      const author = creatorElements.length > 0 ? creatorElements[0].textContent?.trim() || 'Unknown Author' : 'Unknown Author';
-      // Simple ID generation, ensure it's unique enough for your needs
-      const id = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const opfPath = rootfiles[0].getAttribute('full-path') || '';
+      const opfContent = await loadedZip.file(opfPath)?.async('text');
+      if (!opfContent) throw new Error('Invalid EPUB: OPF file not found');
+      
+      const opfDoc = parser.parseFromString(opfContent, 'application/xml');
+      const title = opfDoc.getElementsByTagName('dc:title')[0]?.textContent?.trim() || 'Unknown Title';
+      const author = opfDoc.getElementsByTagName('dc:creator')[0]?.textContent?.trim() || 'Unknown Author';
 
       let coverUrl: string | null = null;
-      const metaTags = opfDoc.getElementsByTagName('meta');
-      let coverId = '';
-      for (let i = 0; i < metaTags.length; i++) {
-        if (metaTags[i].getAttribute('name') === 'cover') {
-          coverId = metaTags[i].getAttribute('content') || '';
-          break;
-        }
-      }
-      if (coverId) {
-        const items = opfDoc.getElementsByTagName('item');
-        for (let i = 0; i < items.length; i++) {
-          if (items[i].getAttribute('id') === coverId) {
-            const href = items[i].getAttribute('href');
-            if (href) {
-              const coverPath = resolveRelativePath(getDirectoryPath(currentOpfPath), href);
-              const coverBlob = await loadedZip.file(coverPath)?.async('blob');
-              if (coverBlob) {
-                coverUrl = await new Promise<string>((resolve) => {
-                  const reader = new FileReader();
-                  reader.onloadend = () => resolve(reader.result as string);
-                  reader.readAsDataURL(coverBlob);
-                });
-              }
-            }
-            break;
+      const metaCover = Array.from(opfDoc.getElementsByTagName('meta')).find(m => m.getAttribute('name') === 'cover');
+      if (metaCover) {
+        const coverId = metaCover.getAttribute('content');
+        const coverItem = Array.from(opfDoc.getElementsByTagName('item')).find(item => item.getAttribute('id') === coverId);
+        if (coverItem) {
+          const href = coverItem.getAttribute('href');
+          if (href) {
+            const coverPath = resolveRelativePath(getDirectoryPath(opfPath), href);
+            const coverBlob = await loadedZip.file(coverPath)?.async('blob');
+            if (coverBlob) coverUrl = URL.createObjectURL(coverBlob);
           }
         }
       }
 
       const newBook: BookData = {
-        id,
+        id: `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`,
         title,
         author,
         coverUrl,
         currentPage: 0,
-        totalPages: 0, // This will be calculated when the book is opened
-        file, // The actual File object
+        totalPages: 0,
+        file,
         lastRead: new Date().toISOString(),
-        // lastChapter: undefined, // Initialized as undefined
       };
-      console.log(`[addBook] New book created: ${newBook.title}, ID: ${newBook.id}`);
-      setBooks(prevBooks => {
-        // Check if book with same ID already exists to prevent duplicates
-        if (prevBooks.find(b => b.id === newBook.id)) {
-            console.warn(`[addBook] Book with ID ${newBook.id} already exists. Not adding duplicate.`);
-            alert(`Book "${newBook.title}" is already in your library.`);
-            return prevBooks;
-        }
-        console.log(`[addBook] Adding book to state. Previous count: ${prevBooks.length}`);
-        return [...prevBooks, newBook];
-      });
+      
+      // Step 2: Update the local state IMMEDIATELY for a fast UI response.
+      // This makes the book appear in the library right away for everyone.
+      setBooks(prevBooks => [...prevBooks, newBook]);
 
-      // 3. TRACK THE EVENT!
-      trackEvent('add_book', {
-      // You can add more details, e.g., distinguish between upload and drag-drop if you want
-        method: 'upload', 
-      });
+      // Step 3 (Conditional Enhancement): If the user is signed in, sync the new book to the cloud.
+      if (isSignedIn) {
+        // This runs in the background ("fire and forget") so the UI is not blocked.
+        syncBookToCloud(newBook);
+      }
+
+      trackEvent('add_book', { method: 'upload' });
+
     } catch (error) {
       console.error('[addBook] Error processing EPUB file:', error);
-      alert(`Error adding book: ${(error as Error).message}`);
+      throw new Error(`Error adding book: ${(error as Error).message}`);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // This helper function handles the background sync for logged-in users.
+  const syncBookToCloud = async (book: BookData) => {
+    console.log(`[Sync] Starting cloud sync for: "${book.title}"`);
+    try {
+      const formData = new FormData();
+      formData.append('file', book.file);
+      formData.append('title', book.title);
+      formData.append('author', book.author);
+      // You can append other metadata like the temporary ID if your API needs it.
+      formData.append('localId', book.id);
+      
+      const token = await getToken();
+      
+      const response = await fetch('https://YOUR_NEW_BACKEND/api/books', { // TODO: Replace with your actual backend URL
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Failed to sync book to cloud. Status: ${response.status}. Body: ${errorBody}`);
+      }
+
+      console.log(`[Sync] Successfully synced "${book.title}" to the cloud.`);
+      // Optional: If your API returns a permanent database ID, you can update the state again here.
+      // const savedBook = await response.json();
+      // setBooks(prevBooks => prevBooks.map(b => b.id === savedBook.localId ? { ...b, id: savedBook.id } : b));
+      
+    } catch (error) {
+      console.error("[Sync] Error in syncBookToCloud:", error);
+      // Here you could trigger a small, non-intrusive "failed to sync" toast notification.
+    }
+  };
+
 
   // --- All other functions (findChapterForPageCallback, loadPageCallback, useEffect for page loading, openBook, closeBook, nextPage, prevPage, navigateToTocItem, removeBook, extractTocFromEntries, togglePlayMode)
   // --- should be taken from the last full version of BookContext.tsx I provided, as their internal logic was mostly okay.

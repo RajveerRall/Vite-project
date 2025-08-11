@@ -613,3 +613,117 @@
 .toast-exit {
   animation: slideOut 0.3s ease-in forwards;
 }
+
+
+/* Keep ALL of your existing styles from the top of the file... */
+.library { /* ... */ }
+.upload-area { /* ... */ }
+.book-card { /* ... */ }
+/* etc... */
+
+
+/* === NEW STYLES FOR THE CAROUSEL === */
+/* Add these new rules to the end of your file */
+
+.book-carousel-section {
+  /* This is a wrapper if you need one, e.g., for a title */
+  margin-bottom: 3rem;
+}
+
+.book-carousel-section h2 {
+  font-size: 1.5rem; /* 24px */
+  font-weight: 700;
+  color: #1f2937; /* gray-800 */
+  margin-bottom: 1rem;
+}
+
+.carousel {
+  position: relative;
+}
+
+/* This is the main viewport that clips the overflowing slides */
+.carousel-viewport {
+  overflow: hidden;
+}
+
+/* This is the container that moves horizontally */
+.carousel-container {
+  display: flex;
+  margin-left: -1rem; /* Counteract the padding on the slides */
+}
+
+/* Each individual slide */
+.carousel-slide {
+  flex: 0 0 33.3333%; /* On smallest screens, 3 slides visible */
+  padding-left: 1rem;
+  min-width: 0;
+}
+
+/* Responsive number of slides */
+@media (min-width: 640px) {
+  .carousel-slide {
+    flex-basis: 25%; /* 4 slides */
+  }
+}
+@media (min-width: 768px) {
+  .carousel-slide {
+    flex-basis: 20%; /* 5 slides */
+  }
+}
+@media (min-width: 1024px) {
+  .carousel-slide {
+    flex-basis: 16.6666%; /* 6 slides */
+  }
+}
+
+/* The clickable book cover inside the slide */
+.book-slide-content {
+  display: block;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  transition: transform 0.3s ease;
+  cursor: pointer;
+}
+
+.book-slide-content:hover {
+  transform: translateY(-0.5rem) scale(1.05);
+}
+
+/* Navigation Arrows */
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 9999px;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.carousel:hover .carousel-arrow {
+  opacity: 1;
+}
+
+.carousel-arrow.prev {
+  left: -1rem;
+}
+
+.carousel-arrow.next {
+  right: -1rem;
+}
+
+.carousel-arrow svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: #1f2937; /* gray-800 */
+}

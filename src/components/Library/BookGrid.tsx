@@ -187,7 +187,7 @@ const BookGrid: React.FC<BookGridProps> = ({ books }) => {
 
   return (
     <div className="books-section mb-4">
-      <h2 className="text-xl font-medium text-gray-800 mb-3">My Library</h2>
+      {/* <h2 className="text-xl font-medium text-gray-800 mb-3">My Library</h2> */}
       <div className="books-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {books.map(book => (
           <div key={book.id} className="book-card relative bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm group">
