@@ -241,53 +241,13 @@ const Library: React.FC = () => {
         )}00*/}
         
 
-        {/* --- Toast Notification --- */}
+        {/* --- Simple Toast Notification --- */}
         {showToast && (
-          <div
-            role="alert"
-            className={`fixed top-6 right-6 z-50 rounded-md shadow-lg max-w-sm w-full p-4 border-l-4 transition-transform transform-gpu animate-toast-in ${
-              toastType === 'success'
-                ? 'bg-amber-50 border-amber-500 text-amber-900'
-                : 'bg-red-50 border-red-500 text-red-900'
-            }`}
-          >
-            <div className="flex items-start">
-              {/* Icon */}
-              <div className="flex-shrink-0">
-                {toastType === 'success' ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                )}
-              </div>
-
-              {/* Message */}
-              <div className="ml-3 w-0 flex-1 pt-0.5">
-                <p className="text-sm font-medium">
-                  {toastType === 'success' ? 'Success' : 'Error'}
-                </p>
-                <p className="mt-1 text-sm text-gray-700">
-                  {toastMessage}
-                </p>
-              </div>
-
-              {/* Close Button */}
-              <div className="ml-4 flex-shrink-0 flex">
-                <button
-                  onClick={() => setShowToast(false)}
-                  className="inline-flex rounded-md bg-transparent text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
-                >
-                  <span className="sr-only">Close</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+          <div className={`toast ${toastType}`}>
+            <p>{toastMessage}</p>
+            <button onClick={() => setShowToast(false)} className="toast-close-btn">
+              &times;
+            </button>
           </div>
         )}
 
