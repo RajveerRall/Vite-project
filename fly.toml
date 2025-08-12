@@ -1,4 +1,4 @@
-app = "yoread"
+app = "yoread-staging"
 primary_region = "iad"
 
 [build]
