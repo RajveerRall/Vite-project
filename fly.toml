@@ -3,6 +3,8 @@ primary_region = "iad"
 
 [build]
   dockerfile = "Dockerfile"
+  [build.args]
+    VITE_CLERK_PUBLISHABLE_KEY = "pk_test_YXNzdXJpbmctYmx1ZWJpcmQtNjAuY2xlcmsuYWNjb3VudHMuZGV2JA"
 
 [[services]]
   protocol = "tcp"
