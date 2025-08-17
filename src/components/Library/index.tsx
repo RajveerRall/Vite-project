@@ -221,27 +221,230 @@ const Library: React.FC = () => {
   };
   
 
-  return (
-    // Use the .library class for the background and font, and Tailwind for layout
+  // return (
+  //   // Use the .library class for the background and font, and Tailwind for layout
+  //   <div className="library bg-slate-50">
+  //     <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        
+  //       {/* Toast Notification would go here */}
+
+
+  //       {/* --- Toast Notification --- */}
+  //       {/* {showToast && (
+  //         <div className={`fixed top-6 right-6 z-50 rounded-md shadow-lg max-w-sm w-full p-4 border-l-4 ${
+  //           toastType === 'success'
+  //             ? 'bg-amber-50 border-amber-500 text-amber-900'
+  //             : 'bg-red-50 border-red-500 text-red-900'
+  //         }`}>
+
+  //         </div>
+  //       )}00*/}
+        
+
+  //       {/* --- Simple Toast Notification --- */}
+  //       {showToast && (
+  //         <div className={`toast ${toastType}`}>
+  //           <p>{toastMessage}</p>
+  //           <button onClick={() => setShowToast(false)} className="toast-close-btn">
+  //             &times;
+  //           </button>
+  //         </div>
+  //       )}
+
+  //       {/* --- Conditional Hero Section --- */}
+  //       {/* {books.length > 0 ? (
+  //         <section className="book-carousel-section">
+  //           <h2>Your Library</h2>
+  //           <BookCarousel books={sortedBooks} onBookSelect={openBook} />
+  //         </section>
+  //       ) : (
+  //         !isLoading && (
+  //           <section className="text-center">
+  //             <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+  //               Your Personal Reading Space
+  //             </h1>
+  //             <p className="mt-4 text-lg leading-8 text-gray-600">
+  //               Upload your first ePub file to start building your library.
+  //             </p>
+  //           </section>
+  //         )
+  //       )} */}
+
+
+  //       {/* --- Showcase Section: ONLY for Logged-Out Users --- */}
+  //       {/* {!isSignedIn && carouselBooks.length > 0 && (
+  //         <section className="showcase-section mb-12">
+  //           <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
+  //             Listen to your favourite books
+  //           </h2>
+  //           <BookCarousel books={carouselBooks} onBookSelect={openBook} />
+  //         </section>
+  //       )} */}
+
+
+  //               {/* --- START: Corrected Display Logic --- */}
+        
+  //       {/* First, check if there are any books in the user's personal library */}
+  //       {books.length > 0 ? (
+  //         // If YES, always show their personal library, regardless of auth state.
+  //         <section className="user-library-section">
+  //           <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
+  //             {isSignedIn ? "Your Cloud Library" : "Your Current Library"}
+  //           </h2>
+  //           {/* The carousel is now used for the user's personal library */}
+  //           <BookCarousel books={sortedBooks} onBookSelect={openBook} />
+  //         </section>
+        
+  //       ) : !isSignedIn ? (
+  //         // If NO personal books AND the user is logged out, then show the showcase.
+  //         isCarouselLoading ? (
+  //           // While the showcase is loading, show a loading message.
+  //           <div className="text-center"><p>Loading Collection...</p></div>
+  //         ) : carouselBooks.length > 0 ? (
+  //           // If showcase books have loaded, display them.
+  //           <section className="showcase-section">
+  //             <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
+  //               Listen to Your Favourite Books
+  //             </h2>
+  //             <BookCarousel books={carouselBooks} onBookSelect={openBook} />
+  //           </section>
+  //         ) : (
+  //           // If showcase has no books, show the welcome message.
+  //           <section className="text-center">
+  //             <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+  //               Your Personal Reading Space
+  //             </h1>
+  //             <p className="mt-4 text-lg leading-8 text-gray-600">
+  //               Upload an ePub file to start building your library.
+  //             </p>
+  //           </section>
+  //         )
+  //       ) : (
+  //         // This is the case for a logged-in user with an empty library.
+  //         <section className="text-center">
+  //             <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+  //               Your Cloud Library is Empty
+  //             </h1>
+  //             <p className="mt-4 text-lg leading-8 text-gray-600">
+  //               Upload your first ePub file to save it to the cloud.
+  //             </p>
+  //         </section>
+  //       )}
+
+  //       {/* --- END: Corrected Display Logic --- */}
+
+
+  //       {/* --- Welcome Message: ONLY for new Anonymous Users with NO books --- */}
+  //       {!isSignedIn && books.length === 0 && !isCarouselLoading && carouselBooks.length === 0 && (
+  //         <section className="text-center mb-12">
+  //           <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+  //             Your Personal Reading Space
+  //           </h1>
+  //           <p className="mt-4 text-lg leading-8 text-gray-600">
+  //             Upload an ePub file to start building your library.
+  //           </p>
+  //         </section>
+  //       )}
+
+
+  //       {/* Free ebook resources*/}
+  //       <section className="mt-16 text-center">
+  //         <h3 className="text-base font-semibold text-gray-700">Looking for free eBooks?</h3>
+  //         <p className="text-sm text-gray-500 mt-1">These resources offer thousands of high-quality, public domain books.</p>
+  //         <div className="mt-4 flex items-center justify-center space-x-6">
+  //           <button 
+  //             onClick={() => handleExternalLinkClick('Project Gutenberg', 'https://www.gutenberg.org')} 
+  //             className="font-medium text-amber-800 hover:underline"
+  //           >
+  //             Project Gutenberg
+  //           </button>
+  //           <button 
+  //             onClick={() => handleExternalLinkClick('Planet eBook', 'https://www.planetebook.com')} 
+  //             className="font-medium text-amber-800 hover:underline"
+  //           >
+  //             Planet eBook
+  //           </button>
+  //         </div>
+  //       </section>
+        
+  //       {/* --- Upload Area: Uses classes from Library.css --- */}
+  //       <div 
+  //         // We apply the .upload-area class AND the dynamic .active class
+  //         className={`upload-area mt-10 max-w-2xl mx-auto ${dragActive ? 'active' : ''}`}
+  //         onDragEnter={handleDrag}
+  //         onDragOver={handleDrag}
+  //         onDragLeave={handleDrag}
+  //         onDrop={handleDrop}
+  //       >
+  //         <div className="upload-icon">
+  //            {/* Book Icon SVG */}
+  //            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  //               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+  //             </svg>
+  //         </div>
+  //         <h3 className="text-lg font-medium mb-1.5 text-gray-800">Upload your eBook</h3>
+  //         <p className="text-gray-600 mb-3">Drag and drop your ePub file here, or click to browse</p>
+  //         <button className="browse-button" onClick={handleUploadClick}>
+  //           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  //             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+  //           </svg>
+  //           Browse files
+  //         </button>
+  //         <input ref={fileInputRef} type="file" accept=".epub" onChange={handleFileChange} className="hidden" />
+  //       </div>
+
+
+
+  //       {/* --- User's Library Section: Grid for ANY user with books --- */}
+  //       {books.length > 0 && (
+  //         <section className="user-library-section mt-16 border-t border-gray-200 pt-8">
+  //           <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
+  //             {/* Dynamic title */}
+  //             {isSignedIn ? "Your Cloud Library" : "Your Current Library"}
+  //           </h2>
+  //           <BookGrid books={sortedBooks} />
+  //         </section>
+  //       )}
+
+
+        
+
+  //       {/* --- Sign-Up Prompt --- */}
+  //       {!isSignedIn && (
+  //         <div className="mt-8 text-center bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-2xl mx-auto">
+  //           <p className="text-amber-900">
+  //             Enjoying YoRead? 
+  //             <SignInButton mode="modal">
+  //               <button className="font-semibold text-amber-800 hover:text-amber-900 underline mx-1">
+  //                 Sign up for free 
+  //               </button>
+  //             </SignInButton>
+  //               to access unique storytelling voices!
+  //           </p>
+  //         </div>
+  //       )}
+
+
+        
+  //     </main>
+
+
+  //     {/* --- Footer --- */}
+  //     <footer className="py-6 border-t border-gray-200 bg-slate-50">
+  //       <div className="max-w-5xl mx-auto px-4 text-center text-gray-500 text-sm">
+  //         YoRead - A focused eBook reading experience
+  //       </div>
+  //     </footer>
+  //   </div>
+  // );
+
+
+
+    return (
     <div className="library bg-slate-50">
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         
-        {/* Toast Notification would go here */}
-
-
-        {/* --- Toast Notification --- */}
-        {/* {showToast && (
-          <div className={`fixed top-6 right-6 z-50 rounded-md shadow-lg max-w-sm w-full p-4 border-l-4 ${
-            toastType === 'success'
-              ? 'bg-amber-50 border-amber-500 text-amber-900'
-              : 'bg-red-50 border-red-500 text-red-900'
-          }`}>
-
-          </div>
-        )}00*/}
-        
-
-        {/* --- Simple Toast Notification --- */}
+        {/* --- Toast Notification (remains the same) --- */}
         {showToast && (
           <div className={`toast ${toastType}`}>
             <p>{toastMessage}</p>
@@ -251,51 +454,36 @@ const Library: React.FC = () => {
           </div>
         )}
 
-        {/* --- Conditional Hero Section --- */}
-        {/* {books.length > 0 ? (
-          <section className="book-carousel-section">
-            <h2>Your Library</h2>
-            <BookCarousel books={sortedBooks} onBookSelect={openBook} />
-          </section>
-        ) : (
-          !isLoading && (
-            <section className="text-center">
-              <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-                Your Personal Reading Space
-              </h1>
-              <p className="mt-4 text-lg leading-8 text-gray-600">
-                Upload your first ePub file to start building your library.
-              </p>
-            </section>
-          )
-        )} */}
-
-
-        {/* --- Showcase Section: ONLY for Logged-Out Users --- */}
-        {!isSignedIn && carouselBooks.length > 0 && (
+        {/* --- START: Simplified Display Logic --- */}
+        
+        {/* Showcase Carousel: Always visible, always shows default books */}
+        {isCarouselLoading ? (
+          <div className="text-center mb-12"><p>Loading Collection...</p></div>
+        ) : carouselBooks.length > 0 && (
           <section className="showcase-section mb-12">
             <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
-              Listen to your favourite books
+              Listen to Your Favourite Books
             </h2>
             <BookCarousel books={carouselBooks} onBookSelect={openBook} />
           </section>
         )}
 
-        {/* --- Welcome Message: ONLY for new Anonymous Users with NO books --- */}
-        {!isSignedIn && books.length === 0 && !isCarouselLoading && carouselBooks.length === 0 && (
+        {/* Welcome Message: Only for users with NO personal books */}
+        {books.length === 0 && !isLoading && (
           <section className="text-center mb-12">
             <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Your Personal Reading Space
+              {isSignedIn ? "Your Cloud Library is Empty" : "Your Personal Reading Space"}
             </h1>
             <p className="mt-4 text-lg leading-8 text-gray-600">
               Upload an ePub file to start building your library.
             </p>
           </section>
         )}
+        
+        {/* --- All sections below this point are independent --- */}
 
-
-        {/* Free ebook resources*/}
-        <section className="mt-16 text-center">
+        {/* Free ebook resources */}
+        <section className="mt-12 text-center">
           <h3 className="text-base font-semibold text-gray-700">Looking for free eBooks?</h3>
           <p className="text-sm text-gray-500 mt-1">These resources offer thousands of high-quality, public domain books.</p>
           <div className="mt-4 flex items-center justify-center space-x-6">
@@ -314,49 +502,34 @@ const Library: React.FC = () => {
           </div>
         </section>
         
-        {/* --- Upload Area: Uses classes from Library.css --- */}
+        {/* Upload Area */}
         <div 
-          // We apply the .upload-area class AND the dynamic .active class
           className={`upload-area mt-10 max-w-2xl mx-auto ${dragActive ? 'active' : ''}`}
           onDragEnter={handleDrag}
           onDragOver={handleDrag}
           onDragLeave={handleDrag}
           onDrop={handleDrop}
         >
-          <div className="upload-icon">
-             {/* Book Icon SVG */}
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-          </div>
+          {/* ... SVG and text content ... */}
           <h3 className="text-lg font-medium mb-1.5 text-gray-800">Upload your eBook</h3>
           <p className="text-gray-600 mb-3">Drag and drop your ePub file here, or click to browse</p>
           <button className="browse-button" onClick={handleUploadClick}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
             Browse files
           </button>
           <input ref={fileInputRef} type="file" accept=".epub" onChange={handleFileChange} className="hidden" />
         </div>
 
-
-
-        {/* --- User's Library Section: Grid for ANY user with books --- */}
+        {/* User's Library Section: Appears here ONLY if they have books */}
         {books.length > 0 && (
           <section className="user-library-section mt-16 border-t border-gray-200 pt-8">
             <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
-              {/* Dynamic title */}
               {isSignedIn ? "Your Cloud Library" : "Your Current Library"}
             </h2>
             <BookGrid books={sortedBooks} />
           </section>
         )}
 
-
-        
-
-        {/* --- Sign-Up Prompt --- */}
+        {/* Sign-Up Prompt */}
         {!isSignedIn && (
           <div className="mt-8 text-center bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-2xl mx-auto">
             <p className="text-amber-900">
@@ -370,11 +543,8 @@ const Library: React.FC = () => {
             </p>
           </div>
         )}
-
-
         
       </main>
-
 
       {/* --- Footer --- */}
       <footer className="py-6 border-t border-gray-200 bg-slate-50">
