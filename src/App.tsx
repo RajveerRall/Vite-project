@@ -11,7 +11,8 @@ const AppContent: React.FC = () => {
   
   return (
     <div className="app">
-      <Header />
+      {/* Only show Header when NOT reading a book */}
+      {!isReading && <Header />}
       {/* Render the Library or Reader component based on the context */}
       {isReading ? <Reader /> : <Library />}
     </div>
