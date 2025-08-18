@@ -41,6 +41,7 @@ interface BookContextValue {
   opfPath: string;
   isPlayModeVisible: boolean;
   togglePlayMode: () => void;
+  isSyncingFromCloud: boolean; // Add loading state for cloud sync
 }
 
 
@@ -61,6 +62,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   const userId = user?.id;
   const [books, setBooks] = useState<BookData[]>([]);
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false); // New state
+  const [isSyncingFromCloud, setIsSyncingFromCloud] = useState<boolean>(false); // New loading state
   // ... (all other state declarations from the previous full version remain the same)
   const [currentBook, setCurrentBook] = useState<BookData | null>(null);
   const [isReading, setIsReading] = useState<boolean>(false);
@@ -213,6 +215,7 @@ useEffect(() => {
     const syncBooksOnLogin = async () => {
       if (isAuthenticated && userId) {
         try {
+          setIsSyncingFromCloud(true);
           console.log('[SupabaseSync] User signed in, syncing books from Supabase...');
 
           // Fetch books from Supabase
@@ -320,6 +323,8 @@ useEffect(() => {
           console.log(`[SupabaseSync] Sync complete. Total books: ${mergedBooks.length}`);
         } catch (error) {
           console.error('[SupabaseSync] Failed to sync books from Supabase:', error);
+        } finally {
+          setIsSyncingFromCloud(false);
         }
       }
     };
@@ -1156,6 +1161,7 @@ useEffect(() => {
     openBook, closeBook, nextPage, prevPage, navigateToTocItem,
     htmlFiles, opfPath,
     isPlayModeVisible, togglePlayMode,
+    isSyncingFromCloud, // Add loading state
   };
 
   return (
