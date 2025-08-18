@@ -111,6 +111,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
                 const file = await localforage.getItem(fileKey) as File;
 
                 if (metadata && file) {
+                    console.log(`[LocalForage Load] Loaded book: ${metadata.title}, currentPage: ${metadata.currentPage}, lastChapter: ${metadata.lastChapter?.label || 'none'}`);
                     loadedBooks.push({ ...metadata, file: file });
                 }
             }
@@ -167,6 +168,7 @@ useEffect(() => {
       for (const book of books) {
         // We separate the large file from its metadata for efficiency
         const { file, ...metadata } = book;
+        console.log(`[LocalForage Save] Saving book: ${metadata.title}, currentPage: ${metadata.currentPage}, lastChapter: ${metadata.lastChapter?.label || 'none'}`);
         await localforage.setItem(`book_metadata_${book.id}`, metadata);
         await localforage.setItem(`book_file_${book.id}`, file);
       }
@@ -511,6 +513,7 @@ useEffect(() => {
       setCurrentPageText(extractedText);
       if (currentBookRef) {
         const chapterForPage = findChapterForPageCallback(pageIdxToLoad, currentTocRef, filesInOrder);
+        console.log(`[loadPageCallback] Saving progress - page: ${pageIdxToLoad}, chapter: ${chapterForPage?.label || 'none'}, bookId: ${currentBookRef.id}`);
         setBooks(prevBooks =>
           prevBooks.map(b =>
             b.id === currentBookRef.id ? { ...b, currentPage: pageIdxToLoad, lastChapter: chapterForPage } : b
@@ -711,15 +714,59 @@ useEffect(() => {
       const extractedToc = await extractTocFromEntries(loadedZip, manifestItems, spineElement, opfFileDir, parser, currentFileOrder);
       setToc(extractedToc);
       setBookZip(loadedZip); setIsReading(true);
-      let pageIdxToLoadInitially = book.currentPage || 0;
-      if (book.lastChapter?.href && extractedToc.length > 0) { /* lastChapter logic - unchanged */
+      
+      // IMPROVED: Better logic for determining the initial page to load
+      let pageIdxToLoadInitially = 0; // Default to first page
+      
+      console.log(`[openBook] Book restoration data - currentPage: ${book.currentPage}, lastChapter: ${book.lastChapter?.label || 'none'}`);
+      
+      // First, try to use the lastChapter if it exists and is valid
+      if (book.lastChapter?.href && extractedToc.length > 0) {
+        console.log(`[openBook] Attempting to restore from lastChapter: ${book.lastChapter.href}`);
         const chapterPath = book.lastChapter.href.split('#')[0];
-        const pageIndexFromChapter = currentFileOrder.findIndex(file => file === chapterPath || file.endsWith('/' + chapterPath));
-        if (pageIndexFromChapter !== -1) pageIdxToLoadInitially = pageIndexFromChapter;
+        
+        // Try multiple matching strategies for better compatibility
+        let pageIndexFromChapter = currentFileOrder.findIndex(file => {
+          // Strategy 1: Exact match
+          if (file === chapterPath) return true;
+          // Strategy 2: File ends with the chapter path
+          if (file.endsWith('/' + chapterPath)) return true;
+          // Strategy 3: Chapter path ends with the file name (reverse match)
+          const fileName = file.split('/').pop() || '';
+          const chapterFileName = chapterPath.split('/').pop() || '';
+          if (fileName === chapterFileName && fileName.length > 0) return true;
+          // Strategy 4: Both paths normalized (remove leading ./ or ../)
+          const normalizedFile = file.replace(/^\.\.?\//g, '');
+          const normalizedChapter = chapterPath.replace(/^\.\.?\//g, '');
+          if (normalizedFile === normalizedChapter) return true;
+          return false;
+        });
+        
+        if (pageIndexFromChapter !== -1) {
+          pageIdxToLoadInitially = pageIndexFromChapter;
+          console.log(`[openBook] Successfully matched lastChapter to page index: ${pageIndexFromChapter}`);
+        } else {
+          console.warn(`[openBook] Could not match lastChapter "${chapterPath}" to any file in currentFileOrder:`, currentFileOrder);
+          // Fallback to currentPage if lastChapter matching fails
+          if (book.currentPage != null && book.currentPage >= 0 && book.currentPage < currentFileOrder.length) {
+            pageIdxToLoadInitially = book.currentPage;
+            console.log(`[openBook] Falling back to saved currentPage: ${book.currentPage}`);
+          }
+        }
+      } 
+      // If no lastChapter, use currentPage
+      else if (book.currentPage != null && book.currentPage >= 0 && book.currentPage < currentFileOrder.length) {
+        pageIdxToLoadInitially = book.currentPage;
+        console.log(`[openBook] Using saved currentPage: ${book.currentPage}`);
+      } else {
+        console.log(`[openBook] No valid saved position found, starting from beginning`);
       }
+      
+      // Ensure the page index is within valid bounds
       pageIdxToLoadInitially = Math.max(0, Math.min(pageIdxToLoadInitially, currentFileOrder.length - 1));
+      
       setCurrentPageToLoad(pageIdxToLoadInitially); setCurrentPageDisplay(pageIdxToLoadInitially);
-      console.log(`[openBook] Successfully prepared: ${book.title}. Page to load: ${pageIdxToLoadInitially}`);
+      console.log(`[openBook] Successfully prepared: ${book.title}. Page to load: ${pageIdxToLoadInitially} (total pages: ${currentFileOrder.length})`);
       setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? { ...b, lastRead: new Date().toISOString() } : b));
       // 4. TRACK THE EVENT AND START THE TIMER
       trackEvent('open_book', {
