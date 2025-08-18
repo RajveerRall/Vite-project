@@ -376,9 +376,8 @@ useEffect(() => {
 
   // *** NEW: Function to load the default sample book ***
   const loadDefaultBook = async (): Promise<BookData | null> => {
-    // Note: I saw `/1984.epub` in your logs. I'll use that.
-    // Make sure '1984.epub' is in your `public/` folder (or `public/books/` and adjust path)
-    const defaultBookPath = '/The Power of Now.epub';
+    // Load 1984.epub from the public folder
+    const defaultBookPath = '/1984.epub';
     console.log(`[Default Book] Fetching from: ${defaultBookPath}`);
     setIsLoading(true); // Show loading indicator
     try {
