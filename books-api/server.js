@@ -15,7 +15,16 @@ const PORT = process.env.PORT || 3001;
 app.use(helmet());
 app.use(compression());
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'], // Allow your React app
+    origin: [
+        'http://localhost:5173', 
+        'http://localhost:3000',
+        'http://161.35.186.252:5173', // Your droplet frontend
+        'https://161.35.186.252:5173', // If using HTTPS
+        'http://161.35.186.252:3000',  // Your main app server
+        'https://161.35.186.252:3000',  // If using HTTPS
+        'http://161.35.186.252:3001',  // Your main app server
+        'https://161.35.186.252:3001'
+      ], // Allow your React app
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
