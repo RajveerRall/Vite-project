@@ -2075,8 +2075,8 @@ export class TTSService {
   private serviceInstanceId = `TTSService_${Date.now().toString().slice(-5)}`;
 
   private constructor() {
-    const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || 'https://api.yoread.com';
-    this.serverUrl = `${ttsApiUrl}/api/tts`;
+    const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
+    this.serverUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
     console.log(`%c[${this.serviceInstanceId} CONSTRUCTOR] Instance created. Server URL: ${this.serverUrl}`, "color: magenta;");
   }
 
