@@ -9,7 +9,7 @@ import Controls from './Controls';
 import { TOCItem } from '../../types/books';
 import './Reader.css';
 import FeatureHighlight from './FeatureHighlight';
-import { ChevronLeft, ChevronRight, Play, Headphones } from 'lucide-react'; // Or your preferred icon library
+import { ChevronLeft, ChevronRight, Play, Headphones, Menu, X } from 'lucide-react'; // Or your preferred icon library
 
 
 const ttsService = TTSService.getInstance();
@@ -53,6 +53,8 @@ const Reader: React.FC = () => {
   const [showFeatureHighlight, setShowFeatureHighlight] = useState<boolean>(true);
   const [useKokoroTTS, setUseKokoroTTS] = useState<boolean>(false);
   const [highlightedContent, setHighlightedContent] = useState<string>(currentContent);
+  // Mobile TOC drawer state
+  const [isTocDrawerOpen, setIsTocDrawerOpen] = useState<boolean>(false);
   // Add this near your other useState declarations
   const audioBuffer = useRef<Record<number, string>>({});
     // Determine if the pagination buttons should be disabled
@@ -561,11 +563,21 @@ const commonTTSStopAndSaveLogic = useCallback(() => {
   ttsIntentActiveRef.current = false;
 }, [isSpeaking, isPaused, saveResumeIndex, haltPlayback]);
 
+  // Mobile TOC drawer functions
+  const toggleTocDrawer = useCallback(() => {
+    setIsTocDrawerOpen(prev => !prev);
+  }, []);
+
+  const closeTocDrawer = useCallback(() => {
+    setIsTocDrawerOpen(false);
+  }, []);
+
   // Navigation handlers wrapped to stop TTS
   const handleNavigateToTocItem = useCallback((item: TOCItem) => {
     commonTTSStopAndSaveLogic();
     navigateToTocItem(item);
-  }, [commonTTSStopAndSaveLogic, navigateToTocItem]);
+    closeTocDrawer(); // Close mobile drawer after navigation
+  }, [commonTTSStopAndSaveLogic, navigateToTocItem, closeTocDrawer]);
 
   const handlePrevPage = useCallback(() => {
     commonTTSStopAndSaveLogic();
@@ -686,6 +698,15 @@ const commonTTSStopAndSaveLogic = useCallback(() => {
         <p className="book-author">{bookAuthor}</p>
       </div>
       <div className="reader-right">
+        {/* Mobile TOC Button */}
+        <button 
+          onClick={toggleTocDrawer}
+          className="mobile-toc-button md:hidden p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2"
+          aria-label="Toggle Table of Contents"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        
         <div className="controls-container">
           <Controls
             currentPage={currentPageDisplay}
@@ -716,9 +737,42 @@ const commonTTSStopAndSaveLogic = useCallback(() => {
           </p>
         </div>
       ) : null}
-      <div className="reader-sidebar">
+      
+      {/* Desktop Sidebar - Hidden on mobile */}
+      <div className="reader-sidebar hidden md:block">
         <TableOfContents items={toc} onItemClick={handleNavigateToTocItem} />
       </div>
+      
+      {/* Mobile TOC Drawer */}
+      {isTocDrawerOpen && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="toc-drawer-backdrop md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={closeTocDrawer}
+          />
+          
+          {/* Drawer */}
+          <div className="toc-drawer md:hidden fixed left-0 top-0 h-full w-80 max-w-[85vw] bg-white z-50 transform transition-transform duration-300 ease-in-out shadow-xl flex flex-col">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
+              <h3 className="text-lg font-semibold text-gray-800">Table of Contents</h3>
+              <button 
+                onClick={closeTocDrawer}
+                className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
+                aria-label="Close Table of Contents"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Drawer Content */}
+            <div className="flex-1 overflow-y-auto p-4 min-h-0">
+              <TableOfContents items={toc} onItemClick={handleNavigateToTocItem} />
+            </div>
+          </div>
+        </>
+      )}
       <div className="reader-main">
         {/* <SearchBar /> */}
         {/* Render React nodes here, no dangerouslySetInnerHTML */}
