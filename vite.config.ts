@@ -30,7 +30,29 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   },
-
+  build: {
+    // Optimize bundle size
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          ui: ['@supabase/supabase-js'],
+          epub: ['jszip'],
+          tts: ['msedge-tts']
+        }
+      }
+    },
+    // Enable compression
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    },
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000
+  },
   server: {
     proxy: {
       '/api': {
