@@ -179,9 +179,10 @@ const Reader: React.FC = () => {
 
       try {
 
-        const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || 'https://api.yoread.com';
+        const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
         const textChunk = chunksToFetch[i];
-        const response = await fetch(`${ttsApiUrl}/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
+        const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
+        const response = await fetch(`${apiUrl}?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
         if (!response.ok) continue;
 
         const audioBlob = await response.blob();
