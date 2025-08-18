@@ -4,7 +4,7 @@ import { useBook } from '../../context/BookContext';
 import BookGrid from './BookGrid';
 import './Library.css';
 import { trackEvent } from '../../lib/analytics'; // Make sure to import it
-import { useAuth, SignInButton } from "@clerk/clerk-react";
+import { useAuth } from "../../context/AuthContext";
 import { BookCarousel } from './BookCarousel';
 import sampleBookPaths from '../../lib/sampleBookManifest.json';
 import { BookData } from '@/types/books'; // Make sure BookData is imported
@@ -80,11 +80,11 @@ const Library: React.FC = () => {
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
-  const { isSignedIn } = useAuth();
+  const { isAuthenticated } = useAuth();
     // State specifically for the anonymous user's showcase carousel
   const [carouselBooks, setCarouselBooks] = useState<BookData[]>([]);
   const [isCarouselLoading, setIsCarouselLoading] = useState<boolean>(true);
-  const displayBooks = isSignedIn ? books : carouselBooks;
+  const displayBooks = isAuthenticated ? books : carouselBooks;
 
 
 
@@ -302,7 +302,7 @@ const Library: React.FC = () => {
         {books.length === 0 && !isLoading && (
           <section className="text-center mb-12">
             <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              {isSignedIn ? "Your Cloud Library is Empty" : "Your Personal Reading Space"}
+              {isAuthenticated ? "Your Cloud Library is Empty" : "Your Personal Reading Space"}
             </h1>
             <p className="mt-4 text-lg leading-8 text-gray-600">
               Upload an ePub file to start building your library.
@@ -353,22 +353,27 @@ const Library: React.FC = () => {
         {books.length > 0 && (
           <section className="user-library-section mt-16 border-t border-gray-200 pt-8">
             <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
-              {isSignedIn ? "Your Cloud Library" : "Your Current Library"}
+              {isAuthenticated ? "Your Cloud Library" : "Your Current Library"}
             </h2>
             <BookGrid books={sortedBooks} />
           </section>
         )}
 
         {/* Sign-Up Prompt */}
-        {!isSignedIn && (
+        {!isAuthenticated && (
           <div className="mt-8 text-center bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-2xl mx-auto">
             <p className="text-amber-900">
               Enjoying YoRead? 
-              <SignInButton mode="modal">
-                <button className="font-semibold text-amber-800 hover:text-amber-900 underline mx-1">
-                  Sign up for free 
-                </button>
-              </SignInButton>
+                             <button 
+                 onClick={() => {
+                   // Trigger the header's sign in modal
+                   const signInBtn = document.querySelector('header button') as HTMLButtonElement;
+                   signInBtn?.click();
+                 }}
+                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-medium text-sm"
+               >
+                 Sign In
+               </button>
                 to access unique storytelling voices!
             </p>
           </div>
