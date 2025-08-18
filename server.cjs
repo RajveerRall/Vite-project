@@ -108,6 +108,75 @@ const handleTTS = async (req, res) => {
 app.get('/api/tts', handleTTS);
 app.post('/api/tts', handleTTS);
 
+// --- Simple User Books API (No backend auth needed) ---
+// This stores books in memory per session - for demo purposes
+// In production, you'd want a real database
+const userBooksStorage = new Map();
+
+const handleUserBooks = async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { userId, action, book, bookId, updates } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  try {
+    console.log(`[User Books API] ${action} request for user ${userId}`);
+
+    // Get current books for this user
+    const currentBooks = userBooksStorage.get(userId) || [];
+
+    switch (action) {
+      case 'save':
+        const existingIndex = currentBooks.findIndex(b => b.id === book.id);
+        if (existingIndex >= 0) {
+          currentBooks[existingIndex] = { ...currentBooks[existingIndex], ...book };
+          console.log(`[User Books API] Updated existing book: ${book.title}`);
+        } else {
+          currentBooks.push(book);
+          console.log(`[User Books API] Added new book: ${book.title}`);
+        }
+        
+        userBooksStorage.set(userId, currentBooks);
+        break;
+
+      case 'update':
+        const updateIndex = currentBooks.findIndex(b => b.id === bookId);
+        if (updateIndex >= 0) {
+          currentBooks[updateIndex] = { ...currentBooks[updateIndex], ...updates };
+          console.log(`[User Books API] Updated progress for book: ${bookId}`);
+          userBooksStorage.set(userId, currentBooks);
+        }
+        break;
+
+      case 'remove':
+        const filteredBooks = currentBooks.filter(b => b.id !== bookId);
+        userBooksStorage.set(userId, filteredBooks);
+        console.log(`[User Books API] Removed book: ${bookId}`);
+        return res.status(200).json({ success: true });
+
+      case 'get':
+        console.log(`[User Books API] Retrieved ${currentBooks.length} books for user`);
+        return res.status(200).json({ books: currentBooks });
+
+      default:
+        return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    res.status(200).json({ success: true });
+
+  } catch (error) {
+    console.error('[User Books API] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+app.post('/api/user-books', handleUserBooks);
+
 // --- Health Check ---
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });

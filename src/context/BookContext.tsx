@@ -205,6 +205,93 @@ useEffect(() => {
     };
   }, []); // Empty dependency array means this runs only on unmount
 
+  // Sync books from cloud when user signs in
+  useEffect(() => {
+    const syncBooksOnLogin = async () => {
+      if (isSignedIn && userId) {
+        try {
+          console.log('[UserSync] User signed in, syncing books from server...');
+          const token = await getToken();
+          if (!token) return;
+
+          const response = await fetch('http://localhost:3001/api/books', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+              userId,
+              action: 'get' 
+            })
+          });
+
+          if (response.ok) {
+            const { books: cloudBooks } = await response.json();
+            console.log(`[UserSync] Retrieved ${cloudBooks.length} books from server`);
+            
+            // Convert cloud books back to BookData format and regenerate covers
+            const convertedBooks: BookData[] = await Promise.all(
+              cloudBooks.map(async (cloudBook: any) => {
+                const file = base64ToFile(cloudBook.fileData, `${cloudBook.title}.epub`);
+                const coverUrl = await regenerateCoverUrl(file);
+                
+                return {
+                  id: cloudBook.id,
+                  title: cloudBook.title,
+                  author: cloudBook.author,
+                  currentPage: cloudBook.currentPage,
+                  lastChapter: cloudBook.lastChapter,
+                  totalPages: cloudBook.totalPages,
+                  lastRead: cloudBook.lastRead,
+                  file: file,
+                  coverUrl: coverUrl // Regenerated from the file
+                };
+              })
+            );
+
+            // Merge with local books (server takes precedence for newer versions)
+            const currentLocalBooks = books;
+            const mergedBooks = [...currentLocalBooks];
+            
+            convertedBooks.forEach(cloudBook => {
+              const localIndex = mergedBooks.findIndex(book => book.id === cloudBook.id);
+              
+              if (localIndex >= 0) {
+                // Book exists locally, use the one with latest lastRead
+                const localBook = mergedBooks[localIndex];
+                const cloudDate = new Date(cloudBook.lastRead);
+                const localDate = new Date(localBook.lastRead);
+                
+                if (cloudDate > localDate) {
+                  // Server version is newer, update local
+                  mergedBooks[localIndex] = {
+                    ...localBook,
+                    currentPage: cloudBook.currentPage,
+                    lastChapter: cloudBook.lastChapter,
+                    totalPages: cloudBook.totalPages,
+                    lastRead: cloudBook.lastRead
+                  };
+                  console.log(`[UserSync] Updated local book from server: ${cloudBook.title}`);
+                }
+              } else {
+                // Book doesn't exist locally, add from server
+                mergedBooks.push(cloudBook);
+                console.log(`[UserSync] Added book from server: ${cloudBook.title}`);
+              }
+            });
+
+            setBooks(mergedBooks);
+            console.log(`[UserSync] Sync complete. Total books: ${mergedBooks.length}`);
+          }
+        } catch (error) {
+          console.error('[UserSync] Failed to sync books from server:', error);
+        }
+      }
+    };
+
+    syncBooksOnLogin();
+  }, [isSignedIn, userId, getToken]); // Run when sign-in status changes
+
 // =================================================================
 
   // *** NEW: Function to regenerate cover URL from book file ***
@@ -481,38 +568,111 @@ useEffect(() => {
     }
   };
 
-  // This helper function handles the background sync for logged-in users.
+  // Helper function to convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1]; // Remove data:type;base64, prefix
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Helper function to convert base64 back to File
+  const base64ToFile = (base64Data: string, fileName: string): File => {
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new File([byteArray], fileName, { type: 'application/epub+zip' });
+  };
+
+  // This helper function handles the background sync for logged-in users using Clerk.
   const syncBookToCloud = async (book: BookData) => {
-    console.log(`[Sync] Starting cloud sync for: "${book.title}"`);
+    console.log(`[ClerkSync] Starting cloud sync for: "${book.title}"`);
     try {
-      const formData = new FormData();
-      formData.append('file', book.file);
-      formData.append('title', book.title);
-      formData.append('author', book.author);
-      // You can append other metadata like the temporary ID if your API needs it.
-      formData.append('localId', book.id);
-      
       const token = await getToken();
+      if (!token) throw new Error('No auth token available');
+
+      // Convert file to base64 for storage in Clerk metadata
+      const fileBase64 = await fileToBase64(book.file);
       
-      const response = await fetch('https://YOUR_NEW_BACKEND/api/books', { // TODO: Replace with your actual backend URL
+      // Check file size (Clerk has metadata limits)
+      const fileSizeKB = fileBase64.length * 0.75 / 1024; // Rough base64 size estimate
+      if (fileSizeKB > 500) { // 500KB limit for safety
+        console.warn(`[ClerkSync] File too large for Clerk metadata: ${fileSizeKB}KB`);
+        throw new Error('File too large for cloud sync');
+      }
+
+      const cloudBook = {
+        id: book.id,
+        title: book.title,
+        author: book.author,
+        currentPage: book.currentPage,
+        totalPages: book.totalPages,
+        lastRead: book.lastRead,
+        lastChapter: book.lastChapter,
+        fileData: fileBase64
+      };
+
+      const response = await fetch('http://localhost:3001/api/books', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId,
+          action: 'save',
+          book: cloudBook
+        })
       });
 
       if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Failed to sync book to cloud. Status: ${response.status}. Body: ${errorBody}`);
+        throw new Error(`Failed to sync to server: ${response.status}`);
       }
 
-      console.log(`[Sync] Successfully synced "${book.title}" to the cloud.`);
-      // Optional: If your API returns a permanent database ID, you can update the state again here.
-      // const savedBook = await response.json();
-      // setBooks(prevBooks => prevBooks.map(b => b.id === savedBook.localId ? { ...b, id: savedBook.id } : b));
+      console.log(`[UserSync] Successfully synced "${book.title}" to server.`);
       
     } catch (error) {
-      console.error("[Sync] Error in syncBookToCloud:", error);
-      // Here you could trigger a small, non-intrusive "failed to sync" toast notification.
+      console.error("[UserSync] Error in syncBookToCloud:", error);
+      if (error instanceof Error && error.message.includes('too large')) {
+        console.warn('[UserSync] Book file is too large for cloud sync. Saving locally only.');
+      }
+    }
+  };
+
+  // Sync book progress to cloud (for reading progress updates)
+  const syncProgressToCloud = async (bookId: string, currentPage: number, lastChapter: any) => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      await fetch('http://localhost:3001/api/books', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId,
+          action: 'update',
+          bookId,
+          updates: {
+            currentPage,
+            lastChapter,
+            lastRead: new Date().toISOString()
+          }
+        })
+      });
+
+      console.log(`[UserSync] Updated progress for book ${bookId}: page ${currentPage}`);
+    } catch (error) {
+      console.error('[UserSync] Error syncing progress:', error);
     }
   };
 
@@ -579,6 +739,11 @@ useEffect(() => {
             b.id === currentBookRef.id ? { ...b, currentPage: pageIdxToLoad, lastChapter: chapterForPage } : b
           )
         );
+
+        // Sync progress to cloud if user is signed in
+        if (isSignedIn && userId) {
+          syncProgressToCloud(currentBookRef.id, pageIdxToLoad, chapterForPage);
+        }
       }
       setTimeout(() => { /* Image/CSS processing logic - unchanged */
         const contentElement = document.querySelector('.epub-content');
@@ -640,15 +805,39 @@ useEffect(() => {
     }
   }, [currentBook, bookZip, htmlFiles, currentPageToLoad, loadPageCallback, toc, isReading]);
 
-  const removeBook = async (bookId: string): Promise<void> => { /* Unchanged */
+  const removeBook = async (bookId: string): Promise<void> => {
     const bookToRemove = books.find(b => b.id === bookId);
     if (bookToRemove?.coverUrl?.startsWith('blob:')) {
       URL.revokeObjectURL(bookToRemove.coverUrl);
     }
     trackEvent('remove_book');
     console.log(`[removeBook] Removing book ID: ${bookId}`);
+    
+    // Remove from local state
     setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
-    // Save will be triggered by useEffect watching `books`
+    
+    // Remove from cloud if user is signed in
+    if (isSignedIn && userId) {
+      try {
+        const token = await getToken();
+        if (token) {
+          await fetch('http://localhost:3001/api/books', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              userId,
+              action: 'remove',
+              bookId
+            })
+          });
+          console.log(`[UserSync] Removed book ${bookId} from server`);
+        }
+              } catch (error) {
+          console.error('[UserSync] Error removing book from server:', error);
+        }
+    }
   };
 
   const extractTocFromEntries = useCallback(async ( /* Unchanged */
