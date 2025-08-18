@@ -240,9 +240,21 @@ const Reader: React.FC = () => {
 
     // *** THE CRITICAL FIX: Check the .current property of the ref ***
     if (audioBuffer.current[index]) {
-      console.log(`[playChunk] Playing chunk #${index} from BUFFER.`);
-      playAudio(audioBuffer.current[index]);
-    } else {
+      const bufferedUrl = audioBuffer.current[index];
+      // Validate that the blob URL is still valid
+      if (bufferedUrl && bufferedUrl.startsWith('blob:')) {
+        console.log(`[playChunk] Playing chunk #${index} from BUFFER.`);
+        playAudio(bufferedUrl);
+      } else {
+        console.log(`[playChunk] Buffered URL for chunk #${index} is invalid, fetching from NETWORK.`);
+        // Remove invalid entry from buffer
+        delete audioBuffer.current[index];
+        // Fall through to network fetch
+      }
+    }
+    
+    // Fetch from network if no valid buffer entry
+    if (!audioBuffer.current[index]) {
       console.log(`[playChunk] Playing chunk #${index} from NETWORK.`);
       try {
         const textChunk = chunks[index];
@@ -344,6 +356,17 @@ const haltPlayback = useCallback(() => {
   if (abortControllerRef.current) {
     abortControllerRef.current.abort();
   }
+  
+  // Clear all buffered audio URLs to prevent playing invalid blob URLs
+  const bufferUrls = Object.values(audioBuffer.current);
+  console.log(`[${readerInstanceId}][haltPlayback] Clearing ${bufferUrls.length} buffered audio URLs`);
+  bufferUrls.forEach(url => {
+    if (url && url.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+    }
+  });
+  audioBuffer.current = {}; // Clear the buffer
+  
   setIsSpeaking(false);
   setIsPaused(false);
   setCurrentChunkIndex(null);
