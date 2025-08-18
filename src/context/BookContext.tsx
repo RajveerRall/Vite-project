@@ -112,7 +112,17 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
 
                 if (metadata && file) {
                     console.log(`[LocalForage Load] Loaded book: ${metadata.title}, currentPage: ${metadata.currentPage}, lastChapter: ${metadata.lastChapter?.label || 'none'}`);
-                    loadedBooks.push({ ...metadata, file: file });
+                    
+                    // Regenerate cover URL since blob URLs don't persist across page reloads
+                    const freshCoverUrl = await regenerateCoverUrl(file);
+                    const bookWithFreshCover = { 
+                        ...metadata, 
+                        file: file,
+                        coverUrl: freshCoverUrl || metadata.coverUrl // Use fresh URL if available, otherwise keep old one
+                    };
+                    
+                    console.log(`[LocalForage Load] Cover regenerated for "${metadata.title}": ${freshCoverUrl ? 'Success' : 'Failed'}`);
+                    loadedBooks.push(bookWithFreshCover);
                 }
             }
         }
@@ -182,10 +192,60 @@ useEffect(() => {
 
   saveBooksToStorage();
 
-}, [books, isInitialLoadComplete]); // This hook runs ONLY when the 'books' array changes.
+  }, [books, isInitialLoadComplete]); // This hook runs ONLY when the 'books' array changes.
+
+  // Cleanup blob URLs when component unmounts to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      books.forEach(book => {
+        if (book.coverUrl?.startsWith('blob:')) {
+          URL.revokeObjectURL(book.coverUrl);
+        }
+      });
+    };
+  }, []); // Empty dependency array means this runs only on unmount
 
 // =================================================================
 
+  // *** NEW: Function to regenerate cover URL from book file ***
+  const regenerateCoverUrl = async (bookFile: File): Promise<string | null> => {
+    try {
+      const zip = new JSZip();
+      const loadedZip = await zip.loadAsync(bookFile);
+      const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
+      if (!containerXml) return null;
+      
+      const parser = new DOMParser();
+      const containerDoc = parser.parseFromString(containerXml, 'application/xml');
+      const rootfiles = containerDoc.getElementsByTagName('rootfile');
+      if (rootfiles.length === 0) return null;
+      
+      const opfPath = rootfiles[0].getAttribute('full-path') || '';
+      const opfContent = await loadedZip.file(opfPath)?.async('text');
+      if (!opfContent) return null;
+      
+      const opfDoc = parser.parseFromString(opfContent, 'application/xml');
+      const metaCover = Array.from(opfDoc.getElementsByTagName('meta')).find(m => m.getAttribute('name') === 'cover');
+      if (metaCover) {
+        const coverId = metaCover.getAttribute('content');
+        const coverItem = Array.from(opfDoc.getElementsByTagName('item')).find(item => item.getAttribute('id') === coverId);
+        if (coverItem) {
+          const href = coverItem.getAttribute('href');
+          if (href) {
+            const coverPath = resolveRelativePath(getDirectoryPath(opfPath), href);
+            const coverBlob = await loadedZip.file(coverPath)?.async('blob');
+            if (coverBlob) {
+              return URL.createObjectURL(coverBlob);
+            }
+          }
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('[regenerateCoverUrl] Error regenerating cover:', error);
+      return null;
+    }
+  };
 
   // *** NEW: Function to load the default sample book ***
   const loadDefaultBook = async (): Promise<BookData | null> => {
