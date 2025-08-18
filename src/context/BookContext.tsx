@@ -214,7 +214,8 @@ useEffect(() => {
           const token = await getToken();
           if (!token) return;
 
-          const response = await fetch('http://localhost:3001/api/books', {
+          const apiBaseUrl = import.meta.env.VITE_BOOKS_API_URL || 'http://localhost:3001';
+          const response = await fetch(`${apiBaseUrl}/api/books`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -621,7 +622,8 @@ useEffect(() => {
         fileData: fileBase64
       };
 
-      const response = await fetch('http://localhost:3001/api/books', {
+      const apiBaseUrl = import.meta.env.VITE_BOOKS_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiBaseUrl}/api/books`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -653,7 +655,8 @@ useEffect(() => {
       const token = await getToken();
       if (!token) return;
 
-      await fetch('http://localhost:3001/api/books', {
+      const apiBaseUrl = import.meta.env.VITE_BOOKS_API_URL || 'http://localhost:3001';
+      await fetch(`${apiBaseUrl}/api/books`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -821,7 +824,8 @@ useEffect(() => {
       try {
         const token = await getToken();
         if (token) {
-          await fetch('http://localhost:3001/api/books', {
+          const apiBaseUrl = import.meta.env.VITE_BOOKS_API_URL || 'http://localhost:3001';
+          await fetch(`${apiBaseUrl}/api/books`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
