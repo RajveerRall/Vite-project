@@ -73,7 +73,7 @@ async function processBookFileForDisplay(file: File): Promise<BookData | null> {
 }
 
 const Library: React.FC = () => {
-  const { books, addBook, isLoading, openBook } = useBook();
+  const { books, addBook, isLoading, openBook, isSyncingFromCloud } = useBook();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState<boolean>(false);
   // Toast notification states
@@ -284,6 +284,17 @@ const Library: React.FC = () => {
           </div>
         )}
 
+        {/* --- Cloud Sync Loading Overlay --- */}
+        {isSyncingFromCloud && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-sm mx-4 text-center shadow-xl">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Syncing Your Library</h3>
+              <p className="text-gray-600">Downloading your books from the cloud...</p>
+            </div>
+          </div>
+        )}
+
         {/* --- START: Simplified Display Logic --- */}
         
         {/* Showcase Carousel: Always visible */}
@@ -352,29 +363,37 @@ const Library: React.FC = () => {
         {/* User's Library Section: Appears here ONLY if they have books */}
         {books.length > 0 && (
           <section className="user-library-section mt-16 border-t border-gray-200 pt-8">
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
-              {isAuthenticated ? "Your Cloud Library" : "Your Current Library"}
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+                {isAuthenticated ? "Your Cloud Library" : "Your Current Library"}
+              </h2>
+              {isSyncingFromCloud && (
+                <div className="flex items-center text-amber-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600 mr-2"></div>
+                  <span className="text-sm">Syncing...</span>
+                </div>
+              )}
+            </div>
             <BookGrid books={sortedBooks} />
           </section>
         )}
 
-        {/* Sign-Up Prompt */}
+                {/* Sign-Up Prompt */}
         {!isAuthenticated && (
           <div className="mt-8 text-center bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-2xl mx-auto">
             <p className="text-amber-900">
-              Enjoying YoRead? 
-                             <button 
-                 onClick={() => {
-                   // Trigger the header's sign in modal
-                   const signInBtn = document.querySelector('header button') as HTMLButtonElement;
-                   signInBtn?.click();
-                 }}
-                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-medium text-sm"
-               >
-                 Sign In
-               </button>
-                to access unique storytelling voices!
+              Enjoying YoRead?{' '}
+              <button 
+                onClick={() => {
+                  // Trigger the header's sign in modal
+                  const signInBtn = document.querySelector('header button') as HTMLButtonElement;
+                  signInBtn?.click();
+                }}
+                className="inline-link text-amber-800 hover:text-amber-900 underline font-medium mx-1 transition-colors"
+              >
+                Sign in
+              </button>
+              to access unique storytelling voices!
             </p>
           </div>
         )}
