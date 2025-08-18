@@ -72,10 +72,26 @@
 // export default Header;
 
 
-import React from 'react';
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
+import React, { useState } from 'react';
+import { useAuth } from "../../context/AuthContext";
+import { AuthForm } from "../Auth/AuthForm";
 
 const Header: React.FC = () => {
+  const { isAuthenticated, user, signOut, loading } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  if (loading) {
+    return null; // Or a loading spinner
+  }
+
   return (
     // --- The Header Container: Made sticky with a shadow for elevation ---
     <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -93,18 +109,17 @@ const Header: React.FC = () => {
           <div className="auth-controls">
             
             {/* --- Logged-Out State --- */}
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button 
-                  className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-md transition-colors font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
-                >
-                  Sign In
-                </button>
-              </SignInButton>
-            </SignedOut>
+            {!isAuthenticated && (
+              <button 
+                onClick={() => setShowAuthModal(true)}
+                className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-md transition-colors font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
+              >
+                Sign In
+              </button>
+            )}
 
             {/* --- Logged-In State --- */}
-            <SignedIn>
+            {isAuthenticated && (
               <div className="flex items-center gap-x-4">
                 
                 {/* A small "Pro" badge to add value to the logged-in experience */}
@@ -112,15 +127,52 @@ const Header: React.FC = () => {
                   Pro
                 </span>
 
-                {/* The Clerk UserButton for profile management */}
-                <UserButton afterSignOutUrl="/" />
+                {/* User email and sign out button */}
+                <span className="hidden sm:inline text-sm text-gray-600">
+                  {user?.email}
+                </span>
+                <button 
+                  onClick={handleSignOut}
+                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 hover:border-gray-400 rounded transition-colors"
+                >
+                  Sign Out
+                </button>
 
               </div>
-            </SignedIn>
+            )}
           </div>
 
         </div>
       </div>
+      
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            {/* Background overlay */}
+            <div 
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              onClick={() => setShowAuthModal(false)}
+            ></div>
+
+            {/* Modal panel */}
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">Sign In / Sign Up</h3>
+                  <button
+                    onClick={() => setShowAuthModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <span className="text-2xl">&times;</span>
+                  </button>
+                </div>
+                <AuthForm onSuccess={() => setShowAuthModal(false)} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

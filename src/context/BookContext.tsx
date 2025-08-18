@@ -7,7 +7,9 @@ import { DOMParser } from 'xmldom';
 import { getDirectoryPath, resolveRelativePath } from '../utils/pathUtils';
 import { processHtmlContent, extractTextFromHtml } from '../utils/textExtraction';
 import { BookData, TOCItem } from '@/types/books'; // Ensure BookData includes all necessary fields like lastChapter
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth } from "./AuthContext";
+import { supabase, uploadFile, deleteFile, getFileUrl, type BookRecord } from '../lib/supabase';
+import { generateUUID } from '../lib/utils';
 
 localforage.config({
   name: "EbookReaderApp",  // Database name
@@ -55,7 +57,8 @@ interface BookProviderProps {
 }
 
 export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
-  const { isSignedIn, userId, getToken } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const userId = user?.id;
   const [books, setBooks] = useState<BookData[]>([]);
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false); // New state
   // ... (all other state declarations from the previous full version remain the same)
@@ -208,90 +211,121 @@ useEffect(() => {
   // Sync books from cloud when user signs in
   useEffect(() => {
     const syncBooksOnLogin = async () => {
-      if (isSignedIn && userId) {
+      if (isAuthenticated && userId) {
         try {
-          console.log('[UserSync] User signed in, syncing books from server...');
-          const token = await getToken();
-          if (!token) return;
+          console.log('[SupabaseSync] User signed in, syncing books from Supabase...');
 
-          const apiBaseUrl = import.meta.env.VITE_BOOKS_API_URL || 'http://localhost:3001';
-          const response = await fetch(`${apiBaseUrl}/api/books`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-              userId,
-              action: 'get' 
-            })
-          });
+          // Fetch books from Supabase
+          const { data: cloudBooks, error } = await supabase
+            .from('books')
+            .select('*')
+            .eq('user_id', userId)
+            .order('last_read', { ascending: false });
 
-          if (response.ok) {
-            const { books: cloudBooks } = await response.json();
-            console.log(`[UserSync] Retrieved ${cloudBooks.length} books from server`);
-            
-            // Convert cloud books back to BookData format and regenerate covers
-            const convertedBooks: BookData[] = await Promise.all(
-              cloudBooks.map(async (cloudBook: any) => {
-                const file = base64ToFile(cloudBook.fileData, `${cloudBook.title}.epub`);
-                const coverUrl = await regenerateCoverUrl(file);
+          if (error) {
+            throw new Error(`Supabase fetch error: ${error.message}`);
+          }
+
+          console.log(`[SupabaseSync] Retrieved ${cloudBooks.length} books from Supabase`);
+
+          // Convert Supabase books back to BookData format
+          const convertedBooks: BookData[] = await Promise.all(
+            cloudBooks.map(async (cloudBook: BookRecord) => {
+              // Download EPUB file from Supabase Storage
+              let file: File;
+              let coverUrl: string | null = null;
+
+              try {
+                // Get the file from storage
+                const downloadPath = `${userId}/${cloudBook.id}.epub`;
+                console.log(`[SupabaseSync] Download path: ${downloadPath}`);
+                console.log(`[SupabaseSync] Download User ID: ${userId}`);
+                console.log(`[SupabaseSync] Download Book ID: ${cloudBook.id}`);
                 
-                return {
-                  id: cloudBook.id,
-                  title: cloudBook.title,
-                  author: cloudBook.author,
+                const { data: fileData, error: fileError } = await supabase.storage
+                  .from('book-files')
+                  .download(downloadPath);
+
+                if (fileError || !fileData) {
+                  console.error(`[SupabaseSync] Download error details:`, fileError);
+                  throw new Error(`File download error: ${fileError?.message || 'No file data received'}`);
+                }
+
+                file = new File([fileData], `${cloudBook.title}.epub`, { type: 'application/epub+zip' });
+                
+                // Use cover URL from Supabase or regenerate from file
+                if (cloudBook.cover_url) {
+                  coverUrl = cloudBook.cover_url;
+                } else {
+                  coverUrl = await regenerateCoverUrl(file);
+                }
+              } catch (fileError) {
+                console.warn(`[SupabaseSync] Could not download file for "${cloudBook.title}":`, fileError);
+                // Create a dummy file if download fails
+                file = new File([''], `${cloudBook.title}.epub`, { type: 'application/epub+zip' });
+              }
+
+              return {
+                id: cloudBook.id,
+                title: cloudBook.title,
+                author: cloudBook.author || '',
+                currentPage: cloudBook.current_page,
+                lastChapter: cloudBook.last_chapter ? { 
+                  id: 'restored-chapter', 
+                  href: cloudBook.last_chapter, 
+                  label: cloudBook.last_chapter.split('/').pop()?.replace('.html', '') || 'Chapter',
+                  children: []
+                } : null,
+                totalPages: cloudBook.total_pages,
+                lastRead: cloudBook.last_read,
+                file: file,
+                coverUrl: coverUrl
+              };
+            })
+          );
+
+          // Merge with local books (Supabase takes precedence for newer versions)
+          const currentLocalBooks = books;
+          const mergedBooks = [...currentLocalBooks];
+
+          convertedBooks.forEach(cloudBook => {
+            const localIndex = mergedBooks.findIndex(book => book.id === cloudBook.id);
+
+            if (localIndex >= 0) {
+              // Book exists locally, use the one with latest lastRead
+              const localBook = mergedBooks[localIndex];
+              const cloudDate = new Date(cloudBook.lastRead);
+              const localDate = new Date(localBook.lastRead);
+
+              if (cloudDate > localDate) {
+                // Supabase version is newer, update local
+                mergedBooks[localIndex] = {
+                  ...localBook,
                   currentPage: cloudBook.currentPage,
                   lastChapter: cloudBook.lastChapter,
                   totalPages: cloudBook.totalPages,
                   lastRead: cloudBook.lastRead,
-                  file: file,
-                  coverUrl: coverUrl // Regenerated from the file
+                  coverUrl: cloudBook.coverUrl
                 };
-              })
-            );
-
-            // Merge with local books (server takes precedence for newer versions)
-            const currentLocalBooks = books;
-            const mergedBooks = [...currentLocalBooks];
-            
-            convertedBooks.forEach(cloudBook => {
-              const localIndex = mergedBooks.findIndex(book => book.id === cloudBook.id);
-              
-              if (localIndex >= 0) {
-                // Book exists locally, use the one with latest lastRead
-                const localBook = mergedBooks[localIndex];
-                const cloudDate = new Date(cloudBook.lastRead);
-                const localDate = new Date(localBook.lastRead);
-                
-                if (cloudDate > localDate) {
-                  // Server version is newer, update local
-                  mergedBooks[localIndex] = {
-                    ...localBook,
-                    currentPage: cloudBook.currentPage,
-                    lastChapter: cloudBook.lastChapter,
-                    totalPages: cloudBook.totalPages,
-                    lastRead: cloudBook.lastRead
-                  };
-                  console.log(`[UserSync] Updated local book from server: ${cloudBook.title}`);
-                }
-              } else {
-                // Book doesn't exist locally, add from server
-                mergedBooks.push(cloudBook);
-                console.log(`[UserSync] Added book from server: ${cloudBook.title}`);
+                console.log(`[SupabaseSync] Updated local book from Supabase: ${cloudBook.title}`);
               }
-            });
+            } else {
+              // Book doesn't exist locally, add from Supabase
+              mergedBooks.push(cloudBook);
+              console.log(`[SupabaseSync] Added book from Supabase: ${cloudBook.title}`);
+            }
+          });
 
-            setBooks(mergedBooks);
-            console.log(`[UserSync] Sync complete. Total books: ${mergedBooks.length}`);
-          }
+          setBooks(mergedBooks);
+          console.log(`[SupabaseSync] Sync complete. Total books: ${mergedBooks.length}`);
         } catch (error) {
-          console.error('[UserSync] Failed to sync books from server:', error);
+          console.error('[SupabaseSync] Failed to sync books from Supabase:', error);
         }
       }
     };
 
     syncBooksOnLogin();
-  }, [isSignedIn, userId, getToken]); // Run when sign-in status changes
+  }, [isAuthenticated, userId]); // Run when sign-in status changes
 
 // =================================================================
 
@@ -366,7 +400,8 @@ useEffect(() => {
       const opfDoc = parser.parseFromString(opfContent, 'application/xml');
       const title = opfDoc.getElementsByTagName('dc:title')[0]?.textContent?.trim() || 'Unknown Title';
       const author = opfDoc.getElementsByTagName('dc:creator')[0]?.textContent?.trim() || 'Unknown Author';
-      const id = `${Date.now()}-${bookFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      
+      const id = generateUUID();
 
       // This part for cover is complex, can be simplified or kept if needed
       let coverUrl: string | null = null;
@@ -539,7 +574,7 @@ useEffect(() => {
       }
 
       const newBook: BookData = {
-        id: `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`,
+        id: generateUUID(),
         title,
         author,
         coverUrl,
@@ -554,7 +589,7 @@ useEffect(() => {
       setBooks(prevBooks => [...prevBooks, newBook]);
 
       // Step 3 (Conditional Enhancement): If the user is signed in, sync the new book to the cloud.
-      if (isSignedIn) {
+      if (isAuthenticated) {
         // This runs in the background ("fire and forget") so the UI is not blocked.
         syncBookToCloud(newBook);
       }
@@ -569,113 +604,98 @@ useEffect(() => {
     }
   };
 
-  // Helper function to convert file to base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(',')[1]; // Remove data:type;base64, prefix
-        resolve(base64);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
 
-  // Helper function to convert base64 back to File
-  const base64ToFile = (base64Data: string, fileName: string): File => {
-    const byteCharacters = atob(base64Data);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    return new File([byteArray], fileName, { type: 'application/epub+zip' });
-  };
 
-  // This helper function handles the background sync for logged-in users using Clerk.
+  // Sync book to Supabase (for new book uploads)
   const syncBookToCloud = async (book: BookData) => {
-    console.log(`[ClerkSync] Starting cloud sync for: "${book.title}"`);
+    if (!isAuthenticated || !userId) return;
+    
     try {
-      const token = await getToken();
-      if (!token) throw new Error('No auth token available');
-
-      // Convert file to base64 for storage in Clerk metadata
-      const fileBase64 = await fileToBase64(book.file);
+      console.log(`[SupabaseSync] Starting sync for "${book.title}"`);
       
-      // Check file size (Clerk has metadata limits)
-      const fileSizeKB = fileBase64.length * 0.75 / 1024; // Rough base64 size estimate
-      if (fileSizeKB > 500) { // 500KB limit for safety
-        console.warn(`[ClerkSync] File too large for Clerk metadata: ${fileSizeKB}KB`);
-        throw new Error('File too large for cloud sync');
+      // Upload EPUB file to Supabase Storage
+      const fileName = `${book.id}.epub`;
+      const filePath = `${userId}/${fileName}`;
+      
+      console.log(`[SupabaseSync] Upload path: ${filePath}`);
+      console.log(`[SupabaseSync] User ID: ${userId}`);
+      console.log(`[SupabaseSync] Book ID: ${book.id}`);
+      
+      const fileUpload = await uploadFile('book-files', filePath, book.file);
+      const fileUrl = getFileUrl('book-files', filePath);
+      
+      // Upload cover image if available
+      let coverUrl = null;
+      if (book.coverUrl && book.coverUrl.startsWith('blob:')) {
+        try {
+          // Extract cover from EPUB and upload to Supabase
+          const coverBlob = await fetch(book.coverUrl).then(r => r.blob());
+          const coverPath = `${userId}/${book.id}-cover.jpg`;
+          await uploadFile('book-covers', coverPath, coverBlob);
+          coverUrl = getFileUrl('book-covers', coverPath);
+        } catch (coverError) {
+          console.warn('[SupabaseSync] Could not upload cover:', coverError);
+        }
       }
 
-      const cloudBook = {
-        id: book.id,
+      // Save book metadata to Supabase database
+      const bookRecord: Omit<BookRecord, 'created_at' | 'updated_at'> = {
+        id: book.id, // IMPORTANT: Use the same ID as the file path
+        user_id: userId,
         title: book.title,
-        author: book.author,
-        currentPage: book.currentPage,
-        totalPages: book.totalPages,
-        lastRead: book.lastRead,
-        lastChapter: book.lastChapter,
-        fileData: fileBase64
+        author: book.author || '',
+        current_page: book.currentPage,
+        last_chapter: typeof book.lastChapter === 'string' ? book.lastChapter : book.lastChapter?.href || '',
+        total_pages: book.totalPages,
+        last_read: book.lastRead,
+        file_url: fileUrl,
+        cover_url: coverUrl || undefined
       };
 
-      const apiBaseUrl = import.meta.env.VITE_BOOKS_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiBaseUrl}/api/books`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId,
-          action: 'save',
-          book: cloudBook
+      const { data, error } = await supabase
+        .from('books')
+        .upsert(bookRecord, { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
         })
-      });
+        .select();
 
-      if (!response.ok) {
-        throw new Error(`Failed to sync to server: ${response.status}`);
+      if (error) {
+        throw new Error(`Supabase database error: ${error.message}`);
       }
 
-      console.log(`[UserSync] Successfully synced "${book.title}" to server.`);
+      console.log(`[SupabaseSync] Successfully synced "${book.title}" to Supabase`);
       
     } catch (error) {
-      console.error("[UserSync] Error in syncBookToCloud:", error);
-      if (error instanceof Error && error.message.includes('too large')) {
-        console.warn('[UserSync] Book file is too large for cloud sync. Saving locally only.');
-      }
+      console.error("[SupabaseSync] Error in syncBookToCloud:", error);
+      // Don't throw - let the book save locally even if cloud sync fails
     }
   };
 
-  // Sync book progress to cloud (for reading progress updates)
+  // Sync book progress to Supabase (for reading progress updates)
   const syncProgressToCloud = async (bookId: string, currentPage: number, lastChapter: any) => {
+    if (!isAuthenticated || !userId) return;
+    
     try {
-      const token = await getToken();
-      if (!token) return;
-
-      const apiBaseUrl = import.meta.env.VITE_BOOKS_API_URL || 'http://localhost:3001';
-      await fetch(`${apiBaseUrl}/api/books`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId,
-          action: 'update',
-          bookId,
-          updates: {
-            currentPage,
-            lastChapter,
-            lastRead: new Date().toISOString()
-          }
+      const lastChapterStr = typeof lastChapter === 'string' ? lastChapter : lastChapter?.href || '';
+      
+      const { error } = await supabase
+        .from('books')
+        .update({
+          current_page: currentPage,
+          last_chapter: lastChapterStr,
+          last_read: new Date().toISOString()
         })
-      });
+        .eq('user_id', userId)
+        .eq('id', bookId);
 
-      console.log(`[UserSync] Updated progress for book ${bookId}: page ${currentPage}`);
+      if (error) {
+        throw new Error(`Supabase update error: ${error.message}`);
+      }
+
+      console.log(`[SupabaseSync] Updated progress for book ${bookId}: page ${currentPage}`);
     } catch (error) {
-      console.error('[UserSync] Error syncing progress:', error);
+      console.error('[SupabaseSync] Error syncing progress:', error);
     }
   };
 
@@ -744,7 +764,7 @@ useEffect(() => {
         );
 
         // Sync progress to cloud if user is signed in
-        if (isSignedIn && userId) {
+        if (isAuthenticated && userId) {
           syncProgressToCloud(currentBookRef.id, pageIdxToLoad, chapterForPage);
         }
       }
@@ -819,28 +839,44 @@ useEffect(() => {
     // Remove from local state
     setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
     
-    // Remove from cloud if user is signed in
-    if (isSignedIn && userId) {
+    // Remove from Supabase if user is signed in
+    if (isAuthenticated && userId) {
       try {
-        const token = await getToken();
-        if (token) {
-          const apiBaseUrl = import.meta.env.VITE_BOOKS_API_URL || 'http://localhost:3001';
-          await fetch(`${apiBaseUrl}/api/books`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              userId,
-              action: 'remove',
-              bookId
-            })
-          });
-          console.log(`[UserSync] Removed book ${bookId} from server`);
+        // Get book info for file cleanup
+        const { data: bookData } = await supabase
+          .from('books')
+          .select('file_url, cover_url')
+          .eq('user_id', userId)
+          .eq('id', bookId)
+          .single();
+
+        if (bookData) {
+          // Delete files from storage
+          if (bookData.file_url) {
+            const filePath = `${userId}/${bookId}.epub`;
+            await deleteFile('book-files', filePath);
+          }
+          if (bookData.cover_url) {
+            const coverPath = `${userId}/${bookId}-cover.jpg`;
+            await deleteFile('book-covers', coverPath);
+          }
         }
-              } catch (error) {
-          console.error('[UserSync] Error removing book from server:', error);
+
+        // Delete database record
+        const { error } = await supabase
+          .from('books')
+          .delete()
+          .eq('user_id', userId)
+          .eq('id', bookId);
+
+        if (error) {
+          throw new Error(`Supabase delete error: ${error.message}`);
         }
+
+        console.log(`[SupabaseSync] Removed book ${bookId} from Supabase`);
+      } catch (error) {
+        console.error('[SupabaseSync] Error removing book from Supabase:', error);
+      }
     }
   };
 
