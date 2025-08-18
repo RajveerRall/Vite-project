@@ -648,8 +648,10 @@ const Reader: React.FC = () => {
       if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex) continue;
 
       try {
+
+        // const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
         const textChunk = chunksToFetch[i];
-        const response = await fetch(`/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
+        const response = await fetch(`https://api.yoread.com/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
         if (!response.ok) continue;
 
         const audioBlob = await response.blob();
