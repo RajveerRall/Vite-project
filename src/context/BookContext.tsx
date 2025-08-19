@@ -346,16 +346,19 @@ useEffect(() => {
             try {
               const downloadPath = `${userId}/${cloudBook.id}.epub`;
               console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Starting download: "${cloudBook.title}"`);
+              console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Download path: ${downloadPath}`);
               
               // Download using optimized function
               const { downloadFileOptimized } = await import('../lib/supabase');
               
               const isEdge = navigator.userAgent.includes('Edg');
-              const timeoutMs = isEdge ? 60000 : 30000;
+              // Increase timeout for large files - some EPUBs can be 10-20MB
+              const baseTimeout = isEdge ? 90000 : 60000; // 90s for Edge, 60s for others
               const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error(`Download timeout (${timeoutMs/1000}s)`)), timeoutMs);
+                setTimeout(() => reject(new Error(`Download timeout (${baseTimeout/1000}s) - file may be too large`)), baseTimeout);
               });
 
+              console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Browser: ${isEdge ? 'Edge' : 'Other'}, Timeout: ${baseTimeout/1000}s`);
               const fileData = await Promise.race([
                 downloadFileOptimized('book-files', downloadPath),
                 timeoutPromise

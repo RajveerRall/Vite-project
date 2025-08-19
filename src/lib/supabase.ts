@@ -29,12 +29,8 @@ export interface BookRecord {
 
 // Helper function to get file download URL with CDN optimization
 export const getFileUrl = (bucket: string, path: string) => {
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path, {
-    transform: {
-      // Add CDN optimization for better performance
-      quality: 100,
-    }
-  })
+  // Don't apply image transformations to EPUB files - they're not images!
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path)
   return data.publicUrl
 }
 
@@ -60,17 +56,22 @@ export const downloadFileOptimized = async (bucket: string, path: string): Promi
 
     if (response.ok) {
       const contentLength = response.headers.get('content-length');
+      console.log(`[SupabaseOptimized] CDN response: ${response.status} ${response.statusText}, Content-Length: ${contentLength || 'unknown'}`);
+      
       const blob = await response.blob();
       
       if (blob.size > 0) {
         console.log(`[SupabaseOptimized] CDN success: ${path} (${blob.size} bytes, ${contentLength ? `expected ${contentLength}` : 'no content-length'})`);
         return blob;
+      } else {
+        console.warn(`[SupabaseOptimized] CDN returned empty blob for ${path}`);
       }
+    } else {
+      console.log(`[SupabaseOptimized] CDN failed (${response.status}: ${response.statusText}), trying Supabase client: ${path}`);
     }
 
-    console.log(`[SupabaseOptimized] CDN failed (${response.status}: ${response.statusText}), trying Supabase client: ${path}`);
-    
     // Method 2: Supabase client fallback
+    console.log(`[SupabaseOptimized] Attempting Supabase client download for: ${path}`);
     const { data, error } = await supabase.storage
       .from(bucket)
       .download(path);
