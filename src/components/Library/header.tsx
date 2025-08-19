@@ -110,12 +110,12 @@ const Header: React.FC = () => {
             
             {/* --- Logged-Out State --- */}
             {!isAuthenticated && (
-              <button 
+                <button 
                 onClick={() => setShowAuthModal(true)}
-                className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-md transition-colors font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
-              >
-                Sign In
-              </button>
+                  className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-md transition-colors font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
+                >
+                  Sign In
+                </button>
             )}
 
             {/* --- Logged-In State --- */}

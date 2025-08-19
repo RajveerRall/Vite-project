@@ -1,0 +1,515 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+
+// Helper: split text into sentence chunks
+function splitTextIntoChunks(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .filter(chunk => chunk.trim().length > 0);
+}
+
+export interface UseReaderTTSReturn {
+  // TTS States
+  chunks: string[];
+  currentChunkIndex: number | null;
+  isSpeaking: boolean;
+  isProcessing: boolean;
+  isPaused: boolean;
+  resumeIndex: number | null;
+  hasFinishedPlayback: boolean;
+  useKokoroTTS: boolean;
+  highlightedContent: string;
+  
+  // TTS Controls
+  handleTTS: () => void;
+  handleStopTTS: () => void;
+  pausePlayback: () => void;
+  resumePlayback: () => void;
+  
+  // Navigation handlers (TTS-aware)
+  handleTTSNavigation: () => void;
+  
+  // Content rendering
+  renderContentWithHighlight: () => React.ReactNode;
+  
+  // Computed values
+  canTTSResume: boolean;
+}
+
+interface UseReaderTTSProps {
+  // Dependencies from Reader
+  bookTitle: string;
+  currentPageDisplay: number;
+  currentPageText: string;
+  currentContent: string;
+}
+
+const LOCAL_STORAGE_PREFIX = 'ebookReaderProgress_';
+const CHUNK_HIGHLIGHT_CLASS = 'tts-highlight';
+
+/**
+ * Custom hook for managing all Text-to-Speech functionality
+ * Extracted from Reader component for better modularity
+ */
+export const useReaderTTS = ({
+  bookTitle,
+  currentPageDisplay,
+  currentPageText,
+  currentContent
+}: UseReaderTTSProps): UseReaderTTSReturn => {
+  // === TTS Playback States ===
+  const [chunks, setChunks] = useState<string[]>([]);
+  const [currentChunkIndex, setCurrentChunkIndex] = useState<number | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [resumeIndex, setResumeIndex] = useState<number | null>(null);
+  const [hasFinishedPlayback, setHasFinishedPlayback] = useState<boolean>(false);
+  const [useKokoroTTS, setUseKokoroTTS] = useState<boolean>(false);
+  const [highlightedContent, setHighlightedContent] = useState<string>(currentContent);
+
+  // === Refs ===
+  const audioBuffer = useRef<Record<number, string>>({});
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const readerInstanceId = useRef(`ReaderInstance_${Date.now()}_${Math.random().toString(36).substring(2,7)}`).current;
+  const ttsIntentActiveRef = useRef(false);
+  const currentTTSBaseOffsetRef = useRef<number>(0);
+
+  // === Local Storage Helpers ===
+  const getStorageKey = useCallback((): string | null => {
+    if (!bookTitle) return null;
+    const safeTitle = bookTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `${LOCAL_STORAGE_PREFIX}${safeTitle}_page${currentPageDisplay}`;
+  }, [bookTitle, currentPageDisplay]);
+
+  const saveResumeIndex = useCallback((index: number) => {
+    const key = getStorageKey();
+    if (key && index >= 0) {
+      try {
+        localStorage.setItem(key, JSON.stringify({ index }));
+        console.log(`%c[${readerInstanceId}][TTS Resume Save] Page ${currentPageDisplay}: Saved Index ${index} for key ${key}`, "color: blue;");
+      } catch (e) {
+        console.error(`%c[${readerInstanceId}][TTS Resume Save] Page ${currentPageDisplay}: Error saving:`, "color: red;", e);
+      }
+    }
+  }, [currentPageDisplay, getStorageKey, readerInstanceId]);
+
+  const loadResumeIndex = useCallback((): number | null => {
+    const key = getStorageKey();
+    if (!key) return null;
+    try {
+      const savedData = localStorage.getItem(key);
+      if (savedData) {
+        const data = JSON.parse(savedData);
+        if (data && typeof data.index === 'number') {
+          if (currentPageText && data.index >= currentPageText.length) {
+            localStorage.removeItem(key);
+            return null;
+          }
+          return data.index;
+        }
+      }
+    } catch (e) {
+      console.error(`%c[${readerInstanceId}][TTS Resume Load] Error loading for key ${key}:`, "color: red;", e);
+      localStorage.removeItem(key);
+    }
+    return null;
+  }, [currentPageText, getStorageKey, readerInstanceId]);
+
+  const clearResumeIndex = useCallback(() => {
+    const key = getStorageKey();
+    if (key) {
+      try {
+        localStorage.removeItem(key);
+        console.log(`%c[${readerInstanceId}][TTS Resume Clear] Page ${currentPageDisplay}: Cleared progress for key ${key}`, "color: purple;");
+      } catch (e) {
+        console.error(`%c[${readerInstanceId}][TTS Resume Clear] Page ${currentPageDisplay}: Error clearing for key ${key}:`, "color: red;", e);
+      }
+    }
+    setResumeIndex(null);
+    setHasFinishedPlayback(true);
+    currentTTSBaseOffsetRef.current = 0;
+  }, [currentPageDisplay, getStorageKey, readerInstanceId]);
+
+  // === Split text into chunks whenever currentPageText changes ===
+  useEffect(() => {
+    if (currentPageText) {
+      setChunks(splitTextIntoChunks(currentPageText));
+      setCurrentChunkIndex(null);
+      setIsSpeaking(false);
+      setIsPaused(false);
+      setIsProcessing(false);
+      setHasFinishedPlayback(false);
+      currentTTSBaseOffsetRef.current = 0;
+      ttsIntentActiveRef.current = false;
+    } else {
+      setChunks([]);
+    }
+  }, [currentPageText]);
+
+  // === Cleanup audio on unmount or page change ===
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // === Cleanup for all buffered audio blobs on unmount ===
+  useEffect(() => {
+    return () => {
+      Object.values(audioBuffer.current).forEach(URL.revokeObjectURL);
+    };
+  }, []);
+
+  // === Prefetch chunks function ===
+  const prefetchChunks = useCallback(async (startIndex: number) => {
+    const chunksToFetch = chunks.slice(startIndex, startIndex + 2);
+    if (chunksToFetch.length === 0) return;
+
+    console.log(`[Prefetch] Starting pre-fetch for chunks from index ${startIndex}`);
+
+    for (let i = 0; i < chunksToFetch.length; i++) {
+      const chunkIndex = startIndex + i;
+      if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex) continue;
+
+      try {
+        const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
+        const textChunk = chunksToFetch[i];
+        const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
+        let response = await fetch(`${apiUrl}?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
+        
+        if (!response.ok) continue;
+
+        const audioBlob = await response.blob();
+        if (audioBlob.size === 0) {
+          console.warn(`[Prefetch] Received empty audio blob for chunk #${chunkIndex}. Skipping.`);
+          continue;
+        }
+
+        const audioUrl = URL.createObjectURL(audioBlob);
+        audioBuffer.current[chunkIndex] = audioUrl;
+        console.log(`[Prefetch] Successfully buffered chunk #${chunkIndex}`);
+
+      } catch (error) {
+        console.warn(`[Prefetch] Failed to pre-fetch chunk #${chunkIndex}`, error);
+      }
+    }
+  }, [chunks, currentChunkIndex]);
+
+  // === Play chunk function ===
+  const playChunk = useCallback(async (index: number) => {
+    if (index < 0 || index >= chunks.length) {
+      setIsSpeaking(false); 
+      setIsPaused(false); 
+      setHasFinishedPlayback(true);
+      setCurrentChunkIndex(null); 
+      clearResumeIndex(); 
+      ttsIntentActiveRef.current = false;
+      return;
+    }
+
+    setCurrentChunkIndex(index);
+    setIsSpeaking(true); 
+    setIsPaused(false); 
+    setHasFinishedPlayback(false);
+
+    const playAudio = (audioUrl: string) => {
+      if (audioRef.current) audioRef.current.pause();
+      else audioRef.current = new Audio();
+
+      audioRef.current.src = audioUrl;
+      audioRef.current.onended = () => {
+        playChunk(index + 1);
+      };
+      audioRef.current.onerror = (e) => {
+        console.error(`[${readerInstanceId}][playChunk] Audio playback error:`, e);
+        setIsSpeaking(false); 
+        setIsPaused(false); 
+        setCurrentChunkIndex(null);
+        ttsIntentActiveRef.current = false;
+      };
+      audioRef.current.play();
+      prefetchChunks(index + 1);
+    };
+
+    if (audioBuffer.current[index]) {
+      const bufferedUrl = audioBuffer.current[index];
+      if (bufferedUrl && bufferedUrl.startsWith('blob:')) {
+        console.log(`[playChunk] Playing chunk #${index} from BUFFER.`);
+        playAudio(bufferedUrl);
+      } else {
+        console.log(`[playChunk] Buffered URL for chunk #${index} is invalid, fetching from NETWORK.`);
+        delete audioBuffer.current[index];
+      }
+    }
+    
+    if (!audioBuffer.current[index]) {
+      console.log(`[playChunk] Playing chunk #${index} from NETWORK.`);
+      try {
+        const textChunk = chunks[index];
+        let response = await fetch(`/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
+        
+        if (!response.ok) throw new Error(`Failed to fetch TTS audio: ${response.statusText}`);
+
+        const audioBlob = await response.blob();
+        if (audioBlob.size === 0) {
+          throw new Error(`Received empty audio blob for chunk #${index}`);
+        }
+
+        const audioUrl = URL.createObjectURL(audioBlob);
+        audioBuffer.current[index] = audioUrl;
+        playAudio(audioUrl);
+      } catch (error) {
+        if ((error as any).name !== 'AbortError') {
+          console.error(`[${readerInstanceId}][playChunk] Error fetching/playing audio:`, error);
+          setIsSpeaking(false); 
+          setIsPaused(false); 
+          setCurrentChunkIndex(null);
+          ttsIntentActiveRef.current = false;
+        }
+      }
+    }
+  }, [chunks, clearResumeIndex, prefetchChunks, readerInstanceId]);
+
+  // === Pause playback ===
+  const pausePlayback = useCallback(() => {
+    if (audioRef.current && isSpeaking) {
+      audioRef.current.pause();
+      setIsPaused(true);
+      setIsSpeaking(false);
+      ttsIntentActiveRef.current = true;
+    }
+  }, [isSpeaking]);
+
+  // === Resume playback ===
+  const resumePlayback = useCallback(() => {
+    if (audioRef.current && isPaused) {
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPaused(false);
+            setIsSpeaking(true);
+            ttsIntentActiveRef.current = true;
+          })
+          .catch((error) => {
+            console.warn('Audio play failed:', error);
+            setIsPaused(true);
+            setIsSpeaking(false);
+            ttsIntentActiveRef.current = false;
+          });
+      } else {
+        setIsPaused(false);
+        setIsSpeaking(true);
+        ttsIntentActiveRef.current = true;
+      }
+    } else if (!audioRef.current && currentChunkIndex !== null) {
+      playChunk(currentChunkIndex);
+    }
+  }, [isPaused, currentChunkIndex, playChunk]);
+
+  // === Halt playback (for navigation or stopping) ===
+  const haltPlayback = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      if (audioRef.current.src) {
+        URL.revokeObjectURL(audioRef.current.src);
+      }
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    const bufferUrls = Object.values(audioBuffer.current);
+    console.log(`[${readerInstanceId}][haltPlayback] Clearing ${bufferUrls.length} buffered audio URLs`);
+    bufferUrls.forEach(url => {
+      if (url && url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    });
+    audioBuffer.current = {};
+    
+    setIsSpeaking(false);
+    setIsPaused(false);
+    setCurrentChunkIndex(null);
+  }, [readerInstanceId]);
+
+  // === Handle user clicking the STOP button ===
+  const handleStopTTS = useCallback(() => {
+    haltPlayback();
+    clearResumeIndex();
+    ttsIntentActiveRef.current = false;
+  }, [haltPlayback, clearResumeIndex]);
+
+  // === Handle main TTS button pressed ===
+  const handleTTS = useCallback(() => {
+    ttsIntentActiveRef.current = true;
+
+    if (isPaused) {
+      resumePlayback();
+      return;
+    }
+    if (isSpeaking) {
+      pausePlayback();
+      return;
+    }
+
+    let startChunk = 0;
+
+    // Check for user-highlighted text first
+    const selection = window.getSelection();
+    const selectedText = selection?.toString().trim();
+
+    if (selectedText && selection?.anchorNode?.parentElement?.closest('.epub-content')) {
+      const startIndexInPage = currentPageText.indexOf(selectedText);
+
+      if (startIndexInPage !== -1) {
+        console.log(`[${readerInstanceId}][handleTTS] User selected text. Index: ${startIndexInPage}.`);
+        let accumulatedLength = 0;
+        let foundChunk = false;
+        for (let i = 0; i < chunks.length; i++) {
+          if (startIndexInPage < accumulatedLength + chunks[i].length) {
+            startChunk = i;
+            foundChunk = true;
+            break;
+          }
+          accumulatedLength += chunks[i].length + 1;
+        }
+        if (foundChunk) {
+          console.log(`[${readerInstanceId}][handleTTS] Starting from selected text in chunk #${startChunk}.`);
+        } else {
+          console.warn(`[${readerInstanceId}][handleTTS] Could not map selected text to a chunk. Starting from beginning.`);
+        }
+      } else {
+        console.warn(`[${readerInstanceId}][handleTTS] Could not find selected text in page content. Starting from beginning.`);
+      }
+    }
+    // If no text is selected, try to use the resumeIndex from localStorage
+    else if (resumeIndex !== null && resumeIndex >= 0) {
+      let accumulatedLength = 0;
+      for (let i = 0; i < chunks.length; i++) {
+        accumulatedLength += chunks[i].length + 1;
+        if (resumeIndex < accumulatedLength) {
+          startChunk = i;
+          break;
+        }
+      }
+      console.log(`[${readerInstanceId}][handleTTS] Resuming from saved index ${resumeIndex}, which corresponds to chunk #${startChunk}.`);
+    }
+    else {
+      console.log(`[${readerInstanceId}][handleTTS] No selection or resume index. Starting from beginning.`);
+    }
+
+    const startPlayback = async () => {
+      setIsProcessing(true); 
+      await prefetchChunks(startChunk);
+      setIsProcessing(false);
+      playChunk(startChunk);
+    };
+    startPlayback();
+
+  }, [isPaused, isSpeaking, resumeIndex, chunks, currentPageText, readerInstanceId, pausePlayback, resumePlayback, playChunk, prefetchChunks]);
+
+  // === Save progress periodically on chunk change ===
+  useEffect(() => {
+    if (currentChunkIndex !== null && chunks.length > 0) {
+      let offset = 0;
+      for (let i = 0; i < currentChunkIndex; i++) {
+        offset += chunks[i].length + 1;
+      }
+      currentTTSBaseOffsetRef.current = offset;
+      saveResumeIndex(offset);
+      setHasFinishedPlayback(false);
+    }
+  }, [currentChunkIndex, chunks, saveResumeIndex]);
+
+  // === Load resume index and highlight content ===
+  useEffect(() => {
+    const loadedIndex = loadResumeIndex();
+    setResumeIndex(loadedIndex);
+    setHasFinishedPlayback(false);
+
+    if (!currentPageText || loadedIndex === null) {
+      setHighlightedContent(currentContent);
+      return;
+    }
+
+    const highlightLength = 30;
+    const start = loadedIndex;
+    const end = Math.min(start + highlightLength, currentPageText.length);
+
+    const escapeHtml = (str: string) =>
+      str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const before = escapeHtml(currentPageText.substring(0, start));
+    const highlight = escapeHtml(currentPageText.substring(start, end));
+    const after = escapeHtml(currentPageText.substring(end));
+
+    const highlightedHtml = `${before}<span class="highlight">${highlight}</span>${after}`;
+    setHighlightedContent(highlightedHtml);
+
+  }, [loadResumeIndex, currentPageDisplay, currentContent, currentPageText]);
+
+  // === Handle stopping playback on page navigation ===
+  const handleTTSNavigation = useCallback(() => {
+    if (ttsIntentActiveRef.current && (isSpeaking || isPaused)) {
+      saveResumeIndex(currentTTSBaseOffsetRef.current);
+    }
+    haltPlayback();
+    ttsIntentActiveRef.current = false;
+  }, [isSpeaking, isPaused, saveResumeIndex, haltPlayback]);
+
+  // === Render content with current chunk highlighted ===
+  const renderContentWithHighlight = useCallback(() => {
+    if (!chunks.length) return null;
+    return chunks.map((chunk, idx) => (
+      <span
+        key={idx}
+        className={idx === currentChunkIndex ? CHUNK_HIGHLIGHT_CLASS : ''}
+        style={{ transition: 'background-color 0.3s ease' }}
+      >
+        {chunk + ' '}
+      </span>
+    ));
+  }, [chunks, currentChunkIndex]);
+
+  // === Computed values ===
+  const canTTSResume = !!currentPageText && resumeIndex !== null && !isSpeaking && !isPaused && !isProcessing && !hasFinishedPlayback;
+
+  return {
+    // States
+    chunks,
+    currentChunkIndex,
+    isSpeaking,
+    isProcessing,
+    isPaused,
+    resumeIndex,
+    hasFinishedPlayback,
+    useKokoroTTS,
+    highlightedContent,
+    
+    // Controls
+    handleTTS,
+    handleStopTTS,
+    pausePlayback,
+    resumePlayback,
+    
+    // Navigation
+    handleTTSNavigation,
+    
+    // Rendering
+    renderContentWithHighlight,
+    
+    // Computed
+    canTTSResume,
+  };
+}; 
