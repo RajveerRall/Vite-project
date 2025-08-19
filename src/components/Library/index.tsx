@@ -6,74 +6,54 @@ import './Library.css';
 import { trackEvent } from '../../lib/analytics'; // Make sure to import it
 import { useAuth } from "../../context/AuthContext";
 import { BookCarousel } from './BookCarousel';
-import sampleBookPaths from '../../lib/sampleBookManifest.json';
+import preprocessedBooks from '../../lib/preprocessedBooks.json';
 import { BookData } from '@/types/books'; // Make sure BookData is imported
-// 👇 We need to import the tools and helpers for deep processing
-import JSZip from 'jszip';
-import { DOMParser } from 'xmldom';
-import { getDirectoryPath, resolveRelativePath } from '../../utils/pathUtils'; // Assuming you have this utility
 
-// This helper function is now upgraded to perform "deep processing" to find the real cover.
-async function processBookFileForDisplay(file: File): Promise<BookData | null> {
-  try {
-    const zip = new JSZip();
-    const loadedZip = await zip.loadAsync(file);
-
-    // --- Start: Logic copied and adapted from BookContext's addBook function ---
-    const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
-    if (!containerXml) throw new Error('Invalid EPUB: container.xml not found');
-    
-    const parser = new DOMParser();
-    const containerDoc = parser.parseFromString(containerXml, 'application/xml');
-    const rootfiles = containerDoc.getElementsByTagName('rootfile');
-    if (rootfiles.length === 0) throw new Error('Invalid EPUB: No rootfile found');
-
-    const opfPath = rootfiles[0].getAttribute('full-path') || '';
-    const opfContent = await loadedZip.file(opfPath)?.async('text');
-    if (!opfContent) throw new Error('Invalid EPUB: OPF file not found');
-    
-    const opfDoc = parser.parseFromString(opfContent, 'application/xml');
-
-    const title = opfDoc.getElementsByTagName('dc:title')[0]?.textContent?.trim() || file.name.replace('.epub', '');
-    const author = opfDoc.getElementsByTagName('dc:creator')[0]?.textContent?.trim() || 'Unknown Author';
-
-    let coverUrl = ''; // Default to empty string
-    const metaCover = Array.from(opfDoc.getElementsByTagName('meta')).find(m => m.getAttribute('name') === 'cover');
-    if (metaCover) {
-      const coverId = metaCover.getAttribute('content');
-      const coverItem = Array.from(opfDoc.getElementsByTagName('item')).find(item => item.getAttribute('id') === coverId);
-      if (coverItem) {
-        const href = coverItem.getAttribute('href');
-        if (href) {
-          const coverPath = resolveRelativePath(getDirectoryPath(opfPath), href);
-          const coverBlob = await loadedZip.file(coverPath)?.async('blob');
-          if (coverBlob) {
-            // Create a temporary URL for the image blob
-            coverUrl = URL.createObjectURL(coverBlob);
-          }
-        }
-      }
-    }
-    // --- End: Adapted logic ---
-
-    return {
-      id: file.name, // Use filename as a unique ID for the carousel
-      title,
-      author,
-      coverUrl, // This will now be a valid blob: URL if a cover is found
-      file,
-      currentPage: 0,
-      totalPages: 0,
-      lastRead: new Date().toISOString(),
-    };
-  } catch (error) {
-    console.error(`Error processing sample book "${file.name}":`, error);
-    return null;
-  }
+// Helper function to create book data from preprocessed information
+function createBookFromPreprocessed(preprocessedBook: any): BookData {
+  return {
+    id: preprocessedBook.filename,
+    title: preprocessedBook.title,
+    author: preprocessedBook.author,
+    coverUrl: preprocessedBook.coverPath || '', // Use extracted cover or empty string
+    file: null as any, // Will be lazy-loaded when user clicks
+    currentPage: 0,
+    totalPages: 0,
+    lastRead: new Date().toISOString(),
+  };
 }
 
 const Library: React.FC = () => {
   const { books, addBook, isLoading, openBook, isSyncingFromCloud } = useBook();
+  
+  // 🚀 Lazy loading function for sample books
+  const handleSampleBookSelect = async (book: BookData) => {
+    if (!book.file) {
+      try {
+        console.log(`📖 Lazy loading: ${book.title}`);
+        
+        // Fetch the EPUB file only when user clicks
+        const response = await fetch(`/sample-books/${book.id}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch book: ${response.statusText}`);
+        }
+        
+        const blob = await response.blob();
+        const file = new File([blob], book.id, { type: 'application/epub+zip' });
+        
+        // Update the book with the actual file
+        book.file = file;
+        
+        console.log(`✅ Loaded: ${book.title} (${Math.round(blob.size / 1024)}KB)`);
+      } catch (error) {
+        console.error(`❌ Failed to load ${book.title}:`, error);
+        return; // Don't open the book if loading failed
+      }
+    }
+    
+    // Now open the book (either already had file or just loaded it)
+    openBook(book);
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState<boolean>(false);
   // Toast notification states
@@ -130,45 +110,29 @@ const Library: React.FC = () => {
 
 
 
-    // --- THIS IS THE ONLY SECTION THAT HAS CHANGED ---
-  // This effect now runs ONCE when the component mounts to load the sample books for the carousel.
+  // ⚡ OPTIMIZED: Load sample books from preprocessed data (instant loading!)
   useEffect(() => {
-    let unmounted = false;
-    const loadedCoverUrls: string[] = [];
-
-    const loadSampleBooks = async () => {
+    const loadSampleBooks = () => {
       setIsCarouselLoading(true);
-      const booksToLoad = await Promise.all(
-        sampleBookPaths.map(bookPath => fetch(`/sample-books/${bookPath}`)
-            .then(res => res.blob())
-            .then(blob => new File([blob], bookPath, { type: 'application/epub+zip' }))
-            .then(file => processBookFileForDisplay(file))
-            .catch(err => {
-                console.error(`Failed to load sample book: ${bookPath}`, err);
-                return null;
-            })
-        )
+      
+      // Filter out corrupted books (like jane eyre.epub)
+      const validPreprocessedBooks = preprocessedBooks.filter(book => 
+        book.title !== 'jane eyre' && 
+        book.title !== 'The Power of Now: A Guide to Spiritual Enlightenment' // Remove as requested
       );
       
-      const validBooks = booksToLoad.filter(Boolean) as BookData[];
-      validBooks.forEach(book => {
-        if (book.coverUrl) loadedCoverUrls.push(book.coverUrl);
-      });
-
-      if (!unmounted) {
-        setCarouselBooks(validBooks);
-        setIsCarouselLoading(false);
-      }
+      // Convert preprocessed data to BookData format (instant!)
+      const books = validPreprocessedBooks.map(createBookFromPreprocessed);
+      
+      setCarouselBooks(books);
+      setIsCarouselLoading(false);
     };
 
-    loadSampleBooks();
-
-    // The cleanup function is important to prevent memory leaks
-    return () => {
-      unmounted = true;
-      loadedCoverUrls.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, []); // The dependency array is now EMPTY, so it only runs once.
+    // Add a small delay to let the page render first, then load instantly
+    const timer = setTimeout(loadSampleBooks, 100);
+    
+    return () => clearTimeout(timer);
+  }, []); // Runs once on mount
 
 
 
@@ -305,7 +269,7 @@ const Library: React.FC = () => {
             <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
               Listen to Your Favourite Books
             </h2>
-            <BookCarousel books={carouselBooks} onBookSelect={openBook} />
+            <BookCarousel books={carouselBooks} onBookSelect={handleSampleBookSelect} />
           </section>
         )}
 

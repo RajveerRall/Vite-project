@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npm run preprocess && tsc && vite build",
+    "preprocess": "node scripts/preprocess-books.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server.cjs"
