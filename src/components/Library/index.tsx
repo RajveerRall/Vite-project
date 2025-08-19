@@ -258,24 +258,19 @@ const Library: React.FC = () => {
           </div>
         )}
 
-        {/* Cloud Sync Loading Overlay */}
+        {/* Cloud Sync Loading Overlay - REMOVED for progressive loading */}
+        {/* Books now show individual loading states instead of blocking the entire page */}
+
+        {/* Subtle sync status indicator */}
         {isSyncingFromCloud && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-8 max-w-sm mx-4 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Syncing Your Books</h3>
-              <p className="text-gray-600">
-                Downloading your books from the cloud...<br/>
-                <span className="text-sm text-gray-500">This may take a moment for large books</span>
-              </p>
-              {navigator.userAgent.includes('Edg') && (
-                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                  <p className="text-sm text-amber-800">
-                    📌 <strong>Edge users:</strong> Downloads may be slower due to enhanced security settings. 
-                    For faster syncing, consider using Chrome.
-                  </p>
-                </div>
-              )}
+          <div className="mb-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+              <div className="flex items-center justify-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <p className="text-sm text-blue-800">
+                  🚀 Smart sync in progress - only downloading new books...
+                </p>
+              </div>
             </div>
           </div>
         )}

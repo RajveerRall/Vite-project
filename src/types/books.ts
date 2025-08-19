@@ -9,6 +9,7 @@ export interface BookData {
   file: File;
   lastRead: string;
   totalPages: number;
+  isDownloading?: boolean; // NEW: indicates if book is currently downloading
 }
 
 export interface TOCItem {

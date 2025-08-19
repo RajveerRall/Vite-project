@@ -232,11 +232,11 @@ useEffect(() => {
       if (isAuthenticated && userId) {
         try {
           setIsSyncingFromCloud(true);
-          console.log('[SupabaseSync] User signed in, syncing books from Supabase...');
+          console.log('[SupabaseSync] User signed in, starting progressive sync...');
 
           const { supabase } = await import('../lib/supabase');
 
-          // Fetch books from Supabase
+          // Fetch books metadata from Supabase
           const { data: cloudBooksData, error } = await supabase
             .from('books')
             .select('*')
@@ -249,79 +249,117 @@ useEffect(() => {
 
           console.log(`[SupabaseSync] Retrieved ${cloudBooksData.length} books from Supabase`);
 
-          // Convert Supabase books back to BookData format
+          if (cloudBooksData.length === 0) {
+            console.log('[SupabaseSync] No cloud books to sync');
+            setIsSyncingFromCloud(false);
+            return;
+          }
+
+          // Step 1: Check which books are missing locally and need to be downloaded
           const downloadStartTime = performance.now();
-          console.log(`[SupabaseSync] Starting parallel downloads for ${cloudBooksData.length} books...`);
+          const currentLocalBooks = books;
+          const existingBookIds = new Set(currentLocalBooks.map(book => book.id));
           
-          const cloudBooksPromises = cloudBooksData.map(async (cloudBook: CloudBookRecord, index: number) => {
+          // Separate books into existing and missing
+          const existingCloudBooks = cloudBooksData.filter((cloudBook: CloudBookRecord) => 
+            existingBookIds.has(cloudBook.id)
+          );
+          const missingCloudBooks = cloudBooksData.filter((cloudBook: CloudBookRecord) => 
+            !existingBookIds.has(cloudBook.id)
+          );
+
+          console.log(`[SupabaseSync] 📊 Books analysis:`);
+          console.log(`[SupabaseSync] - Already local: ${existingCloudBooks.length} books`);
+          console.log(`[SupabaseSync] - Need download: ${missingCloudBooks.length} books`);
+
+          // Step 2: Update existing books with cloud metadata (without re-downloading files)
+          let updatedBooks = [...currentLocalBooks];
+          existingCloudBooks.forEach((cloudBook: CloudBookRecord) => {
+            const localIndex = updatedBooks.findIndex(book => book.id === cloudBook.id);
+            if (localIndex >= 0) {
+              const localBook = updatedBooks[localIndex];
+              const cloudDate = new Date(cloudBook.last_read);
+              const localDate = new Date(localBook.lastRead);
+
+              // Use the version with the most recent reading progress
+              if (cloudDate > localDate) {
+                updatedBooks[localIndex] = {
+                  ...localBook, // Keep local file and cover
+                  currentPage: cloudBook.current_page,
+                  lastChapter: cloudBook.last_chapter ? { 
+                    id: 'restored-chapter', 
+                    href: cloudBook.last_chapter, 
+                    label: cloudBook.last_chapter.split('/').pop()?.replace('.html', '') || 'Chapter',
+                    children: []
+                  } : localBook.lastChapter,
+                  totalPages: cloudBook.total_pages || localBook.totalPages,
+                  lastRead: cloudBook.last_read,
+                };
+                console.log(`[SupabaseSync] ♻️ Updated existing book metadata: "${cloudBook.title}"`);
+              } else {
+                console.log(`[SupabaseSync] ⏭️ Local version newer, keeping: "${cloudBook.title}"`);
+              }
+            }
+          });
+
+          if (missingCloudBooks.length === 0) {
+            console.log('[SupabaseSync] ✅ All books already exist locally, sync complete!');
+            setBooks(updatedBooks);
+            setIsSyncingFromCloud(false);
+            return;
+          }
+
+          console.log(`[SupabaseSync] 🚀 Starting PROGRESSIVE download for ${missingCloudBooks.length} missing books...`);
+          console.log(`[SupabaseSync] Placeholders will appear immediately, books will complete as they download`);
+          
+          // Step 3: Create placeholders only for missing books
+          const placeholderBooks = missingCloudBooks.map((cloudBook: CloudBookRecord) => ({
+            id: cloudBook.id,
+            title: cloudBook.title || 'Loading...',
+            author: cloudBook.author || 'Loading...',
+            file: new File([''], 'loading.epub', { type: 'application/epub+zip' }), // Empty placeholder
+            coverUrl: null, // Will be set when download completes
+            currentPage: cloudBook.current_page || 0,
+            lastChapter: cloudBook.last_chapter ? { 
+              id: 'restored-chapter', 
+              href: cloudBook.last_chapter, 
+              label: cloudBook.last_chapter.split('/').pop()?.replace('.html', '') || 'Chapter',
+              children: []
+            } : null,
+            totalPages: cloudBook.total_pages || 0,
+            lastRead: cloudBook.last_read || new Date().toISOString(),
+            isDownloading: true, // Show loading state
+          }));
+
+          // Step 4: Add placeholders to existing books and show immediately
+          const booksWithPlaceholders = [...updatedBooks, ...placeholderBooks];
+          setBooks(booksWithPlaceholders);
+          console.log(`[SupabaseSync] 📦 ${placeholderBooks.length} placeholder books added to UI (${existingCloudBooks.length} already existed)`);
+
+          // Step 5: Start downloading only missing books individually (parallel)
+          let completedCount = 0;
+          const totalBooks = missingCloudBooks.length;
+
+          const downloadPromises = missingCloudBooks.map(async (cloudBook: CloudBookRecord, index: number) => {
             const bookStartTime = performance.now();
-            let file: File;
-            let coverUrl: string | null = null;
-
+            
             try {
-              // Get the file from storage
               const downloadPath = `${userId}/${cloudBook.id}.epub`;
-              console.log(`[SupabaseSync] [${index + 1}/${cloudBooksData.length}] Starting download: "${cloudBook.title}"`);
+              console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Starting download: "${cloudBook.title}"`);
               
-              // Simplified download with timeout
-              const downloadPromise = (async () => {
-                // Try Supabase client first
-                try {
-                  const { data, error } = await supabase.storage
-                    .from('book-files')
-                    .download(downloadPath);
-
-                  if (data && data.size > 0 && !error) {
-                    return data;
-                  }
-                  
-                  console.log(`[SupabaseSync] [${index + 1}/${cloudBooksData.length}] Supabase download issue, trying direct fetch for "${cloudBook.title}"`);
-                } catch (supabaseError) {
-                  console.log(`[SupabaseSync] [${index + 1}/${cloudBooksData.length}] Supabase client failed, trying direct fetch for "${cloudBook.title}":`, supabaseError);
-                }
-
-                // Fallback to direct fetch with Edge-specific headers
-                const { getFileUrl } = await import('../lib/supabase');
-                const directUrl = getFileUrl('book-files', downloadPath);
-                
-                // Edge-compatible fetch with explicit headers
-                const response = await fetch(directUrl, {
-                  method: 'GET',
-                  headers: {
-                    'Accept': 'application/octet-stream, */*',
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                  },
-                  cache: 'no-store'
-                });
-                
-                if (!response.ok) {
-                  throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                // Check content length for early detection of issues
-                const contentLength = response.headers.get('content-length');
-                if (contentLength && parseInt(contentLength) === 0) {
-                  throw new Error('Server returned empty file (0 bytes)');
-                }
-                
-                const blob = await response.blob();
-                if (blob.size === 0) {
-                  throw new Error('Downloaded file is empty');
-                }
-                
-                return blob;
-              })();
-
-              // Extended timeout for Edge (60 seconds instead of 30)
+              // Download using optimized function
+              const { downloadFileOptimized } = await import('../lib/supabase');
+              
               const isEdge = navigator.userAgent.includes('Edg');
               const timeoutMs = isEdge ? 60000 : 30000;
               const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error(`Download timeout (${timeoutMs/1000}s) - try Chrome for faster downloads`)), timeoutMs);
+                setTimeout(() => reject(new Error(`Download timeout (${timeoutMs/1000}s)`)), timeoutMs);
               });
 
-              console.log(`[SupabaseSync] [${index + 1}/${cloudBooksData.length}] Browser: ${isEdge ? 'Edge' : 'Other'}, Timeout: ${timeoutMs/1000}s`);
-              const fileData = await Promise.race([downloadPromise, timeoutPromise]);
+              const fileData = await Promise.race([
+                downloadFileOptimized('book-files', downloadPath),
+                timeoutPromise
+              ]);
 
               // Validate file size
               if (fileData.size < 1000) {
@@ -330,84 +368,109 @@ useEffect(() => {
 
               const downloadTime = performance.now() - bookStartTime;
               const speedMBps = (fileData.size / 1024 / 1024) / (downloadTime / 1000);
-              console.log(`[SupabaseSync] [${index + 1}/${cloudBooksData.length}] ✅ "${cloudBook.title}" downloaded in ${downloadTime.toFixed(0)}ms (${(fileData.size / 1024 / 1024).toFixed(1)}MB @ ${speedMBps.toFixed(1)} MB/s)`);
+              console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ✅ "${cloudBook.title}" downloaded in ${downloadTime.toFixed(0)}ms (${(fileData.size / 1024 / 1024).toFixed(1)}MB @ ${speedMBps.toFixed(1)} MB/s)`);
 
-              file = new File([fileData], `${cloudBook.title}.epub`, { type: 'application/epub+zip' });
+              const file = new File([fileData], `${cloudBook.title}.epub`, { type: 'application/epub+zip' });
               
-              // Use cover URL from Supabase or regenerate from file
+              // Handle cover - inline regeneration to avoid dependency issues
+              let coverUrl: string | null = null;
               if (cloudBook.cover_url) {
                 coverUrl = cloudBook.cover_url;
               } else {
-                coverUrl = await regenerateCoverUrl(file);
+                // Inline cover regeneration
+                try {
+                  const JSZip = (await import('jszip')).default;
+                  const zip = await JSZip.loadAsync(file);
+                  
+                  // Try different cover extraction methods
+                  const coverBlob = await (async () => {
+                    // Method 1: Look for cover.jpg/cover.png in root
+                    for (const name of ['cover.jpg', 'cover.jpeg', 'cover.png']) {
+                      const coverFile = zip.file(name);
+                      if (coverFile) {
+                        return await coverFile.async('blob');
+                      }
+                    }
+                    
+                    // Method 2: Look in common directories
+                    for (const dir of ['images/', 'Images/', 'OEBPS/images/', 'OEBPS/Images/']) {
+                      for (const name of ['cover.jpg', 'cover.jpeg', 'cover.png']) {
+                        const coverFile = zip.file(dir + name);
+                        if (coverFile) {
+                          return await coverFile.async('blob');
+                        }
+                      }
+                    }
+                    
+                    return null;
+                  })();
+                  
+                  if (coverBlob) {
+                    coverUrl = URL.createObjectURL(coverBlob);
+                  }
+                } catch (coverError) {
+                  console.warn('[SupabaseSync] Could not extract cover:', coverError);
+                }
               }
-            } catch (fileError) {
+
+              // Create complete book object
+              const completeBook = {
+                id: cloudBook.id,
+                title: cloudBook.title || 'Unknown Title',
+                author: cloudBook.author || 'Unknown Author',
+                file,
+                coverUrl,
+                currentPage: cloudBook.current_page || 0,
+                lastChapter: cloudBook.last_chapter ? { 
+                  id: 'restored-chapter', 
+                  href: cloudBook.last_chapter, 
+                  label: cloudBook.last_chapter.split('/').pop()?.replace('.html', '') || 'Chapter',
+                  children: []
+                } : null,
+                totalPages: cloudBook.total_pages || 0,
+                lastRead: cloudBook.last_read || new Date().toISOString(),
+                isDownloading: false, // Mark as complete
+              };
+
+              // Step 4: Update the specific book immediately when download completes
+              setBooks(currentBooks => {
+                const updatedBooks = currentBooks.map(book => 
+                  book.id === cloudBook.id ? completeBook : book
+                );
+                // Books will be automatically saved by the existing useEffect
+                return updatedBooks;
+              });
+
+              completedCount++;
+              console.log(`[SupabaseSync] 📥 Book ${completedCount}/${totalBooks} ready: "${cloudBook.title}"`);
+
+              return completeBook;
+
+            } catch (error) {
               const downloadTime = performance.now() - bookStartTime;
-              console.error(`[SupabaseSync] [${index + 1}/${cloudBooksData.length}] ❌ Failed to download "${cloudBook.title}" after ${downloadTime.toFixed(0)}ms:`, fileError);
-              // Skip this book instead of creating a dummy file
+              console.error(`[SupabaseSync] [${index + 1}/${totalBooks}] ❌ Failed to download "${cloudBook.title}" after ${downloadTime.toFixed(0)}ms:`, error);
+              
+              // Step 5: Remove failed book from the list
+              setBooks(currentBooks => {
+                const filteredBooks = currentBooks.filter(book => book.id !== cloudBook.id);
+                // Books will be automatically saved by the existing useEffect
+                return filteredBooks;
+              });
+
               return null;
             }
-
-            return {
-              id: cloudBook.id,
-              title: cloudBook.title || 'Unknown Title',
-              author: cloudBook.author || 'Unknown Author',
-              file,
-              coverUrl,
-              currentPage: cloudBook.current_page || 0,
-              lastChapter: cloudBook.last_chapter ? { 
-                id: 'restored-chapter', 
-                href: cloudBook.last_chapter, 
-                label: cloudBook.last_chapter.split('/').pop()?.replace('.html', '') || 'Chapter',
-                children: []
-              } : null,
-              totalPages: cloudBook.total_pages || 0,
-              lastRead: cloudBook.last_read || new Date().toISOString(),
-            };
           });
 
-          const cloudBooks = (await Promise.all(cloudBooksPromises)).filter(book => book !== null) as BookData[];
-          
+          // Wait for all downloads to complete
+          await Promise.all(downloadPromises);
+
           const totalDownloadTime = performance.now() - downloadStartTime;
-          const totalSize = cloudBooks.reduce((sum, book) => sum + book.file.size, 0);
-          const avgSpeed = (totalSize / 1024 / 1024) / (totalDownloadTime / 1000);
-          console.log(`[SupabaseSync] 🎉 All downloads complete! ${cloudBooks.length} books, ${(totalSize / 1024 / 1024).toFixed(1)}MB total in ${totalDownloadTime.toFixed(0)}ms (avg ${avgSpeed.toFixed(1)} MB/s)`);
+          console.log(`[SupabaseSync] 🎉 Smart sync complete in ${totalDownloadTime.toFixed(0)}ms`);
+          console.log(`[SupabaseSync] 📊 Results: ${completedCount}/${totalBooks} new books downloaded, ${existingCloudBooks.length} already local`);
+          console.log(`[SupabaseSync] 💾 Avoided re-downloading ${existingCloudBooks.length} books (saved time and bandwidth)`);
 
-          // Merge with local books (Supabase takes precedence for newer versions)
-          const currentLocalBooks = books;
-          const mergedBooks = [...currentLocalBooks];
-
-          cloudBooks.forEach(cloudBook => {
-            const localIndex = mergedBooks.findIndex(book => book.id === cloudBook.id);
-
-            if (localIndex >= 0) {
-              // Book exists locally, use the one with latest lastRead
-              const localBook = mergedBooks[localIndex];
-              const cloudDate = new Date(cloudBook.lastRead);
-              const localDate = new Date(localBook.lastRead);
-
-              if (cloudDate > localDate) {
-                // Supabase version is newer, update local
-                mergedBooks[localIndex] = {
-                  ...localBook,
-                  currentPage: cloudBook.currentPage,
-                  lastChapter: cloudBook.lastChapter,
-                  totalPages: cloudBook.totalPages,
-                  lastRead: cloudBook.lastRead,
-                  coverUrl: cloudBook.coverUrl
-                };
-                console.log(`[SupabaseSync] Updated local book from Supabase: ${cloudBook.title}`);
-              }
-            } else {
-              // Book doesn't exist locally, add from Supabase
-              mergedBooks.push(cloudBook);
-              console.log(`[SupabaseSync] Added book from Supabase: ${cloudBook.title}`);
-            }
-          });
-
-          setBooks(mergedBooks);
-          console.log(`[SupabaseSync] Sync complete. Total books: ${mergedBooks.length}`);
         } catch (error) {
-          console.error('[SupabaseSync] Failed to sync books from Supabase:', error);
+          console.error('[SupabaseSync] Progressive sync failed:', error);
         } finally {
           setIsSyncingFromCloud(false);
         }
@@ -415,7 +478,7 @@ useEffect(() => {
     };
 
     syncBooksOnLogin();
-  }, [isAuthenticated, userId]); // Run when sign-in status changes
+  }, [isAuthenticated, userId]); // Simplified dependencies
 
 // =================================================================
 

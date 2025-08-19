@@ -191,10 +191,21 @@ const BookGrid: React.FC<BookGridProps> = ({ books }) => {
       <div className="books-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {books.map(book => (
           <div key={book.id} className="book-card relative bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm group">
+            {/* Loading Overlay for Progressive Downloads */}
+            {book.isDownloading && (
+              <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-20 rounded-lg">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                  <p className="text-xs text-gray-600 font-medium">Downloading...</p>
+                  <p className="text-xs text-gray-400 mt-1">{book.title}</p>
+                </div>
+              </div>
+            )}
+            
             {/* NO CHANGE NEEDED for openBook, as it's tracked in the context */}
             <div 
-              className="book-cover aspect-[2/3] relative bg-gray-100 cursor-pointer" 
-              onClick={() => openBook(book)}
+              className={`book-cover aspect-[2/3] relative bg-gray-100 ${book.isDownloading ? 'pointer-events-none' : 'cursor-pointer'}`}
+              onClick={() => !book.isDownloading && openBook(book)}
             >
               {book.coverUrl ? (
                 <img 
@@ -220,19 +231,31 @@ const BookGrid: React.FC<BookGridProps> = ({ books }) => {
             <div className="book-actions p-2 pt-0 flex justify-between">
               {/* NO CHANGE NEEDED for openBook */}
               <button 
-                className="text-xs px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded transition-colors"
+                className={`text-xs px-2 py-1 rounded transition-colors ${
+                  book.isDownloading 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-amber-100 hover:bg-amber-200 text-amber-800'
+                }`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  openBook(book);
+                  if (!book.isDownloading) {
+                    openBook(book);
+                  }
                 }}
+                disabled={book.isDownloading}
               >
-                Read
+                {book.isDownloading ? 'Loading...' : 'Read'}
               </button>
               
               {/* UPDATED to call the new handler */}
               <button 
-                className="remove-book text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors"
-                onClick={(e) => handleRemovePrompt(book.id, e)}
+                className={`text-xs px-2 py-1 rounded transition-colors ${
+                  book.isDownloading
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+                onClick={(e) => !book.isDownloading && handleRemovePrompt(book.id, e)}
+                disabled={book.isDownloading}
               >
                 Remove
               </button>
