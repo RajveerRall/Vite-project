@@ -239,7 +239,7 @@ const BookGrid: React.FC<BookGridProps> = ({ books }) => {
                 onClick={(e) => {
                   e.stopPropagation();
                   if (!book.isDownloading) {
-                    openBook(book);
+                  openBook(book);
                   }
                 }}
                 disabled={book.isDownloading}

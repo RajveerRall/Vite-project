@@ -69,7 +69,6 @@ const Reader: React.FC = () => {
     pausePlayback,
     resumePlayback,
     handleTTSNavigation,
-    renderContentWithHighlight,
     canTTSResume
   } = useReaderTTS({
     bookTitle,
@@ -116,6 +115,20 @@ const Reader: React.FC = () => {
     handleTTSNavigation();
     closeBook();
   }, [handleTTSNavigation, closeBook]);
+
+  // === Render text with current chunk highlighted ===
+  const renderContentWithHighlight = useCallback(() => {
+    if (!chunks.length) return null;
+    return chunks.map((chunk, idx) => (
+      <span
+        key={idx}
+        className={idx === currentChunkIndex ? CHUNK_HIGHLIGHT_CLASS : ''}
+        style={{ transition: 'background-color 0.3s ease' }}
+      >
+        {chunk + ' '}
+      </span>
+    ));
+  }, [chunks, currentChunkIndex]);
 
   // return (
   //   <div className="reader">
