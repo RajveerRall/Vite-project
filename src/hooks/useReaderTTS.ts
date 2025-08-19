@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 // Helper: split text into sentence chunks
 function splitTextIntoChunks(text: string): string[] {
@@ -28,8 +28,7 @@ export interface UseReaderTTSReturn {
   // Navigation handlers (TTS-aware)
   handleTTSNavigation: () => void;
   
-  // Content rendering
-  renderContentWithHighlight: () => React.ReactNode;
+  // Content rendering moved back to Reader component
   
   // Computed values
   canTTSResume: boolean;
@@ -468,19 +467,7 @@ export const useReaderTTS = ({
     ttsIntentActiveRef.current = false;
   }, [isSpeaking, isPaused, saveResumeIndex, haltPlayback]);
 
-  // === Render content with current chunk highlighted ===
-  const renderContentWithHighlight = useCallback(() => {
-    if (!chunks.length) return null;
-    return chunks.map((chunk, idx) => (
-      <span
-        key={idx}
-        className={idx === currentChunkIndex ? CHUNK_HIGHLIGHT_CLASS : ''}
-        style={{ transition: 'background-color 0.3s ease' }}
-      >
-        {chunk + ' '}
-      </span>
-    ));
-  }, [chunks, currentChunkIndex]);
+  // === Render content function moved back to Reader component (JSX not allowed in .ts files) ===
 
   // === Computed values ===
   const canTTSResume = !!currentPageText && resumeIndex !== null && !isSpeaking && !isPaused && !isProcessing && !hasFinishedPlayback;
@@ -505,9 +492,6 @@ export const useReaderTTS = ({
     
     // Navigation
     handleTTSNavigation,
-    
-    // Rendering
-    renderContentWithHighlight,
     
     // Computed
     canTTSResume,
