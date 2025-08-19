@@ -5,6 +5,22 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <script>
+      performance.mark('head-start');
+      window.addEventListener('DOMContentLoaded', () => {
+        performance.mark('dom-content-loaded');
+        performance.measure('dom-to-dcl', 'head-start', 'dom-content-loaded');
+        const m = performance.getEntriesByName('dom-to-dcl')[0];
+        if (m) console.log('[Perf] DOMContentLoaded at', m.duration.toFixed(0), 'ms');
+      });
+      window.addEventListener('load', () => {
+        performance.mark('window-load');
+        performance.measure('dom-to-load', 'head-start', 'window-load');
+        const m = performance.getEntriesByName('dom-to-load')[0];
+        if (m) console.log('[Perf] window.load at', m.duration.toFixed(0), 'ms');
+      });
+    </script>
+
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-RDBQXF9CLH"></script>
     <script>
@@ -18,10 +34,7 @@
 
     <title>Ebook Reader</title>
 
-    <!-- JSZip is required for EPUB files -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
-    <!-- Load the ePub.js library -->
-    <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+    <!-- Removed blocking JSZip/ePub.js; using ESM imports -->
   </head>
   <body>
     <div id="root"></div>

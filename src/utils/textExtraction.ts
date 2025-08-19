@@ -61,7 +61,7 @@
 
 
 // src/utils/textExtraction.ts
-import JSZip from 'jszip'; // Import JSZip, though not directly used in string replacement here
+// Removed JSZip import to avoid pulling it into the initial bundle
 import { resolveRelativePath, getDirectoryPath } from './pathUtils'; // Import your path utilities
 
 /**
@@ -105,7 +105,7 @@ export const extractTextFromHtml = (htmlContent: string): string => {
 export const processHtmlContent = (
   htmlContent: string,
   _fileDir: string, // Original second parameter, now less critical if baseHtmlPath is used
-  zip?: JSZip,      // Optional zip instance (not actively used in this version)
+  zip?: any,        // Optional zip instance (not actively used in this version)
   baseHtmlPath?: string // The path of the current HTML file within the EPUB
 ): string => {
   let processedHtml = htmlContent;

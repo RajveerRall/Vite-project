@@ -69,7 +69,18 @@
 import React, { useCallback } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { BookData } from '@/types/books';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+const ChevronLeftIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const ChevronRightIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
 
 interface BookCarouselProps {
   books: BookData[];
@@ -93,7 +104,7 @@ export const BookCarousel: React.FC<BookCarouselProps> = ({ books, onBookSelect 
                 onClick={() => onBookSelect(book)}
               >
                 {book.coverUrl ? (
-                  <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
+                  <img src={book.coverUrl} alt={book.title} loading="lazy" className="w-full h-full object-cover" />
                 ) : (
                   <div className="default-cover p-2 text-center">
                     <h3 className="font-bold text-sm sm:text-base line-clamp-2">{book.title}</h3>
@@ -106,11 +117,11 @@ export const BookCarousel: React.FC<BookCarouselProps> = ({ books, onBookSelect 
         </div>
       </div>
 
-      <button className="carousel-arrow prev" onClick={scrollPrev}>
-        <ChevronLeft />
+      <button className="carousel-arrow prev" onClick={scrollPrev} aria-label="Previous">
+        <ChevronLeftIcon />
       </button>
-      <button className="carousel-arrow next" onClick={scrollNext}>
-        <ChevronRight />
+      <button className="carousel-arrow next" onClick={scrollNext} aria-label="Next">
+        <ChevronRightIcon />
       </button>
     </div>
   );

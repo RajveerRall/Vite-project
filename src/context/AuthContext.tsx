@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -28,7 +28,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
+      const { supabase } = await import('../lib/supabase');
+      console.time('[Perf] supabase.getSession');
       const { data: { session } } = await supabase.auth.getSession();
+      console.timeEnd('[Perf] supabase.getSession');
       setUser(session?.user ?? null);
       setLoading(false);
     };
@@ -36,17 +39,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getInitialSession();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
+    let unsubscribe: (() => void) | null = null;
+    (async () => {
+      const { supabase } = await import('../lib/supabase');
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          setUser(session?.user ?? null);
+          setLoading(false);
+        }
+      );
+      unsubscribe = () => subscription.unsubscribe();
+    })();
 
-    return () => subscription.unsubscribe();
+    return () => { if (unsubscribe) unsubscribe(); };
   }, []);
 
   const signUp = async (email: string, password: string) => {
+    const { supabase } = await import('../lib/supabase');
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -55,6 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signIn = async (email: string, password: string) => {
+    const { supabase } = await import('../lib/supabase');
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -63,6 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    const { supabase } = await import('../lib/supabase');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };

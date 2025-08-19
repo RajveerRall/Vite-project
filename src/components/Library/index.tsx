@@ -5,7 +5,7 @@ import BookGrid from './BookGrid';
 import './Library.css';
 import { trackEvent } from '../../lib/analytics'; // Make sure to import it
 import { useAuth } from "../../context/AuthContext";
-import { BookCarousel } from './BookCarousel';
+const BookCarousel = React.lazy(() => import('./BookCarousel').then(m => ({ default: m.BookCarousel })));
 import preprocessedBooks from '../../lib/preprocessedBooks.json';
 import { BookData } from '@/types/books'; // Make sure BookData is imported
 
@@ -65,6 +65,16 @@ const Library: React.FC = () => {
   const [carouselBooks, setCarouselBooks] = useState<BookData[]>([]);
   const [isCarouselLoading, setIsCarouselLoading] = useState<boolean>(true);
   const displayBooks = isAuthenticated ? books : carouselBooks;
+ 
+ // Defer mounting Carousel until after first paint/idle
+ const [showCarousel, setShowCarousel] = useState<boolean>(false);
+ useEffect(() => {
+   if ('requestIdleCallback' in window) {
+     (window as any).requestIdleCallback(() => setShowCarousel(true));
+   } else {
+     setTimeout(() => setShowCarousel(true), 0);
+   }
+ }, []);
 
 
 
@@ -248,13 +258,24 @@ const Library: React.FC = () => {
           </div>
         )}
 
-        {/* --- Cloud Sync Loading Overlay --- */}
+        {/* Cloud Sync Loading Overlay */}
         {isSyncingFromCloud && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-sm mx-4 text-center shadow-xl">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Syncing Your Library</h3>
-              <p className="text-gray-600">Downloading your books from the cloud...</p>
+            <div className="bg-white rounded-lg p-8 max-w-sm mx-4 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Syncing Your Books</h3>
+              <p className="text-gray-600">
+                Downloading your books from the cloud...<br/>
+                <span className="text-sm text-gray-500">This may take a moment for large books</span>
+              </p>
+              {navigator.userAgent.includes('Edg') && (
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                  <p className="text-sm text-amber-800">
+                    📌 <strong>Edge users:</strong> Downloads may be slower due to enhanced security settings. 
+                    For faster syncing, consider using Chrome.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -264,12 +285,14 @@ const Library: React.FC = () => {
         {/* Showcase Carousel: Always visible */}
         {isCarouselLoading ? (
           <div className="text-center mb-12"><p>Loading Collection...</p></div>
-        ) : carouselBooks.length > 0 && (
+        ) : (showCarousel && carouselBooks.length > 0) && (
           <section className="showcase-section mb-12">
             <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
               Listen to Your Favourite Books
             </h2>
-            <BookCarousel books={carouselBooks} onBookSelect={handleSampleBookSelect} />
+            <React.Suspense fallback={<div className="text-center mb-12"><p>Loading Collection...</p></div>}>
+              <BookCarousel books={carouselBooks} onBookSelect={handleSampleBookSelect} />
+            </React.Suspense>
           </section>
         )}
 
