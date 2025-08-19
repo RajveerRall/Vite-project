@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill';
+
 export default defineConfig({
   plugins: [
     react(),
@@ -31,7 +32,7 @@ export default defineConfig({
     }
   },
   build: {
-    // Optimize bundle size
+    // Simplified build config for reliable deployment
     rollupOptions: {
       output: {
         manualChunks: {
@@ -42,16 +43,14 @@ export default defineConfig({
         }
       }
     },
-    // Enable compression
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    },
+    // Use default minifier instead of terser to avoid build issues
+    minify: true,
     // Increase chunk size warning limit
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 1000,
+    // Ensure assets are properly handled
+    assetsDir: 'assets',
+    // Generate source maps for debugging
+    sourcemap: false
   },
   server: {
     proxy: {
@@ -61,5 +60,4 @@ export default defineConfig({
       }
     }
   }
-
 });
