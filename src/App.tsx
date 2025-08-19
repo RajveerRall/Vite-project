@@ -3,14 +3,26 @@ import React from 'react';
 import { BookProvider, useBook } from './context/BookContext';
 import { useAuth } from './context/AuthContext';
 import Library from './components/Library';
-import Reader from './components/Reader';
+// import Reader from './components/Reader';
 import Header from "./components/Library/header";
 import { AuthForm } from './components/Auth/AuthForm';
 import './App.css';
 
+const Reader = React.lazy(() => import('./components/Reader'));
+
 const AppContent: React.FC = () => {
   const { isReading } = useBook();
   const { loading } = useAuth();
+
+  React.useEffect(() => {
+    if (loading) {
+      console.log('[Perf] UI gated by auth session fetch...');
+      console.time('[Perf] auth-loading-gate');
+    } else {
+      console.timeEnd('[Perf] auth-loading-gate');
+      console.log('[Perf] Auth resolved. Rendering app.');
+    }
+  }, [loading]);
   
   // Show loading spinner while checking auth state
   if (loading) {
@@ -26,7 +38,13 @@ const AppContent: React.FC = () => {
       {/* Only show Header when NOT reading a book */}
       {!isReading && <Header />}
       {/* Render the Library or Reader component based on the context */}
-      {isReading ? <Reader /> : <Library />}
+      {isReading ? (
+        <React.Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-lg text-gray-600">Loading reader...</div></div>}>
+          <Reader />
+        </React.Suspense>
+      ) : (
+        <Library />
+      )}
     </div>
   );
 };
