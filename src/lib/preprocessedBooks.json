@@ -1,0 +1,93 @@
+[
+  {
+    "filename": "Alice in Wonderland.epub",
+    "title": "Alice's Adventures in Wonderland",
+    "author": "Lewis Carroll",
+    "coverPath": "/sample-book-covers/Alice in Wonderland.svg",
+    "fileSize": 137692
+  },
+  {
+    "filename": "Frankenstein by Mary Wollstonescraft Shelley.epub",
+    "title": "Frankenstein; Or, The Modern Prometheus",
+    "author": "Mary Wollstonecraft Shelley",
+    "coverPath": "/sample-book-covers/Frankenstein by Mary Wollstonescraft Shelley.svg",
+    "fileSize": 280441
+  },
+  {
+    "filename": "Franz Kafka.epub",
+    "title": "Metamorphosis",
+    "author": "Franz Kafka",
+    "coverPath": "/sample-book-covers/Franz Kafka.svg",
+    "fileSize": 121085
+  },
+  {
+    "filename": "Heart of Darkness by Joseph Conrad.epub",
+    "title": "Heart of Darkness",
+    "author": "Joseph Conrad",
+    "coverPath": "/sample-book-covers/Heart of Darkness by Joseph Conrad.svg",
+    "fileSize": 167424
+  },
+  {
+    "filename": "Little Women by Lousa M.Alcott.epub",
+    "title": "Little Women; Or, Meg, Jo, Beth, and Amy",
+    "author": "Louisa May Alcott",
+    "coverPath": "/sample-book-covers/Little Women by Lousa M.Alcott.svg",
+    "fileSize": 560897
+  },
+  {
+    "filename": "Mrs Dallowary.epub",
+    "title": "Mrs. Dalloway",
+    "author": "Virginia Woolf",
+    "coverPath": "/sample-book-covers/Mrs Dallowary.svg",
+    "fileSize": 261779
+  },
+  {
+    "filename": "The Power of Now.epub",
+    "title": "The Power of Now: A Guide to Spiritual Enlightenment",
+    "author": "Eckhart Tolle",
+    "coverPath": "/sample-book-covers/The Power of Now.jpg",
+    "fileSize": 253618
+  },
+  {
+    "filename": "The adventures of sherlock holmes.epub",
+    "title": "The Adventures of Sherlock Holmes",
+    "author": "Arthur Conan Doyle",
+    "coverPath": "/sample-book-covers/The adventures of sherlock holmes.svg",
+    "fileSize": 313179
+  },
+  {
+    "filename": "The great gatsby.epub",
+    "title": "The Great Gatsby",
+    "author": "F. Scott Fitzgerald",
+    "coverPath": "/sample-book-covers/The great gatsby.svg",
+    "fileSize": 358821
+  },
+  {
+    "filename": "The murder of Roger Ackroyd by Agatha Christie.epub",
+    "title": "The murder of Roger Ackroyd",
+    "author": "Agatha Christie",
+    "coverPath": "/sample-book-covers/The murder of Roger Ackroyd by Agatha Christie.svg",
+    "fileSize": 347786
+  },
+  {
+    "filename": "Treasure Island by Robert Louis Stevenson.epub",
+    "title": "Treasure Island",
+    "author": "Robert Louis Stevenson",
+    "coverPath": "/sample-book-covers/Treasure Island by Robert Louis Stevenson.svg",
+    "fileSize": 275320
+  },
+  {
+    "filename": "jane eyre.epub",
+    "title": "jane eyre",
+    "author": "Unknown Author",
+    "coverPath": "/sample-book-covers/jane eyre.svg",
+    "fileSize": 610304
+  },
+  {
+    "filename": "pride and prejudice.epub",
+    "title": "Pride and Prejudice",
+    "author": "Jane Austen",
+    "coverPath": "/sample-book-covers/pride and prejudice.svg",
+    "fileSize": 561028
+  }
+]
