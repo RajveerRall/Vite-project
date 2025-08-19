@@ -59,22 +59,6 @@
   gap: 1.3rem;
 }
 
-.feature-video {
-  width: 100%;
-  border-radius: 1.2rem;
-  overflow: hidden;
-  background: #f5f5f5;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-}
-
-.demo-video {
-  width: 100%;
-  height: auto;
-  display: block;
-  border-radius: 1.2rem;
-  box-shadow: none;
-}
-
 .feature-description {
   color: #23272f;
   font-size: 1.08rem;
@@ -82,30 +66,63 @@
   line-height: 1.6;
 }
 
-.feature-description p {
-  margin: 0 0 1rem 0;
+.feature-intro {
+  margin: 0 0 1.5rem 0;
   font-size: 1.13rem;
   font-weight: 500;
   color: #23272f;
   line-height: 1.6;
+  text-align: center;
 }
 
-@media (max-width: 640px) {
-  .feature-description,
-  .feature-description p {
-    line-height: 1.3;
-  }
+.feature-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
-.feature-description ol {
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(248, 250, 252, 0.8);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.step-number {
+  background: #3b82f6;
+  color: white;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.step-text {
+  color: #374151;
+  font-size: 1rem;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.feature-tip {
   margin: 0;
-  padding-left: 1.5rem;
-}
-
-.feature-description li {
-  margin-bottom: 0.4rem;
-  line-height: 1.6;
-  color: #444;
-  font-size: 1.01rem;
+  padding: 1rem;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #047857;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  text-align: center;
 }
 
 @keyframes slideIn {
@@ -140,12 +157,28 @@
     border-radius: 1.2rem;
   }
   .feature-content {
-    padding: 1.1rem 0.7rem 1.2rem 0.7rem;
+    padding: 1.5rem 1rem 1.5rem 1rem;
   }
   .feature-header h3 {
-    font-size: 1.08rem;
+    font-size: 1.1rem;
   }
-  .feature-description p {
-    font-size: 1rem;
+  .feature-intro {
+    font-size: 1.05rem;
+  }
+  .step-item {
+    padding: 0.6rem 0.8rem;
+    gap: 0.75rem;
+  }
+  .step-number {
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.8rem;
+  }
+  .step-text {
+    font-size: 0.95rem;
+  }
+  .feature-tip {
+    font-size: 0.9rem;
+    padding: 0.8rem;
   }
 }

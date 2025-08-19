@@ -18,22 +18,23 @@ const FeatureHighlight: React.FC<FeatureHighlightProps> = ({ onClose }) => {
           </button>
         </div>
         <div className="feature-body">
-          <div className="feature-video">
-            <video 
-              src="/yoread-feature.mp4" 
-              controls
-              className="demo-video"
-            >
-              Your browser does not support the video tag.
-            </video>
-          </div>
           <div className="feature-description">
-            <p>Continue Reading from where you want!</p>
-            <ol>
-              <li>Select any text in your book</li>
-              <li>Click the "Read" button</li>
-              <li>The reading will start from your selection</li>
-            </ol>
+            <p className="feature-intro">Continue Reading from where you want!</p>
+            <div className="feature-steps">
+              <div className="step-item">
+                <span className="step-number">1</span>
+                <span className="step-text">Select any text in your book</span>
+              </div>
+              <div className="step-item">
+                <span className="step-number">2</span>
+                <span className="step-text">Click the "Read" button</span>
+              </div>
+              <div className="step-item">
+                <span className="step-number">3</span>
+                <span className="step-text">The reading will start from your selection</span>
+              </div>
+            </div>
+            <p className="feature-tip">💡 Tip: This feature is perfect for continuing from where you left off or jumping to specific paragraphs!</p>
           </div>
         </div>
       </div>
