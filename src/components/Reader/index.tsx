@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useBook } from '../../context/BookContext';
 import SimplePlayMode from './SimplePlayMode';
-import KokoroPlayMode from './SimplePlayMode';
 import TableOfContents from '../Library/TableOfContents';
 // import SearchBar from '../Library/SearchBar';
 import Controls from './Controls';
@@ -39,10 +38,26 @@ const Reader: React.FC = () => {
   } = useBook();
 
   // === Non-TTS States ===
-  const [showFeatureHighlight, setShowFeatureHighlight] = useState<boolean>(true);
+  const [showFeatureHighlight, setShowFeatureHighlight] = useState<boolean>(false);
+  const [isEnhanced, setIsEnhanced] = useState(false);
+  
+  // Defer feature highlight to improve initial load performance
+  useEffect(() => {
+    const timer = setTimeout(() => setShowFeatureHighlight(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Progressive loading: show basic reader first, enhance progressively
+  useEffect(() => {
+    const timer = setTimeout(() => setIsEnhanced(true), 500);
+    return () => clearTimeout(timer);
+  }, []);
   
   // === Custom Hooks ===
-  // Settings state and functions from custom hook
+  // Settings state and functions from custom hook - moved to top level to follow Rules of Hooks
+  const settingsHook = useReaderSettings();
+  
+  // Settings values
   const {
     fontSize,
     theme,
@@ -53,9 +68,17 @@ const Reader: React.FC = () => {
     changeTheme,
     toggleSettings,
     closeSettings
-  } = useReaderSettings();
+  } = settingsHook;
   
-  // TTS state and functions from custom hook
+  // TTS state and functions from custom hook - moved to top level to follow Rules of Hooks
+  const ttsHook = useReaderTTS({
+    bookTitle,
+    currentPageDisplay,
+    currentPageText,
+    currentContent
+  });
+  
+  // TTS functionality
   const {
     chunks,
     currentChunkIndex,
@@ -66,13 +89,9 @@ const Reader: React.FC = () => {
     handleTTS,
     handleStopTTS,
     handleTTSNavigation,
-    canTTSResume
-  } = useReaderTTS({
-    bookTitle,
-    currentPageDisplay,
-    currentPageText,
-    currentContent
-  });
+    canTTSResume,
+    highlightedContent: ttsHighlightedContent
+  } = ttsHook;
 
   // === Computed Values ===
   // canGoPrev/canGoNext logic moved to Controls component
@@ -104,7 +123,8 @@ const Reader: React.FC = () => {
   }, [handleTTSNavigation, closeBook]);
 
   // === Render text with current chunk highlighted ===
-  const renderContentWithHighlight = useCallback(() => {
+  // Memoize to prevent unnecessary re-computations
+  const highlightedContent = useMemo(() => {
     if (!chunks.length) return null;
     return chunks.map((chunk, idx) => (
       <span
@@ -205,22 +225,26 @@ const Reader: React.FC = () => {
         <p className="book-author">{bookAuthor}</p>
       </div>
       <div className="reader-right">
-        {/* Settings Button */}
-        <button 
-          onClick={toggleSettings}
-          className="settings-button p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2"
-          aria-label="Open reading settings"
-          title="Reading settings"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
+        {/* Settings Button - Only show after enhanced loading */}
+        {isEnhanced && (
+          <button 
+            onClick={toggleSettings}
+            className="settings-button p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2"
+            aria-label="Open reading settings"
+            title="Reading settings"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        )}
 
-        {/* Mobile TOC Component */}
-        <MobileTOCDrawer 
-          toc={toc} 
-          onItemClick={handleNavigateToTocItem}
-          theme={theme}
-        />
+        {/* Mobile TOC Component - Only show after enhanced loading */}
+        {isEnhanced && (
+          <MobileTOCDrawer 
+            toc={toc} 
+            onItemClick={handleNavigateToTocItem}
+            theme={theme}
+          />
+        )}
         
         <div className="controls-container">
           <Controls
@@ -271,12 +295,32 @@ const Reader: React.FC = () => {
             lineHeight: '1.6'
           }}
         >
-          {renderContentWithHighlight()}
+          {/* Debug: Log what we're about to render */}
+          {(() => {
+            console.log('[DEBUG] Reader rendering content:', {
+              isSpeaking,
+              isProcessing,
+              currentContentLength: currentContent?.length || 0,
+              currentContentPreview: currentContent?.substring(0, 200) || 'empty',
+              hasHtmlTags: currentContent ? /<[^>]+>/.test(currentContent) : false,
+              currentPageTextLength: currentPageText?.length || 0,
+              currentPageTextPreview: currentPageText?.substring(0, 200) || 'empty',
+              ttsHighlightedContentLength: ttsHighlightedContent?.length || 0
+            });
+            return null;
+          })()}
+          
+          {/* Show TTS-highlighted content when TTS is active, otherwise show formatted HTML content */}
+          {isSpeaking || isProcessing ? (
+            <div dangerouslySetInnerHTML={{ __html: ttsHighlightedContent }} />
+          ) : (
+            <div dangerouslySetInnerHTML={{ __html: currentContent }} />
+          )}
         </div>
       </div>
       {isPlayModeVisible && (
         useKokoroTTS ? (
-          <KokoroPlayMode currentPageContent={currentPageText} onClose={togglePlayMode} />
+          <SimplePlayMode currentPageContent={currentPageText} onClose={togglePlayMode} />
         ) : (
           <SimplePlayMode currentPageContent={currentPageText} onClose={togglePlayMode} />
         )
@@ -284,17 +328,19 @@ const Reader: React.FC = () => {
     </div>
     {showFeatureHighlight && (<FeatureHighlight onClose={() => setShowFeatureHighlight(false)} />)}
 
-    {/* Modular Settings Widget Component */}
-    <SettingsWidget
-      fontSize={fontSize}
-      theme={theme}
-      isSettingsOpen={isSettingsOpen}
-      increaseFontSize={increaseFontSize}
-      decreaseFontSize={decreaseFontSize}
-      resetFontSize={resetFontSize}
-      changeTheme={changeTheme}
-      closeSettings={closeSettings}
-    />
+    {/* Modular Settings Widget Component - Only render after enhanced loading */}
+    {isEnhanced && (
+      <SettingsWidget
+        fontSize={fontSize}
+        theme={theme}
+        isSettingsOpen={isSettingsOpen}
+        increaseFontSize={increaseFontSize}
+        decreaseFontSize={decreaseFontSize}
+        resetFontSize={resetFontSize}
+        changeTheme={changeTheme}
+        closeSettings={closeSettings}
+      />
+    )}
 
     {/* Theme styles moved to ReaderThemes.css */}
   </div>

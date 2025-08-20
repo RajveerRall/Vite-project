@@ -74,8 +74,25 @@ export const extractTextFromHtml = (htmlContent: string): string => {
     if (typeof document !== 'undefined') {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = htmlContent;
-      let textContent = tempDiv.textContent || '';
-      textContent = textContent.replace(/\s+/g, ' ').trim();
+      
+      // Get text content and clean it up
+      let textContent = tempDiv.textContent || tempDiv.innerText || '';
+      
+      // Additional cleanup: remove extra whitespace and normalize
+      textContent = textContent
+        .replace(/\s+/g, ' ')  // Replace multiple whitespace with single space
+        .replace(/\n\s*\n/g, '\n')  // Remove empty lines
+        .trim();
+      
+      // Debug logging
+      console.log('[DEBUG] extractTextFromHtml:', {
+        originalLength: htmlContent.length,
+        extractedLength: textContent.length,
+        extractedPreview: textContent.substring(0, 200),
+        hasHtmlTags: /<[^>]+>/.test(textContent),
+        tempDivChildren: tempDiv.children.length
+      });
+      
       return textContent;
     } else {
       // Basic fallback for non-browser environments if DOM is not available
