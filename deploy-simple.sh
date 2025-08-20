@@ -5,7 +5,7 @@
 
 echo "🚀 Quick deployment starting..."
 
-cd ~/Vite-reader
+cd ~/Vite-project
 
 # Pull latest changes
 git pull

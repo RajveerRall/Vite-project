@@ -16,7 +16,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-PROJECT_DIR="$HOME/Vite-reader"
+PROJECT_DIR="$HOME/Vite-project"
 DEPLOY_DIR="/var/www/yoread.com"
 BRANCH="auth-setup"
 
