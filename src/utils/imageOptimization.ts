@@ -24,31 +24,68 @@ export function getResponsiveCoverUrls(
   srcSet: string;
   sizes: string;
 } {
+  // Handle blob URLs (for uploaded books) - return as-is
+  if (baseCoverPath.startsWith('blob:')) {
+    return {
+      src: baseCoverPath,
+      srcSet: baseCoverPath,
+      sizes: '100vw' // Full viewport width for blob URLs
+    };
+  }
+  
   // Extract the base filename and extension
   const pathParts = baseCoverPath.split('/');
   const filename = pathParts[pathParts.length - 1];
-  const nameWithoutExt = filename.split('.')[0];
-  const extension = filename.split('.').pop()?.toLowerCase();
   
-  // Determine if we should use WebP
-  const useWebP = extension !== 'svg' && extension !== 'webp';
-  const finalExtension = useWebP ? 'webp' : extension;
+  // Check if this is already a responsive image (has -300w.webp pattern)
+  const responsivePattern = /-(\d+)w\.(webp|svg)$/;
+  const match = filename.match(responsivePattern);
   
-  // Generate different sizes
-  const srcSet = Object.entries(sizes)
-    .map(([breakpoint, width]) => {
-      const url = `/sample-book-covers-webp/${nameWithoutExt}-${width}w.${finalExtension}`;
-      return `${url} ${width}w`;
-    })
-    .join(', ');
-  
-  // Default src (medium size)
-  const src = `/sample-book-covers-webp/${nameWithoutExt}-${sizes.md}w.${finalExtension}`;
-  
-  // CSS sizes attribute for responsive behavior
-  const sizesAttr = '(max-width: 640px) 200px, (max-width: 1024px) 300px, 400px';
-  
-  return { src, srcSet, sizes: sizesAttr };
+  if (match) {
+    // This is already a responsive image, extract the base name
+    const baseName = filename.replace(responsivePattern, '');
+    const extension = match[2];
+    
+    // Generate different sizes
+    const srcSet = Object.entries(sizes)
+      .map(([breakpoint, width]) => {
+        const url = `/sample-book-covers-webp/${baseName}-${width}w.${extension}`;
+        return `${url} ${width}w`;
+      })
+      .join(', ');
+    
+    // Default src (medium size)
+    const src = `/sample-book-covers-webp/${baseName}-${sizes.md}w.${extension}`;
+    
+    // CSS sizes attribute for responsive behavior
+    const sizesAttr = '(max-width: 640px) 200px, (max-width: 1024px) 300px, 400px';
+    
+    return { src, srcSet, sizes: sizesAttr };
+  } else {
+    // This is an original image, convert to WebP and generate sizes
+    const nameWithoutExt = filename.split('.')[0];
+    const extension = filename.split('.').pop()?.toLowerCase();
+    
+    // Determine if we should use WebP
+    const useWebP = extension !== 'svg' && extension !== 'webp';
+    const finalExtension = useWebP ? 'webp' : extension;
+    
+    // Generate different sizes
+    const srcSet = Object.entries(sizes)
+      .map(([breakpoint, width]) => {
+        const url = `/sample-book-covers-webp/${nameWithoutExt}-${width}w.${finalExtension}`;
+        return `${url} ${width}w`;
+      })
+      .join(', ');
+    
+    // Default src (medium size)
+    const src = `/sample-book-covers-webp/${nameWithoutExt}-${sizes.md}w.${finalExtension}`;
+    
+    // CSS sizes attribute for responsive behavior
+    const sizesAttr = '(max-width: 640px) 200px, (max-width: 1024px) 300px, 400px';
+    
+    return { src, srcSet, sizes: sizesAttr };
+  }
 }
 
 /**
@@ -58,18 +95,36 @@ export function getOptimizedCoverUrl(
   baseCoverPath: string,
   targetWidth: number = 300
 ): string {
-  const pathParts = baseCoverPath.split('/');
-  const filename = pathParts[pathParts.length - 1];
-  const nameWithoutExt = filename.split('.')[0];
-  const extension = filename.split('.').pop()?.toLowerCase();
-  
-  // Use WebP for better compression (except SVG)
-  if (extension !== 'svg' && extension !== 'webp') {
-    return `/sample-book-covers-webp/${nameWithoutExt}-${targetWidth}w.webp`;
+  // Handle blob URLs (for uploaded books) - return as-is
+  if (baseCoverPath.startsWith('blob:')) {
+    return baseCoverPath;
   }
   
-  // Keep original for SVG or already WebP
-  return baseCoverPath;
+  const pathParts = baseCoverPath.split('/');
+  const filename = pathParts[pathParts.length - 1];
+  
+  // Check if this is already a responsive image (has -300w.webp pattern)
+  const responsivePattern = /-(\d+)w\.(webp|svg)$/;
+  const match = filename.match(responsivePattern);
+  
+  if (match) {
+    // This is already a responsive image, extract the base name and return the target size
+    const baseName = filename.replace(responsivePattern, '');
+    const extension = match[2];
+    return `/sample-book-covers-webp/${baseName}-${targetWidth}w.${extension}`;
+  } else {
+    // This is an original image, convert to WebP
+    const nameWithoutExt = filename.split('.')[0];
+    const extension = filename.split('.').pop()?.toLowerCase();
+    
+    // Use WebP for better compression (except SVG)
+    if (extension !== 'svg' && extension !== 'webp') {
+      return `/sample-book-covers-webp/${nameWithoutExt}-${targetWidth}w.webp`;
+    }
+    
+    // Keep original for SVG or already WebP
+    return baseCoverPath;
+  }
 }
 
 /**
