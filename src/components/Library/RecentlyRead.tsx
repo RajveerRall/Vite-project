@@ -2,6 +2,7 @@
 import React from 'react';
 import { BookData } from '../../types/books';
 import { useBook } from '../../context/BookContext';
+import { getResponsiveCoverUrls } from '../../utils/imageOptimization';
 
 interface RecentlyReadProps {
   books: BookData[];
@@ -38,11 +39,18 @@ const RecentlyRead: React.FC<RecentlyReadProps> = ({ books }) => {
               {/* Book cover on the left */}
               <div className="book-cover w-20 min-w-20 h-auto bg-gray-100 flex-shrink-0">
                 {book.coverUrl ? (
-                  <img 
-                    src={book.coverUrl} 
-                    alt={`Cover of ${book.title}`}
-                    className="w-full h-full object-cover" 
-                  />
+                  (() => {
+                    const { src, srcSet, sizes } = getResponsiveCoverUrls(book.coverUrl);
+                    return (
+                      <img 
+                        src={src}
+                        srcSet={srcSet}
+                        alt={`Cover of ${book.title}`}
+                        className="w-full h-full object-cover" 
+                        loading="lazy"
+                      />
+                    );
+                  })()
                 ) : (
                   <div className="default-cover w-full h-full flex items-center justify-center bg-amber-800">
                     <span className="text-xl font-medium text-white">{book.title.charAt(0)}</span>
