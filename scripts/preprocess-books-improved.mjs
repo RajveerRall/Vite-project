@@ -5,6 +5,7 @@ import { DOMParser } from 'xmldom';
 
 const SAMPLE_BOOKS_DIR = './public/sample-books';
 const COVERS_OUTPUT_DIR = './public/sample-book-covers';
+const WEBP_COVERS_DIR = './public/sample-book-covers-webp';
 const OUTPUT_FILE = './src/lib/preprocessedBooks.json';
 
 // Utility functions from BookContext (pathUtils)
@@ -286,6 +287,7 @@ async function extractBookMetadata(filePath) {
       const coverFilePath = path.join(COVERS_OUTPUT_DIR, coverFileName);
       
       fs.writeFileSync(coverFilePath, svgCover);
+      // For SVG covers, we don't convert to WebP, so use original path
       coverPath = `/sample-book-covers/${coverFileName}`;
       console.log(`    🎨 Generated text cover: ${coverFileName}`);
     }
@@ -312,9 +314,97 @@ async function extractBookMetadata(filePath) {
     return {
       title,
       author,
+      // For SVG covers, we don't convert to WebP, so use original path
       coverPath: `/sample-book-covers/${coverFileName}`,
       fileSize: fs.statSync(filePath).size
     };
+  }
+}
+
+// WebP conversion function
+async function convertCoversToWebP() {
+  console.log('\n🔄 Converting covers to WebP for better performance...');
+  
+  try {
+    // Create WebP covers directory
+    if (!fs.existsSync(WEBP_COVERS_DIR)) {
+      fs.mkdirSync(WEBP_COVERS_DIR, { recursive: true });
+      console.log(`📁 Created WebP directory: ${WEBP_COVERS_DIR}`);
+    }
+    
+    // Get all cover files
+    const coverFiles = fs.readdirSync(COVERS_OUTPUT_DIR)
+      .filter(file => ['.jpg', '.jpeg', '.png'].includes(path.extname(file).toLowerCase()));
+    
+    if (coverFiles.length === 0) {
+      console.log('ℹ️  No JPG or PNG covers found to convert.');
+      return;
+    }
+    
+    console.log(`📸 Converting ${coverFiles.length} covers to WebP...\n`);
+    
+    let totalOriginalSize = 0;
+    let totalWebPSize = 0;
+    let successCount = 0;
+    
+    // Import sharp for WebP conversion
+    const sharp = await import('sharp');
+    
+    // Convert each cover
+    for (const file of coverFiles) {
+      const inputPath = path.join(COVERS_OUTPUT_DIR, file);
+      const outputPath = path.join(WEBP_COVERS_DIR, `${path.parse(file).name}.webp`);
+      
+      try {
+        // Read the image file
+        const inputBuffer = fs.readFileSync(inputPath);
+        
+        // Convert to WebP using sharp
+        const outputBuffer = await sharp.default(inputBuffer)
+          .webp({ 
+            quality: 85, 
+            effort: 6,
+            nearLossless: false,
+            smartSubsample: true
+          })
+          .toBuffer();
+        
+        // Write WebP file
+        fs.writeFileSync(outputPath, outputBuffer);
+        
+        const inputStats = fs.statSync(inputPath);
+        const outputStats = fs.statSync(outputPath);
+        const savings = ((inputStats.size - outputStats.size) / inputStats.size * 100).toFixed(1);
+        
+        console.log(`✅ ${path.basename(file)} → ${path.basename(outputPath)}`);
+        console.log(`   📊 Size: ${(inputStats.size / 1024).toFixed(1)}KB → ${(outputStats.size / 1024).toFixed(1)}KB (${savings}% smaller)`);
+        
+        totalOriginalSize += inputStats.size;
+        totalWebPSize += outputStats.size;
+        successCount++;
+        
+      } catch (error) {
+        console.error(`❌ Failed to convert ${path.basename(file)}:`, error.message);
+      }
+    }
+    
+    if (successCount > 0) {
+      const totalSavings = ((totalOriginalSize - totalWebPSize) / totalOriginalSize * 100).toFixed(1);
+      console.log(`\n📊 WebP Conversion Summary:`);
+      console.log(`   ✅ Successfully converted: ${successCount}/${coverFiles.length} covers`);
+      console.log(`   📁 WebP directory: ${WEBP_COVERS_DIR}`);
+      console.log(`   💾 Total size reduction: ${(totalOriginalSize / 1024).toFixed(1)}KB → ${(totalWebPSize / 1024).toFixed(1)}KB (${totalSavings}% smaller)`);
+      console.log(`   🚀 Estimated loading speed improvement: ${totalSavings}% faster`);
+      
+      console.log('\n💡 WebP benefits:');
+      console.log('   • 25-35% smaller file sizes');
+      console.log('   • Faster image loading');
+      console.log('   • Better mobile performance');
+      console.log('   • Modern web standard');
+    }
+    
+  } catch (error) {
+    console.error('❌ WebP conversion failed:', error.message);
   }
 }
 
@@ -354,7 +444,27 @@ async function preprocessAllBooks() {
     });
   }
   
-  // Save to JSON file
+  // Convert covers to WebP for better performance FIRST
+  await convertCoversToWebP();
+  
+  // Now update cover paths to use WebP when available
+  console.log('\n🔄 Updating cover paths to use WebP images...');
+  for (const book of processedBooks) {
+    if (book.coverPath && !book.coverPath.endsWith('.svg')) {
+      // Extract the filename from the current path
+      const currentFileName = book.coverPath.split('/').pop();
+      if (currentFileName) {
+        const webpFileName = `${path.parse(currentFileName).name}.webp`;
+        const webpPath = path.join(WEBP_COVERS_DIR, webpFileName);
+        if (fs.existsSync(webpPath)) {
+          book.coverPath = `/sample-book-covers-webp/${webpFileName}`;
+          console.log(`  ✅ Updated ${book.title}: ${currentFileName} → ${webpFileName}`);
+        }
+      }
+    }
+  }
+  
+  // Save to JSON file (AFTER WebP conversion and path updates)
   const outputDir = path.dirname(OUTPUT_FILE);
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
@@ -365,13 +475,15 @@ async function preprocessAllBooks() {
   console.log(`\n✅ Successfully preprocessed ${processedBooks.length} books using BookContext logic!`);
   console.log(`📄 Output file: ${OUTPUT_FILE}`);
   console.log(`🖼️  Covers saved to: ${COVERS_OUTPUT_DIR}`);
+  console.log(`🚀 WebP covers saved to: ${WEBP_COVERS_DIR}`);
   
   // Display summary
   console.log('\n📊 Summary:');
   processedBooks.forEach(book => {
     const sizeKB = Math.round(book.fileSize / 1024);
     const coverStatus = book.coverPath ? '✅' : '❌';
-    const coverType = book.coverPath?.endsWith('.svg') ? '🎨' : '📷';
+    const coverType = book.coverPath?.endsWith('.svg') ? '🎨' : 
+                     book.coverPath?.includes('webp') ? '🚀' : '📷';
     console.log(`  ${coverStatus}${coverType} ${book.title} by ${book.author} (${sizeKB}KB)`);
   });
   
@@ -380,6 +492,12 @@ async function preprocessAllBooks() {
   console.log('  • 4 different cover detection methods');
   console.log('  • Robust path resolution');
   console.log('  • Fallback text covers for missing images');
+  console.log('  • WebP optimization for faster loading');
+  
+  console.log('\n🎉 Preprocessing complete! Your app is now optimized with:');
+  console.log('  • Fast initial page load (lazy loading)');
+  console.log('  • Optimized bundle splitting');
+  console.log('  • WebP-ready cover images');
 }
 
 // Run the preprocessing

@@ -32,11 +32,18 @@ export default defineConfig({
     }
   },
   build: {
-    // Simplified build config for reliable deployment
-    // Removed manualChunks to restore faster initial page loading
     rollupOptions: {
       output: {
-        // Let Vite handle chunking automatically for optimal performance
+        manualChunks: {
+          // Core app (Library + React) - loads first
+          'app-core': ['react', 'react-dom'],
+          
+          // Reader features - loads only when opening a book
+          'reader-features': ['jszip', 'xmldom', 'epubjs', 'msedge-tts', 'kokoro-js'],
+          
+          // UI and utilities - loads after core
+          'ui-utils': ['lucide-react', '@radix-ui/react-slot', '@radix-ui/react-slider', 'localforage', 'compromise']
+        }
       }
     },
     // Use default minifier instead of terser to avoid build issues
