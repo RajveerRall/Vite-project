@@ -249,7 +249,7 @@ ssh -i C:\Users\Rajveer\.ssh\id_ed25519 root@161.35.186.252
 
 cd Vite-reader
 
-### check git branch
+### check git branch it should be auth-setup and fetch the changes
 
 git status
 
@@ -260,7 +260,7 @@ git pull
 yarn build
 
 
-remove th older verision of distroy from yoread
+### remove th older verision of distroy from yoread
 
 sudo rm -rf /var/www/yoread.com/*
 

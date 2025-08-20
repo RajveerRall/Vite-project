@@ -3,10 +3,13 @@ import React from 'react';
 import { BookProvider, useBook } from './context/BookContext';
 import { useAuth } from './context/AuthContext';
 import Library from './components/Library';
-import Reader from './components/Reader';
 import Header from "./components/Library/header";
 import { AuthForm } from './components/Auth/AuthForm';
+import SuspenseLoader from './components/Common/SuspenseLoader';
 import './App.css';
+
+// Lazy load the Reader component since it's heavy and not needed initially
+const Reader = React.lazy(() => import('./components/Reader'));
 
 const AppContent: React.FC = () => {
   const { isReading } = useBook();
@@ -37,7 +40,9 @@ const AppContent: React.FC = () => {
       {!isReading && <Header />}
       {/* Render the Library or Reader component based on the context */}
       {isReading ? (
-        <Reader />
+        <React.Suspense fallback={<SuspenseLoader />}>
+          <Reader />
+        </React.Suspense>
       ) : (
         <Library />
       )}
