@@ -32,17 +32,14 @@ export default defineConfig({
     }
   },
   build: {
+    // Simplified build config for reliable deployment
     rollupOptions: {
       output: {
         manualChunks: {
-          // Core app (Library + React) - loads first
-          'app-core': ['react', 'react-dom'],
-          
-          // Reader features - loads only when opening a book
-          'reader-features': ['jszip', 'xmldom', 'epubjs', 'msedge-tts', 'kokoro-js'],
-          
-          // UI and utilities - loads after core
-          'ui-utils': ['lucide-react', '@radix-ui/react-slot', '@radix-ui/react-slider', 'localforage', 'compromise']
+          vendor: ['react', 'react-dom'],
+          ui: ['@supabase/supabase-js'],
+          epub: ['jszip'],
+          tts: ['msedge-tts']
         }
       }
     },

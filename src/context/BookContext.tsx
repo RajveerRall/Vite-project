@@ -3,8 +3,15 @@ import { trackEvent } from '../lib/analytics';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import localforage from 'localforage';
 import JSZip from 'jszip';
-import { DOMParser } from 'xmldom';
+// Dynamic import for xmldom to avoid blocking initial page load
+// const { DOMParser } = await import('xmldom');
 import { getDirectoryPath, resolveRelativePath } from '../utils/pathUtils';
+
+// Helper function to get DOMParser dynamically
+const getDOMParser = async () => {
+  const { DOMParser } = await import('xmldom');
+  return DOMParser;
+};
 import { processHtmlContent, extractTextFromHtml } from '../utils/textExtraction';
 import { BookData, TOCItem } from '@/types/books'; // Ensure BookData includes all necessary fields like lastChapter
 import { useAuth } from "./AuthContext";
@@ -104,7 +111,9 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   useEffect(() => {
     const loadBooksFromStorage = async () => {
       console.log("[LocalForage Load] Attempting to load books.");
-      console.time('[Perf] localforage-initial-load');
+      // Use unique timer name to avoid conflicts in development
+      const timerName = `[Perf] localforage-initial-load-${Date.now()}`;
+      console.time(timerName);
       setIsLoading(true);
       try {
         const keys = await localforage.keys();
@@ -162,7 +171,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
         console.error("[LocalForage Load] Error loading books from storage", error);
         setBooks([]); // Fallback to empty library on error
       } finally {
-        console.timeEnd('[Perf] localforage-initial-load');
+        console.timeEnd(timerName);
         setIsLoading(false);
         setIsInitialLoadComplete(true);
       }
@@ -339,9 +348,29 @@ useEffect(() => {
           }));
 
           // Step 4: Add placeholders to existing books and show immediately
-          const booksWithPlaceholders = [...updatedBooks, ...placeholderBooks];
+          // Prevent duplicates by ensuring unique book IDs
+          const allBookIds = new Set();
+          const uniqueUpdatedBooks = updatedBooks.filter(book => {
+            if (allBookIds.has(book.id)) {
+              console.warn(`[SupabaseSync] 🚨 Duplicate book ID detected: ${book.id} (${book.title}), removing duplicate`);
+              return false;
+            }
+            allBookIds.add(book.id);
+            return true;
+          });
+          
+          const uniquePlaceholderBooks = placeholderBooks.filter(book => {
+            if (allBookIds.has(book.id)) {
+              console.warn(`[SupabaseSync] 🚨 Duplicate placeholder ID detected: ${book.id} (${book.title}), removing duplicate`);
+              return false;
+            }
+            allBookIds.add(book.id);
+            return true;
+          });
+          
+          const booksWithPlaceholders = [...uniqueUpdatedBooks, ...uniquePlaceholderBooks];
           setBooks(booksWithPlaceholders);
-          console.log(`[SupabaseSync] 📦 ${placeholderBooks.length} placeholder books added to UI (${existingCloudBooks.length} already existed)`);
+          console.log(`[SupabaseSync] 📦 ${uniquePlaceholderBooks.length} placeholder books added to UI (${uniqueUpdatedBooks.length} already existed, ${placeholderBooks.length - uniquePlaceholderBooks.length} duplicates removed)`);
 
           // Step 5: Start downloading only missing books individually (parallel)
           let completedCount = 0;
@@ -444,9 +473,15 @@ useEffect(() => {
 
               // Step 4: Update the specific book immediately when download completes
               setBooks(currentBooks => {
-                const updatedBooks = currentBooks.map(book => 
+                // Remove any existing duplicates first
+                const uniqueBooks = currentBooks.filter((book, index, arr) => 
+                  arr.findIndex(b => b.id === book.id) === index
+                );
+                
+                const updatedBooks = uniqueBooks.map(book => 
                   book.id === cloudBook.id ? completeBook : book
                 );
+                
                 // Books will be automatically saved by the existing useEffect
                 return updatedBooks;
               });
@@ -500,6 +535,7 @@ useEffect(() => {
       const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
       if (!containerXml) return null;
       
+      const DOMParser = await getDOMParser();
       const parser = new DOMParser();
       const containerDoc = parser.parseFromString(containerXml, 'application/xml');
       const rootfiles = containerDoc.getElementsByTagName('rootfile');
@@ -553,6 +589,7 @@ useEffect(() => {
       const loadedZip = await zip.loadAsync(bookFile);
       const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
       if (!containerXml) throw new Error('Invalid EPUB: container.xml not found');
+      const DOMParser = await getDOMParser();
       const parser = new DOMParser();
       const containerDoc = parser.parseFromString(containerXml, 'application/xml');
       const rootfiles = containerDoc.getElementsByTagName('rootfile');
@@ -707,6 +744,7 @@ useEffect(() => {
       const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
       if (!containerXml) throw new Error('Invalid EPUB: container.xml not found');
 
+      const DOMParser = await getDOMParser();
       const parser = new DOMParser();
       const containerDoc = parser.parseFromString(containerXml, 'application/xml');
       const rootfiles = containerDoc.getElementsByTagName('rootfile');
@@ -1158,7 +1196,9 @@ useEffect(() => {
       console.log(`[Performance] ZIP loaded, processing EPUB structure...`);
       const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
       if (!containerXml) throw new Error('EPUB Load Error: META-INF/container.xml not found');
-      const parser = new DOMParser(); const containerDoc = parser.parseFromString(containerXml, 'application/xml');
+      const DOMParser = await getDOMParser();
+      const parser = new DOMParser(); 
+      const containerDoc = parser.parseFromString(containerXml, 'application/xml');
       const rootfiles = containerDoc.getElementsByTagName('rootfile');
       if (rootfiles.length === 0) throw new Error('EPUB Load Error: No rootfile in container.xml');
       const currentOpfPath = rootfiles[0].getAttribute('full-path') || ''; setOpfPath(currentOpfPath);

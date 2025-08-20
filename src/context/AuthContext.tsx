@@ -29,9 +29,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Get initial session
     const getInitialSession = async () => {
       const { supabase } = await import('../lib/supabase');
-      console.time('[Perf] supabase.getSession');
+      // Use unique timer name to avoid conflicts in development
+      const timerName = `[Perf] supabase.getSession-${Date.now()}`;
+      console.time(timerName);
       const { data: { session } } = await supabase.auth.getSession();
-      console.timeEnd('[Perf] supabase.getSession');
+      console.timeEnd(timerName);
       setUser(session?.user ?? null);
       setLoading(false);
     };

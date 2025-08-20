@@ -18,9 +18,20 @@ const AppContent: React.FC = () => {
   React.useEffect(() => {
     if (loading) {
       console.log('[Perf] UI gated by auth session fetch...');
-      console.time('[Perf] auth-loading-gate');
+      // Use a unique timer name to avoid conflicts in development
+      const timerName = `[Perf] auth-loading-gate-${Date.now()}`;
+      console.time(timerName);
+      
+      // Store timer name in ref to avoid closure issues
+      const timerRef = { current: timerName };
+      
+      return () => {
+        // Cleanup: end timer if component unmounts while loading
+        if (timerRef.current) {
+          console.timeEnd(timerRef.current);
+        }
+      };
     } else {
-      console.timeEnd('[Perf] auth-loading-gate');
       console.log('[Perf] Auth resolved. Rendering app.');
     }
   }, [loading]);
