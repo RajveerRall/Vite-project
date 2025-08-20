@@ -955,6 +955,12 @@ useEffect(() => {
       setCurrentContent(processedHtml);
       setCurrentPageDisplay(pageIdxToLoad);
       const extractedText = extractTextFromHtml(processedHtml);
+      console.log(`[DEBUG] extractTextFromHtml result:`, {
+        originalLength: processedHtml.length,
+        extractedLength: extractedText.length,
+        extractedPreview: extractedText.substring(0, 200),
+        hasHtmlTags: /<[^>]+>/.test(extractedText)
+      });
       setCurrentPageText(extractedText);
       if (currentBookRef) {
         const chapterForPage = findChapterForPageCallback(pageIdxToLoad, currentTocRef, filesInOrder);

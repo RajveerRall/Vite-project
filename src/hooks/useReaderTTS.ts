@@ -430,8 +430,35 @@ export const useReaderTTS = ({
       currentTTSBaseOffsetRef.current = offset;
       saveResumeIndex(offset);
       setHasFinishedPlayback(false);
+      
+      // Update highlighted content to show current chunk
+      if (currentPageText && currentContent) {
+        const highlightLength = 30;
+        const start = offset;
+        const end = Math.min(start + highlightLength, currentPageText.length);
+
+        // Use the robust DOM manipulation approach for highlighting
+        const highlightedHtml = insertHighlightIntoHtml(currentContent, currentPageText, start, end);
+        setHighlightedContent(highlightedHtml);
+        
+        console.log(`[DEBUG] Updated highlightedContent for chunk ${currentChunkIndex}:`, {
+          offset,
+          start,
+          end,
+          highlightLength: end - start,
+          highlightedContentLength: highlightedHtml.length,
+          hasHighlightSpan: highlightedHtml.includes('<span class="highlight">'),
+          originalContentLength: currentContent.length,
+          textToHighlight: currentPageText.substring(start, end),
+          htmlComplexity: {
+            hasNestedElements: /<[^>]+>.*<[^>]+>/.test(currentContent),
+            hasMixedContent: /<[^>]+>[^<]*<[^>]+>/.test(currentContent),
+            tagCount: (currentContent.match(/<[^>]+>/g) || []).length
+          }
+        });
+      }
     }
-  }, [currentChunkIndex, chunks, saveResumeIndex]);
+  }, [currentChunkIndex, chunks, saveResumeIndex, currentPageText, currentContent]);
 
   // === Load resume index and highlight content ===
   useEffect(() => {
@@ -459,6 +486,70 @@ export const useReaderTTS = ({
     setHighlightedContent(highlightedHtml);
 
   }, [loadResumeIndex, currentPageDisplay, currentContent, currentPageText]);
+
+  // === Reset highlighted content when TTS stops ===
+  useEffect(() => {
+    if (!isSpeaking && !isProcessing && !isPaused) {
+      // TTS is not active, show normal content
+      setHighlightedContent(currentContent);
+    }
+  }, [isSpeaking, isProcessing, isPaused, currentContent]);
+
+  // === Helper function to insert highlights into HTML using DOM manipulation ===
+  const insertHighlightIntoHtml = (htmlContent: string, plainText: string, start: number, end: number): string => {
+    try {
+      // Create a temporary container to safely parse the HTML
+      const container = document.createElement('div');
+      container.innerHTML = htmlContent;
+
+      // Use a TreeWalker, which is an efficient way to visit only the text nodes
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+      
+      let charCount = 0;
+      const nodesToWrap: { node: Text; start: number; end: number }[] = [];
+
+      // First, walk through and find all the text nodes that need highlighting
+      let currentNode;
+      while (currentNode = walker.nextNode()) {
+        const nodeText = currentNode.textContent || '';
+        const nodeLength = nodeText.length;
+        
+        // Check if this node is at least partially within our highlight range
+        if (charCount + nodeLength > start && charCount < end) {
+          const startIndexInNode = Math.max(0, start - charCount);
+          const endIndexInNode = Math.min(nodeLength, end - charCount);
+          
+          // Store the node and the specific start/end points within it
+          nodesToWrap.push({ node: currentNode as Text, start: startIndexInNode, end: endIndexInNode });
+        }
+        
+        charCount += nodeLength;
+      }
+
+      // Now, wrap the collected nodes. We do this in reverse order to avoid issues with
+      // changing text node lengths affecting the ranges of subsequent nodes.
+      for (let i = nodesToWrap.length - 1; i >= 0; i--) {
+        const { node, start, end } = nodesToWrap[i];
+        
+        const range = document.createRange();
+        range.setStart(node, start);
+        range.setEnd(node, end);
+        
+        const highlightSpan = document.createElement('span');
+        highlightSpan.className = 'highlight';
+        
+        // This will safely wrap the text because the range is always within a single, valid text node.
+        range.surroundContents(highlightSpan);
+      }
+
+      return container.innerHTML;
+
+    } catch (error) {
+      console.error('Error inserting highlight into HTML:', error);
+      // If anything goes wrong, fall back to the original content
+      return htmlContent;
+    }
+  };
 
   // === Handle stopping playback on page navigation ===
   const handleTTSNavigation = useCallback(() => {
