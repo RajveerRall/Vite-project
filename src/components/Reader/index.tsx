@@ -245,10 +245,20 @@ const Reader: React.FC = () => {
       {((isLoading && !currentContent && !isPlayModeVisible) || (isProcessing && !isSpeaking && !isPaused && !isPlayModeVisible)) ? (
         <div className="loading-overlay">
           <div className="loading-spinner"></div>
-          <p>
-            {isLoading && !currentContent && !isProcessing ? 'Loading book content...' : ''}
-            {isProcessing && !isSpeaking && !isPaused ? 'Preparing audio...' : ''}
-          </p>
+          <div className="loading-text">
+            {isLoading && !currentContent && !isProcessing && (
+              <>
+                <p className="loading-primary">Opening your book...</p>
+                <p className="loading-secondary">Processing EPUB structure</p>
+              </>
+            )}
+            {isProcessing && !isSpeaking && !isPaused && (
+              <>
+                <p className="loading-primary">Preparing audio...</p>
+                <p className="loading-secondary">Getting ready to read aloud</p>
+              </>
+            )}
+          </div>
         </div>
       ) : null}
       
