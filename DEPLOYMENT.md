@@ -237,3 +237,43 @@ When you outgrow file-based storage:
 ---
 
 **🎉 Your ebook reader is now production-ready!** Users can sign up, save books, and access them from any device. 
+
+
+
+
+### login to ssh
+ssh -i C:\Users\Rajveer\.ssh\id_ed25519 root@161.35.186.252
+
+
+### go to vite read
+
+cd Vite-reader
+
+### check git branch
+
+git status
+
+git pull
+
+### build the app
+
+yarn build
+
+
+remove th older verision of distroy from yoread
+
+sudo rm -rf /var/www/yoread.com/*
+
+
+### Copy directory from vite to yoread
+
+sudo cp -r ~/Vite-project/dist/* /var/www/yoread.com/ 
+
+### copy cover from the vite to yoread
+
+sudo cp -r ~/Vite-project/public/sample-book-covers /var/www/yoread.com/
+
+
+### permission
+
+sudo chown -R www-data:www-data /var/www/yoread.com 
