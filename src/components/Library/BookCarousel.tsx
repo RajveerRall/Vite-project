@@ -88,11 +88,28 @@ interface BookCarouselProps {
   onBookSelect: (book: BookData) => void;
 }
 
-export const BookCarousel: React.FC<BookCarouselProps> = ({ books, onBookSelect }) => {
+export const BookCarousel: React.FC<BookCarouselProps> = React.memo(({ books, onBookSelect }) => {
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'start', containScroll: 'trimSnaps' });
 
   const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
+  
+  // Memoize the book selection handler to prevent recreation
+  const handleBookClick = useCallback((book: BookData) => {
+    // Prevent multiple rapid clicks
+    if (book.isProcessing) return;
+    
+    // Mark book as processing to prevent multiple clicks
+    book.isProcessing = true;
+    
+    // Call the original handler
+    onBookSelect(book);
+    
+    // Reset processing flag after a short delay
+    setTimeout(() => {
+      book.isProcessing = false;
+    }, 1000);
+  }, [onBookSelect]);
 
   return (
     <div className="carousel">
@@ -101,8 +118,8 @@ export const BookCarousel: React.FC<BookCarouselProps> = ({ books, onBookSelect 
           {books.map(book => (
             <div className="carousel-slide" key={book.id}>
               <div 
-                className="book-slide-content"
-                onClick={() => onBookSelect(book)}
+                className={`book-slide-content ${book.isProcessing ? 'processing' : ''}`}
+                onClick={() => handleBookClick(book)}
               >
                 {book.coverUrl ? (
                   (() => {
@@ -138,4 +155,4 @@ export const BookCarousel: React.FC<BookCarouselProps> = ({ books, onBookSelect 
       </button>
     </div>
   );
-};
+});

@@ -10,6 +10,7 @@ export interface BookData {
   lastRead: string;
   totalPages: number;
   isDownloading?: boolean; // NEW: indicates if book is currently downloading
+  isProcessing?: boolean; // NEW: prevents multiple rapid clicks/actions
 }
 
 export interface TOCItem {

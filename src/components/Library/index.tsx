@@ -1,5 +1,5 @@
 // src/components/Library/index.tsx
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useBook } from '../../context/BookContext';
 import BookGrid from './BookGrid';
 import './Library.css';
@@ -27,7 +27,7 @@ const Library: React.FC = () => {
   const { books, addBook, isLoading, openBook, isSyncingFromCloud } = useBook();
   
   // 🚀 Lazy loading function for sample books
-  const handleSampleBookSelect = async (book: BookData) => {
+  const handleSampleBookSelect = useCallback(async (book: BookData) => {
     if (!book.file) {
       try {
         console.log(`📖 Lazy loading: ${book.title}`);
@@ -53,7 +53,7 @@ const Library: React.FC = () => {
     
     // Now open the book (either already had file or just loaded it)
     openBook(book);
-  };
+  }, [openBook]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState<boolean>(false);
   // Toast notification states
