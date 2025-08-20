@@ -124,16 +124,15 @@ export const processHtmlContent = (
   processedHtml = processedHtml.replace(
     /<img([^>]*)src=["']([^"']+)["']/gi, // Added 'i' for case-insensitivity
     (match, attributes, src) => {
-      if (src.startsWith('http') || src.startsWith('data:')) {
-        return match; // Absolute URL or data URI, no changes needed
+      if (src.startsWith('http') || src.startsWith('data:') || src.startsWith('blob:')) {
+        return match; // Valid URL, no changes needed
       }
 
       // Resolve the src path relative to the current HTML file's directory to get a root-relative path
       const rootRelativeImagePath = resolveRelativePath(currentHtmlDir, src);
 
-      // Store the root-relative path in data-epub-src for loadPageCallback to use
-      // And also update the src to the placeholder using this root-relative path
-      return `<img${attributes}src="data:image/png;base64,IMAGE_PLACEHOLDER_${rootRelativeImagePath}" data-epub-src="${rootRelativeImagePath}"`;
+      // Use a placeholder that won't cause browser errors and add loading transition
+      return `<img${attributes}src="about:blank" data-epub-src="${rootRelativeImagePath}" style="opacity: 0; transition: opacity 0.3s ease;"`;
     }
   );
 
@@ -153,10 +152,8 @@ export const processHtmlContent = (
       // Resolve the href path relative to the current HTML file's directory to get a root-relative path
       const rootRelativeCssPath = resolveRelativePath(currentHtmlDir, href);
 
-      // Store the root-relative path in data-epub-css-href for loadPageCallback to use
-      // And also update the href to the placeholder using this root-relative path
-      // The actual <link> tag will be replaced by a <style> tag in loadPageCallback
-      return `<link${attributes}href="data:text/css;base64,CSS_PLACEHOLDER_${rootRelativeCssPath}" data-epub-css-href="${rootRelativeCssPath}"`;
+      // Use a placeholder that won't cause browser errors
+      return `<link${attributes}href="about:blank" data-epub-css-href="${rootRelativeCssPath}"`;
     }
   );
 

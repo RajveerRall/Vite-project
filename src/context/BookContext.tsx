@@ -941,9 +941,21 @@ useEffect(() => {
             if (epubSrc && !epubSrc.startsWith('blob:')) {
               try {
                 const imageBlob = await zipToUse.file(epubSrc)?.async('blob');
-                if (imageBlob) img.src = URL.createObjectURL(imageBlob);
-                else { console.warn(`Image not found in zip: ${epubSrc}`); img.alt = `Missing: ${epubSrc}`; }
-              } catch (e) { console.error(`Error loading image ${epubSrc}:`, e); }
+                if (imageBlob) {
+                  img.src = URL.createObjectURL(imageBlob);
+                  // Fade in the image smoothly once it loads
+                  img.onload = () => {
+                    img.style.opacity = '1';
+                  };
+                } else { 
+                  console.warn(`Image not found in zip: ${epubSrc}`); 
+                  img.alt = `Missing: ${epubSrc}`;
+                  img.style.opacity = '0.5'; // Show placeholder state
+                }
+              } catch (e) { 
+                console.error(`Error loading image ${epubSrc}:`, e);
+                img.style.opacity = '0.3'; // Show error state
+              }
             }
           });
           const links = contentElement.querySelectorAll('link[data-epub-css-href]');
@@ -1171,7 +1183,15 @@ useEffect(() => {
       if (currentFileOrder.length === 0) throw new Error("EPUB Load Error: No content files in spine.");
       setHtmlFiles(currentFileOrder); setTotalPages(currentFileOrder.length);
       console.log(`[Performance] Extracting table of contents...`);
-      const extractedToc = await extractTocFromEntries(loadedZip, manifestItems, spineElement, opfFileDir, parser, currentFileOrder);
+      
+      // Defer TOC extraction slightly to improve perceived performance
+      const extractedToc = await new Promise<TOCItem[]>((resolve) => {
+        setTimeout(async () => {
+          const toc = await extractTocFromEntries(loadedZip, manifestItems, spineElement, opfFileDir, parser, currentFileOrder);
+          resolve(toc);
+        }, 0); // Allow UI to update first
+      });
+      
       setToc(extractedToc);
       setBookZip(loadedZip); setIsReading(true);
       

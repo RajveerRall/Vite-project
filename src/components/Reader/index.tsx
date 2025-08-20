@@ -14,6 +14,7 @@ import { useReaderSettings } from '../../hooks/useReaderSettings';
 import { useReaderTTS } from '../../hooks/useReaderTTS';
 import SettingsWidget from './SettingsWidget';
 import MobileTOCDrawer from './MobileTOCDrawer';
+import EnhancedLoader from './EnhancedLoader';
 
 
 // TTS highlight class constant
@@ -243,23 +244,14 @@ const Reader: React.FC = () => {
 
     <div className="reader-container">
       {((isLoading && !currentContent && !isPlayModeVisible) || (isProcessing && !isSpeaking && !isPaused && !isPlayModeVisible)) ? (
-        <div className="loading-overlay">
-          <div className="loading-spinner"></div>
-          <div className="loading-text">
-            {isLoading && !currentContent && !isProcessing && (
-              <>
-                <p className="loading-primary">Opening your book...</p>
-                <p className="loading-secondary">Processing EPUB structure</p>
-              </>
-            )}
-            {isProcessing && !isSpeaking && !isPaused && (
-              <>
-                <p className="loading-primary">Preparing audio...</p>
-                <p className="loading-secondary">Getting ready to read aloud</p>
-              </>
-            )}
-          </div>
-        </div>
+        <EnhancedLoader
+          isLoading={isLoading}
+          isProcessing={isProcessing}
+          isSpeaking={isSpeaking}
+          isPaused={isPaused}
+          isPlayModeVisible={isPlayModeVisible}
+          currentContent={currentContent}
+        />
       ) : null}
       
       {/* Desktop Sidebar - Hidden on mobile */}

@@ -33,15 +33,10 @@ export default defineConfig({
   },
   build: {
     // Simplified build config for reliable deployment
+    // Removed manualChunks to restore faster initial page loading
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          ui: ['@supabase/supabase-js', 'localforage'],
-          epub: ['jszip', 'xmldom'],
-          tts: ['msedge-tts'],
-          icons: ['lucide-react']
-        }
+        // Let Vite handle chunking automatically for optimal performance
       }
     },
     // Use default minifier instead of terser to avoid build issues
