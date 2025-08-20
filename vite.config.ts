@@ -37,9 +37,10 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
-          ui: ['@supabase/supabase-js'],
-          epub: ['jszip'],
-          tts: ['msedge-tts']
+          ui: ['@supabase/supabase-js', 'localforage'],
+          epub: ['jszip', 'xmldom'],
+          tts: ['msedge-tts'],
+          icons: ['lucide-react']
         }
       }
     },

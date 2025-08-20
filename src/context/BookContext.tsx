@@ -2,8 +2,8 @@
 import { trackEvent } from '../lib/analytics';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import localforage from 'localforage';
-// import JSZip from 'jszip'; // Moved to dynamic import where needed
-// import { DOMParser } from 'xmldom'; // Use browser DOMParser instead
+import JSZip from 'jszip';
+import { DOMParser } from 'xmldom';
 import { getDirectoryPath, resolveRelativePath } from '../utils/pathUtils';
 import { processHtmlContent, extractTextFromHtml } from '../utils/textExtraction';
 import { BookData, TOCItem } from '@/types/books'; // Ensure BookData includes all necessary fields like lastChapter
@@ -389,14 +389,14 @@ useEffect(() => {
               } else {
                 // Inline cover regeneration
                 try {
-                  const JSZip = (await import('jszip')).default;
-                  const zip = await JSZip.loadAsync(file);
+                  const zip = new JSZip();
+                  const loadedZip = await zip.loadAsync(file);
                   
                   // Try different cover extraction methods
                   const coverBlob = await (async () => {
                     // Method 1: Look for cover.jpg/cover.png in root
                     for (const name of ['cover.jpg', 'cover.jpeg', 'cover.png']) {
-                      const coverFile = zip.file(name);
+                      const coverFile = loadedZip.file(name);
                       if (coverFile) {
                         return await coverFile.async('blob');
                       }
@@ -405,7 +405,7 @@ useEffect(() => {
                     // Method 2: Look in common directories
                     for (const dir of ['images/', 'Images/', 'OEBPS/images/', 'OEBPS/Images/']) {
                       for (const name of ['cover.jpg', 'cover.jpeg', 'cover.png']) {
-                        const coverFile = zip.file(dir + name);
+                        const coverFile = loadedZip.file(dir + name);
                         if (coverFile) {
                           return await coverFile.async('blob');
                         }
@@ -495,7 +495,6 @@ useEffect(() => {
   // *** NEW: Function to regenerate cover URL from book file ***
   const regenerateCoverUrl = async (bookFile: File): Promise<string | null> => {
     try {
-      const { default: JSZip } = await import('jszip');
       const zip = new JSZip();
       const loadedZip = await zip.loadAsync(bookFile);
       const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
@@ -550,7 +549,6 @@ useEffect(() => {
       const bookFile = new File([bookBlob], "1984.epub", { type: 'application/epub+zip' });
 
       // ---- This is the same logic copied from the start of your `addBook` function ----
-      const { default: JSZip } = await import('jszip');
       const zip = new JSZip();
       const loadedZip = await zip.loadAsync(bookFile);
       const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
@@ -704,7 +702,6 @@ useEffect(() => {
     try {
       // Step 1: Process the book locally to get its metadata.
       // This is the universal foundation, used for all users.
-      const { default: JSZip } = await import('jszip');
       const zip = new JSZip();
       const loadedZip = await zip.loadAsync(file);
       const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
@@ -1138,11 +1135,15 @@ useEffect(() => {
   }, []);
 
   const openBook = async (book: BookData): Promise<void> => { /* Unchanged from previous full version */
-    console.log(`[openBook] Opening: ${book.title}`); setIsLoading(true); closeBook(false);
+    console.log(`[openBook] Opening: ${book.title}`); 
+    console.time(`[Performance] Opening ${book.title}`);
+    setIsLoading(true); closeBook(false);
     setBookTitle(book.title); setBookAuthor(book.author); setCurrentBook(book);
     try {
-      const { default: JSZip } = await import('jszip');
+      // Remove dynamic import - JSZip is now preloaded
+      console.log(`[Performance] Loading ZIP for ${book.title}...`);
       const zip = new JSZip(); const loadedZip = await zip.loadAsync(book.file);
+      console.log(`[Performance] ZIP loaded, processing EPUB structure...`);
       const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
       if (!containerXml) throw new Error('EPUB Load Error: META-INF/container.xml not found');
       const parser = new DOMParser(); const containerDoc = parser.parseFromString(containerXml, 'application/xml');
@@ -1169,6 +1170,7 @@ useEffect(() => {
           } } }
       if (currentFileOrder.length === 0) throw new Error("EPUB Load Error: No content files in spine.");
       setHtmlFiles(currentFileOrder); setTotalPages(currentFileOrder.length);
+      console.log(`[Performance] Extracting table of contents...`);
       const extractedToc = await extractTocFromEntries(loadedZip, manifestItems, spineElement, opfFileDir, parser, currentFileOrder);
       setToc(extractedToc);
       setBookZip(loadedZip); setIsReading(true);
@@ -1231,7 +1233,11 @@ useEffect(() => {
         book_title: book.title, // Add context about the book
       });
       readingStartTimestamp.current = Date.now(); // Start the timer
+      console.timeEnd(`[Performance] Opening ${book.title}`);
+      console.log(`[Performance] Book ${book.title} opened successfully`);
     } catch (error) {
+      console.timeEnd(`[Performance] Opening ${book.title}`);
+      console.error(`[Performance] Failed to open ${book.title}:`, error);
       console.error('[openBook ERROR]', error); closeBook(true); alert(`Error opening book: ${(error as Error).message}`);
     } finally { setIsLoading(false); }
   };
