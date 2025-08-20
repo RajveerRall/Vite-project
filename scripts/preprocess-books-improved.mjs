@@ -321,9 +321,9 @@ async function extractBookMetadata(filePath) {
   }
 }
 
-// WebP conversion function
+// WebP conversion function with multiple sizes for responsive images
 async function convertCoversToWebP() {
-  console.log('\n🔄 Converting covers to WebP for better performance...');
+  console.log('\n🔄 Converting covers to WebP with multiple sizes for responsive loading...');
   
   try {
     // Create WebP covers directory
@@ -341,7 +341,10 @@ async function convertCoversToWebP() {
       return;
     }
     
-    console.log(`📸 Converting ${coverFiles.length} covers to WebP...\n`);
+    // Define responsive image sizes (in pixels)
+    const responsiveSizes = [200, 300, 400]; // Small, Medium, Large
+    
+    console.log(`📸 Converting ${coverFiles.length} covers to WebP with ${responsiveSizes.length} sizes...\n`);
     
     let totalOriginalSize = 0;
     let totalWebPSize = 0;
@@ -350,38 +353,57 @@ async function convertCoversToWebP() {
     // Import sharp for WebP conversion
     const sharp = await import('sharp');
     
-    // Convert each cover
+    // Convert each cover to multiple sizes
     for (const file of coverFiles) {
       const inputPath = path.join(COVERS_OUTPUT_DIR, file);
-      const outputPath = path.join(WEBP_COVERS_DIR, `${path.parse(file).name}.webp`);
+      const baseName = path.parse(file).name;
       
       try {
         // Read the image file
         const inputBuffer = fs.readFileSync(inputPath);
-        
-        // Convert to WebP using sharp
-        const outputBuffer = await sharp.default(inputBuffer)
-          .webp({ 
-            quality: 85, 
-            effort: 6,
-            nearLossless: false,
-            smartSubsample: true
-          })
-          .toBuffer();
-        
-        // Write WebP file
-        fs.writeFileSync(outputPath, outputBuffer);
-        
         const inputStats = fs.statSync(inputPath);
-        const outputStats = fs.statSync(outputPath);
-        const savings = ((inputStats.size - outputStats.size) / inputStats.size * 100).toFixed(1);
-        
-        console.log(`✅ ${path.basename(file)} → ${path.basename(outputPath)}`);
-        console.log(`   📊 Size: ${(inputStats.size / 1024).toFixed(1)}KB → ${(outputStats.size / 1024).toFixed(1)}KB (${savings}% smaller)`);
-        
         totalOriginalSize += inputStats.size;
-        totalWebPSize += outputStats.size;
-        successCount++;
+        
+        let fileSuccessCount = 0;
+        let fileTotalWebPSize = 0;
+        
+        // Generate multiple sizes
+        for (const size of responsiveSizes) {
+          const outputFileName = `${baseName}-${size}w.webp`;
+          const outputPath = path.join(WEBP_COVERS_DIR, outputFileName);
+          
+          try {
+            // Resize and convert to WebP
+            const outputBuffer = await sharp.default(inputBuffer)
+              .resize(size, Math.round(size * 1.5)) // Maintain aspect ratio (2:3 for book covers)
+              .webp({ 
+                quality: 85, 
+                effort: 6,
+                nearLossless: false,
+                smartSubsample: true
+              })
+              .toBuffer();
+            
+            // Write WebP file
+            fs.writeFileSync(outputPath, outputBuffer);
+            
+            const outputStats = fs.statSync(outputPath);
+            fileTotalWebPSize += outputStats.size;
+            fileSuccessCount++;
+            
+            console.log(`   📏 ${size}w: ${(outputStats.size / 1024).toFixed(1)}KB`);
+          } catch (error) {
+            console.error(`   ❌ Failed to create ${size}w version:`, error.message);
+          }
+        }
+        
+        if (fileSuccessCount > 0) {
+          const savings = ((inputStats.size - fileTotalWebPSize) / inputStats.size * 100).toFixed(1);
+          console.log(`✅ ${path.basename(file)} → ${fileSuccessCount} sizes`);
+          console.log(`   📊 Original: ${(inputStats.size / 1024).toFixed(1)}KB, Total WebP: ${(fileTotalWebPSize / 1024).toFixed(1)}KB (${savings}% smaller)`);
+          totalWebPSize += fileTotalWebPSize;
+          successCount++;
+        }
         
       } catch (error) {
         console.error(`❌ Failed to convert ${path.basename(file)}:`, error.message);
@@ -390,17 +412,18 @@ async function convertCoversToWebP() {
     
     if (successCount > 0) {
       const totalSavings = ((totalOriginalSize - totalWebPSize) / totalOriginalSize * 100).toFixed(1);
-      console.log(`\n📊 WebP Conversion Summary:`);
+      console.log(`\n📊 Responsive WebP Conversion Summary:`);
       console.log(`   ✅ Successfully converted: ${successCount}/${coverFiles.length} covers`);
       console.log(`   📁 WebP directory: ${WEBP_COVERS_DIR}`);
+      console.log(`   📏 Generated sizes: ${responsiveSizes.join('w, ')}w`);
       console.log(`   💾 Total size reduction: ${(totalOriginalSize / 1024).toFixed(1)}KB → ${(totalWebPSize / 1024).toFixed(1)}KB (${totalSavings}% smaller)`);
       console.log(`   🚀 Estimated loading speed improvement: ${totalSavings}% faster`);
       
-      console.log('\n💡 WebP benefits:');
-      console.log('   • 25-35% smaller file sizes');
-      console.log('   • Faster image loading');
-      console.log('   • Better mobile performance');
-      console.log('   • Modern web standard');
+      console.log('\n💡 Responsive WebP benefits:');
+      console.log('   • Multiple sizes for different screen densities');
+      console.log('   • Faster loading on mobile devices');
+      console.log('   • Better performance on high-DPI displays');
+      console.log('   • Reduced bandwidth usage');
     }
     
   } catch (error) {
@@ -447,18 +470,20 @@ async function preprocessAllBooks() {
   // Convert covers to WebP for better performance FIRST
   await convertCoversToWebP();
   
-  // Now update cover paths to use WebP when available
-  console.log('\n🔄 Updating cover paths to use WebP images...');
+  // Now update cover paths to use responsive WebP images when available
+  console.log('\n🔄 Updating cover paths to use responsive WebP images...');
   for (const book of processedBooks) {
     if (book.coverPath && !book.coverPath.endsWith('.svg')) {
       // Extract the filename from the current path
       const currentFileName = book.coverPath.split('/').pop();
       if (currentFileName) {
-        const webpFileName = `${path.parse(currentFileName).name}.webp`;
-        const webpPath = path.join(WEBP_COVERS_DIR, webpFileName);
+        const baseName = path.parse(currentFileName).name;
+        // Use medium size (300w) as default
+        const responsiveWebpPath = `/sample-book-covers-webp/${baseName}-300w.webp`;
+        const webpPath = path.join(WEBP_COVERS_DIR, `${baseName}-300w.webp`);
         if (fs.existsSync(webpPath)) {
-          book.coverPath = `/sample-book-covers-webp/${webpFileName}`;
-          console.log(`  ✅ Updated ${book.title}: ${currentFileName} → ${webpFileName}`);
+          book.coverPath = responsiveWebpPath;
+          console.log(`  ✅ Updated ${book.title}: ${currentFileName} → ${baseName}-300w.webp`);
         }
       }
     }
