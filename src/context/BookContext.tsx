@@ -108,7 +108,13 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       setIsLoading(true);
       try {
         const keys = await localforage.keys();
-        const bookMetadataKeys = keys.filter(key => key.startsWith('book_metadata_'));
+        
+        // Use user-specific prefixes when authenticated, fallback to old format for backwards compatibility
+        const userPrefix = userId ? `user_${userId}_` : '';
+        const metadataPrefix = userPrefix ? `${userPrefix}book_metadata_` : 'book_metadata_';
+        const bookMetadataKeys = keys.filter(key => key.startsWith(metadataPrefix));
+        
+        console.log(`[LocalForage Load] Using prefix: "${metadataPrefix}", found ${bookMetadataKeys.length} books`);
         let loadedBooks: BookData[] = [];
 
         // *** NEW: If no books are in storage, load the default book ***
@@ -125,9 +131,10 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
         } else {
             // If storage is NOT empty, load from it as before.
             for (const key of bookMetadataKeys) {
-                const bookId = key.replace('book_metadata_', '');
+                const bookId = key.replace(metadataPrefix, '');
                 const metadata = await localforage.getItem(key) as BookData;
-                const fileKey = `book_file_${bookId}`;
+                const filePrefix = userPrefix ? `${userPrefix}book_file_` : 'book_file_';
+                const fileKey = `${filePrefix}${bookId}`;
                 const file = await localforage.getItem(fileKey) as File;
 
                 if (metadata && file) {
@@ -162,7 +169,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     };
 
     loadBooksFromStorage();
-  }, []); // Empty dependency array: runs once on mount
+  }, [userId]); // Depend on userId so it reloads when user signs in/out
 
 
   // =================================================================
