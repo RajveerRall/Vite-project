@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
 interface EnhancedLoaderProps {
-  isLoading: boolean;
-  isProcessing: boolean;
-  isSpeaking: boolean;
-  isPaused: boolean;
-  isPlayModeVisible: boolean;
+  isLoading?: boolean;
+  isProcessing?: boolean;
+  isSpeaking?: boolean;
+  isPaused?: boolean;
+  isPlayModeVisible?: boolean;
   currentContent?: string;
 }
 
@@ -56,51 +56,28 @@ const EnhancedLoader: React.FC<EnhancedLoaderProps> = ({
   }
 
   return (
-    <div className="enhanced-loading-overlay">
-      {/* Floating Background Elements */}
-      <div className="floating-elements">
-        <div className="floating-book book-1">📖</div>
-        <div className="floating-book book-2">📚</div>
-        <div className="floating-book book-3">📄</div>
-        <div className="floating-book book-4">✨</div>
-      </div>
-
-      {/* Main Loading Content */}
-      <div className="loading-content">
-        {/* Enhanced Spinner */}
-        <div className="spinner-container">
-          <div className="spinner-outer">
-            <div className="spinner-inner"></div>
-            <div className="spinner-dot"></div>
-          </div>
-          <div className="book-icon">📖</div>
-        </div>
+    <div className="simple-loading-overlay">
+      <div className="simple-loading-content">
+        {/* Simple Spinner */}
+        <div className="simple-spinner"></div>
 
         {/* Progress Bar */}
-        <div className="progress-section">
-          <div className="progress-bar">
+        <div className="simple-progress-section">
+          <div className="simple-progress-bar">
             <div 
-              className="progress-fill" 
+              className="simple-progress-fill" 
               style={{ width: `${progress}%` }}
             />
-            <div className="progress-shine" />
           </div>
-          <div className="progress-text">{Math.round(progress)}%</div>
+          <div className="simple-progress-text">{Math.round(progress)}%</div>
         </div>
 
         {/* Loading Text */}
-        <div className="text-section">
-          <h3 className="primary-text">
+        <div className="simple-text-section">
+          <h3 className="simple-primary-text">
             {isLoading ? 'Opening your book' : 'Preparing audio'}
           </h3>
-          <p className="secondary-text">{stage}</p>
-          
-          {/* Animated Dots */}
-          <div className="dots-container">
-            <span className="dot dot-1">●</span>
-            <span className="dot dot-2">●</span>
-            <span className="dot dot-3">●</span>
-          </div>
+          <p className="simple-secondary-text">{stage}</p>
         </div>
       </div>
     </div>

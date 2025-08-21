@@ -1,261 +1,51 @@
-.suspense-loading-container {
+/* Simple Suspense Loader Styles */
+.simple-suspense-container {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.98) 0%,
-    rgba(248, 250, 252, 0.96) 50%,
-    rgba(240, 245, 251, 0.98) 100%
-  );
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 50;
-  animation: fadeIn 0.3s ease-out;
 }
 
-.suspense-loading-container .floating-elements {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow: hidden;
-  opacity: 0.12;
-}
-
-.suspense-loading-container .floating-book {
-  position: absolute;
-  font-size: 1.8rem;
-  animation: float 6s ease-in-out infinite;
-}
-
-.suspense-loading-container .book-1 {
-  top: 20%;
-  left: 15%;
-  animation-delay: 0s;
-}
-
-.suspense-loading-container .book-2 {
-  top: 65%;
-  right: 20%;
-  animation-delay: 2s;
-}
-
-.suspense-loading-container .book-3 {
-  bottom: 30%;
-  left: 25%;
-  animation-delay: 4s;
-}
-
-.suspense-loading-container .book-4 {
-  top: 45%;
-  right: 35%;
-  animation-delay: 3s;
-}
-
-.suspense-loading-container .loading-content {
+.simple-suspense-content {
   text-align: center;
-  animation: slideUp 0.6s ease-out 0.1s both;
+  max-width: 400px;
+  padding: 2rem;
 }
 
-.suspense-loading-container .spinner-container {
-  position: relative;
-  width: 90px;
-  height: 90px;
-  margin: 0 auto 2rem;
-}
-
-.suspense-loading-container .spinner-outer {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border: 3px solid #e3f2fd;
-  border-top: 3px solid #1976d2;
-  border-right: 3px solid #42a5f5;
+.simple-suspense-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #92400e;
   border-radius: 50%;
-  animation: spin 2s linear infinite;
+  animation: simple-spin 1s linear infinite;
+  margin: 0 auto 1.5rem;
 }
 
-.suspense-loading-container .spinner-inner {
-  position: absolute;
-  top: 13px;
-  left: 13px;
-  width: 64px;
-  height: 64px;
-  border: 2px solid #bbdefb;
-  border-bottom: 2px solid #2196f3;
-  border-left: 2px solid #64b5f6;
-  border-radius: 50%;
-  animation: spin 1.5s linear infinite reverse;
+.simple-suspense-text {
+  max-width: 320px;
 }
 
-.suspense-loading-container .spinner-dot {
-  position: absolute;
-  top: 32px;
-  left: 32px;
-  width: 26px;
-  height: 26px;
-  background: linear-gradient(45deg, #1976d2, #42a5f5);
-  border-radius: 50%;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-.suspense-loading-container .book-icon {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 1.6rem;
-  animation: bounce 2s ease-in-out infinite;
-}
-
-.suspense-loading-container .text-section {
-  max-width: 300px;
-}
-
-.suspense-loading-container .primary-text {
+.simple-suspense-title {
   font-size: 20px;
-  font-weight: 700;
-  color: #1565c0;
+  font-weight: 600;
+  color: #1f2937;
   margin-bottom: 0.5rem;
-  animation: textPulse 3s ease-in-out infinite;
 }
 
-.suspense-loading-container .secondary-text {
+.simple-suspense-subtitle {
   font-size: 14px;
-  color: #555;
-  margin-bottom: 1rem;
-  opacity: 0.9;
+  color: #6b7280;
+  margin-bottom: 0;
 }
 
-.suspense-loading-container .dots-container {
-  display: inline-block;
-  margin-top: 0.5rem;
-}
-
-.suspense-loading-container .dot {
-  display: inline-block;
-  margin: 0 2px;
-  font-size: 8px;
-  color: #1976d2;
-  animation: dotBounce 1.4s ease-in-out infinite both;
-}
-
-.suspense-loading-container .dot-1 { animation-delay: 0s; }
-.suspense-loading-container .dot-2 { animation-delay: 0.2s; }
-.suspense-loading-container .dot-3 { animation-delay: 0.4s; }
-
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes float {
-  0%, 100% { 
-    transform: translateY(0px) rotate(0deg) scale(1); 
-  }
-  25% { 
-    transform: translateY(-15px) rotate(3deg) scale(1.05); 
-  }
-  50% { 
-    transform: translateY(8px) rotate(-2deg) scale(0.95); 
-  }
-  75% { 
-    transform: translateY(-5px) rotate(1deg) scale(1.02); 
-  }
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@keyframes pulse {
-  0%, 100% { 
-    transform: scale(1); 
-    opacity: 1; 
-  }
-  50% { 
-    transform: scale(1.1); 
-    opacity: 0.8; 
-  }
-}
-
-@keyframes bounce {
-  0%, 20%, 50%, 80%, 100% {
-    transform: translate(-50%, -50%) translateY(0);
-  }
-  40% {
-    transform: translate(-50%, -50%) translateY(-8px);
-  }
-  60% {
-    transform: translate(-50%, -50%) translateY(-4px);
-  }
-}
-
-@keyframes textPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
-}
-
-@keyframes dotBounce {
-  0%, 80%, 100% {
-    transform: scale(0.8);
-    opacity: 0.5;
-  }
-  40% {
-    transform: scale(1.2);
-    opacity: 1;
-  }
-}
-
-/* Mobile optimizations */
-@media (max-width: 768px) {
-  .suspense-loading-container .spinner-container {
-    width: 70px;
-    height: 70px;
-  }
-  
-  .suspense-loading-container .spinner-inner {
-    top: 10px;
-    left: 10px;
-    width: 50px;
-    height: 50px;
-  }
-  
-  .suspense-loading-container .spinner-dot {
-    top: 25px;
-    left: 25px;
-    width: 20px;
-    height: 20px;
-  }
-  
-  .suspense-loading-container .book-icon {
-    font-size: 1.3rem;
-  }
-  
-  .suspense-loading-container .primary-text {
-    font-size: 18px;
-  }
-  
-  .suspense-loading-container .floating-book {
-    font-size: 1.5rem;
-  }
+@keyframes simple-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 } 

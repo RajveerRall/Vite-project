@@ -732,14 +732,14 @@
 .enhanced-loading-overlay .primary-text {
   font-size: 22px;
   font-weight: 700;
-  color: #1565c0;
-  margin-bottom: 0.5rem;
+  color: #333;
+  margin-bottom: 4px;
   animation: textPulse 3s ease-in-out infinite;
 }
 
 .enhanced-loading-overlay .secondary-text {
   font-size: 15px;
-  color: #555;
+  color: #666;
   margin-bottom: 1rem;
   min-height: 20px;
   opacity: 0.9;
@@ -1083,4 +1083,132 @@
   .progress-info {
     font-size: 0.75rem;
   }
+}
+
+/* Simple Loading Overlay Styles */
+.simple-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.simple-loading-content {
+  text-align: center;
+  max-width: 400px;
+  padding: 2rem;
+}
+
+.simple-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #92400e;
+  border-radius: 50%;
+  animation: simple-spin 1s linear infinite;
+  margin: 0 auto 1.5rem;
+}
+
+.simple-progress-section {
+  margin: 1.5rem 0;
+  width: 250px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.simple-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.simple-progress-fill {
+  height: 100%;
+  background: #92400e;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.simple-progress-text {
+  font-size: 12px;
+  color: #92400e;
+  font-weight: 600;
+}
+
+.simple-text-section {
+  max-width: 320px;
+}
+
+.simple-primary-text {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.simple-secondary-text {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 0;
+}
+
+@keyframes simple-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Simple Suspense Loader Styles */
+.simple-suspense-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.simple-suspense-content {
+  text-align: center;
+  max-width: 400px;
+  padding: 2rem;
+}
+
+.simple-suspense-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #92400e;
+  border-radius: 50%;
+  animation: simple-spin 1s linear infinite;
+  margin: 0 auto 1.5rem;
+}
+
+.simple-suspense-text {
+  max-width: 320px;
+}
+
+.simple-suspense-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.simple-suspense-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 0;
 }
