@@ -46,13 +46,13 @@ const Reader: React.FC = () => {
     const timer = setTimeout(() => setShowFeatureHighlight(true), 2000);
     return () => clearTimeout(timer);
   }, []);
-  
+
   // Progressive loading: show basic reader first, enhance progressively
   useEffect(() => {
     const timer = setTimeout(() => setIsEnhanced(true), 500);
     return () => clearTimeout(timer);
   }, []);
-  
+
   // === Custom Hooks ===
   // Settings state and functions from custom hook - moved to top level to follow Rules of Hooks
   const settingsHook = useReaderSettings();

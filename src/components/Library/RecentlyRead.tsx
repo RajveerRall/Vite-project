@@ -42,13 +42,13 @@ const RecentlyRead: React.FC<RecentlyReadProps> = ({ books }) => {
                   (() => {
                     const { src, srcSet, sizes } = getResponsiveCoverUrls(book.coverUrl);
                     return (
-                      <img 
+                  <img 
                         src={src}
                         srcSet={srcSet}
-                        alt={`Cover of ${book.title}`}
-                        className="w-full h-full object-cover" 
+                    alt={`Cover of ${book.title}`}
+                    className="w-full h-full object-cover" 
                         loading="lazy"
-                      />
+                  />
                     );
                   })()
                 ) : (
