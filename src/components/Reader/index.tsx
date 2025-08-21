@@ -205,55 +205,37 @@ const Reader: React.FC = () => {
   return (
   <div className={`reader theme-${theme}`}>
     <header className="reader-header">
-      <div className="reader-left">
-        {/* <button onClick={handleCloseBookCB} className="back-button"> ← Back to Library </button> */}
+      {/* Mobile: Stacked layout */}
+      <div className="reader-header-mobile md:hidden">
+        {/* Top row: Back button and title */}
+        <div className="flex items-center justify-between mb-2">
           <button 
-          onClick={handleCloseBookCB} 
-          className="back-button text-sm font-medium text-gray-600 hover:text-amber-800 flex items-center gap-x-1"
-        >
-          <ChevronLeft className="w-4 h-4" /> 
-          Back to Library
-        </button>
-            </div>
-      <div className="reader-center">
-        <h2 className="book-title">{bookTitle}</h2>
-        <p className="book-author">{bookAuthor}</p>
-      </div>
-      <div className="reader-right">
-        {/* Settings Button - Only show after enhanced loading */}
-        {isEnhanced && (
-          <button 
-            onClick={toggleSettings}
-            className="settings-button p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2"
-            aria-label="Open reading settings"
-            title="Reading settings"
+            onClick={handleCloseBookCB} 
+            className="back-button text-sm font-medium text-gray-600 hover:text-amber-800 flex items-center gap-x-1"
           >
-            <Settings className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4" /> 
+            <span className="hidden sm:inline">Back to Library</span>
+            <span className="sm:hidden">Back</span>
           </button>
-        )}
-
-        {/* Auto-scroll to highlight button - Only show when TTS is active */}
-        {(isSpeaking || isProcessing || isPaused) && (
-          <button 
-            onClick={() => scrollToHighlight()}
-            className="scroll-highlight-button p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2"
-            aria-label="Scroll to current highlight"
-            title="Scroll to current highlight"
-          >
-            <Headphones className="w-5 h-5" />
-          </button>
-        )}
-
-        {/* Mobile TOC Component - Only show after enhanced loading */}
-        {isEnhanced && (
-          <MobileTOCDrawer 
-            toc={toc} 
-            onItemClick={handleNavigateToTocItem}
-            theme={theme}
-          />
-        )}
+          
+          {/* Mobile TOC Component */}
+          {isEnhanced && (
+            <MobileTOCDrawer 
+              toc={toc} 
+              onItemClick={handleNavigateToTocItem}
+              theme={theme}
+            />
+          )}
+        </div>
         
-        <div className="controls-container">
+        {/* Book title and author - centered */}
+        <div className="text-center">
+          <h2 className="book-title text-lg sm:text-xl">{bookTitle}</h2>
+          <p className="book-author text-sm text-gray-600">{bookAuthor}</p>
+        </div>
+        
+        {/* Controls row - full width */}
+        <div className="controls-container-mobile mt-3">
           <Controls
             currentPage={currentPageDisplay}
             totalPages={totalPages}
@@ -269,6 +251,104 @@ const Reader: React.FC = () => {
             isPlayModeActive={isPlayModeVisible}
             isReadButtonActive={isSpeaking || isPaused || canTTSResume}
           />
+        </div>
+        
+        {/* Action buttons row */}
+        <div className="flex items-center justify-center gap-2 mt-2">
+          {/* Settings Button */}
+          {isEnhanced && (
+            <button 
+              onClick={toggleSettings}
+              className="settings-button p-2 text-gray-600 hover:text-amber-800 transition-colors"
+              aria-label="Open reading settings"
+              title="Reading settings"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* Auto-scroll to highlight button */}
+          {(isSpeaking || isProcessing || isPaused) && (
+            <button 
+              onClick={() => scrollToHighlight()}
+              className="scroll-highlight-button p-2 text-gray-600 hover:text-amber-800 transition-colors"
+              aria-label="Scroll to current highlight"
+              title="Scroll to current highlight"
+            >
+              <Headphones className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Desktop: Original horizontal layout */}
+      <div className="reader-header-desktop hidden md:flex">
+        <div className="reader-left">
+          <button 
+            onClick={handleCloseBookCB} 
+            className="back-button text-sm font-medium text-gray-600 hover:text-amber-800 flex items-center gap-x-1"
+          >
+            <ChevronLeft className="w-4 h-4" /> 
+            Back to Library
+          </button>
+        </div>
+        
+        <div className="reader-center">
+          <h2 className="book-title">{bookTitle}</h2>
+          <p className="book-author">{bookAuthor}</p>
+        </div>
+        
+        <div className="reader-right">
+          {/* Settings Button */}
+          {isEnhanced && (
+            <button 
+              onClick={toggleSettings}
+              className="settings-button p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2"
+              aria-label="Open reading settings"
+              title="Reading settings"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* Auto-scroll to highlight button */}
+          {(isSpeaking || isProcessing || isPaused) && (
+            <button 
+              onClick={() => scrollToHighlight()}
+              className="scroll-highlight-button p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2"
+              aria-label="Scroll to current highlight"
+              title="Scroll to current highlight"
+            >
+              <Headphones className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* Mobile TOC Component */}
+          {isEnhanced && (
+            <MobileTOCDrawer 
+              toc={toc} 
+              onItemClick={handleNavigateToTocItem}
+              theme={theme}
+            />
+          )}
+          
+          <div className="controls-container">
+            <Controls
+              currentPage={currentPageDisplay}
+              totalPages={totalPages}
+              onPrevious={handlePrevPage}
+              onNext={handleNextPage}
+              onReadAloud={handleTTS}
+              onStopTTS={handleStopTTS}
+              isReading={isSpeaking}
+              isPaused={isPaused}
+              isProcessing={isProcessing && !(isSpeaking || isPaused)}
+              canResume={canTTSResume}
+              onAudiobook={togglePlayMode}
+              isPlayModeActive={isPlayModeVisible}
+              isReadButtonActive={isSpeaking || isPaused || canTTSResume}
+            />
+          </div>
         </div>
       </div>
     </header>
