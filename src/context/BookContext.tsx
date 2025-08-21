@@ -84,6 +84,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   const [books, setBooks] = useState<BookData[]>([]);
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false); // New state
   const [isSyncingFromCloud, setIsSyncingFromCloud] = useState<boolean>(false); // New loading state
+  
   // ... (all other state declarations from the previous full version remain the same)
   const [currentBook, setCurrentBook] = useState<BookData | null>(null);
   const [isReading, setIsReading] = useState<boolean>(false);
@@ -244,9 +245,12 @@ useEffect(() => {
 
   // Sync books from cloud when user signs in
   useEffect(() => {
+    console.log('[SupabaseSync] 🔍 Effect triggered:', { isAuthenticated, userId });
+    
     const syncBooksOnLogin = async () => {
       if (isAuthenticated && userId) {
         try {
+          console.log('[SupabaseSync] 🚀 Starting sync - User authenticated:', { userId });
           setIsSyncingFromCloud(true);
           console.log('[SupabaseSync] User signed in, starting progressive sync...');
 
@@ -271,9 +275,28 @@ useEffect(() => {
             return;
           }
 
+          // Debug: Show file_url values from database
+          console.log('[SupabaseSync] 🔍 Database file_url values:');
+          cloudBooksData.forEach((book, index) => {
+            console.log(`[SupabaseSync] Book ${index + 1}: "${book.title}" - file_url: ${book.file_url || 'null'}`);
+          });
+
           // Step 1: Check which books are missing locally and need to be downloaded
           const downloadStartTime = performance.now();
           const currentLocalBooks = books;
+          
+          // Debug: List available storage buckets
+          try {
+            console.log('[SupabaseSync] 🔍 Checking available storage buckets...');
+            const { data: buckets } = await supabase.storage.listBuckets();
+            if (buckets) {
+              console.log('[SupabaseSync] Available buckets:', buckets.map(b => b.name));
+            }
+          } catch (bucketError) {
+            console.warn('[SupabaseSync] Could not list buckets:', bucketError);
+          }
+          
+          // Simple duplicate check by ID only (as it was working before)
           const existingBookIds = new Set(currentLocalBooks.map(book => book.id));
           
           // Separate books into existing and missing
@@ -348,66 +371,123 @@ useEffect(() => {
           }));
 
           // Step 4: Add placeholders to existing books and show immediately
-          // Prevent duplicates by ensuring unique book IDs
-          const allBookIds = new Set();
-          const uniqueUpdatedBooks = updatedBooks.filter(book => {
-            if (allBookIds.has(book.id)) {
-              console.warn(`[SupabaseSync] 🚨 Duplicate book ID detected: ${book.id} (${book.title}), removing duplicate`);
-              return false;
-            }
-            allBookIds.add(book.id);
-            return true;
-          });
-          
-          const uniquePlaceholderBooks = placeholderBooks.filter(book => {
-            if (allBookIds.has(book.id)) {
-              console.warn(`[SupabaseSync] 🚨 Duplicate placeholder ID detected: ${book.id} (${book.title}), removing duplicate`);
-              return false;
-            }
-            allBookIds.add(book.id);
-            return true;
-          });
-          
-          const booksWithPlaceholders = [...uniqueUpdatedBooks, ...uniquePlaceholderBooks];
+          const booksWithPlaceholders = [...updatedBooks, ...placeholderBooks];
           setBooks(booksWithPlaceholders);
-          console.log(`[SupabaseSync] 📦 ${uniquePlaceholderBooks.length} placeholder books added to UI (${uniqueUpdatedBooks.length} already existed, ${placeholderBooks.length - uniquePlaceholderBooks.length} duplicates removed)`);
+          console.log(`[SupabaseSync] 📦 ${placeholderBooks.length} placeholder books added to UI`);
 
           // Step 5: Start downloading only missing books individually (parallel)
           let completedCount = 0;
           const totalBooks = missingCloudBooks.length;
 
           const downloadPromises = missingCloudBooks.map(async (cloudBook: CloudBookRecord, index: number) => {
-            const bookStartTime = performance.now();
-            
             try {
-              const downloadPath = `${userId}/${cloudBook.id}.epub`;
-              console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Starting download: "${cloudBook.title}"`);
-              console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Download path: ${downloadPath}`);
+              // Try different bucket names since 'book-files' doesn't exist
+              const possibleBuckets = ['books', 'epub-files', 'files', 'book-files'];
+              let fileData: Blob | null = null;
+              let successfulBucket = '';
               
-              // Download using optimized function
-              const { downloadFileOptimized } = await import('../lib/supabase');
+              // First, try to use the file_url from the database if it exists
+              if (cloudBook.file_url) {
+                try {
+                  console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Trying file_url from database: ${cloudBook.file_url}`);
+                  
+                  // Fix malformed file_urls that have wrong endpoints and image parameters
+                  let correctedUrl = cloudBook.file_url;
+                  
+                  // Remove image quality parameters
+                  if (correctedUrl.includes('?quality=')) {
+                    correctedUrl = correctedUrl.split('?')[0];
+                    console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Removed image quality parameter`);
+                  }
+                  
+                  // Fix wrong endpoint from /render/image/public/ to /object/
+                  if (correctedUrl.includes('/render/image/public/')) {
+                    correctedUrl = correctedUrl.replace('/render/image/public/', '/object/');
+                    console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Fixed endpoint from render/image to object`);
+                  }
+                  
+                  // Extract bucket and path from corrected URL
+                  const url = new URL(correctedUrl);
+                  const pathParts = url.pathname.split('/');
+                  
+                  // Find the bucket name (should be after /storage/v1/object/)
+                  const objectIndex = pathParts.findIndex(part => part === 'object');
+                  if (objectIndex !== -1 && objectIndex + 1 < pathParts.length) {
+                    const bucketFromUrl = pathParts[objectIndex + 1];
+                    const pathFromUrl = pathParts.slice(objectIndex + 2).join('/');
+                    
+                    console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Corrected parsing - bucket: ${bucketFromUrl}, path: ${pathFromUrl}`);
+                    
+                    if (bucketFromUrl && pathFromUrl) {
+                      // For private buckets, use Supabase client download instead of public URL
+                      try {
+                        const { supabase } = await import('../lib/supabase');
+                        const { data, error } = await supabase.storage
+                          .from(bucketFromUrl)
+                          .download(pathFromUrl);
+                        
+                        if (error) {
+                          throw error;
+                        }
+                        
+                        if (data && data.size > 0) {
+                          fileData = data;
+                          successfulBucket = bucketFromUrl;
+                          console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ✅ Downloaded using Supabase client from private bucket: ${bucketFromUrl}`);
+                        }
+                      } catch (clientError) {
+                        console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ❌ Supabase client download failed:`, clientError);
+                        throw clientError;
+                      }
+                    }
+                  } else {
+                    throw new Error('Could not parse corrected file_url structure');
+                  }
+                } catch (urlError) {
+                  console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ❌ Failed using corrected file_url:`, urlError);
+                }
+              }
               
-              const isEdge = navigator.userAgent.includes('Edg');
-              // Increase timeout for large files - some EPUBs can be 10-20MB
-              const baseTimeout = isEdge ? 90000 : 60000; // 90s for Edge, 60s for others
-              const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error(`Download timeout (${baseTimeout/1000}s) - file may be too large`)), baseTimeout);
-              });
+              // If file_url didn't work, try the fallback bucket approach
+              if (!fileData || fileData.size === 0) {
+                for (const bucket of possibleBuckets) {
+                  try {
+                    const downloadPath = `${userId}/${cloudBook.id}.epub`;
+                    console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Trying bucket: ${bucket}, path: ${downloadPath}`);
+                    
+                    // Use Supabase client download for private buckets
+                    const { supabase } = await import('../lib/supabase');
+                    const { data, error } = await supabase.storage
+                      .from(bucket)
+                      .download(downloadPath);
+                    
+                    if (error) {
+                      throw error;
+                    }
+                    
+                    if (data && data.size > 0) {
+                      fileData = data;
+                      successfulBucket = bucket;
+                      console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ✅ Downloaded from bucket: ${bucket}`);
+                      break;
+                    }
+                  } catch (bucketError) {
+                    console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ❌ Failed with bucket ${bucket}:`, bucketError);
+                    continue; // Try next bucket
+                  }
+                }
+              }
 
-              console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Browser: ${isEdge ? 'Edge' : 'Other'}, Timeout: ${baseTimeout/1000}s`);
-              const fileData = await Promise.race([
-                downloadFileOptimized('book-files', downloadPath),
-                timeoutPromise
-              ]);
+              if (!fileData || fileData.size === 0) {
+                throw new Error(`All buckets failed for book: ${cloudBook.title}`);
+              }
 
               // Validate file size
               if (fileData.size < 1000) {
                 throw new Error(`File too small (${fileData.size} bytes), likely corrupted`);
               }
 
-              const downloadTime = performance.now() - bookStartTime;
-              const speedMBps = (fileData.size / 1024 / 1024) / (downloadTime / 1000);
-              console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ✅ "${cloudBook.title}" downloaded in ${downloadTime.toFixed(0)}ms (${(fileData.size / 1024 / 1024).toFixed(1)}MB @ ${speedMBps.toFixed(1)} MB/s)`);
+              console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ✅ "${cloudBook.title}" downloaded successfully from bucket: ${successfulBucket}`);
 
               const file = new File([fileData], `${cloudBook.title}.epub`, { type: 'application/epub+zip' });
               
@@ -473,17 +553,9 @@ useEffect(() => {
 
               // Step 4: Update the specific book immediately when download completes
               setBooks(currentBooks => {
-                // Remove any existing duplicates first
-                const uniqueBooks = currentBooks.filter((book, index, arr) => 
-                  arr.findIndex(b => b.id === book.id) === index
-                );
-                
-                const updatedBooks = uniqueBooks.map(book => 
+                return currentBooks.map(book => 
                   book.id === cloudBook.id ? completeBook : book
                 );
-                
-                // Books will be automatically saved by the existing useEffect
-                return updatedBooks;
               });
 
               completedCount++;
@@ -492,13 +564,11 @@ useEffect(() => {
               return completeBook;
 
             } catch (error) {
-              const downloadTime = performance.now() - bookStartTime;
-              console.error(`[SupabaseSync] [${index + 1}/${totalBooks}] ❌ Failed to download "${cloudBook.title}" after ${downloadTime.toFixed(0)}ms:`, error);
+              console.error(`[SupabaseSync] [${index + 1}/${totalBooks}] ❌ Failed to download "${cloudBook.title}":`, error);
               
-              // Step 5: Remove failed book from the list
+              // 🚀 WORKING: Remove failed book from the list as it was before
               setBooks(currentBooks => {
                 const filteredBooks = currentBooks.filter(book => book.id !== cloudBook.id);
-                // Books will be automatically saved by the existing useEffect
                 return filteredBooks;
               });
 
@@ -512,13 +582,14 @@ useEffect(() => {
           const totalDownloadTime = performance.now() - downloadStartTime;
           console.log(`[SupabaseSync] 🎉 Smart sync complete in ${totalDownloadTime.toFixed(0)}ms`);
           console.log(`[SupabaseSync] 📊 Results: ${completedCount}/${totalBooks} new books downloaded, ${existingCloudBooks.length} already local`);
-          console.log(`[SupabaseSync] 💾 Avoided re-downloading ${existingCloudBooks.length} books (saved time and bandwidth)`);
 
         } catch (error) {
           console.error('[SupabaseSync] Progressive sync failed:', error);
         } finally {
           setIsSyncingFromCloud(false);
         }
+      } else {
+        console.log('[SupabaseSync] ❌ Sync not started - User not authenticated:', { isAuthenticated, userId });
       }
     };
 
@@ -1397,7 +1468,6 @@ useEffect(() => {
     }
     setIsPlayModeVisible(!isPlayModeVisible);
   };
-
 
   const value: BookContextValue = {
     books, addBook, removeBook,

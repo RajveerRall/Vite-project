@@ -56,22 +56,17 @@ export const downloadFileOptimized = async (bucket: string, path: string): Promi
 
     if (response.ok) {
       const contentLength = response.headers.get('content-length');
-      console.log(`[SupabaseOptimized] CDN response: ${response.status} ${response.statusText}, Content-Length: ${contentLength || 'unknown'}`);
-      
       const blob = await response.blob();
       
       if (blob.size > 0) {
         console.log(`[SupabaseOptimized] CDN success: ${path} (${blob.size} bytes, ${contentLength ? `expected ${contentLength}` : 'no content-length'})`);
         return blob;
-      } else {
-        console.warn(`[SupabaseOptimized] CDN returned empty blob for ${path}`);
       }
-    } else {
-      console.log(`[SupabaseOptimized] CDN failed (${response.status}: ${response.statusText}), trying Supabase client: ${path}`);
     }
 
+    console.log(`[SupabaseOptimized] CDN failed (${response.status}: ${response.statusText}), trying Supabase client: ${path}`);
+    
     // Method 2: Supabase client fallback
-    console.log(`[SupabaseOptimized] Attempting Supabase client download for: ${path}`);
     const { data, error } = await supabase.storage
       .from(bucket)
       .download(path);
