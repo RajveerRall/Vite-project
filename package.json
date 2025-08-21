@@ -45,6 +45,7 @@
     "sharp": "^0.34.3",
     "tailwind-merge": "^3.0.2",
     "ui": "github:shadcn/ui",
+    "vite-plugin-optimize-persist": "^0.1.2",
     "xml-escape": "^1.1.0",
     "xmldom": "^0.6.0"
   },
