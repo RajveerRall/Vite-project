@@ -2,6 +2,8 @@
 .tts-highlight {
   background-color: #fffb91;
   border-radius: 3px;
+  padding: 1px 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 /* Theme CSS Variables */
@@ -16,11 +18,12 @@
   --reader-hover: #f3f4f6;
   --reader-shadow: rgba(0, 0, 0, 0.1);
   --reader-highlight: #fffb91;
+  --reader-button-text: #f8fafc;
 }
 
 .theme-dark {
   --reader-bg: #111827;
-  --reader-text: #f9fafb;
+  --reader-text: #e2e8f0;
   --reader-text-secondary: #9ca3af;
   --reader-border: #374151;
   --reader-header-bg: #1f2937;
@@ -28,7 +31,11 @@
   --reader-content-bg: #111827;
   --reader-hover: #374151;
   --reader-shadow: rgba(0, 0, 0, 0.3);
-  --reader-highlight: #fbbf24;
+  --reader-highlight: #4b5563;
+  --reader-button-text: #f8fafc;
+  --reader-button-bg: #374151;
+  --reader-button-hover: #4b5563;
+  --reader-accent: #4b5563;
 }
 
 .theme-sepia {
@@ -42,6 +49,7 @@
   --reader-hover: #f3f0e1;
   --reader-shadow: rgba(139, 105, 20, 0.1);
   --reader-highlight: #fde047;
+  --reader-button-text: #f8fafc;
 }
 
 /* Apply theme variables */
@@ -124,7 +132,13 @@
 
 .theme-dark .tts-highlight {
   background-color: var(--reader-highlight);
-  color: #111827;
+  color: #e2e8f0;
+  text-shadow: none;
+  font-weight: 500;
+  padding: 1px 2px;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  border: 1px solid #6b7280;
 }
 
 .theme-sepia .tts-highlight {
@@ -402,7 +416,7 @@
 .theme-dark .control-button {
   background-color: #374151;
   border-color: #4b5563;
-  color: #f9fafb;
+  color: #e2e8f0;
 }
 
 .theme-sepia .control-button {
@@ -433,7 +447,7 @@
 .theme-sepia .control-button.active {
   background-color: #92400e;
   border-color: #92400e;
-  color: white;
+  color: #f8fafc;
 }
 
 .theme-light .control-button.active:hover:not(:disabled),
@@ -487,6 +501,42 @@
 
 .theme-sepia .page-info {
   color: #8b6914;
+}
+
+/* Additional dark mode text color overrides */
+.theme-dark .epub-content {
+  color: var(--reader-text);
+}
+
+.theme-dark .epub-content p,
+.theme-dark .epub-content div,
+.theme-dark .epub-content span {
+  color: var(--reader-text);
+}
+
+.theme-dark .epub-content h1,
+.theme-dark .epub-content h2,
+.theme-dark .epub-content h3,
+.theme-dark .epub-content h4,
+.theme-dark .epub-content h5,
+.theme-dark .epub-content h6 {
+  color: var(--reader-text);
+}
+
+.theme-dark .reader-header h1,
+.theme-dark .reader-header h2,
+.theme-dark .reader-header h3 {
+  color: var(--reader-text);
+}
+
+.theme-dark .reader-sidebar {
+  color: var(--reader-text);
+}
+
+.theme-dark .reader-sidebar h1,
+.theme-dark .reader-sidebar h2,
+.theme-dark .reader-sidebar h3 {
+  color: var(--reader-text);
 }
 
 /* Fix audiobook button hiding on mobile - override Controls.css */
