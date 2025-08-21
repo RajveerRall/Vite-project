@@ -413,10 +413,7 @@
 }
 
 
-.highlight {
-  background-color: #ffff99; /* soft yellow highlight */
-  border-radius: 3px;
-}
+/* .highlight class removed - now using .tts-highlight for TTS highlighting */
 
 /* Mobile TOC Drawer Styles */
 .mobile-toc-button {

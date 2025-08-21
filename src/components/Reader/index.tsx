@@ -16,8 +16,7 @@ import MobileTOCDrawer from './MobileTOCDrawer';
 import EnhancedLoader from './EnhancedLoader';
 
 
-// TTS highlight class constant
-const CHUNK_HIGHLIGHT_CLASS = 'tts-highlight';
+// TTS highlighting is now handled by the useReaderTTS hook
 
 const Reader: React.FC = () => {
   const {
@@ -123,19 +122,7 @@ const Reader: React.FC = () => {
   }, [handleTTSNavigation, closeBook]);
 
   // === Render text with current chunk highlighted ===
-  // Memoize to prevent unnecessary re-computations
-  const highlightedContent = useMemo(() => {
-    if (!chunks.length) return null;
-    return chunks.map((chunk, idx) => (
-      <span
-        key={idx}
-        className={idx === currentChunkIndex ? CHUNK_HIGHLIGHT_CLASS : ''}
-        style={{ transition: 'background-color 0.3s ease' }}
-      >
-        {chunk + ' '}
-      </span>
-    ));
-  }, [chunks, currentChunkIndex]);
+  // This is now handled by the useReaderTTS hook which generates highlightedContent
 
   // return (
   //   <div className="reader">
@@ -295,23 +282,21 @@ const Reader: React.FC = () => {
             lineHeight: '1.6'
           }}
         >
-          {/* Debug: Log what we're about to render */}
+          {/* Debug TTS states */}
           {(() => {
-            console.log('[DEBUG] Reader rendering content:', {
+            console.log('[Reader] TTS States:', {
               isSpeaking,
               isProcessing,
-              currentContentLength: currentContent?.length || 0,
-              currentContentPreview: currentContent?.substring(0, 200) || 'empty',
-              hasHtmlTags: currentContent ? /<[^>]+>/.test(currentContent) : false,
-              currentPageTextLength: currentPageText?.length || 0,
-              currentPageTextPreview: currentPageText?.substring(0, 200) || 'empty',
-              ttsHighlightedContentLength: ttsHighlightedContent?.length || 0
+              isPaused,
+              hasHighlightedContent: !!ttsHighlightedContent,
+              highlightedContentLength: ttsHighlightedContent?.length || 0,
+              currentContentLength: currentContent?.length || 0
             });
             return null;
           })()}
           
           {/* Show TTS-highlighted content when TTS is active, otherwise show formatted HTML content */}
-          {isSpeaking || isProcessing ? (
+          {(isSpeaking || isProcessing || isPaused) && ttsHighlightedContent ? (
             <div dangerouslySetInnerHTML={{ __html: ttsHighlightedContent }} />
           ) : (
             <div dangerouslySetInnerHTML={{ __html: currentContent }} />

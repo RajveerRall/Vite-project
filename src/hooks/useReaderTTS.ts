@@ -133,7 +133,13 @@ export const useReaderTTS = ({
   // === Split text into chunks whenever currentPageText changes ===
   useEffect(() => {
     if (currentPageText) {
-      setChunks(splitTextIntoChunks(currentPageText));
+      const newChunks = splitTextIntoChunks(currentPageText);
+      console.log(`[TTS] Split text into ${newChunks.length} chunks:`, {
+        textLength: currentPageText.length,
+        firstChunk: newChunks[0]?.substring(0, 100),
+        lastChunk: newChunks[newChunks.length - 1]?.substring(0, 100)
+      });
+      setChunks(newChunks);
       setCurrentChunkIndex(null);
       setIsSpeaking(false);
       setIsPaused(false);
@@ -422,6 +428,12 @@ export const useReaderTTS = ({
 
   // === Save progress periodically on chunk change ===
   useEffect(() => {
+    console.log(`[TTS] Chunk change effect triggered:`, {
+      currentChunkIndex,
+      chunksLength: chunks.length,
+      hasCurrentPageText: !!currentPageText
+    });
+    
     if (currentChunkIndex !== null && chunks.length > 0) {
       let offset = 0;
       for (let i = 0; i < currentChunkIndex; i++) {
@@ -432,28 +444,30 @@ export const useReaderTTS = ({
       setHasFinishedPlayback(false);
       
       // Update highlighted content to show current chunk
-      if (currentPageText) {
-        const highlightLength = 30;
-        const start = offset;
-        const end = Math.min(start + highlightLength, currentPageText.length);
+      if (currentPageText && currentChunkIndex < chunks.length) {
+        const currentChunk = chunks[currentChunkIndex];
+        if (currentChunk) {
+          // Find the current chunk in the full text and highlight it
+          const chunkIndex = currentPageText.indexOf(currentChunk);
+          if (chunkIndex !== -1) {
+            const escapeHtml = (str: string) =>
+              str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-        const escapeHtml = (str: string) =>
-          str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const before = escapeHtml(currentPageText.substring(0, chunkIndex));
+            const highlight = escapeHtml(currentChunk);
+            const after = escapeHtml(currentPageText.substring(chunkIndex + currentChunk.length));
 
-        const before = escapeHtml(currentPageText.substring(0, start));
-        const highlight = escapeHtml(currentPageText.substring(start, end));
-        const after = escapeHtml(currentPageText.substring(end));
-
-        const highlightedHtml = `${before}<span class="highlight">${highlight}</span>${after}`;
-        setHighlightedContent(highlightedHtml);
-        console.log(`[DEBUG] Updated highlightedContent for chunk ${currentChunkIndex}:`, {
-          offset,
-          start,
-          end,
-          highlightLength: end - start,
-          highlightedContentLength: highlightedHtml.length,
-          hasHighlightSpan: highlightedHtml.includes('<span class="highlight">')
-        });
+            const highlightedHtml = `${before}<span class="tts-highlight">${highlight}</span>${after}`;
+            setHighlightedContent(highlightedHtml);
+            console.log(`[DEBUG] Updated highlightedContent for chunk ${currentChunkIndex}:`, {
+              chunkIndex,
+              chunkLength: currentChunk.length,
+              chunkPreview: currentChunk.substring(0, 50),
+              highlightedContentLength: highlightedHtml.length,
+              hasHighlightSpan: highlightedHtml.includes('<span class="tts-highlight">')
+            });
+          }
+        }
       }
     }
   }, [currentChunkIndex, chunks, saveResumeIndex, currentPageText]);
@@ -469,7 +483,8 @@ export const useReaderTTS = ({
       return;
     }
 
-    const highlightLength = 30;
+    // For resume, we'll highlight the beginning of the text since we don't know the exact chunk
+    const highlightLength = Math.min(100, currentPageText.length);
     const start = loadedIndex;
     const end = Math.min(start + highlightLength, currentPageText.length);
 
@@ -480,7 +495,7 @@ export const useReaderTTS = ({
     const highlight = escapeHtml(currentPageText.substring(start, end));
     const after = escapeHtml(currentPageText.substring(end));
 
-    const highlightedHtml = `${before}<span class="highlight">${highlight}</span>${after}`;
+    const highlightedHtml = `${before}<span class="tts-highlight">${highlight}</span>${after}`;
     setHighlightedContent(highlightedHtml);
 
   }, [loadResumeIndex, currentPageDisplay, currentContent, currentPageText]);
