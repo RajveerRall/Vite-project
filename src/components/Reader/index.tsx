@@ -11,6 +11,7 @@ import FeatureHighlight from './FeatureHighlight';
 import { ChevronLeft, ChevronRight, Play, Headphones, Settings } from 'lucide-react';
 import { useReaderSettings } from '../../hooks/useReaderSettings';
 import { useReaderTTS } from '../../hooks/useReaderTTS';
+import { useAutoScroll } from '../../hooks/useAutoScroll';
 import SettingsWidget from './SettingsWidget';
 import MobileTOCDrawer from './MobileTOCDrawer';
 import EnhancedLoader from './EnhancedLoader';
@@ -91,6 +92,13 @@ const Reader: React.FC = () => {
     canTTSResume,
     highlightedContent: ttsHighlightedContent
   } = ttsHook;
+
+  // Auto-scroll hook for TTS highlighting
+  const { scrollToHighlight } = useAutoScroll({
+    isActive: isSpeaking || isProcessing || isPaused,
+    highlightedContent: ttsHighlightedContent,
+    scrollContainer: document.querySelector('.reader-main') as HTMLElement | null
+  });
 
   // === Computed Values ===
   // canGoPrev/canGoNext logic moved to Controls component
@@ -221,6 +229,18 @@ const Reader: React.FC = () => {
             title="Reading settings"
           >
             <Settings className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Auto-scroll to highlight button - Only show when TTS is active */}
+        {(isSpeaking || isProcessing || isPaused) && (
+          <button 
+            onClick={() => scrollToHighlight()}
+            className="scroll-highlight-button p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2"
+            aria-label="Scroll to current highlight"
+            title="Scroll to current highlight"
+          >
+            <Headphones className="w-5 h-5" />
           </button>
         )}
 

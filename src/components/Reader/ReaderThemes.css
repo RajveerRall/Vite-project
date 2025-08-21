@@ -78,6 +78,7 @@
   background-color: var(--reader-content-bg);
   color: var(--reader-text);
   transition: font-size 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+  scroll-behavior: smooth;
 }
 
 /* Theme-aware text colors */
@@ -121,6 +122,19 @@
 .theme-dark .mobile-toc-button:hover,
 .theme-sepia .settings-button:hover,
 .theme-sepia .mobile-toc-button:hover {
+  color: #d97706;
+}
+
+/* Theme-aware scroll highlight button */
+.theme-light .scroll-highlight-button,
+.theme-dark .scroll-highlight-button,
+.theme-sepia .scroll-highlight-button {
+  color: var(--reader-text-secondary);
+}
+
+.theme-light .scroll-highlight-button:hover,
+.theme-dark .scroll-highlight-button:hover,
+.theme-sepia .scroll-highlight-button:hover {
   color: #d97706;
 }
 

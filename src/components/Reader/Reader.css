@@ -1212,3 +1212,16 @@
   color: #6b7280;
   margin-bottom: 0;
 }
+
+/* Scroll highlight button styling */
+.scroll-highlight-button {
+  transition: all 0.2s ease;
+}
+
+.scroll-highlight-button:hover {
+  transform: scale(1.05);
+}
+
+.scroll-highlight-button:active {
+  transform: scale(0.95);
+}
