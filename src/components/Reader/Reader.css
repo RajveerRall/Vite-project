@@ -415,6 +415,81 @@
 
 /* .highlight class removed - now using .tts-highlight for TTS highlighting */
 
+/* Hide any remaining headers, titles, and navigation elements in the content */
+.epub-content h1,
+.epub-content h2,
+.epub-content h3,
+.epub-content h4,
+.epub-content h5,
+.epub-content h6,
+.epub-content .title,
+.epub-content .chapter-title,
+.epub-content .book-title,
+.epub-content .epub-title,
+.epub-content .chapter-heading,
+.epub-content .section-title,
+.epub-content .page-title,
+.epub-content .header,
+.epub-content .navigation,
+.epub-content .nav,
+.epub-content .toc,
+.epub-content .table-of-contents,
+.epub-content .breadcrumb,
+.epub-content .breadcrumbs,
+.epub-content .page-header,
+.epub-content .content-header,
+.epub-content .epub-header,
+.epub-content .epub-chapter-title,
+.epub-content .epub-section,
+.epub-content .epub-page,
+.epub-content .epub-navigation,
+.epub-content .epub-toc,
+.epub-content .epub-breadcrumb,
+.epub-content .content-header,
+.epub-content .chapter-header,
+.epub-content .section-header,
+.epub-content .page-header,
+.epub-content .article-header,
+.epub-content .story-header {
+  display: none !important;
+}
+
+/* Hide any remaining CSS rules, metadata, or unwanted content */
+.epub-content style,
+.epub-content script,
+.epub-content meta,
+.epub-content link {
+  display: none !important;
+}
+
+/* Hide any remaining CSS rules, metadata, or unwanted content */
+.epub-content style,
+.epub-content script,
+.epub-content meta,
+.epub-content link {
+  display: none !important;
+}
+
+/* Additional aggressive hiding for problematic content */
+.epub-content *[class*="css"],
+.epub-content *[class*="style"],
+.epub-content *[class*="meta"],
+.epub-content *[id*="css"],
+.epub-content *[id*="style"],
+.epub-content *[id*="meta"] {
+  display: none !important;
+}
+
+/* Additional aggressive hiding for problematic content */
+.epub-content *[class*="css"],
+.epub-content *[class*="style"],
+.epub-content *[class*="meta"],
+.epub-content *[id*="css"],
+.epub-content *[id*="style"],
+.epub-content *[id*="meta"] {
+  display: none !important;
+}
+
 /* Mobile TOC Drawer Styles */
 .mobile-toc-button {
   display: none;

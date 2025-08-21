@@ -12,7 +12,7 @@ const getDOMParser = async () => {
   const { DOMParser } = await import('xmldom');
   return DOMParser;
 };
-import { processHtmlContent, extractTextFromHtml } from '../utils/textExtraction';
+import { processHtmlContent, extractTextFromHtml, cleanEpubContent, deepCleanEpubContent } from '../utils/textExtraction';
 import { BookData, TOCItem } from '@/types/books'; // Ensure BookData includes all necessary fields like lastChapter
 import { useAuth } from "./AuthContext";
 // import { supabase, uploadFile, deleteFile, getFileUrl, type BookRecord } from '../lib/supabase'; // Switch to dynamic import
@@ -952,9 +952,18 @@ useEffect(() => {
       const fileDir = getDirectoryPath(filePath);
       const processedHtml = processHtmlContent(htmlTextContent, fileDir, zipToUse, filePath);
       console.log(`[loadPageCallback] HTML processed for ${filePath}`);
-      setCurrentContent(processedHtml);
+      
+      // Clean the HTML content to remove headers, titles, and navigation elements
+      const cleanedHtml = cleanEpubContent(processedHtml);
+      console.log(`[loadPageCallback] HTML cleaned for ${filePath}`);
+      
+      // Apply deep cleaning to remove CSS rules, metadata, and other unwanted content
+      const deepCleanedHtml = deepCleanEpubContent(cleanedHtml);
+      console.log(`[loadPageCallback] HTML deep cleaned for ${filePath}`);
+      
+      setCurrentContent(deepCleanedHtml);
       setCurrentPageDisplay(pageIdxToLoad);
-      const extractedText = extractTextFromHtml(processedHtml);
+      const extractedText = extractTextFromHtml(deepCleanedHtml);
       console.log(`[DEBUG] extractTextFromHtml result:`, {
         originalLength: processedHtml.length,
         extractedLength: extractedText.length,
