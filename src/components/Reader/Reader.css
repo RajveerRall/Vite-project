@@ -418,32 +418,6 @@
   border-radius: 3px;
 }
 
-/* TTS Highlighting Styles */
-.highlight {
-  background-color: #fffb91 !important;
-  border-radius: 3px;
-  padding: 2px 4px;
-  transition: background-color 0.3s ease;
-  box-shadow: 0 0 4px rgba(255, 251, 145, 0.5);
-}
-
-/* Ensure highlighting works on all text elements */
-.highlight p,
-.highlight span,
-.highlight div {
-  background-color: inherit !important;
-}
-
-/* Smooth transitions for highlighting */
-.epub-content * {
-  transition: background-color 0.2s ease;
-}
-
-/* Override any existing background colors for highlighted elements */
-.highlight * {
-  background-color: #fffb91 !important;
-}
-
 /* Mobile TOC Drawer Styles */
 .mobile-toc-button {
   display: none;

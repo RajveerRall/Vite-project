@@ -11,16 +11,16 @@ import { BookData } from '@/types/books'; // Make sure BookData is imported
 
 // Helper function to create book data from preprocessed information
 function createBookFromPreprocessed(preprocessedBook: any): BookData {
-  return {
+    return {
     id: preprocessedBook.filename,
     title: preprocessedBook.title,
     author: preprocessedBook.author,
     coverUrl: preprocessedBook.coverPath || '', // Use extracted cover or empty string
     file: null as any, // Will be lazy-loaded when user clicks
-    currentPage: 0,
-    totalPages: 0,
-    lastRead: new Date().toISOString(),
-  };
+      currentPage: 0,
+      totalPages: 0,
+      lastRead: new Date().toISOString(),
+    };
 }
 
 const Library: React.FC = () => {
@@ -135,12 +135,12 @@ const Library: React.FC = () => {
       const books = validPreprocessedBooks.map(createBookFromPreprocessed);
       
       setCarouselBooks(books);
-      setIsCarouselLoading(false);
+        setIsCarouselLoading(false);
     };
 
     // Add a small delay to let the page render first, then load instantly
     const timer = setTimeout(loadSampleBooks, 100);
-    
+
     return () => clearTimeout(timer);
   }, []); // Runs once on mount
 
@@ -348,7 +348,7 @@ const Library: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold tracking-tight text-gray-900">
                 {isAuthenticated ? "Your Cloud Library" : "Your Current Library"}
-              </h2>
+            </h2>
               {isSyncingFromCloud && (
                 <div className="flex items-center text-amber-600">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600 mr-2"></div>
@@ -360,7 +360,7 @@ const Library: React.FC = () => {
           </section>
         )}
 
-                {/* Sign-Up Prompt */}
+        {/* Sign-Up Prompt */}
         {!isAuthenticated && (
           <div className="mt-8 text-center bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-2xl mx-auto">
             <p className="text-amber-900">
@@ -374,8 +374,8 @@ const Library: React.FC = () => {
                 className="inline-link text-amber-800 hover:text-amber-900 underline font-medium mx-1 transition-colors"
               >
                 Sign in
-              </button>
-              to access unique storytelling voices!
+                </button>
+                to access unique storytelling voices!
             </p>
           </div>
         )}

@@ -229,7 +229,7 @@ useEffect(() => {
 
   saveBooksToStorage();
 
-  }, [books, isInitialLoadComplete]); // This hook runs ONLY when the 'books' array changes.
+}, [books, isInitialLoadComplete]); // This hook runs ONLY when the 'books' array changes.
 
   // Cleanup blob URLs when component unmounts to prevent memory leaks
   useEffect(() => {
