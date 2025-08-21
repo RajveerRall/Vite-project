@@ -66,7 +66,7 @@ const Library: React.FC = () => {
   const [isCarouselLoading, setIsCarouselLoading] = useState<boolean>(true);
   const displayBooks = isAuthenticated ? books : carouselBooks;
  
- // Defer mounting Carousel until after first paint/idle
+   // Defer mounting Carousel until after first paint/idle
  const [showCarousel, setShowCarousel] = useState<boolean>(false);
  useEffect(() => {
    if ('requestIdleCallback' in window) {
@@ -75,50 +75,6 @@ const Library: React.FC = () => {
      setTimeout(() => setShowCarousel(true), 0);
    }
  }, []);
-
-
-
-
-
-
-
-  //   // This effect runs only once to load the sample books for the carousel
-  // useEffect(() => {
-  //   // Only load the carousel if the user is logged out
-  //   if (!isSignedIn) {
-  //     const loadSampleBooks = async () => {
-  //       setIsCarouselLoading(true);
-  //       const loadedBooks: BookData[] = [];
-
-  //       for (const bookPath of sampleBookPaths) {
-  //         try {
-  //           // Fetch each book from the public/sample-books folder
-  //           const response = await fetch(`/sample-books/${bookPath}`);
-  //           const blob = await response.blob();
-  //           const file = new File([blob], bookPath, { type: 'application/epub+zip' });
-            
-  //           // For now, we'll use a simplified processing step.
-  //           // You can enhance this with epub.js to get real covers/titles.
-  //           const bookData = await processBookFileForDisplay(file);
-
-  //           // --- ADDED: A check to ensure we only add valid books ---
-  //           if (bookData) {
-  //             loadedBooks.push(bookData);
-  //           }
-
-  //         } catch (error) {
-  //           console.error(`Failed to load sample book: ${bookPath}`, error);
-  //         }
-  //       }
-  //       setCarouselBooks(loadedBooks);
-  //       setIsCarouselLoading(false);
-  //     };
-
-  //     loadSampleBooks();
-  //   }
-  // }, [isSignedIn]); // Reruns if the user logs in or out
-
-
 
   // ⚡ OPTIMIZED: Load sample books from preprocessed data (instant loading!)
   useEffect(() => {
@@ -144,9 +100,6 @@ const Library: React.FC = () => {
     return () => clearTimeout(timer);
   }, []); // Runs once on mount
 
-
-
-  
   const handleUploadClick = () => {
       // TRACK THE INTENT
     trackEvent('add_book_start', {
@@ -232,7 +185,6 @@ const Library: React.FC = () => {
     new Date(b.lastRead).getTime() - new Date(a.lastRead).getTime()
   );
 
-
   const handleExternalLinkClick = (sourceName: string, url: string) => {
     // Track the user's choice
     trackEvent('select_content_source', {
@@ -242,9 +194,8 @@ const Library: React.FC = () => {
     // Open the link in a new tab
     window.open(url, '_blank', 'noopener,noreferrer');
   };
-  
 
-    return (
+  return (
     <div className="library bg-slate-50">
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         
@@ -261,7 +212,7 @@ const Library: React.FC = () => {
         {/* Cloud Sync Loading Overlay - REMOVED for progressive loading */}
         {/* Books now show individual loading states instead of blocking the entire page */}
 
-        {/* Subtle sync status indicator */}
+        {/* Simple sync status indicator */}
         {isSyncingFromCloud && (
           <div className="mb-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
