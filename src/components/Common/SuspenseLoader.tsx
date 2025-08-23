@@ -17,7 +17,7 @@ const SuspenseLoader: React.FC = () => {
   useEffect(() => {
     const quoteInterval = setInterval(() => {
       setQuoteIndex(prevIndex => (prevIndex + 1) % quotes.length);
-    }, 2000);
+    }, 4000);
 
     return () => clearInterval(quoteInterval);
   }, []);
