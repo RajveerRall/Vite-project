@@ -4,18 +4,11 @@ import { Link } from 'react-router-dom';
 import { getPosts } from '../../services/strapi';
 
 interface Post {
-  attributes: {
-    title: string;
-    slug: string;
-    excerpt: string;
-    author: {
-      data: {
-        attributes: {
-          name: string;
-        };
-      };
-    };
-  };
+  title: string;
+  slug: string;
+  excerpt: string;
+  author: string;
+  publishedAt: string;
 }
 
 const BlogListPage: React.FC = () => {
@@ -50,15 +43,15 @@ const BlogListPage: React.FC = () => {
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-4">Blog</h1>
       <div className="space-y-4">
-        {posts.map(post => (
-          <div key={post.attributes.slug} className="border-b pb-4">
+        {posts.map((post, index) => (
+          <div key={index} className="border-b pb-4">
             <h2 className="text-2xl font-semibold">
-              <Link to={`/blog/${post.attributes.slug}`} className="text-blue-600 hover:underline">
-                {post.attributes.title}
+              <Link to={`/blog/${post.slug}`} className="text-blue-600 hover:underline">
+                {post.title}
               </Link>
             </h2>
-            <p className="text-gray-600">By {post.attributes.author.data.attributes.name}</p>
-            <p className="mt-2">{post.attributes.excerpt}</p>
+            <p className="text-gray-600">By {post.author} on {new Date(post.publishedAt).toLocaleDateString()}</p>
+            <p className="mt-2">{post.excerpt}</p>
           </div>
         ))}
       </div>
