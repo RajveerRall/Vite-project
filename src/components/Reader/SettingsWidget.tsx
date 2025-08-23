@@ -30,7 +30,7 @@ const availableVoices = [
   { id: 'en-US-AvaMultilingualNeural', name: 'Ava (F)' },
   { id: 'en-US-EmmaMultilingualNeural', name: 'Emma (F)' },
   { id: 'en-US-BrianMultilingualNeural', name: 'Brian (M)' },
-  { id: 'en-US-AndrewMultilingualNeural', name: 'Andrew (M)' },
+  { id: 'en-US-AndrewNeural', name: 'Andrew (M)' },
 ];
 
 const availableSpeeds = [
