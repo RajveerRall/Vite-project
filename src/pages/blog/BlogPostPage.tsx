@@ -5,17 +5,11 @@ import ReactMarkdown from 'react-markdown';
 import { getPostBySlug } from '../../services/strapi';
 
 interface Post {
-  attributes: {
-    title: string;
-    content: string;
-    author: {
-      data: {
-        attributes: {
-          name: string;
-        };
-      };
-    };
-  };
+  title: string;
+  slug: string;
+  content: string;
+  author: string;
+  publishedAt: string;
 }
 
 const BlogPostPage: React.FC = () => {
@@ -29,8 +23,10 @@ const BlogPostPage: React.FC = () => {
       if (!slug) return;
       try {
         const postData = await getPostBySlug(slug);
+        console.log('Fetched post data:', postData);
         setPost(postData);
       } catch (err) {
+        console.error('Error fetching post:', err);
         setError('Failed to fetch post. Please check your Strapi configuration.');
       } finally {
         setLoading(false);
@@ -52,12 +48,18 @@ const BlogPostPage: React.FC = () => {
     return <div className="container mx-auto p-4">Post not found.</div>;
   }
 
+  // Ensure content is a string before passing to ReactMarkdown
+  const content = typeof post.content === 'string' ? post.content : String(post.content || '');
+  
+  console.log('Content type:', typeof post.content);
+  console.log('Content value:', post.content);
+
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-2">{post.attributes.title}</h1>
-      <p className="text-gray-600 mb-4">By {post.attributes.author.data.attributes.name}</p>
+      <h1 className="text-3xl font-bold mb-2">{post.title}</h1>
+      <p className="text-gray-600 mb-4">By {post.author} on {new Date(post.publishedAt).toLocaleDateString()}</p>
       <div className="prose">
-        <ReactMarkdown>{post.attributes.content}</ReactMarkdown>
+        <ReactMarkdown>{content}</ReactMarkdown>
       </div>
     </div>
   );

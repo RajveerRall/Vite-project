@@ -7,7 +7,8 @@ if (!STRAPI_API_URL || !STRAPI_API_TOKEN) {
 }
 
 async function fetchAPI(query: string, { variables }: { variables?: Record<string, any> } = {}) {
-  const res = await fetch(`${STRAPI_API_URL}/graphql`, {
+  const url = `${STRAPI_API_URL}/graphql`;
+  const options = {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -17,59 +18,51 @@ async function fetchAPI(query: string, { variables }: { variables?: Record<strin
       query,
       variables,
     }),
-  });
+  };
 
-  const json = await res.json();
-  if (json.errors) {
-    console.error(json.errors);
-    throw new Error('Failed to fetch API');
+  try {
+    const res = await fetch(url, options);
+    const json = await res.json();
+
+    if (json.errors) {
+      console.error('Strapi API Error:', JSON.stringify(json.errors, null, 2));
+      throw new Error('Failed to fetch API from Strapi');
+    }
+
+    // The actual data is always inside the 'data' property of the GraphQL response.
+    return json.data;
+  } catch (error) {
+    console.error('Network error fetching from Strapi:', error);
+    throw new Error('Network error fetching API from Strapi');
   }
-
-  return json.data;
 }
 
 export async function getPosts() {
   const data = await fetchAPI(`
-    query {
+    query GetBlogPosts {
       blogPosts {
-        data {
-          attributes {
-            title
-            slug
-            excerpt
-            author {
-              data {
-                attributes {
-                  name
-                }
-              }
-            }
-          }
-        }
+        title
+        slug
+        excerpt
+        author
+        publishedAt
       }
     }
   `);
-  return data.blogPosts.data;
+  // fetchAPI now returns the correct data object, so data.blogPosts is the array.
+  return data.blogPosts;
 }
 
 export async function getPostBySlug(slug: string) {
   const data = await fetchAPI(
     `
-    query PostBySlug($slug: String!) {
+    query GetBlogPostBySlug($slug: String!) {
       blogPosts(filters: { slug: { eq: $slug } }) {
-        data {
-          attributes {
-            title
-            content
-            author {
-              data {
-                attributes {
-                  name
-                }
-              }
-            }
-          }
-        }
+        title
+        slug
+        content
+        author
+        publishedAt
       }
     }
   `,
@@ -79,5 +72,12 @@ export async function getPostBySlug(slug: string) {
       },
     }
   );
-  return data.blogPosts.data[0];
+  
+  console.log('Raw Strapi response for slug:', slug, data);
+  
+  // The result is an array, and we want the first item.
+  const post = data.blogPosts[0];
+  console.log('Individual post data:', post);
+  
+  return post;
 }
