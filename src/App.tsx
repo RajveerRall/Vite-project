@@ -1,6 +1,7 @@
 // src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { BookProvider, useBook } from './context/BookContext';
 import { useAuth } from './context/AuthContext';
 import Library from './components/Library';
@@ -67,11 +68,13 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <Router>
-      <BookProvider>
-        <AppContent />
-      </BookProvider>
-    </Router>
+    <HelmetProvider>
+      <Router>
+        <BookProvider>
+          <AppContent />
+        </BookProvider>
+      </Router>
+    </HelmetProvider>
   );
 };
 
