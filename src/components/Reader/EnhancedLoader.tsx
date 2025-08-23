@@ -84,4 +84,4 @@ const EnhancedLoader: React.FC<EnhancedLoaderProps> = ({
   );
 };
 
-export default EnhancedLoader; 
+export default EnhancedLoader;

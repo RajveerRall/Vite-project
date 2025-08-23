@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { Settings, X, Plus, Minus } from 'lucide-react';
+import { Settings, X, Plus, Minus, ChevronDown } from 'lucide-react';
 import { Theme } from '../../hooks/useReaderSettings';
 
 interface SettingsWidgetProps {
@@ -7,6 +7,8 @@ interface SettingsWidgetProps {
   fontSize: number;
   theme: Theme;
   isSettingsOpen: boolean;
+  selectedVoice: string;
+  ttsSpeed: number;
   
   // Font controls
   increaseFontSize: () => void;
@@ -16,9 +18,29 @@ interface SettingsWidgetProps {
   // Theme controls
   changeTheme: (newTheme: Theme) => void;
   
+  // TTS controls
+  onVoiceChange: (voice: string) => void;
+  onSpeedChange: (speed: number) => void;
+  
   // Widget controls
   closeSettings: () => void;
 }
+
+const availableVoices = [
+  { id: 'en-US-AvaMultilingualNeural', name: 'Ava (F)' },
+  { id: 'en-US-EmmaMultilingualNeural', name: 'Emma (F)' },
+  { id: 'en-US-BrianMultilingualNeural', name: 'Brian (M)' },
+  { id: 'en-US-AndrewMultilingualNeural', name: 'Andrew (M)' },
+];
+
+const availableSpeeds = [
+  { value: 0.5, label: '0.5x' },
+  { value: 0.75, label: '0.75x' },
+  { value: 1, label: 'Normal' },
+  { value: 1.25, label: '1.25x' },
+  { value: 1.5, label: '1.5x' },
+  { value: 2, label: '2x' },
+];
 
 /**
  * Floating settings widget component
@@ -28,10 +50,14 @@ export const SettingsWidget: React.FC<SettingsWidgetProps> = ({
   fontSize,
   theme,
   isSettingsOpen,
+  selectedVoice,
+  ttsSpeed,
   increaseFontSize,
   decreaseFontSize,
   resetFontSize,
   changeTheme,
+  onVoiceChange,
+  onSpeedChange,
   closeSettings,
 }) => {
   if (!isSettingsOpen) {
@@ -147,6 +173,56 @@ export const SettingsWidget: React.FC<SettingsWidgetProps> = ({
           <p className="text-xs text-gray-500">
             Choose a comfortable reading theme for your eyes
           </p>
+        </div>
+
+        {/* TTS Voice Selection */}
+        <div className="border-t border-gray-100 pt-4 mt-4 space-y-3">
+          <label htmlFor="tts-voice" className="block text-sm font-medium text-gray-700">Read Aloud Voice</label>
+          <div className="relative">
+            <select
+              id="tts-voice"
+              value={selectedVoice}
+              onChange={(e) => onVoiceChange(e.target.value)}
+              className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-amber-400"
+            >
+              {availableVoices.map(voice => (
+                <option key={voice.id} value={voice.id}>{voice.name}</option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+
+        {/* TTS Speed Control */}
+        <div className="border-t border-gray-100 pt-4 mt-4 space-y-3">
+          <label className="block text-sm font-medium text-gray-700">Read Aloud Speed</label>
+          <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => onSpeedChange(Math.max(0.5, parseFloat((ttsSpeed - 0.1).toFixed(1))))}
+                className="p-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-white"
+                aria-label="Decrease reading speed"
+                title="Decrease reading speed by 0.1"
+              >
+                <Minus className="w-5 h-5" />
+              </button>
+              <span
+                className="px-4 py-2 text-sm text-gray-700 font-medium bg-white rounded-lg border border-gray-200 min-w-[4rem] text-center"
+              >
+                {ttsSpeed.toFixed(1)}x
+              </span>
+              <button
+                onClick={() => onSpeedChange(Math.min(2.0, parseFloat((ttsSpeed + 0.1).toFixed(1))))}
+                className="p-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-white"
+                aria-label="Increase reading speed"
+                title="Increase reading speed by 0.1"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </>

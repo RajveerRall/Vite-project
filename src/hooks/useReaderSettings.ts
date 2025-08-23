@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export type Theme = 'light' | 'dark' | 'sepia';
 
@@ -16,13 +16,21 @@ export interface UseReaderSettingsReturn {
   // Theme controls
   changeTheme: (newTheme: Theme) => void;
   
+  // TTS Settings
+  selectedVoice: string;
+  ttsSpeed: number;
+  
+  // TTS Controls
+  setSelectedVoice: (voice: string) => void;
+  setTtsSpeed: (speed: number) => void;
+  
   // Settings widget controls
   toggleSettings: () => void;
   closeSettings: () => void;
 }
 
 /**
- * Custom hook for managing reader settings (font size, theme, settings widget)
+ * Custom hook for managing reader settings (font size, theme, TTS, settings widget)
  * Handles localStorage persistence and keyboard shortcuts automatically
  */
 export const useReaderSettings = (): UseReaderSettingsReturn => {
@@ -36,6 +44,18 @@ export const useReaderSettings = (): UseReaderSettingsReturn => {
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('reader-theme') as Theme;
     return savedTheme || 'light'; // Default to light theme
+  });
+  
+  // TTS Voice state - persisted in localStorage
+  const [selectedVoice, setSelectedVoice] = useState<string>(() => {
+    const savedVoice = localStorage.getItem('reader-tts-voice');
+    return savedVoice || 'en-US-BrianMultilingualNeural'; // Default voice
+  });
+  
+  // TTS Speed state - persisted in localStorage
+  const [ttsSpeed, setTtsSpeed] = useState<number>(() => {
+    const savedSpeed = localStorage.getItem('reader-tts-speed');
+    return savedSpeed ? parseFloat(savedSpeed) : 1; // Default 1x speed
   });
   
   // Settings widget state
@@ -68,6 +88,18 @@ export const useReaderSettings = (): UseReaderSettingsReturn => {
   const changeTheme = useCallback((newTheme: Theme) => {
     setTheme(newTheme);
     localStorage.setItem('reader-theme', newTheme);
+  }, []);
+
+  // TTS Voice management function
+  const handleVoiceChange = useCallback((voice: string) => {
+    setSelectedVoice(voice);
+    localStorage.setItem('reader-tts-voice', voice);
+  }, []);
+
+  // TTS Speed management function
+  const handleSpeedChange = useCallback((speed: number) => {
+    setTtsSpeed(speed);
+    localStorage.setItem('reader-tts-speed', speed.toString());
   }, []);
 
   // Settings widget control functions
@@ -120,6 +152,8 @@ export const useReaderSettings = (): UseReaderSettingsReturn => {
     fontSize,
     theme,
     isSettingsOpen,
+    selectedVoice,
+    ttsSpeed,
     
     // Font controls
     increaseFontSize,
@@ -128,6 +162,10 @@ export const useReaderSettings = (): UseReaderSettingsReturn => {
     
     // Theme controls
     changeTheme,
+    
+    // TTS controls
+    setSelectedVoice: handleVoiceChange,
+    setTtsSpeed: handleSpeedChange,
     
     // Settings widget
     toggleSettings,

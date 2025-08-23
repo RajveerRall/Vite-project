@@ -40,6 +40,9 @@ interface UseReaderTTSProps {
   currentPageDisplay: number;
   currentPageText: string;
   currentContent: string;
+  // New TTS settings
+  selectedVoice?: string;
+  ttsSpeed?: number;
 }
 
 const LOCAL_STORAGE_PREFIX = 'ebookReaderProgress_';
@@ -53,7 +56,9 @@ export const useReaderTTS = ({
   bookTitle,
   currentPageDisplay,
   currentPageText,
-  currentContent
+  currentContent,
+  selectedVoice = 'en-US-BrianMultilingualNeural',
+  ttsSpeed = 1
 }: UseReaderTTSProps): UseReaderTTSReturn => {
   // === TTS Playback States ===
   const [chunks, setChunks] = useState<string[]>([]);
@@ -189,7 +194,22 @@ export const useReaderTTS = ({
         const textChunk = chunksToFetch[i];
         // Use configured TTS API URL or default to relative path
         const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
-        let response = await fetch(`${apiUrl}?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
+        
+        // Build query parameters with voice and speed
+        const params = new URLSearchParams({
+          text: textChunk,
+          voice: selectedVoice,
+          format: 'audio-24khz-48kbitrate-mono-mp3'
+        });
+        
+        // Add speed parameter if not 1 (normal speed)
+        if (ttsSpeed !== 1) {
+          const speedPercent = Math.round((ttsSpeed - 1) * 100);
+          const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
+          params.append('rate', speedParam);
+        }
+        
+        let response = await fetch(`${apiUrl}?${params.toString()}`);
         
         if (!response.ok) continue;
 
@@ -207,7 +227,7 @@ export const useReaderTTS = ({
         console.warn(`[Prefetch] Failed to pre-fetch chunk #${chunkIndex}`, error);
       }
     }
-  }, [chunks, currentChunkIndex]);
+  }, [chunks, currentChunkIndex, selectedVoice, ttsSpeed]);
 
   // === Play chunk function ===
   const playChunk = useCallback(async (index: number) => {
@@ -260,8 +280,22 @@ export const useReaderTTS = ({
       console.log(`[playChunk] Playing chunk #${index} from NETWORK.`);
       try {
         const textChunk = chunks[index];
-        // Use relative TTS API URL
-        let response = await fetch(`/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
+        
+        // Build query parameters with voice and speed
+        const params = new URLSearchParams({
+          text: textChunk,
+          voice: selectedVoice,
+          format: 'audio-24khz-48kbitrate-mono-mp3'
+        });
+        
+        // Add speed parameter if not 1 (normal speed)
+        if (ttsSpeed !== 1) {
+          const speedPercent = Math.round((ttsSpeed - 1) * 100);
+          const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
+          params.append('rate', speedParam);
+        }
+        
+        let response = await fetch(`/api/tts?${params.toString()}`);
         
         if (!response.ok) throw new Error(`Failed to fetch TTS audio: ${response.statusText}`);
 
@@ -283,7 +317,7 @@ export const useReaderTTS = ({
         }
       }
     }
-  }, [chunks, clearResumeIndex, prefetchChunks, readerInstanceId]);
+  }, [chunks, clearResumeIndex, prefetchChunks, readerInstanceId, selectedVoice, ttsSpeed]);
 
   // === Pause playback ===
   const pausePlayback = useCallback(() => {
