@@ -187,8 +187,8 @@ export const useReaderTTS = ({
       try {
         const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
         const textChunk = chunksToFetch[i];
-        // Temporary: Add api.yoread.com as fallback for testing
-        const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : 'https://api.yoread.com/api/tts';
+        // Use configured TTS API URL or default to relative path
+        const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
         let response = await fetch(`${apiUrl}?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
         
         if (!response.ok) continue;
@@ -260,8 +260,8 @@ export const useReaderTTS = ({
       console.log(`[playChunk] Playing chunk #${index} from NETWORK.`);
       try {
         const textChunk = chunks[index];
-        // Temporary: Use api.yoread.com as fallback for testing
-        let response = await fetch(`https://api.yoread.com/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
+        // Use relative TTS API URL
+        let response = await fetch(`/api/tts?text=${encodeURIComponent(textChunk)}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`);
         
         if (!response.ok) throw new Error(`Failed to fetch TTS audio: ${response.statusText}`);
 

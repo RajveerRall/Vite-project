@@ -54,7 +54,7 @@ const BackgroundAudioIntegration: React.FC<BackgroundAudioIntegrationProps> = ({
       // This is where you'd integrate with your TTS service
       // For now, we'll create placeholder URLs
       const urls = chunks.map((_, index) => 
-        `https://api.yoread.com/api/tts?text=${encodeURIComponent(chunks[index])}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`
+        `/api/tts?text=${encodeURIComponent(chunks[index])}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`
       );
       setAudioUrls(urls);
     }
