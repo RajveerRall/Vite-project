@@ -205,8 +205,7 @@ export const useReaderTTS = ({
         // Add speed parameter if not 1 (normal speed)
         if (ttsSpeed !== 1) {
           const speedPercent = Math.round((ttsSpeed - 1) * 100);
-          const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
-          params.append('rate', speedParam);
+          params.append('rate', speedPercent.toString());
         }
         
         let response = await fetch(`${apiUrl}?${params.toString()}`);
@@ -291,8 +290,7 @@ export const useReaderTTS = ({
         // Add speed parameter if not 1 (normal speed)
         if (ttsSpeed !== 1) {
           const speedPercent = Math.round((ttsSpeed - 1) * 100);
-          const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
-          params.append('rate', speedParam);
+          params.append('rate', speedPercent.toString());
         }
         
         let response = await fetch(`/api/tts?${params.toString()}`);
