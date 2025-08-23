@@ -202,10 +202,12 @@ export const useReaderTTS = ({
           format: 'audio-24khz-48kbitrate-mono-mp3'
         });
         
-        // Add speed parameter if not 1 (normal speed)
+          // Fix: Use set() instead of append() to avoid double encoding
         if (ttsSpeed !== 1) {
           const speedPercent = Math.round((ttsSpeed - 1) * 100);
-          params.append('rate', speedPercent.toString());
+          const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
+            // Fix: Use set() instead of append() to avoid double encoding
+          params.set('rate', speedParam);
         }
         
         let response = await fetch(`${apiUrl}?${params.toString()}`);
