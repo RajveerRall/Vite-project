@@ -1,1 +1,94 @@
-<header class="reader-header"><div class="reader-header-mobile md:hidden"><div class="flex items-center justify-between mb-2"><button class="back-button text-sm font-medium text-gray-600 hover:text-amber-800 flex items-center gap-x-1"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left w-4 h-4"><path d="m15 18-6-6 6-6"></path></svg><span class="hidden sm:inline">Back to Library</span><span class="sm:hidden">Back</span></button><button class="mobile-toc-button md:hidden p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2" aria-label="Toggle Table of Contents"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu w-5 h-5"><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg></button></div><div class="text-center"><h2 class="book-title text-lg sm:text-xl">1984</h2><p class="book-author text-sm text-gray-600">Unknown Author</p></div><div class="controls-container-mobile mt-3"><div class="flex items-center justify-between gap-x-6"><div class="flex items-center gap-x-2"><button class="control-button" aria-label="Previous page" title="Previous page"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left "><path d="m15 18-6-6 6-6"></path></svg></button><span class="page-info">2 / 2</span><button class="control-button" aria-label="Next page" title="Next page" disabled=""><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right "><path d="m9 18 6-6-6-6"></path></svg></button></div><div class="flex items-center gap-x-3"><button class="control-button " aria-label="Read aloud (select text or from start of page)" title="Read aloud (select text or from start of page)"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-play-circle "><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg><span class="button-text">Read</span></button><button class="control-button hidden md:flex " aria-label="Audiobook mode" title="Audiobook mode"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-headphones "><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"></path></svg><span class="button-text">Audiobook</span></button></div></div></div><div class="flex items-center justify-center gap-2 mt-2"><button class="settings-button p-2 text-gray-600 hover:text-amber-800 transition-colors" aria-label="Open reading settings" title="Reading settings"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings w-5 h-5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div></div><div class="reader-header-desktop hidden md:flex"><div class="reader-left"><button class="back-button text-sm font-medium text-gray-600 hover:text-amber-800 flex items-center gap-x-1"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left w-4 h-4"><path d="m15 18-6-6 6-6"></path></svg>Back to Library</button></div><div class="reader-center"><h2 class="book-title">1984</h2><p class="book-author">Unknown Author</p></div><div class="reader-right"><button class="settings-button p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2" aria-label="Open reading settings" title="Reading settings"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings w-5 h-5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg></button><button class="mobile-toc-button md:hidden p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2" aria-label="Toggle Table of Contents"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu w-5 h-5"><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg></button><div class="controls-container"><div class="flex items-center justify-between gap-x-6"><div class="flex items-center gap-x-2"><button class="control-button" aria-label="Previous page" title="Previous page"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left "><path d="m15 18-6-6 6-6"></path></svg></button><span class="page-info">2 / 2</span><button class="control-button" aria-label="Next page" title="Next page" disabled=""><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right "><path d="m9 18 6-6-6-6"></path></svg></button></div><div class="flex items-center gap-x-3"><button class="control-button " aria-label="Read aloud (select text or from start of page)" title="Read aloud (select text or from start of page)"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-play-circle "><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg><span class="button-text">Read</span></button><button class="control-button hidden md:flex " aria-label="Audiobook mode" title="Audiobook mode"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-headphones "><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"></path></svg><span class="button-text">Audiobook</span></button></div></div></div></div></div></header>
+I can see the issue! You've made inconsistent changes to the file. Looking at your edits:
+
+1. **In the prefetch function**: You're using `params.set('rate', speedParam)` with the `%` symbol
+2. **In the playChunk function**: You're using `params.append('rate', speedPercent.toString())` without the `%` symbol
+
+This inconsistency is causing the problem. Both functions need to use the same format.
+
+## The Fix
+
+You need to make both functions consistent. Here's the corrected version:
+
+```typescript:src/hooks/useReaderTTS.ts
+// ... existing code ...
+
+  // === Prefetch chunks function ===
+  const prefetchChunks = useCallback(async (startIndex: number) => {
+    // ... existing code ...
+    
+    try {
+      const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
+      const textChunk = chunksToFetch[i];
+      const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
+      
+      // Build query parameters with voice and speed
+      const params = new URLSearchParams({
+        text: textChunk,
+        voice: selectedVoice,
+        format: 'audio-24khz-48kbitrate-mono-mp3'
+      });
+      
+      // Add speed parameter if not 1 (normal speed)
+      if (ttsSpeed !== 1) {
+        const speedPercent = Math.round((ttsSpeed - 1) * 100);
+        const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
+        // Fix: Use set() instead of append() to avoid double encoding
+        params.set('rate', speedParam);
+      }
+      
+      let response = await fetch(`${apiUrl}?${params.toString()}`);
+      // ... rest of existing code ...
+    } catch (error) {
+      // ... existing error handling ...
+    }
+  }, [chunks, currentChunkIndex, selectedVoice, ttsSpeed]);
+
+  // === Play chunk function ===
+  const playChunk = useCallback(async (index: number) => {
+    // ... existing code until the fetch part ...
+    
+    if (!audioBuffer.current[index]) {
+      console.log(`[playChunk] Playing chunk #${index} from NETWORK.`);
+      try {
+        const textChunk = chunks[index];
+        
+        // Build query parameters with voice and speed
+        const params = new URLSearchParams({
+          text: textChunk,
+          voice: selectedVoice,
+          format: 'audio-24khz-48kbitrate-mono-mp3'
+        });
+        
+        // Add speed parameter if not 1 (normal speed)
+        if (ttsSpeed !== 1) {
+          const speedPercent = Math.round((ttsSpeed - 1) * 100);
+          const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
+          // Fix: Use set() instead of append() to avoid double encoding
+          params.set('rate', speedParam);
+        }
+        
+        let response = await fetch(`/api/tts?${params.toString()}`);
+        // ... rest of existing code ...
+      } catch (error) {
+        // ... existing error handling ...
+      }
+    }
+  }, [chunks, clearResumeIndex, prefetchChunks, readerInstanceId, selectedVoice, ttsSpeed]);
+
+// ... rest of existing code ...
+```
+
+## Key Points:
+
+1. **Both functions must use the same format**: `params.set('rate', speedParam)` with the `%` symbol
+2. **Use `params.set()` not `params.append()`**: This prevents duplicate parameters and encoding issues
+3. **Always include the `%` symbol**: This matches what your Python server expects
+
+## What You Need to Do:
+
+1. **Fix the playChunk function** to match the prefetch function
+2. **Use `params.set('rate', speedParam)`** in both places
+3. **Include the `%` symbol** in both places
+4. **Rebuild and redeploy** your application
+
+The inconsistency between the two functions is why you're seeing both `rate=-20%25` and `rate=-20` in your logs.

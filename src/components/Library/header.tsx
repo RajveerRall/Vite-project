@@ -73,6 +73,7 @@
 
 
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from "../../context/AuthContext";
 import { AuthForm } from "../Auth/AuthForm";
 
@@ -101,8 +102,9 @@ const Header: React.FC = () => {
         <div className="flex items-center justify-between h-16">
 
           {/* === Left Side: The App Logo/Name === */}
-          <div className="flex-shrink-0">
-            <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">YoRead</h1>
+          <div className="flex items-center space-x-4">
+            <Link to="/" className="text-xl sm:text-2xl font-semibold text-gray-800">YoRead</Link>
+            <Link to="/blog" className="text-sm font-medium text-gray-600 hover:text-gray-800">Blog</Link>
           </div>
 
           {/* === Right Side: Authentication Controls === */}
