@@ -67,7 +67,11 @@ const Reader: React.FC = () => {
     resetFontSize,
     changeTheme,
     toggleSettings,
-    closeSettings
+    closeSettings,
+    selectedVoice,
+    ttsSpeed,
+    setSelectedVoice,
+    setTtsSpeed
   } = settingsHook;
   
   // TTS state and functions from custom hook - moved to top level to follow Rules of Hooks
@@ -75,7 +79,9 @@ const Reader: React.FC = () => {
     bookTitle,
     currentPageDisplay,
     currentPageText,
-    currentContent
+    currentContent,
+    selectedVoice,
+    ttsSpeed
   });
   
   // TTS functionality
@@ -107,6 +113,23 @@ const Reader: React.FC = () => {
 
   // Mobile TOC logic moved to MobileTOCDrawer component
 
+
+  // === TTS Settings Handlers ===
+  const handleVoiceChange = (voice: string) => {
+    setSelectedVoice(voice);
+    // Stop current TTS if playing to apply new voice
+    if (isSpeaking || isPaused) {
+      handleStopTTS();
+    }
+  };
+
+  const handleSpeedChange = (speed: number) => {
+    setTtsSpeed(speed);
+    // Stop current TTS if playing to apply new speed
+    if (isSpeaking || isPaused) {
+      handleStopTTS();
+    }
+  };
 
   // Navigation handlers wrapped to stop TTS
   const handleNavigateToTocItem = useCallback((item: TOCItem) => {
@@ -282,7 +305,7 @@ const Reader: React.FC = () => {
       </div>
 
       {/* Desktop: Original horizontal layout */}
-      <div className="reader-header-desktop hidden md:flex">
+      <div className="reader-header-desktop hidden md:flex items-center justify-between w-full">
         <div className="reader-left">
           <button 
             onClick={handleCloseBookCB} 
@@ -298,7 +321,7 @@ const Reader: React.FC = () => {
           <p className="book-author">{bookAuthor}</p>
         </div>
         
-        <div className="reader-right">
+        <div className="reader-right flex items-center">
           {/* Settings Button */}
           {isEnhanced && (
             <button 
@@ -423,6 +446,10 @@ const Reader: React.FC = () => {
         decreaseFontSize={decreaseFontSize}
         resetFontSize={resetFontSize}
         changeTheme={changeTheme}
+        selectedVoice={selectedVoice}
+        onVoiceChange={handleVoiceChange}
+        ttsSpeed={ttsSpeed}
+        onSpeedChange={handleSpeedChange}
         closeSettings={closeSettings}
       />
     )}
