@@ -1,19 +1,16 @@
 // src/types/global.d.ts
 
-// This tells TypeScript that we are extending the global Window interface.
-declare global {
-  interface Window {
-    // We are telling TS that the window object might have a gtag property.
-    // This function can be called in two ways based on Google's docs:
-    // gtag('js', new Date());
-    // gtag('event', 'event_name', { ...params });
-    gtag?: (
-      command: 'config' | 'event' | 'js',
-      target: string | Date,
-      params?: { [key: string]: any }
-    ) => void;
-  }
+interface Window {
+  gtag: (...args: any[]) => void;
+  dataLayer: any[];
+  amplitude: {
+    track: (eventName: string, eventProperties?: Record<string, any>) => void;
+    setUserId: (userId: string) => void;
+    setUserProperties: (properties: Record<string, any>) => void;
+    add: (plugin: any) => void;
+    init: (apiKey: string, options?: any) => void;
+  };
+  sessionReplay: {
+    plugin: (options: any) => any;
+  };
 }
-
-// This export statement is needed to make the file a module.
-export {};

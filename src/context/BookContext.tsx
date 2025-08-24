@@ -865,7 +865,15 @@ useEffect(() => {
         syncBookToCloud(newBook);
       }
 
-      trackEvent('add_book', { method: 'upload' });
+      trackEvent('add_book', { 
+        method: 'upload',
+        book_title: newBook.title,
+        book_author: newBook.author || 'Unknown',
+        book_id: newBook.id,
+        has_cover: !!newBook.coverUrl,
+        platform: 'web',
+        timestamp: new Date().toISOString()
+      });
 
     } catch (error) {
       console.error('[addBook] Error processing EPUB file:', error);
@@ -1133,7 +1141,14 @@ useEffect(() => {
     if (bookToRemove?.coverUrl?.startsWith('blob:')) {
       URL.revokeObjectURL(bookToRemove.coverUrl);
     }
-    trackEvent('remove_book');
+    trackEvent('remove_book', {
+      book_title: bookToRemove?.title || 'Unknown',
+      book_author: bookToRemove?.author || 'Unknown',
+      book_id: bookId,
+      had_cover: !!bookToRemove?.coverUrl,
+      platform: 'web',
+      timestamp: new Date().toISOString()
+    });
     console.log(`[removeBook] Removing book ID: ${bookId}`);
     
     // Remove from local state
@@ -1376,7 +1391,14 @@ useEffect(() => {
       setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? { ...b, lastRead: new Date().toISOString() } : b));
       // 4. TRACK THE EVENT AND START THE TIMER
       trackEvent('open_book', {
-        book_title: book.title, // Add context about the book
+        book_title: book.title,
+        book_author: book.author || 'Unknown',
+        book_id: book.id,
+        total_pages: currentFileOrder.length,
+        starting_page: pageIdxToLoadInitially,
+        has_last_chapter: !!book.lastChapter,
+        platform: 'web',
+        timestamp: new Date().toISOString()
       });
       readingStartTimestamp.current = Date.now(); // Start the timer
       console.timeEnd(`[Performance] Opening ${book.title}`);
@@ -1396,7 +1418,13 @@ useEffect(() => {
       
       trackEvent('close_book', {
         book_title: currentBook.title,
+        book_author: currentBook.author || 'Unknown',
+        book_id: currentBook.id,
         reading_duration_seconds: durationInSeconds,
+        final_page: currentPageDisplay,
+        total_pages_read: currentPageDisplay + 1,
+        platform: 'web',
+        timestamp: new Date().toISOString()
       });
 
       readingStartTimestamp.current = null; // Reset the timer
@@ -1417,6 +1445,12 @@ useEffect(() => {
       trackEvent('turn_page', {
         direction: 'next',
         page_number: currentPageToLoad + 1,
+        book_title: currentBook?.title || 'Unknown',
+        book_id: currentBook?.id || 'Unknown',
+        total_pages: totalPages,
+        progress_percentage: Math.round(((currentPageToLoad + 1) / totalPages) * 100),
+        platform: 'web',
+        timestamp: new Date().toISOString()
       });
       console.log(`[nextPage] current: ${currentPageToLoad}, total: ${totalPages}`);
       setCurrentPageToLoad(prev => prev + 1);
@@ -1429,6 +1463,12 @@ useEffect(() => {
       trackEvent('turn_page', {
         direction: 'previous',
         page_number: currentPageToLoad - 1,
+        book_title: currentBook?.title || 'Unknown',
+        book_id: currentBook?.id || 'Unknown',
+        total_pages: totalPages,
+        progress_percentage: Math.round(((currentPageToLoad - 1) / totalPages) * 100),
+        platform: 'web',
+        timestamp: new Date().toISOString()
       });
       console.log(`[prevPage] current: ${currentPageToLoad}`);
       setCurrentPageToLoad(prev => prev - 1);
@@ -1446,6 +1486,12 @@ useEffect(() => {
       trackEvent('use_feature', {
         feature_name: 'table_of_contents',
         chapter_title: item.label,
+        book_title: currentBook?.title || 'Unknown',
+        book_id: currentBook?.id || 'Unknown',
+        target_page: fileIndex + 1,
+        total_pages: totalPages,
+        platform: 'web',
+        timestamp: new Date().toISOString()
       });
       console.log(`[navigateToTocItem] Found file at index: ${fileIndex}. Loading.`);
       setCurrentPageToLoad(fileIndex);
@@ -1463,7 +1509,13 @@ useEffect(() => {
     // 8. TRACK TEXT-TO-SPEECH USAGE
     if (!isPlayModeVisible) { // Only track when the user STARTS it
         trackEvent('use_feature', {
-            feature_name: 'text_to_speech'
+            feature_name: 'text_to_speech',
+            book_title: currentBook?.title || 'Unknown',
+            book_id: currentBook?.id || 'Unknown',
+            current_page: currentPageDisplay,
+            total_pages: totalPages,
+            platform: 'web',
+            timestamp: new Date().toISOString()
         });
     }
     setIsPlayModeVisible(!isPlayModeVisible);

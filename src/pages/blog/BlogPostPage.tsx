@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { getPostBySlug } from '../../services/strapi';
 import SEO from '../../components/Common/SEO';
+import Header from '../../components/Library/header';
 import { 
   calculateReadingTime, 
   calculateWordCount, 
@@ -126,7 +127,8 @@ const BlogPostPage: React.FC = () => {
         readingTime={readingTime}
         wordCount={wordCount}
       />
-      <div className="min-h-screen bg-gray-50">
+      <Header />
+      <div className="min-h-screen bg-gray-50 pt-16">
         {/* Back Navigation */}
         <div className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-6 py-4">
