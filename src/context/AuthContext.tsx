@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
+import { identifyUser } from '../lib/analytics';
 // import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
@@ -35,6 +36,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: { session } } = await supabase.auth.getSession();
       console.timeEnd(timerName);
       setUser(session?.user ?? null);
+      
+      // Identify user in Amplitude if they're already signed in
+      if (session?.user) {
+        identifyUser(session.user.id, {
+          user_id: session.user.id,
+          email: session.user.email,
+          sign_in_method: 'existing_session',
+          platform: 'web',
+          auth_event: 'initial_session',
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       setLoading(false);
     };
 
@@ -47,6 +61,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
           setUser(session?.user ?? null);
+          
+          // Identify user in Amplitude when they sign in
+          if (session?.user) {
+            identifyUser(session.user.id, {
+              user_id: session.user.id,
+              email: session.user.email,
+              sign_in_method: 'email',
+              platform: 'web',
+              auth_event: event,
+              timestamp: new Date().toISOString()
+            });
+          }
+          
           setLoading(false);
         }
       );
