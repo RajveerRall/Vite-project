@@ -82,9 +82,9 @@ const Header: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const handleSignInClick = async () => {
-    if (!isAuthenticated && !loading) {
-      await checkExistingSession(); // Check for existing session when user wants to sign in
-    }
+    // Don't check for existing session - user should manually sign in
+    // This prevents auto-authentication from browser session tokens
+    // Users must explicitly enter their credentials to sign in
     setShowAuthModal(true);
   };
 

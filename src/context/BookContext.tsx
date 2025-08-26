@@ -181,6 +181,59 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     loadBooksFromStorage();
   }, [userId]); // Depend on userId so it reloads when user signs in/out
 
+  // *** NEW: Clean up user-specific data when user signs out ***
+  useEffect(() => {
+    if (!userId && isInitialLoadComplete) {
+      // User has signed out, clear all user-specific books and reset to default
+      console.log('[BookContext] User signed out, clearing user-specific books');
+      
+      const clearUserData = async () => {
+        try {
+          // Clear all books from state
+          setBooks([]);
+          
+          // Clear all user-specific keys from localforage
+          const allKeys = await localforage.keys();
+          const userKeys = allKeys.filter(key => 
+            key.startsWith('user_') && 
+            (key.includes('book_metadata_') || key.includes('book_file_'))
+          );
+          
+          for (const key of userKeys) {
+            await localforage.removeItem(key);
+            console.log(`[BookContext] Removed user key: ${key}`);
+          }
+          
+          // Reset flags
+          defaultBookLoadAttempted.current = false;
+          setIsInitialLoadComplete(false);
+          
+          // Clear current book state
+          setCurrentBook(null);
+          setIsReading(false);
+          setBookZip(null);
+          setOpfPath('');
+          setHtmlFiles([]);
+          setToc([]);
+          setCurrentContent('');
+          setBookTitle('');
+          setBookAuthor('');
+          setIsPlayModeVisible(false);
+          setCurrentPageText('');
+          setCurrentPageToLoad(0);
+          setCurrentPageDisplay(0);
+          setTotalPages(0);
+          
+          console.log('[BookContext] User data cleared, ready for new user or default book');
+        } catch (error) {
+          console.error('[BookContext] Error clearing user data:', error);
+        }
+      };
+      
+      clearUserData();
+    }
+  }, [userId, isInitialLoadComplete]);
+
 
   // =================================================================
 // PASTE THIS ENTIRE BLOCK INTO YOUR BookContext.tsx FILE

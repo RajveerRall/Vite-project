@@ -30,16 +30,50 @@ export default defineConfig({
           </script>
           <!-- End Google tag (gtag.js) -->
 
-          <!-- Amplitude Analytics -->
-          <script src="https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz"></script>
-          <script src="https://cdn.amplitude.com/libs/plugin-session-replay-browser-1.8.0-min.js.gz"></script>
+          <!-- Amplitude Analytics with Error Handling -->
           <script>
-            window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
-            window.amplitude.init('e64dc0aea57a1070515c6b210ccbca94', {
-              "autocapture": {
-                "elementInteractions": true
+            // Initialize analytics object to prevent errors
+            window.analytics = window.analytics || {};
+            
+            // Load Amplitude with error handling
+            (function() {
+              try {
+                // Load analytics browser
+                var script1 = document.createElement('script');
+                script1.src = 'https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz';
+                script1.onload = function() {
+                  // Load session replay plugin
+                  var script2 = document.createElement('script');
+                  script2.src = 'https://cdn.amplitude.com/libs/plugin-session-replay-browser-1.8.0-min.js.gz';
+                  script2.onload = function() {
+                    // Initialize Amplitude with error handling
+                    try {
+                      if (window.amplitude && window.sessionReplay) {
+                        window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
+                        window.amplitude.init('e64dc0aea57a1070515c6b210ccbca94', {
+                          "autocapture": {
+                            "elementInteractions": true
+                          }
+                        });
+                        console.log('[Analytics] Amplitude initialized successfully');
+                      }
+                    } catch (initError) {
+                      console.warn('[Analytics] Amplitude initialization failed:', initError);
+                    }
+                  };
+                  script2.onerror = function() {
+                    console.warn('[Analytics] Session replay plugin failed to load');
+                  };
+                  document.head.appendChild(script2);
+                };
+                script1.onerror = function() {
+                  console.warn('[Analytics] Amplitude analytics failed to load');
+                };
+                document.head.appendChild(script1);
+              } catch (error) {
+                console.warn('[Analytics] Failed to setup Amplitude:', error);
               }
-            });
+            })();
           </script>
           <!-- End Amplitude Analytics -->
           `
