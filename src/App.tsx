@@ -33,35 +33,23 @@ const MainApp: React.FC = () => {
 const AppContent: React.FC = () => {
   const { loading } = useAuth();
 
-  React.useEffect(() => {
-    if (loading) {
-      console.log('[Perf] UI gated by auth session fetch...');
-      const timerName = `[Perf] auth-loading-gate-${Date.now()}`;
-      console.time(timerName);
-      const timerRef = { current: timerName };
-      return () => {
-        if (timerRef.current) {
-          console.timeEnd(timerRef.current);
-        }
-      };
-    } else {
-      console.log('[Perf] Auth resolved. Rendering app.');
-    }
-  }, [loading]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg text-gray-600">Loading...</div>
-      </div>
-    );
-  }
-
+  // *** NEW: Don't gate everything behind auth loading ***
   return (
     <Routes>
-      <Route path="/" element={<MainApp />} />
+      {/* Public routes - no auth required */}
       <Route path="/blog" element={<BlogListPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />
+      
+      {/* Protected routes - auth required */}
+      <Route path="/" element={
+        loading ? (
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-lg text-gray-600">Loading...</div>
+          </div>
+        ) : (
+          <MainApp />
+        )
+      } />
     </Routes>
   );
 };

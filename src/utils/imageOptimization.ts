@@ -35,7 +35,6 @@ export function getResponsiveCoverUrls(
   
   // Handle external URLs (Supabase CDN, etc.) - return as-is
   if (baseCoverPath.startsWith('http://') || baseCoverPath.startsWith('https://')) {
-    console.log('[ImageOptimization] External URL detected, returning as-is:', baseCoverPath);
     return {
       src: baseCoverPath,
       srcSet: baseCoverPath,
@@ -47,9 +46,6 @@ export function getResponsiveCoverUrls(
   const pathParts = baseCoverPath.split('/');
   const filename = pathParts[pathParts.length - 1];
   
-  // Debug logging
-  console.log('[ImageOptimization] Processing:', { baseCoverPath, filename });
-  
   // Check if this is already a responsive image (has -300w.webp pattern)
   const responsivePattern = /-(\d+)w\.(webp|svg)$/;
   const match = filename.match(responsivePattern);
@@ -58,8 +54,6 @@ export function getResponsiveCoverUrls(
     // This is already a responsive image, extract the base name
     const baseName = filename.replace(responsivePattern, '');
     const extension = match[2];
-    
-    console.log('[ImageOptimization] Responsive image detected:', { baseName, extension });
     
     // Generate different sizes
     const srcSet = Object.entries(sizes)
@@ -75,15 +69,11 @@ export function getResponsiveCoverUrls(
     // CSS sizes attribute for responsive behavior
     const sizesAttr = '(max-width: 640px) 200px, (max-width: 1024px) 300px, 400px';
     
-    console.log('[ImageOptimization] Generated responsive URLs:', { src, srcSet, sizes: sizesAttr });
-    
     return { src, srcSet, sizes: sizesAttr };
   } else {
     // This is an original image, convert to WebP and generate sizes
     const nameWithoutExt = filename.split('.')[0];
     const extension = filename.split('.').pop()?.toLowerCase();
-    
-    console.log('[ImageOptimization] Original image detected:', { nameWithoutExt, extension });
     
     // Determine if we should use WebP
     const useWebP = extension !== 'svg' && extension !== 'webp';
@@ -102,8 +92,6 @@ export function getResponsiveCoverUrls(
     
     // CSS sizes attribute for responsive behavior
     const sizesAttr = '(max-width: 640px) 200px, (max-width: 1024px) 300px, 400px';
-    
-    console.log('[ImageOptimization] Generated WebP URLs:', { src, srcSet, sizes: sizesAttr });
     
     return { src, srcSet, sizes: sizesAttr };
   }
