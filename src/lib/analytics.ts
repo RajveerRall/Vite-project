@@ -95,7 +95,8 @@ export const identifyUser = (userId: string, userProperties?: Record<string, any
       console.warn(`[Analytics] Failed to identify user in Amplitude:`, error);
     }
   } else {
-    console.warn(`[Analytics] Amplitude not found. User identification failed.`);
+    // Don't log warnings for blocked analytics - this is expected behavior
+    // console.warn(`[Analytics] Amplitude not found. User identification failed.`);
   }
 };
 
@@ -136,7 +137,8 @@ export const sendTestEvent = () => {
       console.warn('[Analytics] Failed to send test event to Amplitude:', error);
     }
   } else {
-    console.warn('[Analytics] Amplitude not found. Test event not sent.');
+    // Don't log warnings for blocked analytics - this is expected behavior
+    // console.warn('[Analytics] Amplitude not found. Test event not sent.');
   }
 };
 

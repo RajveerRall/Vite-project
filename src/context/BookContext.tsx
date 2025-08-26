@@ -254,6 +254,13 @@ useEffect(() => {
     return;
   }
 
+  // *** NEW: Don't cleanup if we're in the middle of authentication changes ***
+  // This prevents cleanup from running during sign-in/sign-out transitions
+  if (!isInitialLoadComplete) {
+    console.log('[LocalForage Save] Skipping cleanup - initial load not complete');
+    return;
+  }
+
   const saveBooksToStorage = async () => {
     console.log(`[LocalForage Save] A change was detected. Saving ${books.length} books.`);
     try {
@@ -266,6 +273,13 @@ useEffect(() => {
         if (key.startsWith('book_metadata_') || key.startsWith('book_file_')) {
           const bookIdInKey = key.replace('book_metadata_', '').replace('book_file_', '');
           if (!currentBookIds.has(bookIdInKey)) {
+            // *** NEW: Never remove the default book (1984) ***
+            const metadata = await localforage.getItem(key) as BookData;
+            if (metadata && metadata.title === '1984') {
+              console.log(`[LocalForage Save] Preserving default book: ${metadata.title}`);
+              continue; // Skip removal for default book
+            }
+            
             console.log(`[LocalForage Save] Removing stale book key: ${key}`);
             await localforage.removeItem(key);
           }
@@ -431,9 +445,15 @@ useEffect(() => {
           }));
 
           // Step 4: Add placeholders to existing books and show immediately
-          const booksWithPlaceholders = [...updatedBooks, ...placeholderBooks];
+          // IMPORTANT: Keep any default books that aren't in cloud storage
+          const defaultBooks = currentLocalBooks.filter(book => 
+            !cloudBooksData.some(cloudBook => cloudBook.id === book.id) &&
+            book.title === '1984' // Keep the default book
+          );
+          
+          const booksWithPlaceholders = [...updatedBooks, ...defaultBooks, ...placeholderBooks];
           setBooks(booksWithPlaceholders);
-          console.log(`[SupabaseSync] 📦 ${placeholderBooks.length} placeholder books added to UI`);
+          console.log(`[SupabaseSync] 📦 ${placeholderBooks.length} placeholder books + ${defaultBooks.length} default books added to UI`);
 
           // Step 5: Start downloading only missing books individually (parallel)
           let completedCount = 0;
@@ -441,8 +461,8 @@ useEffect(() => {
 
           const downloadPromises = missingCloudBooks.map(async (cloudBook: CloudBookRecord, index: number) => {
             try {
-              // Try different bucket names since 'book-files' doesn't exist
-              const possibleBuckets = ['books', 'epub-files', 'files', 'book-files'];
+              // Only try the bucket that actually exists in your Supabase project
+              const possibleBuckets = ['book-files'];
               let fileData: Blob | null = null;
               let successfulBucket = '';
               
@@ -652,6 +672,9 @@ useEffect(() => {
           const totalDownloadTime = performance.now() - downloadStartTime;
           console.log(`[SupabaseSync] 🎉 Smart sync complete in ${totalDownloadTime.toFixed(0)}ms`);
           console.log(`[SupabaseSync] 📊 Results: ${completedCount}/${totalBooks} new books downloaded, ${existingCloudBooks.length} already local`);
+          
+          // Ensure default book is always available after sync
+          await ensureDefaultBookAvailable();
 
         } catch (error) {
           console.error('[SupabaseSync] Progressive sync failed:', error);
@@ -709,6 +732,20 @@ useEffect(() => {
     }
   };
 
+  // *** NEW: Function to ensure default book is always available ***
+  const ensureDefaultBookAvailable = async (): Promise<void> => {
+    // Check if 1984 is already in the books array
+    const hasDefaultBook = books.some(book => book.title === '1984');
+    if (!hasDefaultBook) {
+      console.log('[Default Book] 1984 not found, loading default book...');
+      const defaultBook = await loadDefaultBook();
+      if (defaultBook) {
+        setBooks(prevBooks => [...prevBooks, defaultBook]);
+        console.log('[Default Book] 1984 added to library');
+      }
+    }
+  };
+
   // *** NEW: Function to load the default sample book ***
   const loadDefaultBook = async (): Promise<BookData | null> => {
     // Load 1984.epub from the public folder
@@ -721,8 +758,6 @@ useEffect(() => {
         throw new Error(`Network response was not ok. Status: ${response.status}`);
       }
       const bookBlob = await response.blob();
-      // NOTE: You named the file "Moby Dick.epub" in the `File` constructor, but the metadata
-      // inside the epub seems to be for "1984". This is fine, just pointing it out.
       const bookFile = new File([bookBlob], "1984.epub", { type: 'application/epub+zip' });
 
       // ---- This is the same logic copied from the start of your `addBook` function ----
