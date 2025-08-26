@@ -6,6 +6,15 @@ interface EventParams {
 }
 
 /**
+ * Safe check for analytics availability
+ */
+const isAnalyticsAvailable = {
+  gtag: () => typeof window !== 'undefined' && typeof window.gtag === 'function',
+  dataLayer: () => typeof window !== 'undefined' && Array.isArray(window.dataLayer),
+  amplitude: () => typeof window !== 'undefined' && window.amplitude && typeof window.amplitude.track === 'function'
+};
+
+/**
  * Sends a custom event to both Google Analytics and Amplitude.
  * This provides comprehensive analytics coverage.
  * @param eventName The name of the event (e.g., 'add_book').
@@ -13,28 +22,40 @@ interface EventParams {
  */
 export const trackEvent = (eventName: string, eventParams?: EventParams) => {
   // Track in Google Analytics
-  if (window.gtag) {
-    console.log(`[Analytics] Tracking Event in GA: ${eventName}`, eventParams || '');
-    window.gtag('event', eventName, eventParams);
+  if (isAnalyticsAvailable.gtag()) {
+    try {
+      console.log(`[Analytics] Tracking Event in GA: ${eventName}`, eventParams || '');
+      window.gtag('event', eventName, eventParams);
+    } catch (error) {
+      console.warn(`[Analytics] GA tracking failed for "${eventName}":`, error);
+    }
   } else {
     console.warn(`[Analytics] gtag not found. Event "${eventName}" was not tracked in GA.`);
   }
 
   // Track in Google Tag Manager
-  if (window.dataLayer) {
-    console.log(`[Analytics] Tracking Event in GTM: ${eventName}`, eventParams || '');
-    window.dataLayer.push({
-      event: eventName,
-      ...eventParams
-    });
+  if (isAnalyticsAvailable.dataLayer()) {
+    try {
+      console.log(`[Analytics] Tracking Event in GTM: ${eventName}`, eventParams || '');
+      window.dataLayer.push({
+        event: eventName,
+        ...eventParams
+      });
+    } catch (error) {
+      console.warn(`[Analytics] GTM tracking failed for "${eventName}":`, error);
+    }
   } else {
     console.warn(`[Analytics] dataLayer not found. Event "${eventName}" was not tracked in GTM.`);
   }
 
   // Track in Amplitude
-  if (window.amplitude) {
-    console.log(`[Analytics] Tracking Event in Amplitude: ${eventName}`, eventParams || '');
-    window.amplitude.track(eventName, eventParams);
+  if (isAnalyticsAvailable.amplitude()) {
+    try {
+      console.log(`[Analytics] Tracking Event in Amplitude: ${eventName}`, eventParams || '');
+      window.amplitude.track(eventName, eventParams);
+    } catch (error) {
+      console.warn(`[Analytics] Amplitude tracking failed for "${eventName}":`, error);
+    }
   } else {
     console.warn(`[Analytics] Amplitude not found. Event "${eventName}" was not tracked in Amplitude.`);
   }
@@ -45,9 +66,13 @@ export const trackEvent = (eventName: string, eventParams?: EventParams) => {
  * @param properties Object containing user properties
  */
 export const setUserProperties = (properties: Record<string, any>) => {
-  if (window.amplitude) {
-    console.log(`[Analytics] Setting Amplitude user properties:`, properties);
-    window.amplitude.setUserProperties(properties);
+  if (isAnalyticsAvailable.amplitude()) {
+    try {
+      console.log(`[Analytics] Setting Amplitude user properties:`, properties);
+      window.amplitude.setUserProperties(properties);
+    } catch (error) {
+      console.warn(`[Analytics] Failed to set Amplitude user properties:`, error);
+    }
   } else {
     console.warn(`[Analytics] Amplitude not found. User properties not set.`);
   }
@@ -59,11 +84,15 @@ export const setUserProperties = (properties: Record<string, any>) => {
  * @param userProperties Optional user properties
  */
 export const identifyUser = (userId: string, userProperties?: Record<string, any>) => {
-  if (window.amplitude) {
-    console.log(`[Analytics] Identifying user in Amplitude: ${userId}`, userProperties || '');
-    window.amplitude.setUserId(userId);
-    if (userProperties) {
-      window.amplitude.setUserProperties(userProperties);
+  if (isAnalyticsAvailable.amplitude()) {
+    try {
+      console.log(`[Analytics] Identifying user in Amplitude: ${userId}`, userProperties || '');
+      window.amplitude.setUserId(userId);
+      if (userProperties) {
+        window.amplitude.setUserProperties(userProperties);
+      }
+    } catch (error) {
+      console.warn(`[Analytics] Failed to identify user in Amplitude:`, error);
     }
   } else {
     console.warn(`[Analytics] Amplitude not found. User identification failed.`);
@@ -76,12 +105,16 @@ export const identifyUser = (userId: string, userProperties?: Record<string, any
  * @param pageProperties Optional page properties
  */
 export const trackPageView = (pageName: string, pageProperties?: Record<string, any>) => {
-  if (window.amplitude) {
-    console.log(`[Analytics] Tracking page view in Amplitude: ${pageName}`, pageProperties || '');
-    window.amplitude.track('Page View', {
-      page_name: pageName,
-      ...pageProperties
-    });
+  if (isAnalyticsAvailable.amplitude()) {
+    try {
+      console.log(`[Analytics] Tracking page view in Amplitude: ${pageName}`, pageProperties || '');
+      window.amplitude.track('Page View', {
+        page_name: pageName,
+        ...pageProperties
+      });
+    } catch (error) {
+      console.warn(`[Analytics] Failed to track page view in Amplitude:`, error);
+    }
   } else {
     console.warn(`[Analytics] Amplitude not found. Page view not tracked.`);
   }
@@ -91,13 +124,17 @@ export const trackPageView = (pageName: string, pageProperties?: Record<string, 
  * Send a test event to verify Amplitude is working
  */
 export const sendTestEvent = () => {
-  if (window.amplitude) {
-    console.log('[Analytics] Sending test event to Amplitude');
-    window.amplitude.track('amplitude_test', {
-      timestamp: new Date().toISOString(),
-      user_agent: navigator.userAgent,
-      platform: 'web'
-    });
+  if (isAnalyticsAvailable.amplitude()) {
+    try {
+      console.log('[Analytics] Sending test event to Amplitude');
+      window.amplitude.track('amplitude_test', {
+        timestamp: new Date().toISOString(),
+        user_agent: navigator.userAgent,
+        platform: 'web'
+      });
+    } catch (error) {
+      console.warn('[Analytics] Failed to send test event to Amplitude:', error);
+    }
   } else {
     console.warn('[Analytics] Amplitude not found. Test event not sent.');
   }
@@ -108,9 +145,13 @@ export const sendTestEvent = () => {
  * @param data Object to push to dataLayer
  */
 export const pushToDataLayer = (data: Record<string, any>) => {
-  if (window.dataLayer) {
-    console.log(`[Analytics] Pushing to GTM dataLayer:`, data);
-    window.dataLayer.push(data);
+  if (isAnalyticsAvailable.dataLayer()) {
+    try {
+      console.log(`[Analytics] Pushing to GTM dataLayer:`, data);
+      window.dataLayer.push(data);
+    } catch (error) {
+      console.warn(`[Analytics] Failed to push to GTM dataLayer:`, error);
+    }
   } else {
     console.warn(`[Analytics] dataLayer not found. Data not pushed to GTM.`);
   }
@@ -122,13 +163,56 @@ export const pushToDataLayer = (data: Record<string, any>) => {
  * @param eventParams Event parameters
  */
 export const trackGTMEvent = (eventName: string, eventParams?: Record<string, any>) => {
-  if (window.dataLayer) {
-    console.log(`[Analytics] Tracking GTM Event: ${eventName}`, eventParams || '');
-    window.dataLayer.push({
-      event: eventName,
-      ...eventParams
-    });
+  if (isAnalyticsAvailable.dataLayer()) {
+    try {
+      console.log(`[Analytics] Tracking GTM Event: ${eventName}`, eventParams || '');
+      window.dataLayer.push({
+        event: eventName,
+        ...eventParams
+      });
+    } catch (error) {
+      console.warn(`[Analytics] Failed to track GTM event:`, error);
+    }
   } else {
     console.warn(`[Analytics] dataLayer not found. GTM event not tracked.`);
+  }
+};
+
+/**
+ * Check analytics status and log availability
+ */
+export const logAnalyticsStatus = () => {
+  console.log('[Analytics] Status Check:', {
+    gtag: isAnalyticsAvailable.gtag(),
+    dataLayer: isAnalyticsAvailable.dataLayer(),
+    amplitude: isAnalyticsAvailable.amplitude()
+  });
+};
+
+/**
+ * Initialize analytics with error handling
+ */
+export const initializeAnalytics = () => {
+  try {
+    logAnalyticsStatus();
+    
+    // Send test events to verify everything is working
+    if (isAnalyticsAvailable.gtag()) {
+      console.log('[Analytics] Google Analytics is available');
+    }
+    
+    if (isAnalyticsAvailable.dataLayer()) {
+      console.log('[Analytics] Google Tag Manager is available');
+    }
+    
+    if (isAnalyticsAvailable.amplitude()) {
+      console.log('[Analytics] Amplitude is available');
+      // Send a test event
+      sendTestEvent();
+    } else {
+      console.warn('[Analytics] Amplitude is not available - may be blocked by ad blocker');
+    }
+  } catch (error) {
+    console.error('[Analytics] Initialization failed:', error);
   }
 };
