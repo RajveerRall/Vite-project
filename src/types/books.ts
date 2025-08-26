@@ -11,6 +11,7 @@ export interface BookData {
   totalPages: number;
   isDownloading?: boolean; // NEW: indicates if book is currently downloading
   isProcessing?: boolean; // NEW: prevents multiple rapid clicks/actions
+  downloadFailed?: boolean; // NEW: indicates if book download failed
 }
 
 export interface TOCItem {

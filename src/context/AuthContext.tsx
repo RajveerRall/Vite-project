@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { identifyUser } from '../lib/analytics';
 // import { supabase } from '../lib/supabase';
@@ -10,6 +10,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
+  checkExistingSession: () => Promise<void>; // For session checks only
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,21 +25,21 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [authInitialized, setAuthInitialized] = useState(false);
 
-  useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
+  // *** FIXED: Only check for existing session, don't auto-sign in ***
+  const checkExistingSession = useCallback(async () => {
+    if (authInitialized) return;
+    
+    setLoading(true);
+    try {
       const { supabase } = await import('../lib/supabase');
-      // Use unique timer name to avoid conflicts in development
-      const timerName = `[Perf] supabase.getSession-${Date.now()}`;
-      console.time(timerName);
       const { data: { session } } = await supabase.auth.getSession();
-      console.timeEnd(timerName);
-      setUser(session?.user ?? null);
       
-      // Identify user in Amplitude if they're already signed in
       if (session?.user) {
+        setUser(session.user);
+        // Identify user in Amplitude if they're already signed in
         identifyUser(session.user.id, {
           user_id: session.user.id,
           email: session.user.email,
@@ -49,63 +50,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
       
+      setAuthInitialized(true);
+    } catch (error) {
+      console.error('Session check failed:', error);
+    } finally {
       setLoading(false);
-    };
+    }
+  }, [authInitialized]);
 
-    getInitialSession();
-
-    // Listen for auth changes
-    let unsubscribe: (() => void) | null = null;
-    (async () => {
-      const { supabase } = await import('../lib/supabase');
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          setUser(session?.user ?? null);
-          
-          // Identify user in Amplitude when they sign in
-          if (session?.user) {
-            identifyUser(session.user.id, {
-              user_id: session.user.id,
-              email: session.user.email,
-              sign_in_method: 'email',
-              platform: 'web',
-              auth_event: event,
-              timestamp: new Date().toISOString()
-            });
-          }
-          
-          setLoading(false);
-        }
-      );
-      unsubscribe = () => subscription.unsubscribe();
-    })();
-
-    return () => { if (unsubscribe) unsubscribe(); };
-  }, []);
-
+  // *** FIXED: Sign up without checking existing session ***
   const signUp = async (email: string, password: string) => {
-    const { supabase } = await import('../lib/supabase');
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    if (error) throw error;
+    setLoading(true);
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+      
+      // Don't set user here - wait for email verification
+      console.log('Sign up successful. Please check your email for verification.');
+    } catch (error) {
+      console.error('Sign up failed:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // *** FIXED: Sign in with proper session handling ***
   const signIn = async (email: string, password: string) => {
-    const { supabase } = await import('../lib/supabase');
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
+    setLoading(true);
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      
+      if (data.user) {
+        setUser(data.user);
+        // Identify user in Amplitude
+        identifyUser(data.user.id, {
+          user_id: data.user.id,
+          email: data.user.email,
+          sign_in_method: 'email',
+          platform: 'web',
+          auth_event: 'sign_in',
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error('Sign in failed:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signOut = async () => {
-    const { supabase } = await import('../lib/supabase');
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    setLoading(true);
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+    } catch (error) {
+      console.error('Sign out failed:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // *** FIXED: Initialize auth on mount to check for existing session ***
+  useEffect(() => {
+    checkExistingSession();
+  }, [checkExistingSession]);
 
   const value = {
     user,
@@ -114,6 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signOut,
     isAuthenticated: !!user,
+    checkExistingSession, // Expose this for manual session checks
   };
 
   return (

@@ -186,11 +186,18 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
 // PASTE THIS ENTIRE BLOCK INTO YOUR BookContext.tsx FILE
 // =================================================================
 
-// 2. Save books to LocalForage whenever the 'books' array changes
+  // 2. Save books to LocalForage whenever the 'books' array changes
 useEffect(() => {
   // This is a safety check. It prevents the app from saving an empty
   // book list when it first starts, before it has loaded your library.
   if (!isInitialLoadComplete) {
+    return;
+  }
+
+  // *** NEW: Don't cleanup during sync to prevent race conditions ***
+  // This prevents the race condition where cleanup runs before Supabase sync completes
+  if (isSyncingFromCloud) {
+    console.log('[LocalForage Save] Skipping cleanup during sync to prevent race conditions');
     return;
   }
 
@@ -230,7 +237,7 @@ useEffect(() => {
 
   saveBooksToStorage();
 
-}, [books, isInitialLoadComplete]); // This hook runs ONLY when the 'books' array changes.
+}, [books, isInitialLoadComplete, isSyncingFromCloud]); // This hook runs ONLY when the 'books' array changes.
 
   // Cleanup blob URLs when component unmounts to prevent memory leaks
   useEffect(() => {
@@ -566,10 +573,20 @@ useEffect(() => {
             } catch (error) {
               console.error(`[SupabaseSync] [${index + 1}/${totalBooks}] ❌ Failed to download "${cloudBook.title}":`, error);
               
-              // 🚀 WORKING: Remove failed book from the list as it was before
+              // *** NEW: Keep failed book as placeholder with error state instead of removing it ***
               setBooks(currentBooks => {
-                const filteredBooks = currentBooks.filter(book => book.id !== cloudBook.id);
-                return filteredBooks;
+                return currentBooks.map(book => 
+                  book.id === cloudBook.id 
+                    ? {
+                        ...book,
+                        isDownloading: false,
+                        downloadFailed: true, // Add error flag
+                        title: `${cloudBook.title} (Download Failed)`,
+                        author: cloudBook.author || 'Unknown Author',
+                        file: new File([''], 'download-failed.epub', { type: 'application/epub+zip' }), // Empty placeholder
+                      }
+                    : book
+                );
               });
 
               return null;

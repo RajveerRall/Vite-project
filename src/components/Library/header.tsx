@@ -78,20 +78,18 @@ import { useAuth } from "../../context/AuthContext";
 import { AuthForm } from "../Auth/AuthForm";
 
 const Header: React.FC = () => {
-  const { isAuthenticated, user, signOut, loading } = useAuth();
+  const { isAuthenticated, user, signOut, loading, checkExistingSession } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
+  const handleSignInClick = async () => {
+    if (!isAuthenticated && !loading) {
+      await checkExistingSession(); // Check for existing session when user wants to sign in
     }
+    setShowAuthModal(true);
   };
 
-  if (loading) {
-    return null; // Or a loading spinner
-  }
+  // *** NEW: Don't show loading state for auth ***
+  // if (loading) return null; // Remove this
 
   return (
     // --- The Header Container: Made sticky with a shadow for elevation ---
@@ -101,9 +99,25 @@ const Header: React.FC = () => {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
 
-          {/* === Left Side: The App Logo/Name === */}
-          <div className="flex items-center space-x-4">
+          {/* === Left Side: The App Logo/Name and Navigation === */}
+          <div className="flex items-center space-x-8">
             <Link to="/" className="text-xl sm:text-2xl font-semibold text-gray-800">YoRead</Link>
+            
+            {/* *** NEW: Navigation Links *** */}
+            <nav className="hidden sm:flex items-center space-x-6">
+              <Link 
+                to="/" 
+                className="text-gray-600 hover:text-gray-900 transition-colors duration-200"
+              >
+                Library
+              </Link>
+              <Link 
+                to="/blog" 
+                className="text-gray-600 hover:text-gray-900 transition-colors duration-200"
+              >
+                Blog
+              </Link>
+            </nav>
           </div>
 
           {/* === Right Side: Authentication Controls === */}
@@ -112,7 +126,7 @@ const Header: React.FC = () => {
             {/* --- Logged-Out State --- */}
             {!isAuthenticated && (
                 <button 
-                onClick={() => setShowAuthModal(true)}
+                onClick={handleSignInClick}
                   className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-md transition-colors font-medium text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
                 >
                   Sign In
@@ -133,7 +147,7 @@ const Header: React.FC = () => {
                   {user?.email}
                 </span>
                 <button 
-                  onClick={handleSignOut}
+                  onClick={signOut}
                   className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 hover:border-gray-400 rounded transition-colors"
                 >
                   Sign Out
