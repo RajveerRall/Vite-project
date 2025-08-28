@@ -167,6 +167,16 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
         // Set the state ONCE with the final list of books.
         setBooks(loadedBooks);
         console.log("[LocalForage Load] Finished loading books. Final Count:", loadedBooks.length);
+        
+        // *** NEW: Ensure default book is always available when user is not authenticated ***
+        if (!userId && loadedBooks.length === 0 && !defaultBookLoadAttempted.current) {
+          console.log("[Default Book] User not authenticated and no books loaded, ensuring default book is available");
+          const defaultBook = await loadDefaultBook();
+          if (defaultBook) {
+            setBooks([defaultBook]);
+            console.log("[Default Book] Default book loaded for unauthenticated user");
+          }
+        }
 
       } catch (error) {
         console.error("[LocalForage Load] Error loading books from storage", error);
@@ -192,17 +202,46 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
           // Clear all books from state
           setBooks([]);
           
-          // Clear all user-specific keys from localforage
+          // Clear ALL user-specific keys from localforage (including current user's keys)
           const allKeys = await localforage.keys();
+          console.log('[BookContext] All keys in storage:', allKeys);
+          
+          // Remove any keys that start with 'user_' (user-specific data)
           const userKeys = allKeys.filter(key => 
             key.startsWith('user_') && 
             (key.includes('book_metadata_') || key.includes('book_file_'))
           );
           
+          console.log('[BookContext] Found user-specific keys to remove:', userKeys);
+          
           for (const key of userKeys) {
             await localforage.removeItem(key);
             console.log(`[BookContext] Removed user key: ${key}`);
           }
+          
+                     // *** FIXED: Remove ALL book keys when user signs out, except the default book ***
+           // When userId is undefined (signed out), we need to clear all books
+           const allBookKeys = allKeys.filter(key => 
+             key.includes('book_metadata_') || key.includes('book_file_')
+           );
+           
+           console.log('[BookContext] Found all book keys to process:', allBookKeys);
+           
+           for (const key of allBookKeys) {
+             // Check if this is the default book (1984) - preserve it
+             if (key.startsWith('book_metadata_')) {
+               const bookId = key.replace('book_metadata_', '');
+               const metadata = await localforage.getItem(key) as BookData;
+               if (metadata && metadata.title === '1984') {
+                 console.log(`[BookContext] Preserving default book key: ${key}`);
+                 continue; // Keep the default book
+               }
+             }
+             
+             // Remove all other book keys
+             await localforage.removeItem(key);
+             console.log(`[BookContext] Removed book key: ${key}`);
+           }
           
           // Reset flags
           defaultBookLoadAttempted.current = false;
@@ -225,6 +264,14 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
           setTotalPages(0);
           
           console.log('[BookContext] User data cleared, ready for new user or default book');
+          
+          // *** NEW: Load the default book after clearing user data ***
+          // This ensures users always see the default book when signed out
+          const defaultBook = await loadDefaultBook();
+          if (defaultBook) {
+            setBooks([defaultBook]);
+            console.log('[BookContext] Default book loaded after sign-out cleanup');
+          }
         } catch (error) {
           console.error('[BookContext] Error clearing user data:', error);
         }
@@ -258,6 +305,20 @@ useEffect(() => {
   // This prevents cleanup from running during sign-in/sign-out transitions
   if (!isInitialLoadComplete) {
     console.log('[LocalForage Save] Skipping cleanup - initial load not complete');
+    return;
+  }
+
+  // *** NEW: Don't cleanup if user is signing out (userId is undefined) ***
+  // This prevents cleanup from running during the sign-out process
+  if (!userId && books.length === 0) {
+    console.log('[LocalForage Save] Skipping cleanup - user signing out, books already cleared');
+    return;
+  }
+
+  // *** NEW: Don't cleanup if we're in the middle of clearing user data ***
+  // This prevents cleanup from running during the sign-out cleanup process
+  if (!userId && !isInitialLoadComplete) {
+    console.log('[LocalForage Save] Skipping cleanup - user data clearing in progress');
     return;
   }
 

@@ -7,6 +7,7 @@ import Header from '../../components/Library/header';
 import './Blog.css';
 
 interface Post {
+  documentId: string;
   title: string;
   slug: string;
   excerpt: string;

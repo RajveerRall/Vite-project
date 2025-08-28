@@ -41,6 +41,7 @@ export async function getPosts() {
   const data = await fetchAPI(`
     query GetBlogPosts {
       blogPosts {
+        documentId
         title
         slug
         excerpt
@@ -58,6 +59,7 @@ export async function getPostBySlug(slug: string) {
     `
     query GetBlogPostBySlug($slug: String!) {
       blogPosts(filters: { slug: { eq: $slug } }) {
+        documentId
         title
         slug
         content
@@ -80,4 +82,129 @@ export async function getPostBySlug(slug: string) {
   console.log('Individual post data:', post);
   
   return post;
+}
+
+// New functions for topic-based blog structure
+export async function getTopics() {
+  const data = await fetchAPI(`
+    query GetTopics {
+      topics {
+        documentId
+        name
+        slug
+        description
+        articles {
+          documentId
+          title
+          slug
+          excerpt
+          author {
+            documentId
+            username
+            email
+          }
+          publishedAt
+        }
+      }
+    }
+  `);
+  return data.topics;
+}
+
+export async function getTopicBySlug(topicSlug: string) {
+  const data = await fetchAPI(
+    `
+    query GetTopicBySlug($topicSlug: String!) {
+      topics(filters: { slug: { eq: $topicSlug } }) {
+        documentId
+        name
+        slug
+        description
+        articles {
+          documentId
+          title
+          slug
+          excerpt
+          author {
+            documentId
+            username
+            email
+          }
+          publishedAt
+        }
+      }
+    }
+  `,
+    {
+      variables: {
+        topicSlug,
+      },
+    }
+  );
+  
+  return data.topics[0];
+}
+
+export async function getArticleByTopicAndSlug(topicSlug: string, articleSlug: string) {
+  const data = await fetchAPI(
+    `
+    query GetArticleByTopicAndSlug($topicSlug: String!, $articleSlug: String!) {
+      articles(filters: { 
+        slug: { eq: $articleSlug },
+        topic: { slug: { eq: $topicSlug } }
+      }) {
+        documentId
+        title
+        slug
+        content
+        excerpt
+        author {
+          documentId
+          username
+          email
+        }
+        publishedAt
+        topic {
+          documentId
+          name
+          slug
+          description
+        }
+      }
+    }
+  `,
+    {
+      variables: {
+        topicSlug,
+        articleSlug,
+      },
+    }
+  );
+  
+  return data.articles[0];
+}
+
+export async function getAllArticles() {
+  const data = await fetchAPI(`
+    query GetAllArticles {
+      articles {
+        documentId
+        title
+        slug
+        excerpt
+        author {
+          documentId
+          username
+          email
+        }
+        publishedAt
+        topic {
+          documentId
+          name
+          slug
+        }
+      }
+    }
+  `);
+  return data.articles;
 }
