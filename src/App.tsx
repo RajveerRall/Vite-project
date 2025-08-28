@@ -1,6 +1,6 @@
 // src/App.tsx
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { BookProvider, useBook } from './context/BookContext';
 import { useAuth } from './context/AuthContext';
@@ -9,6 +9,9 @@ import Header from "./components/Library/header";
 import SuspenseLoader from './components/Common/SuspenseLoader';
 import BlogListPage from './pages/blog/BlogListPage';
 import BlogPostPage from './pages/blog/BlogPostPage';
+import TopicListPage from './pages/blog/TopicListPage';
+import TopicPage from './pages/blog/TopicPage';
+import TopicArticlePage from './pages/blog/TopicArticlePage';
 import './App.css';
 
 // Lazy load the Reader component since it's heavy and not needed initially
@@ -39,6 +42,11 @@ const AppContent: React.FC = () => {
       {/* Public routes - no auth required */}
       <Route path="/blog" element={<BlogListPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />
+      
+      {/* New topic-based blog routes */}
+      <Route path="/topics" element={<TopicListPage />} />
+      <Route path="/topics/:topicSlug" element={<TopicPage />} />
+      <Route path="/topics/:topicSlug/:articleSlug" element={<TopicArticlePage />} />
       
       {/* Protected routes - auth required */}
       <Route path="/" element={

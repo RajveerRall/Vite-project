@@ -17,6 +17,7 @@ import {
 import './Blog.css';
 
 interface Post {
+  documentId: string;
   title: string;
   slug: string;
   content: string;

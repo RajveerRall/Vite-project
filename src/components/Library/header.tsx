@@ -102,22 +102,6 @@ const Header: React.FC = () => {
           {/* === Left Side: The App Logo/Name and Navigation === */}
           <div className="flex items-center space-x-8">
             <Link to="/" className="text-xl sm:text-2xl font-semibold text-gray-800">YoRead</Link>
-            
-            {/* *** NEW: Navigation Links *** */}
-            <nav className="hidden sm:flex items-center space-x-6">
-              <Link 
-                to="/" 
-                className="text-gray-600 hover:text-gray-900 transition-colors duration-200"
-              >
-                Library
-              </Link>
-              <Link 
-                to="/blog" 
-                className="text-gray-600 hover:text-gray-900 transition-colors duration-200"
-              >
-                Blog
-              </Link>
-            </nav>
           </div>
 
           {/* === Right Side: Authentication Controls === */}
