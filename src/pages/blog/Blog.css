@@ -90,6 +90,31 @@
   @apply transform -translate-y-1 shadow-lg;
 }
 
+/* FAQ Section Styles */
+.faq-section {
+  @apply mt-12 pt-8 border-t border-gray-200;
+}
+
+.faq-section h2 {
+  @apply text-2xl font-bold text-gray-900 mb-6;
+}
+
+.faq-container {
+  @apply space-y-6;
+}
+
+.faq-item {
+  @apply bg-gray-50 rounded-lg p-6 border border-gray-200;
+}
+
+.faq-question {
+  @apply text-lg font-semibold text-gray-900 mb-3 cursor-pointer;
+}
+
+.faq-answer {
+  @apply text-gray-700 leading-relaxed;
+}
+
 /* Custom loading animation */
 .blog-loading {
   animation: blog-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -121,6 +146,11 @@
   .blog-prose p {
     @apply text-sm;
   }
+}
+
+/* Screen reader only class for accessibility */
+.sr-only {
+  @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
 }
 
 /* Dark mode support (if needed) */

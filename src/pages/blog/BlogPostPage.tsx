@@ -1,10 +1,11 @@
 // src/pages/blog/BlogPostPage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { getPostBySlug } from '../../services/strapi';
 import SEO from '../../components/Common/SEO';
 import Header from '../../components/Library/header';
+import { BlogLayout } from '../../components/Blog';
 import { 
   calculateReadingTime, 
   calculateWordCount, 
@@ -23,6 +24,10 @@ interface Post {
   content: string;
   author: string;
   publishedAt: string;
+  faqs?: Array<{
+    question: string;
+    answer: string;
+  }>;
 }
 
 const BlogPostPage: React.FC = () => {
@@ -30,6 +35,8 @@ const BlogPostPage: React.FC = () => {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [renderedContent, setRenderedContent] = useState<string>('');
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -48,6 +55,21 @@ const BlogPostPage: React.FC = () => {
 
     fetchPost();
   }, [slug]);
+
+  // Effect to capture rendered HTML content for TOC
+  useEffect(() => {
+    if (contentRef.current && post) {
+      // Wait a bit for ReactMarkdown to render
+      const timer = setTimeout(() => {
+        if (contentRef.current) {
+          const htmlContent = contentRef.current.innerHTML;
+          setRenderedContent(htmlContent);
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [post]);
 
   if (loading) {
     return (
@@ -99,6 +121,18 @@ const BlogPostPage: React.FC = () => {
   // Ensure content is a string before passing to ReactMarkdown
   const content = typeof post.content === 'string' ? post.content : String(post.content || '');
   
+  // Build TOC content dynamically based on what exists
+  const buildTOCContent = () => {
+    let tocContent = `<h1>${post.title || 'Untitled'}</h1>`;
+    
+    // Add FAQ section heading only if FAQs exist
+    if (post.faqs && post.faqs.length > 0) {
+      tocContent += '<h2>Frequently Asked Questions</h2>';
+    }
+    
+    return tocContent;
+  };
+  
   // Calculate SEO metrics
   const readingTime = calculateReadingTime(content);
   const wordCount = calculateWordCount(content);
@@ -110,6 +144,8 @@ const BlogPostPage: React.FC = () => {
   
   console.log('Content type:', typeof post.content);
   console.log('Content value:', post.content);
+  console.log('FAQs:', post.faqs);
+  console.log('TOC Content:', buildTOCContent());
 
   return (
     <>
@@ -196,12 +232,38 @@ const BlogPostPage: React.FC = () => {
       </div>
 
       {/* Article Content */}
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <article className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 md:p-12">
-          <div className="blog-prose">
+      <div className="py-12">
+        <BlogLayout
+          content={buildTOCContent()}
+          ctaVariant="newsletter"
+          ctaTitle="Stay Updated with Our Blog"
+          ctaDescription="Get the latest insights, tips, and updates delivered directly to your inbox. Never miss a post!"
+          ctaButtonText="Subscribe Now"
+          ctaButtonLink="#newsletter"
+        >
+          <article className="blog-prose" ref={contentRef}>
+            {/* Hidden H1 for TOC - not visually displayed */}
+            <h1 className="sr-only">{post.title || 'Untitled'}</h1>
             <ReactMarkdown>{content}</ReactMarkdown>
-          </div>
-        </article>
+            
+            {/* FAQ Section - Only show when FAQs exist in Strapi */}
+            {post.faqs && post.faqs.length > 0 && (
+              <section className="faq-section mt-12">
+                <h2>Frequently Asked Questions</h2>
+                <div className="faq-container">
+                  {post.faqs.map((faq, index) => (
+                    <div key={index} className="faq-item">
+                      <h3 className="faq-question">{faq.question}</h3>
+                      <div className="faq-answer">{faq.answer}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+            
+
+          </article>
+        </BlogLayout>
       </div>
 
       {/* Footer Navigation */}

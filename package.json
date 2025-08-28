@@ -8,6 +8,9 @@
     "build": "npm run preprocess && tsc && vite build",
     "preprocess": "node scripts/preprocess-books-improved.mjs",
     "convert-webp": "node scripts/convert-to-webp.mjs",
+    "generate-static": "node scripts/generate-static-pages.mjs",
+    "build-with-static": "npm run generate-static && npm run build",
+    "test-faq": "node scripts/test-faq-system.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server.cjs"
