@@ -12,6 +12,7 @@ import BlogPostPage from './pages/blog/BlogPostPage';
 import TopicListPage from './pages/blog/TopicListPage';
 import TopicPage from './pages/blog/TopicPage';
 import TopicArticlePage from './pages/blog/TopicArticlePage';
+import BlogExample from './components/Blog/BlogExample';
 import './App.css';
 
 // Lazy load the Reader component since it's heavy and not needed initially
@@ -42,6 +43,7 @@ const AppContent: React.FC = () => {
       {/* Public routes - no auth required */}
       <Route path="/blog" element={<BlogListPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />
+      <Route path="/blog-test" element={<BlogExample />} />
       
       {/* New topic-based blog routes */}
       <Route path="/topics" element={<TopicListPage />} />
