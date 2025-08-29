@@ -132,6 +132,24 @@ const BlogPostPage: React.FC = () => {
     
     return tocContent;
   };
+
+  // Enhanced TOC content that includes the main content
+  const buildEnhancedTOCContent = () => {
+    if (renderedContent) {
+      return renderedContent;
+    }
+    
+    // Fallback: combine title with content
+    let tocContent = `<h1>${post.title || 'Untitled'}</h1>`;
+    tocContent += content;
+    
+    // Add FAQ section heading only if FAQs exist
+    if (post.faqs && post.faqs.length > 0) {
+      tocContent += '<h2>Frequently Asked Questions</h2>';
+    }
+    
+    return tocContent;
+  };
   
   // Calculate SEO metrics
   const readingTime = calculateReadingTime(content);
@@ -219,7 +237,7 @@ const BlogPostPage: React.FC = () => {
       {/* Article Content */}
       <div className="bg-gray-50 py-12">
         <BlogLayout
-          content={buildTOCContent()}
+          content={buildEnhancedTOCContent()}
           ctaVariant="ebook"
           ctaTitle="Turn Your Ebooks Into Audiobooks"
           ctaDescription="Listen to your favorite books anywhere, anytime. Transform any ebook into an immersive audio experience with our advanced text-to-speech technology."
