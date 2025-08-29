@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { getPosts } from '../../services/strapi';
 import SEO from '../../components/Common/SEO';
 import Header from '../../components/Library/header';
+import Footer from '../../components/Common/Footer';
 import './Blog.css';
 
 interface Post {
@@ -12,7 +13,7 @@ interface Post {
   slug: string;
   excerpt: string;
   author: string;
-  publishedAt: string;
+  published: string;
 }
 
 const BlogListPage: React.FC = () => {
@@ -24,8 +25,15 @@ const BlogListPage: React.FC = () => {
     const fetchPosts = async () => {
       try {
         const postsData = await getPosts();
+        console.log('🔍 Fetched posts data:', postsData);
+        console.log('🔍 Posts array:', postsData?.map((post: Post) => ({
+          title: post.title,
+          slug: post.slug,
+          author: post.author
+        })));
         setPosts(postsData || []);
       } catch (err) {
+        console.error('Error fetching posts:', err);
         setError('Failed to fetch posts. Please check your Strapi configuration.');
       } finally {
         setLoading(false);
@@ -126,7 +134,7 @@ const BlogListPage: React.FC = () => {
                           <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                           </svg>
-                          {new Date(post.publishedAt).toLocaleDateString('en-US', {
+                          {new Date(post.published).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric'
@@ -151,6 +159,9 @@ const BlogListPage: React.FC = () => {
           )}
         </div>
       </div>
+      
+      {/* Footer */}
+      <Footer />
     </>
   );
 };

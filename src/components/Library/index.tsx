@@ -228,19 +228,19 @@ const Library: React.FC = () => {
 
         {/* --- START: Simplified Display Logic --- */}
         
-        {/* Showcase Carousel: Always visible */}
-        {isCarouselLoading ? (
-          <div className="text-center mb-12"><p>Loading Collection...</p></div>
-        ) : (showCarousel && carouselBooks.length > 0) && (
-          <section className="showcase-section mb-12">
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
-              Listen to Your Favourite Books
-            </h2>
-            <React.Suspense fallback={<div className="text-center mb-12"><p>Loading Collection...</p></div>}>
-              <BookCarousel books={carouselBooks} onBookSelect={handleSampleBookSelect} />
-            </React.Suspense>
-          </section>
-        )}
+                 {/* Showcase Carousel: Always visible */}
+         {isCarouselLoading ? (
+           <div className="text-center mb-12"><p>Loading Collection...</p></div>
+         ) : (showCarousel && carouselBooks.length > 0) && (
+           <section className="showcase-section mb-12">
+             <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
+               Turn E-books to Audiobooks
+             </h2>
+             <React.Suspense fallback={<div className="text-center mb-12"><p>Loading Collection...</p></div>}>
+               <BookCarousel books={carouselBooks} onBookSelect={handleSampleBookSelect} />
+             </React.Suspense>
+           </section>
+         )}
 
         {/* Welcome Message: Only for users with NO personal books */}
         {books.length === 0 && !isLoading && (
@@ -258,8 +258,8 @@ const Library: React.FC = () => {
 
         {/* Free ebook resources */}
         <section className="mt-12 text-center">
-          <h3 className="text-base font-semibold text-gray-700">Looking for free eBooks?</h3>
-          <p className="text-sm text-gray-500 mt-1">These resources offer thousands of high-quality, public domain books.</p>
+          <h3 className="text-base font-semibold text-gray-700">Looking for eBooks?</h3>
+          <p className="text-sm text-gray-500 mt-1">Find free public domain books or purchase new releases to convert to audio.</p>
           <div className="mt-4 flex items-center justify-center space-x-6">
             <button 
               onClick={() => handleExternalLinkClick('Project Gutenberg', 'https://www.gutenberg.org')} 
@@ -272,6 +272,12 @@ const Library: React.FC = () => {
               className="font-medium text-amber-800 hover:underline"
             >
               Planet eBook
+            </button>
+            <button 
+              onClick={() => handleExternalLinkClick('eBooks.com', 'https://www.ebooks.com/en-bh/')} 
+              className="font-medium text-amber-800 hover:underline"
+            >
+              Buy New eBooks
             </button>
           </div>
         </section>
@@ -288,7 +294,7 @@ const Library: React.FC = () => {
           <h3 className="text-lg font-medium mb-1.5 text-gray-800">Upload your eBook</h3>
           <p className="text-gray-600 mb-3">Drag and drop your ePub file here, or click to browse</p>
           <button className="browse-button" onClick={handleUploadClick}>
-            Browse files
+            Upload ebook .epub
           </button>
           <input ref={fileInputRef} type="file" accept=".epub" onChange={handleFileChange} className="hidden" />
         </div>
@@ -333,12 +339,6 @@ const Library: React.FC = () => {
         
       </main>
 
-      {/* --- Footer --- */}
-      <footer className="py-6 border-t border-gray-200 bg-slate-50">
-        <div className="max-w-5xl mx-auto px-4 text-center text-gray-500 text-sm">
-          YoRead - A focused eBook reading experience
-        </div>
-      </footer>
     </div>
   );
 };

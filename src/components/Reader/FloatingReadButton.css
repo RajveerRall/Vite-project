@@ -1,0 +1,97 @@
+.floating-read-button {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: auto;
+  animation: slideInFromBottom 0.2s ease-out;
+}
+
+.read-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border: none;
+  border-radius: 2rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  transition: all 0.2s ease;
+  min-width: 80px;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+}
+
+.read-button:hover {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.5);
+}
+
+.read-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+}
+
+.read-button svg {
+  transition: transform 0.2s ease;
+}
+
+.read-button:hover svg {
+  transform: scale(1.1);
+}
+
+/* Animation for button appearance */
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .read-button {
+    padding: 0.625rem 1rem;
+    font-size: 0.8rem;
+    min-width: 70px;
+  }
+  
+  .read-button span {
+    font-size: 0.8rem;
+  }
+}
+
+/* Ensure button is visible on different backgrounds */
+.read-button {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .read-button {
+    border: 2px solid white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .floating-read-button {
+    animation: none;
+  }
+  
+  .read-button {
+    transition: none;
+  }
+  
+  .read-button:hover svg {
+    transform: none;
+  }
+}

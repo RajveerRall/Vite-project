@@ -12,6 +12,7 @@ interface MobileTOCDrawerProps {
 /**
  * Mobile Table of Contents Drawer Component
  * Handles the sliding drawer for TOC navigation on mobile devices
+ * Now positioned next to the settings icon in the action buttons row
  */
 export const MobileTOCDrawer: React.FC<MobileTOCDrawerProps> = ({
   toc,
@@ -35,13 +36,15 @@ export const MobileTOCDrawer: React.FC<MobileTOCDrawerProps> = ({
 
   return (
     <>
-      {/* Mobile TOC Button */}
+      {/* Mobile TOC Button - Now positioned next to settings icon */}
       <button 
         onClick={toggleTocDrawer}
-        className="mobile-toc-button md:hidden p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2"
+        className="mobile-toc-button md:hidden flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-gray-50"
         aria-label="Toggle Table of Contents"
+        title="Table of Contents"
       >
         <Menu className="w-5 h-5" />
+        <span className="text-sm font-medium">Chapters</span>
       </button>
       
       {/* Mobile TOC Drawer */}

@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { getArticleByTopicAndSlug } from '../../services/strapi';
 import SEO from '../../components/Common/SEO';
 import Header from '../../components/Library/header';
+import Footer from '../../components/Common/Footer';
 import { 
   calculateReadingTime, 
   calculateWordCount, 
@@ -267,6 +268,9 @@ const TopicArticlePage: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Footer */}
+      <Footer />
     </>
   );
 };

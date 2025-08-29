@@ -46,7 +46,7 @@ export async function getPosts() {
         slug
         excerpt
         author
-        publishedAt
+        published
       }
     }
   `);
@@ -55,6 +55,7 @@ export async function getPosts() {
 }
 
 export async function getPostBySlug(slug: string) {
+  console.log('🔍 getPostBySlug called with slug:', slug);
   const data = await fetchAPI(
     `
     query GetBlogPostBySlug($slug: String!) {
@@ -64,7 +65,8 @@ export async function getPostBySlug(slug: string) {
         slug
         content
         author
-        publishedAt
+        published
+        faqs
       }
     }
   `,

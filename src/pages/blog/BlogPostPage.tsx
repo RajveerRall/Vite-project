@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { getPostBySlug } from '../../services/strapi';
 import SEO from '../../components/Common/SEO';
 import Header from '../../components/Library/header';
+import Footer from '../../components/Common/Footer';
 import { BlogLayout } from '../../components/Blog';
 import { 
   calculateReadingTime, 
@@ -238,7 +239,7 @@ const BlogPostPage: React.FC = () => {
       <div className="bg-gray-50 py-12">
         <BlogLayout
           content={buildEnhancedTOCContent()}
-          ctaVariant="ebook"
+          ctaVariant="primary"
           ctaTitle="Turn Your Ebooks Into Audiobooks"
           ctaDescription="Listen to your favorite books anywhere, anytime. Transform any ebook into an immersive audio experience with our advanced text-to-speech technology."
           ctaButtonText="Start Listening Now"
@@ -269,6 +270,8 @@ const BlogPostPage: React.FC = () => {
         </BlogLayout>
       </div>
 
+      {/* Footer */}
+      <Footer />
     </>
   );
 };

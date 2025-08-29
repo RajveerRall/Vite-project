@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { getTopicBySlug } from '../../services/strapi';
 import SEO from '../../components/Common/SEO';
 import Header from '../../components/Library/header';
+import Footer from '../../components/Common/Footer';
 import './Blog.css';
 
 interface Article {
@@ -224,6 +225,9 @@ const TopicPage: React.FC = () => {
           )}
         </div>
       </div>
+      
+      {/* Footer */}
+      <Footer />
     </>
   );
 };
