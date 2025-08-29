@@ -29,7 +29,10 @@ const MainApp: React.FC = () => {
           <Reader />
         </React.Suspense>
       ) : (
-        <Library />
+        <>
+          <Library />
+          <Footer />
+        </>
       )}
     </div>
   );
@@ -70,10 +73,7 @@ const App: React.FC = () => {
     <HelmetProvider>
       <Router>
         <BookProvider>
-          <div className="app">
-            <AppContent />
-            <Footer />
-          </div>
+          <AppContent />
         </BookProvider>
       </Router>
     </HelmetProvider>

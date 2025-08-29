@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { getTopics } from '../../services/strapi';
 import SEO from '../../components/Common/SEO';
 import Header from '../../components/Library/header';
+import Footer from '../../components/Common/Footer';
 import './Blog.css';
 
 interface Article {
@@ -190,6 +191,9 @@ const TopicListPage: React.FC = () => {
           )}
         </div>
       </div>
+      
+      {/* Footer */}
+      <Footer />
     </>
   );
 };

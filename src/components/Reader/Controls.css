@@ -197,11 +197,5 @@
 /* --- Button Text --- */
 .button-text {
   font-size: 0.875rem; /* 14px */
-  display: none; /* Hidden by default on small screens */
-}
-/* Show text on medium screens and up */
-@media (min-width: 768px) {
-  .button-text {
-    display: inline;
-  }
+  display: inline; /* Always visible */
 }

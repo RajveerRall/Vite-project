@@ -817,29 +817,31 @@ const Controls: React.FC<ControlsProps> = ({
     <div className="flex items-center justify-between gap-x-6">
       
       {/* Navigation Controls use Tailwind for layout */}
-      <div className="flex items-center gap-x-2">
+      <div className="flex items-center gap-x-3">
         <button
           onClick={onPrevious}
           disabled={!canGoPrev || isProcessing}
           // The className is now simple, letting the CSS file do the work
-          className="control-button"
+          className="control-button flex items-center gap-2 px-3 py-2"
           aria-label="Previous page"
           title="Previous page"
         >
           <ChevronLeft size={20} />
+          <span className="button-text text-sm font-medium">Previous</span>
         </button>
 
-        <span className="page-info">
+        <span className="page-info px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium">
           {currentPage + 1} / {totalPages}
         </span>
 
         <button
           onClick={onNext}
           disabled={!canGoNext || isProcessing}
-          className="control-button"
+          className="control-button flex items-center gap-2 px-3 py-2"
           aria-label="Next page"
           title="Next page"
         >
+          <span className="button-text text-sm font-medium">Next</span>
           <ChevronRight size={20} />
         </button>
       </div>
@@ -849,25 +851,25 @@ const Controls: React.FC<ControlsProps> = ({
         {/* Read/Pause/Resume Button */}
         <button
           onClick={onReadAloud}
-          className={`control-button ${isReadButtonActive ? 'active' : ''}`}
+          className={`control-button flex items-center gap-2 px-3 py-2 ${isReadButtonActive ? 'active' : ''}`}
           aria-label={readButtonTitle}
           title={readButtonTitle}
           disabled={isProcessing && !isReading && !isPaused}
         >
           {readButtonIcon}
-          <span className="button-text">{readButtonLabel}</span>
+          <span className="button-text text-sm font-medium">{readButtonLabel}</span>
         </button>
 
         {/* Stop Button */}
         {showStopButton && (
           <button
             onClick={onStopTTS}
-            className="control-button stop-button"
+            className="control-button stop-button flex items-center gap-2 px-3 py-2"
             aria-label="Stop TTS"
             title="Stop TTS and clear saved position"
           >
             <Square size={20} />
-            <span className="button-text">Stop</span>
+            <span className="button-text text-sm font-medium">Stop</span>
           </button>
         )}
 
@@ -875,13 +877,13 @@ const Controls: React.FC<ControlsProps> = ({
         <button
           onClick={onAudiobook}
           // We keep Tailwind's responsive classes for layout control
-          className={`control-button hidden md:flex ${isPlayModeActive ? 'active' : ''}`}
+          className={`control-button hidden md:flex items-center gap-2 px-3 py-2 ${isPlayModeActive ? 'active' : ''}`}
           aria-label="Audiobook mode"
           title="Audiobook mode"
           disabled={isProcessing}
         >
           <Headphones size={20} />
-          <span className="button-text">Audiobook</span>
+          <span className="button-text text-sm font-medium">Audiobook</span>
         </button>
       </div>
     </div>

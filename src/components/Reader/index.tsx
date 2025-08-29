@@ -15,6 +15,7 @@ import { useAutoScroll } from '../../hooks/useAutoScroll';
 import SettingsWidget from './SettingsWidget';
 import MobileTOCDrawer from './MobileTOCDrawer';
 import EnhancedLoader from './EnhancedLoader';
+import FloatingReadButton from './FloatingReadButton';
 
 
 // TTS highlighting is now handled by the useReaderTTS hook
@@ -240,8 +241,29 @@ const Reader: React.FC = () => {
             <span className="hidden sm:inline">Back to Library</span>
             <span className="sm:hidden">Back</span>
           </button>
-          
-          {/* Mobile TOC Component */}
+        </div>
+        
+        {/* Book title - centered */}
+        <div className="text-center">
+          <h2 className="book-title text-lg sm:text-xl">{bookTitle}</h2>
+        </div>
+        
+        {/* Action buttons row */}
+        <div className="flex items-center justify-center gap-3 mt-2">
+          {/* Settings Button */}
+          {isEnhanced && (
+            <button 
+              onClick={toggleSettings}
+              className="settings-button flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-gray-50"
+              aria-label="Open reading settings"
+              title="Reading settings"
+            >
+              <Settings className="w-5 h-5" />
+              <span className="text-sm font-medium">Settings</span>
+            </button>
+          )}
+
+          {/* Mobile TOC Component - Now positioned next to settings icon */}
           {isEnhanced && (
             <MobileTOCDrawer 
               toc={toc} 
@@ -249,56 +271,17 @@ const Reader: React.FC = () => {
               theme={theme}
             />
           )}
-        </div>
-        
-        {/* Book title and author - centered */}
-        <div className="text-center">
-          <h2 className="book-title text-lg sm:text-xl">{bookTitle}</h2>
-          <p className="book-author text-sm text-gray-600">{bookAuthor}</p>
-        </div>
-        
-        {/* Controls row - full width */}
-        <div className="controls-container-mobile mt-3">
-          <Controls
-            currentPage={currentPageDisplay}
-            totalPages={totalPages}
-            onPrevious={handlePrevPage}
-            onNext={handleNextPage}
-            onReadAloud={handleTTS}
-            onStopTTS={handleStopTTS}
-            isReading={isSpeaking}
-            isPaused={isPaused}
-            isProcessing={isProcessing && !(isSpeaking || isPaused)}
-            canResume={canTTSResume}
-            onAudiobook={togglePlayMode}
-            isPlayModeActive={isPlayModeVisible}
-            isReadButtonActive={isSpeaking || isPaused || canTTSResume}
-          />
-        </div>
-        
-        {/* Action buttons row */}
-        <div className="flex items-center justify-center gap-2 mt-2">
-          {/* Settings Button */}
-          {isEnhanced && (
-            <button 
-              onClick={toggleSettings}
-              className="settings-button p-2 text-gray-600 hover:text-amber-800 transition-colors"
-              aria-label="Open reading settings"
-              title="Reading settings"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-          )}
 
           {/* Auto-scroll to highlight button */}
           {(isSpeaking || isProcessing || isPaused) && (
             <button 
               onClick={() => scrollToHighlight()}
-              className="scroll-highlight-button p-2 text-gray-600 hover:text-amber-800 transition-colors"
+              className="scroll-highlight-button flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-gray-50"
               aria-label="Scroll to current highlight"
               title="Scroll to current highlight"
             >
               <Headphones className="w-5 h-5" />
+              <span className="text-sm font-medium">Highlight</span>
             </button>
           )}
         </div>
@@ -318,19 +301,19 @@ const Reader: React.FC = () => {
         
         <div className="reader-center">
           <h2 className="book-title">{bookTitle}</h2>
-          <p className="book-author">{bookAuthor}</p>
         </div>
         
-        <div className="reader-right flex items-center">
+        <div className="reader-right flex items-center gap-3">
           {/* Settings Button */}
           {isEnhanced && (
             <button 
               onClick={toggleSettings}
-              className="settings-button p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2"
+              className="settings-button flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-gray-50"
               aria-label="Open reading settings"
               title="Reading settings"
             >
               <Settings className="w-5 h-5" />
+              <span className="text-sm font-medium">Settings</span>
             </button>
           )}
 
@@ -338,11 +321,12 @@ const Reader: React.FC = () => {
           {(isSpeaking || isProcessing || isPaused) && (
             <button 
               onClick={() => scrollToHighlight()}
-              className="scroll-highlight-button p-2 text-gray-600 hover:text-amber-800 transition-colors mr-2"
+              className="scroll-highlight-button flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-gray-50"
               aria-label="Scroll to current highlight"
               title="Scroll to current highlight"
             >
               <Headphones className="w-5 h-5" />
+              <span className="text-sm font-medium">Highlight</span>
             </button>
           )}
 
@@ -354,24 +338,6 @@ const Reader: React.FC = () => {
               theme={theme}
             />
           )}
-          
-          <div className="controls-container">
-            <Controls
-              currentPage={currentPageDisplay}
-              totalPages={totalPages}
-              onPrevious={handlePrevPage}
-              onNext={handleNextPage}
-              onReadAloud={handleTTS}
-              onStopTTS={handleStopTTS}
-              isReading={isSpeaking}
-              isPaused={isPaused}
-              isProcessing={isProcessing && !(isSpeaking || isPaused)}
-              canResume={canTTSResume}
-              onAudiobook={togglePlayMode}
-              isPlayModeActive={isPlayModeVisible}
-              isReadButtonActive={isSpeaking || isPaused || canTTSResume}
-            />
-          </div>
         </div>
       </div>
     </header>
@@ -397,14 +363,15 @@ const Reader: React.FC = () => {
       <div className="reader-main">
         {/* <SearchBar /> */}
         {/* Render React nodes here, no dangerouslySetInnerHTML */}
-        <div 
-          className="epub-content" 
-          style={{ 
-            whiteSpace: 'pre-wrap',
-            fontSize: `${fontSize}px`,
-            lineHeight: '1.6'
-          }}
-        >
+                 <div 
+           className="epub-content" 
+           style={{ 
+             whiteSpace: 'pre-wrap',
+             fontSize: `${fontSize}px`,
+             lineHeight: '1.6'
+           }}
+           data-short-content={currentContent && currentContent.length < 1000 ? 'true' : 'false'}
+         >
           {/* Debug TTS states */}
           {(() => {
             console.log('[Reader] TTS States:', {
@@ -434,6 +401,48 @@ const Reader: React.FC = () => {
         )
       )}
     </div>
+
+    {/* Bottom Controls - Always visible and accessible */}
+    <div className="reader-bottom-controls fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-30 md:hidden">
+      <div className="px-4 py-3">
+        <Controls
+          currentPage={currentPageDisplay}
+          totalPages={totalPages}
+          onPrevious={handlePrevPage}
+          onNext={handleNextPage}
+          onReadAloud={handleTTS}
+          onStopTTS={handleStopTTS}
+          isReading={isSpeaking}
+          isPaused={isPaused}
+          isProcessing={isProcessing && !(isSpeaking || isPaused)}
+          canResume={canTTSResume}
+          onAudiobook={togglePlayMode}
+          isPlayModeActive={isPlayModeVisible}
+          isReadButtonActive={isSpeaking || isPaused || canTTSResume}
+        />
+      </div>
+    </div>
+
+    {/* Desktop Bottom Controls - Fixed position for larger screens */}
+    <div className="reader-bottom-controls-desktop hidden md:block fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow-xl border border-gray-200 z-30">
+      <div className="px-6 py-3">
+        <Controls
+          currentPage={currentPageDisplay}
+          totalPages={totalPages}
+          onPrevious={handlePrevPage}
+          onNext={handleNextPage}
+          onReadAloud={handleTTS}
+          onStopTTS={handleStopTTS}
+          isReading={isSpeaking}
+          isPaused={isPaused}
+          isProcessing={isProcessing && !(isSpeaking || isPaused)}
+          canResume={canTTSResume}
+          onAudiobook={togglePlayMode}
+          isPlayModeActive={isPlayModeVisible}
+          isReadButtonActive={isSpeaking || isPaused || canTTSResume}
+        />
+      </div>
+    </div>
     {showFeatureHighlight && (<FeatureHighlight onClose={() => setShowFeatureHighlight(false)} />)}
 
     {/* Modular Settings Widget Component - Only render after enhanced loading */}
@@ -454,8 +463,14 @@ const Reader: React.FC = () => {
       />
     )}
 
-    {/* Theme styles moved to ReaderThemes.css */}
-  </div>
+         {/* Theme styles moved to ReaderThemes.css */}
+     
+     {/* Floating Read Button - appears when text is selected */}
+     <FloatingReadButton 
+       onRead={handleTTS}
+       isVisible={isEnhanced}
+     />
+   </div>
  );
 };
 

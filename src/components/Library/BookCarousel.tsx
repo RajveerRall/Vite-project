@@ -96,19 +96,8 @@ export const BookCarousel: React.FC<BookCarouselProps> = React.memo(({ books, on
   
   // Memoize the book selection handler to prevent recreation
   const handleBookClick = useCallback((book: BookData) => {
-    // Prevent multiple rapid clicks
-    if (book.isProcessing) return;
-    
-    // Mark book as processing to prevent multiple clicks
-    book.isProcessing = true;
-    
-    // Call the original handler
+    // Call the original handler immediately
     onBookSelect(book);
-    
-    // Reset processing flag after a short delay
-    setTimeout(() => {
-      book.isProcessing = false;
-    }, 1000);
   }, [onBookSelect]);
 
   return (
@@ -118,7 +107,7 @@ export const BookCarousel: React.FC<BookCarouselProps> = React.memo(({ books, on
           {books.map(book => (
             <div className="carousel-slide" key={book.id}>
               <div 
-                className={`book-slide-content ${book.isProcessing ? 'processing' : ''}`}
+                className="book-slide-content"
                 onClick={() => handleBookClick(book)}
               >
                 {book.coverUrl ? (
