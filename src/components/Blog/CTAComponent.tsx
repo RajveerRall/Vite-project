@@ -6,7 +6,7 @@ interface CTAComponentProps {
   description?: string;
   buttonText?: string;
   buttonLink?: string;
-  variant?: 'primary' | 'secondary' | 'newsletter' | 'download';
+  variant?: 'primary' | 'secondary' | 'newsletter' | 'download' | 'ebook';
 }
 
 const CTAComponent: React.FC<CTAComponentProps> = ({
@@ -39,9 +39,15 @@ const CTAComponent: React.FC<CTAComponentProps> = ({
         };
       case 'download':
         return {
-          icon: '📥',
-          bgColor: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-          buttonColor: '#f093fb'
+          icon: '🎧',
+          bgColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          buttonColor: '#667eea'
+        };
+      case 'ebook':
+        return {
+          icon: '📚',
+          bgColor: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+          buttonColor: '#ff6b6b'
         };
       case 'secondary':
         return {
@@ -61,10 +67,7 @@ const CTAComponent: React.FC<CTAComponentProps> = ({
   const variantStyles = getVariantStyles();
 
   return (
-    <div 
-      className="cta-container"
-      style={{ background: variantStyles.bgColor }}
-    >
+    <div className="cta-container">
       <div className="cta-icon">
         {variantStyles.icon}
       </div>
@@ -76,7 +79,6 @@ const CTAComponent: React.FC<CTAComponentProps> = ({
         <button 
           className="cta-button"
           onClick={handleButtonClick}
-          style={{ backgroundColor: variantStyles.buttonColor }}
         >
           {buttonText}
         </button>
@@ -99,8 +101,21 @@ const CTAComponent: React.FC<CTAComponentProps> = ({
       {variant === 'download' && (
         <div className="cta-download-info">
           <div className="download-stats">
-            <span className="stat">📊 10K+ Downloads</span>
-            <span className="stat">⭐ 4.8/5 Rating</span>
+            <span className="stat">🎯 100+ Ebook Formats</span>
+            <span className="stat">🎧 Natural Voice AI</span>
+            <span className="stat">⚡ Instant Conversion</span>
+            <span className="stat">📱 Mobile & Desktop</span>
+          </div>
+        </div>
+      )}
+      
+      {variant === 'ebook' && (
+        <div className="cta-ebook-info">
+          <div className="ebook-features">
+            <span className="feature">🎭 Multiple Voices</span>
+            <span className="feature">🎵 Adjustable Speed</span>
+            <span className="feature">🔊 High Quality Audio</span>
+            <span className="feature">💾 Offline Listening</span>
           </div>
         </div>
       )}

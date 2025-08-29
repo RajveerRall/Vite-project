@@ -165,23 +165,8 @@ const BlogPostPage: React.FC = () => {
         wordCount={wordCount}
       />
       <Header />
-      <div className="min-h-screen bg-gray-50 pt-16">
-        {/* Back Navigation */}
-        <div className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <Link 
-            to="/blog" 
-            className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors duration-200"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to Blog
-          </Link>
-        </div>
-      </div>
-
-      {/* Article Header */}
+      
+            {/* Article Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-6 py-12">
           <div className="mb-6">
@@ -203,7 +188,7 @@ const BlogPostPage: React.FC = () => {
             </span>
             <span className="flex items-center">
               <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a2 2 0 100-2H6z" clipRule="evenodd" />
               </svg>
               {new Date(post.publishedAt || Date.now()).toLocaleDateString('en-US', {
                 year: 'numeric',
@@ -232,14 +217,14 @@ const BlogPostPage: React.FC = () => {
       </div>
 
       {/* Article Content */}
-      <div className="py-12">
+      <div className="bg-gray-50 py-12">
         <BlogLayout
           content={buildTOCContent()}
-          ctaVariant="newsletter"
-          ctaTitle="Stay Updated with Our Blog"
-          ctaDescription="Get the latest insights, tips, and updates delivered directly to your inbox. Never miss a post!"
-          ctaButtonText="Subscribe Now"
-          ctaButtonLink="#newsletter"
+          ctaVariant="ebook"
+          ctaTitle="Turn Your Ebooks Into Audiobooks"
+          ctaDescription="Listen to your favorite books anywhere, anytime. Transform any ebook into an immersive audio experience with our advanced text-to-speech technology."
+          ctaButtonText="Start Listening Now"
+          ctaButtonLink="/"
         >
           <article className="blog-prose" ref={contentRef}>
             {/* Hidden H1 for TOC - not visually displayed */}
@@ -266,27 +251,6 @@ const BlogPostPage: React.FC = () => {
         </BlogLayout>
       </div>
 
-      {/* Footer Navigation */}
-      <div className="bg-white border-t border-gray-200">
-        <div className="max-w-4xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
-            <Link 
-              to="/blog" 
-              className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors duration-200"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Blog
-            </Link>
-            
-            <div className="text-sm text-gray-500">
-              Enjoyed this post? Share it with others!
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
     </>
   );
 };

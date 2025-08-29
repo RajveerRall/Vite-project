@@ -6,6 +6,7 @@ import { BookProvider, useBook } from './context/BookContext';
 import { useAuth } from './context/AuthContext';
 import Library from './components/Library';
 import Header from "./components/Library/header";
+import Footer from "./components/Common/Footer";
 import SuspenseLoader from './components/Common/SuspenseLoader';
 import BlogListPage from './pages/blog/BlogListPage';
 import BlogPostPage from './pages/blog/BlogPostPage';
@@ -69,7 +70,10 @@ const App: React.FC = () => {
     <HelmetProvider>
       <Router>
         <BookProvider>
-          <AppContent />
+          <div className="app">
+            <AppContent />
+            <Footer />
+          </div>
         </BookProvider>
       </Router>
     </HelmetProvider>
