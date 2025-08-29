@@ -6,15 +6,15 @@
 }
 
 .blog-prose h1 {
-  @apply text-3xl font-bold text-gray-900 mb-6 mt-8;
+  @apply text-3xl font-bold text-gray-900 mb-6 mt-0;
 }
 
 .blog-prose h2 {
-  @apply text-2xl font-bold text-gray-900 mb-4 mt-8;
+  @apply text-2xl font-bold text-gray-900 mb-4 mt-6;
 }
 
 .blog-prose h3 {
-  @apply text-xl font-semibold text-gray-900 mb-3 mt-6;
+  @apply text-xl font-semibold text-gray-900 mb-3 mt-4;
 }
 
 .blog-prose h4 {
@@ -92,7 +92,7 @@
 
 /* FAQ Section Styles */
 .faq-section {
-  @apply mt-12 pt-8 border-t border-gray-200;
+  @apply mt-8 pt-6 border-t border-gray-200;
 }
 
 .faq-section h2 {

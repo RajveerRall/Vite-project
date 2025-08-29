@@ -47,11 +47,11 @@ const BlogExample: React.FC = () => {
   return (
             <BlogLayout
           content={`<h1>Getting Started with Static Site Generation</h1>${sampleContent}`}
-          ctaVariant="newsletter"
-          ctaTitle="Stay Updated with SSG Tips"
-          ctaDescription="Get the latest insights on Static Site Generation, performance optimization, and web development best practices delivered to your inbox."
-          ctaButtonText="Subscribe Now"
-          ctaButtonLink="#newsletter"
+          ctaVariant="ebook"
+          ctaTitle="Turn Your Ebooks Into Audiobooks"
+          ctaDescription="Listen to your favorite books anywhere, anytime. Transform any ebook into an immersive audio experience with our advanced text-to-speech technology."
+          ctaButtonText="Start Listening Now"
+          ctaButtonLink="/"
         >
           {/* Hidden H1 for TOC */}
           <h1 className="sr-only">Getting Started with Static Site Generation</h1>
