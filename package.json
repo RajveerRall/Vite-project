@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run preprocess && tsc && vite build",
+    "build": "npm run preprocess && npm run generate-static && tsc && vite build",
     "preprocess": "node scripts/preprocess-books-improved.mjs",
     "convert-webp": "node scripts/convert-to-webp.mjs",
     "generate-static": "node scripts/generate-static-pages.mjs",
     "build-with-static": "npm run generate-static && npm run build",
+    "test-static": "node scripts/test-static-generation.mjs",
     "test-faq": "node scripts/test-faq-system.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
