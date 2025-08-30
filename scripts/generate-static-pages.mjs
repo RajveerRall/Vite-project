@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 // Configuration
 const STRAPI_API_URL = process.env.VITE_STRAPI_API_URL || 'http://localhost:1337';
 const STRAPI_API_TOKEN = process.env.VITE_STRAPI_API_TOKEN;
-const OUTPUT_DIR = path.join(__dirname, '../dist/static-pages');
+const OUTPUT_DIR = path.join(__dirname, '../dist');
 
 if (!STRAPI_API_TOKEN) {
   console.error('❌ VITE_STRAPI_API_TOKEN environment variable is required');
@@ -51,10 +51,14 @@ async function fetchFromStrapi(query, variables = {}) {
 // Generate HTML for a topic list page
 function generateTopicListHTML(topics) {
   const topicsList = topics.map(topic => `
-    <div class="topic-card">
-      <h2><a href="/topics/${topic.slug}">${topic.name}</a></h2>
-      ${topic.description ? `<p>${topic.description}</p>` : ''}
-      <p>Articles: ${topic.articles?.length || 0}</p>
+    <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200">
+      <h2 class="text-xl font-semibold text-gray-900 mb-2">
+        <a href="/topics/${topic.slug}" class="text-blue-600 hover:text-blue-800 transition-colors">
+          ${topic.name}
+        </a>
+      </h2>
+      ${topic.description ? `<p class="text-gray-600 mb-3">${topic.description}</p>` : ''}
+      <p class="text-sm text-gray-500">Articles: ${topic.articles?.length || 0}</p>
     </div>
   `).join('');
 
@@ -71,15 +75,24 @@ function generateTopicListHTML(topics) {
     <meta property="og:description" content="Discover articles organized by topics. Explore our collection of insights, stories, and knowledge across various subjects.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://yoread.com/topics">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="container">
-        <h1>Topics</h1>
-        <p>Explore our articles organized by topics. Find the content that matters most to you.</p>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">Topics</h1>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                Explore our articles organized by topics. Find the content that matters most to you.
+            </p>
+        </header>
         
-        <div class="topics-grid">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             ${topicsList}
         </div>
+        
+        <footer class="mt-16 text-center text-gray-500">
+            <p>&copy; 2024 Vite Reader. All rights reserved.</p>
+        </footer>
     </div>
 </body>
 </html>`;
@@ -88,157 +101,126 @@ function generateTopicListHTML(topics) {
 // Generate HTML for a topic page
 function generateTopicHTML(topic) {
   const articlesList = topic.articles?.map(article => `
-    <article class="article-card">
-      <h3><a href="/topics/${topic.slug}/${article.slug}">${article.title}</a></h3>
-      ${article.excerpt ? `<p>${article.excerpt}</p>` : ''}
-      <p>By: ${article.author?.username || article.author || 'Unknown Author'}</p>
-      <p>Published: ${new Date(article.publishedAt).toLocaleDateString()}</p>
+    <article class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200">
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">
+        <a href="/topics/${topic.slug}/${article.slug}" class="text-blue-600 hover:text-blue-800 transition-colors">
+          ${article.title}
+        </a>
+      </h3>
+      ${article.excerpt ? `<p class="text-gray-600 mb-3">${article.excerpt}</p>` : ''}
+      <div class="flex items-center justify-between text-sm text-gray-500">
+        <span>By: ${article.author?.username || article.author || 'Unknown Author'}</span>
+        <span>${new Date(article.publishedAt).toLocaleDateString()}</span>
+      </div>
     </article>
-  `).join('') || '<p>No articles in this topic yet.</p>';
+  `).join('') || '<p class="text-gray-500 text-center py-8">No articles in this topic yet.</p>';
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${topic.name} - Vite Reader Topics</title>
+    <title>${topic.name} - Vite Reader | Articles and Insights</title>
     <meta name="description" content="${topic.description || `Explore articles about ${topic.name}. Discover insights, stories, and knowledge on this topic.`}">
-    <meta name="keywords" content="${topic.name.toLowerCase()}, articles, blog, knowledge, insights">
+    <meta name="keywords" content="${topic.name.toLowerCase()}, articles, blog, insights, knowledge">
     <link rel="canonical" href="https://yoread.com/topics/${topic.slug}">
-    <meta property="og:title" content="${topic.name} - Vite Reader Topics">
+    <meta property="og:title" content="${topic.name} - Vite Reader | Articles and Insights">
     <meta property="og:description" content="${topic.description || `Explore articles about ${topic.name}. Discover insights, stories, and knowledge on this topic.`}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://yoread.com/topics/${topic.slug}">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="container">
-        <nav>
-            <a href="/topics">← Back to Topics</a>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <nav class="mb-8">
+            <a href="/topics" class="text-blue-600 hover:text-blue-800 transition-colors">
+                ← Back to Topics
+            </a>
         </nav>
         
-        <h1>${topic.name}</h1>
-        ${topic.description ? `<p>${topic.description}</p>` : ''}
-        <p>Articles: ${topic.articles?.length || 0}</p>
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">${topic.name}</h1>
+            ${topic.description ? `<p class="text-xl text-gray-600 max-w-2xl mx-auto">${topic.description}</p>` : ''}
+        </header>
         
-        <div class="articles-grid">
+        <div class="space-y-6">
             ${articlesList}
         </div>
+        
+        <footer class="mt-16 text-center text-gray-500">
+            <p>&copy; 2024 Vite Reader. All rights reserved.</p>
+        </footer>
     </div>
 </body>
 </html>`;
 }
 
-// Generate HTML for an article page
+// Generate HTML for an individual article
 function generateArticleHTML(article) {
-  // Generate FAQ section if available
-  let faqSection = '';
-  let faqSchema = '';
+  const readingTime = Math.ceil((article.content?.length || 0) / 200); // Rough estimate: 200 chars per minute
   
-  if (article.faqs && Array.isArray(article.faqs) && article.faqs.length > 0) {
-    const faqItems = article.faqs.map(faq => `
-      <div class="faq-item">
-        <h3 class="faq-question">${faq.question}</h3>
-        <div class="faq-answer">${faq.answer}</div>
-      </div>
-    `).join('');
-    
-    // Generate Schema.org FAQ markup
-    const faqSchemaData = {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": article.faqs.map(faq => ({
-        "@type": "Question",
-        "name": faq.question,
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": faq.answer
-        }
-      }))
-    };
-    
-    faqSchema = `<script type="application/ld+json">${JSON.stringify(faqSchemaData)}</script>`;
-    
-    faqSection = `
-      <section class="faq-section">
-        <h2>Frequently Asked Questions</h2>
-        <div class="faq-container">
-          ${faqItems}
-        </div>
-      </section>
-    `;
-  }
-
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${article.title} - ${article.topic.name} | Vite Reader</title>
-    <meta name="description" content="${article.excerpt || 'Read this article on Vite Reader'}">
-    <meta name="keywords" content="${article.topic.name.toLowerCase()}, article, blog, ${article.title.toLowerCase()}">
-    <link rel="canonical" href="https://yoread.com/topics/${article.topic.slug}/${article.slug}">
-    <meta property="og:title" content="${article.title} - ${article.topic.name} | Vite Reader">
-    <meta property="og:description" content="${article.excerpt || 'Read this article on Vite Reader'}">
+    <title>${article.title} - Vite Reader</title>
+    <meta name="description" content="${article.excerpt || article.title}">
+    <meta name="keywords" content="${article.title.toLowerCase()}, article, blog, insights">
+    <link rel="canonical" href="https://yoread.com/topics/${article.topic?.slug}/${article.slug}">
+    <meta property="og:title" content="${article.title} - Vite Reader">
+    <meta property="og:description" content="${article.excerpt || article.title}">
     <meta property="og:type" content="article">
-    <meta property="og:url" content="https://yoread.com/topics/${article.topic.slug}/${article.slug}">
-    <meta property="article:section" content="${article.topic.name}">
-    <meta property="article:published_time" content="${article.publishedAt}">
-    <meta property="article:author" content="${article.author?.username || article.author || 'Unknown Author'}">
-    
-    ${faqSchema}
-    
-    <style>
-      .faq-section {
-        margin-top: 3rem;
-        padding: 2rem;
-        background: #f8f9fa;
-        border-radius: 8px;
-      }
-      .faq-section h2 {
-        color: #333;
-        margin-bottom: 1.5rem;
-        font-size: 1.5rem;
-      }
-      .faq-item {
-        margin-bottom: 1.5rem;
-        padding: 1rem;
-        background: white;
-        border-radius: 6px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      }
-      .faq-question {
-        color: #2c3e50;
-        margin-bottom: 0.5rem;
-        font-size: 1.1rem;
-        font-weight: 600;
-      }
-      .faq-answer {
-        color: #555;
-        line-height: 1.6;
-      }
-    </style>
+    <meta property="og:url" content="https://yoread.com/topics/${article.topic?.slug}/${article.slug}">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="container">
-        <nav>
-            <a href="/topics">Topics</a> / 
-            <a href="/topics/${article.topic.slug}">${article.topic.name}</a>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <nav class="mb-8 text-sm">
+            <a href="/topics" class="text-blue-600 hover:text-blue-800 transition-colors">Topics</a>
+            <span class="mx-2 text-gray-400">→</span>
+            <a href="/topics/${article.topic?.slug}" class="text-blue-600 hover:text-blue-800 transition-colors">
+                ${article.topic?.name || 'Unknown Topic'}
+            </a>
+            <span class="mx-2 text-gray-400">→</span>
+            <span class="text-gray-600">${article.title}</span>
         </nav>
         
-        <article>
-            <header>
-                <h1>${article.title}</h1>
-                <p>By: ${article.author?.username || article.author || 'Unknown Author'}</p>
-                <p>Published: ${new Date(article.publishedAt).toLocaleDateString()}</p>
-                <p>Topic: <a href="/topics/${article.topic.slug}">${article.topic.name}</a></p>
+        <article class="bg-white rounded-lg shadow-md p-8">
+            <header class="mb-8">
+                <h1 class="text-4xl font-bold text-gray-900 mb-4">${article.title}</h1>
+                <div class="flex items-center justify-between text-sm text-gray-500 mb-4">
+                    <span>By: ${article.author?.username || article.author || 'Unknown Author'}</span>
+                    <span>${new Date(article.publishedAt).toLocaleDateString()}</span>
+                </div>
+                <div class="flex items-center space-x-4 text-sm text-gray-500">
+                    <span>📖 ${readingTime} min read</span>
+                    <span>📝 ${article.content?.length || 0} characters</span>
+                </div>
             </header>
             
-            <div class="content">
-                ${article.content || article.excerpt || 'Content not available'}
+            <div class="prose prose-lg max-w-none">
+                ${article.content || '<p>Content not available.</p>'}
             </div>
             
-            ${faqSection}
+            ${article.faqs && article.faqs.length > 0 ? `
+            <section class="mt-12 pt-8 border-t border-gray-200">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h2>
+                <div class="space-y-4">
+                    ${article.faqs.map(faq => `
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="font-semibold text-gray-900 mb-2">${faq.question}</h3>
+                            <p class="text-gray-600">${faq.answer}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </section>
+            ` : ''}
         </article>
+        
+        <footer class="mt-16 text-center text-gray-500">
+            <p>&copy; 2024 Vite Reader. All rights reserved.</p>
+        </footer>
     </div>
 </body>
 </html>`;
@@ -246,30 +228,34 @@ function generateArticleHTML(article) {
 
 // Generate sitemap
 function generateSitemap(topics, articles) {
+  const topicsUrls = topics.map(topic => `
+    <url>
+        <loc>https://yoread.com/topics/${topic.slug}</loc>
+        <lastmod>${new Date().toISOString()}</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+  `).join('');
+
+  const articlesUrls = articles.map(article => `
+    <url>
+        <loc>https://yoread.com/topics/${article.topic?.slug}/${article.slug}</loc>
+        <lastmod>${new Date(article.publishedAt).toISOString()}</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.9</priority>
+    </url>
+  `).join('');
+
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
         <loc>https://yoread.com/topics</loc>
-        <changefreq>daily</changefreq>
-        <priority>0.8</priority>
-    </url>
-    
-    ${topics.map(topic => `
-    <url>
-        <loc>https://yoread.com/topics/${topic.slug}</loc>
+        <lastmod>${new Date().toISOString()}</lastmod>
         <changefreq>weekly</changefreq>
-        <priority>0.7</priority>
+        <priority>1.0</priority>
     </url>
-    `).join('')}
-    
-    ${articles.map(article => `
-    <url>
-        <loc>https://yoread.com/topics/${article.topic.slug}/${article.slug}</loc>
-        <lastmod>${new Date(article.publishedAt).toISOString()}</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.6</priority>
-    </url>
-    `).join('')}
+    ${topicsUrls}
+    ${articlesUrls}
 </urlset>`;
 
   return sitemap;
@@ -280,8 +266,7 @@ async function generateStaticPages() {
   try {
     console.log('🚀 Starting static page generation...');
     
-    // Create output directory
-    await fs.mkdir(OUTPUT_DIR, { recursive: true });
+    // Create output directories
     await fs.mkdir(path.join(OUTPUT_DIR, 'topics'), { recursive: true });
     
     // Fetch all data from Strapi
@@ -305,12 +290,6 @@ async function generateStaticPages() {
               email
             }
             publishedAt
-            topic {
-              documentId
-              name
-              slug
-              description
-            }
           }
         }
       }
@@ -357,15 +336,15 @@ async function generateStaticPages() {
       const topicHTML = generateTopicHTML(topic);
       await fs.mkdir(path.join(OUTPUT_DIR, 'topics', topic.slug), { recursive: true });
       await fs.writeFile(path.join(OUTPUT_DIR, 'topics', topic.slug, 'index.html'), topicHTML);
-      
-      // Generate article pages for this topic
-      if (topic.articles) {
-        for (const article of topic.articles) {
-          console.log(`📄 Generating article page: ${article.title}`);
-          const articleHTML = generateArticleHTML(article);
-          await fs.mkdir(path.join(OUTPUT_DIR, 'topics', topic.slug, article.slug), { recursive: true });
-          await fs.writeFile(path.join(OUTPUT_DIR, 'topics', topic.slug, article.slug, 'index.html'), articleHTML);
-        }
+    }
+    
+    // Generate individual article pages
+    for (const article of articles) {
+      if (article.topic?.slug) {
+        console.log(`📝 Generating article page: ${article.title}`);
+        const articleHTML = generateArticleHTML(article);
+        await fs.mkdir(path.join(OUTPUT_DIR, 'topics', article.topic.slug, article.slug), { recursive: true });
+        await fs.writeFile(path.join(OUTPUT_DIR, 'topics', article.topic.slug, article.slug, 'index.html'), articleHTML);
       }
     }
     
@@ -375,10 +354,10 @@ async function generateStaticPages() {
     await fs.writeFile(path.join(OUTPUT_DIR, 'sitemap-topics.xml'), sitemap);
     
     console.log('✅ Static page generation completed successfully!');
-    console.log(`📁 Output directory: ${OUTPUT_DIR}`);
-    console.log(`📝 Generated ${topics.length + 1} topic pages`);
-    console.log(`📄 Generated ${articles.length} article pages`);
-    console.log(`🗺️ Generated sitemap: sitemap-topics.xml`);
+    console.log(`📁 Generated ${topics.length + 1} topic pages`);
+    console.log(`📁 Generated ${articles.length} article pages`);
+    console.log(`🗺️ Generated sitemap-topics.xml`);
+    console.log(`📂 Output directory: ${OUTPUT_DIR}`);
     
   } catch (error) {
     console.error('❌ Error generating static pages:', error);
@@ -386,5 +365,5 @@ async function generateStaticPages() {
   }
 }
 
-// Run the generation
+// Run the script
 generateStaticPages();
