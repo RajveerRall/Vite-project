@@ -73,16 +73,16 @@ export const SettingsWidget: React.FC<SettingsWidgetProps> = ({
       />
       
       {/* Settings Panel */}
-      <div className="settings-widget fixed bottom-6 right-6 bg-white rounded-lg shadow-xl border border-gray-200 z-50 p-4 min-w-[280px] max-w-[90vw]">
+      <div className={`settings-widget fixed bottom-6 right-6 rounded-lg shadow-xl border z-50 p-4 min-w-[280px] max-w-[90vw] theme-${theme}`}>
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <h3 className="text-lg font-semibold flex items-center gap-2 settings-title">
             <Settings className="w-5 h-5" />
             Reading Settings
           </h3>
           <button 
             onClick={closeSettings}
-            className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
+            className="p-1 transition-colors settings-close-btn"
             aria-label="Close settings"
           >
             <X className="w-4 h-4" />
@@ -91,12 +91,12 @@ export const SettingsWidget: React.FC<SettingsWidgetProps> = ({
         
         {/* Font Size Controls */}
         <div className="space-y-3">
-          <label className="block text-sm font-medium text-gray-700">Font Size</label>
-          <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+          <label className="block text-sm font-medium settings-label">Font Size</label>
+          <div className="flex items-center justify-between rounded-lg p-3 settings-control-bg">
             <div className="flex items-center space-x-3">
               <button 
                 onClick={decreaseFontSize}
-                className="p-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-white"
+                className="p-2 transition-colors rounded-lg hover:bg-white settings-control-btn"
                 aria-label="Decrease font size"
                 title="Decrease font size (Ctrl/Cmd + -)"
               >
@@ -104,7 +104,7 @@ export const SettingsWidget: React.FC<SettingsWidgetProps> = ({
               </button>
               <button 
                 onClick={resetFontSize}
-                className="px-4 py-2 text-sm text-gray-700 hover:text-amber-800 transition-colors font-medium bg-white rounded-lg border border-gray-200 hover:border-amber-300 min-w-[4rem] text-center"
+                className="px-4 py-2 text-sm transition-colors font-medium rounded-lg border min-w-[4rem] text-center settings-reset-btn"
                 aria-label="Reset font size"
                 title="Reset font size to default (Ctrl/Cmd + 0)"
               >
@@ -112,7 +112,7 @@ export const SettingsWidget: React.FC<SettingsWidgetProps> = ({
               </button>
               <button 
                 onClick={increaseFontSize}
-                className="p-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-white"
+                className="p-2 transition-colors rounded-lg hover:bg-white settings-control-btn"
                 aria-label="Increase font size"
                 title="Increase font size (Ctrl/Cmd + +)"
               >
@@ -122,14 +122,14 @@ export const SettingsWidget: React.FC<SettingsWidgetProps> = ({
           </div>
           
           {/* Font Size Info */}
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs mt-2 settings-info-text">
             Use Ctrl/Cmd + +/- to adjust quickly, or Ctrl/Cmd + 0 to reset
           </p>
         </div>
         
         {/* Theme Selection */}
-        <div className="border-t border-gray-100 pt-4 mt-4 space-y-3">
-          <label className="block text-sm font-medium text-gray-700">Reading Theme</label>
+        <div className="border-t pt-4 mt-4 space-y-3 settings-section-border">
+          <label className="block text-sm font-medium settings-label">Reading Theme</label>
           <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => changeTheme('light')}
@@ -141,7 +141,7 @@ export const SettingsWidget: React.FC<SettingsWidgetProps> = ({
               aria-label="Light theme"
             >
               <div className="w-full h-8 bg-white rounded border border-gray-200 mb-2"></div>
-              <span className="text-xs font-medium text-gray-700">Light</span>
+              <span className="text-xs font-medium settings-theme-text">Light</span>
             </button>
             
             <button
@@ -154,68 +154,68 @@ export const SettingsWidget: React.FC<SettingsWidgetProps> = ({
               aria-label="Dark theme"
             >
               <div className="w-full h-8 bg-gray-800 rounded border border-gray-600 mb-2"></div>
-              <span className="text-xs font-medium text-gray-700">Dark</span>
+              <span className="text-xs font-medium settings-theme-text">Dark</span>
             </button>
             
             <button
               onClick={() => changeTheme('sepia')}
               className={`p-3 rounded-lg border-2 transition-all ${
-                theme === 'sepia' 
+                theme === 'light' 
                   ? 'border-amber-400 bg-amber-50' 
                   : 'border-gray-200 hover:border-gray-300'
               }`}
               aria-label="Sepia theme"
             >
               <div className="w-full h-8 bg-amber-50 rounded border border-amber-200 mb-2"></div>
-              <span className="text-xs font-medium text-gray-700">Sepia</span>
+              <span className="text-xs font-medium settings-theme-text">Sepia</span>
             </button>
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs settings-info-text">
             Choose a comfortable reading theme for your eyes
           </p>
         </div>
 
         {/* TTS Voice Selection */}
-        <div className="border-t border-gray-100 pt-4 mt-4 space-y-3">
-          <label htmlFor="tts-voice" className="block text-sm font-medium text-gray-700">Read Aloud Voice</label>
+        <div className="border-t pt-4 mt-4 space-y-3 settings-section-border">
+          <label htmlFor="tts-voice" className="block text-sm font-medium settings-label">Read Aloud Voice</label>
           <div className="relative">
             <select
               id="tts-voice"
               value={selectedVoice}
               onChange={(e) => onVoiceChange(e.target.value)}
-              className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-2 px-3 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-amber-400"
+              className="w-full appearance-none border py-2 px-3 pr-8 rounded-lg leading-tight focus:outline-none focus:border-amber-400 settings-select"
             >
               {availableVoices.map(voice => (
                 <option key={voice.id} value={voice.id}>{voice.name}</option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 settings-select-icon">
               <ChevronDown className="w-4 h-4" />
             </div>
           </div>
         </div>
 
         {/* TTS Speed Control */}
-        <div className="border-t border-gray-100 pt-4 mt-4 space-y-3">
-          <label className="block text-sm font-medium text-gray-700">Read Aloud Speed</label>
-          <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+        <div className="border-t pt-4 mt-4 space-y-3 settings-section-border">
+          <label className="block text-sm font-medium settings-label">Read Aloud Speed</label>
+          <div className="flex items-center justify-between rounded-lg p-3 settings-control-bg">
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => onSpeedChange(Math.max(0.5, parseFloat((ttsSpeed - 0.1).toFixed(1))))}
-                className="p-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-white"
+                className="p-2 transition-colors rounded-lg hover:bg-white settings-control-btn"
                 aria-label="Decrease reading speed"
                 title="Decrease reading speed by 0.1"
               >
                 <Minus className="w-5 h-5" />
               </button>
               <span
-                className="px-4 py-2 text-sm text-gray-700 font-medium bg-white rounded-lg border border-gray-200 min-w-[4rem] text-center"
+                className="px-4 py-2 text-sm font-medium rounded-lg border min-w-[4rem] text-center settings-reset-btn"
               >
                 {ttsSpeed.toFixed(1)}x
               </span>
               <button
                 onClick={() => onSpeedChange(Math.min(2.0, parseFloat((ttsSpeed + 0.1).toFixed(1))))}
-                className="p-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-white"
+                className="p-2 transition-colors rounded-lg hover:bg-white settings-control-btn"
                 aria-label="Increase reading speed"
                 title="Increase reading speed by 0.1"
               >

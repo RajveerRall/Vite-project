@@ -1,137 +1,4 @@
 /* src/components/Reader/Controls.css */
-/* .reader-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 0.5rem;
-}
-
-.control-button {
-  background-color: #4a69bd;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s, opacity 0.3s;
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.control-button:hover:not(:disabled) {
-  background-color: #3867a9;
-}
-
-.control-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.control-button.active {
-  background-color: #e74c3c;
-}
-
-.control-button.active:hover {
-  background-color: #c0392b;
-}
-
-.page-info {
-  font-size: 0.9rem;
-  color: #666;
-  margin: 0 0.5rem;
-  white-space: nowrap;
-}
-
-
-@media (max-width: 768px) {
-  .reader-controls {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  
-  .control-button {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-  }
-  
-  .page-info {
-    width: 100%;
-    text-align: center;
-    order: -1;
-    margin-bottom: 0.5rem;
-  }
-} */
-
-
-/* src/components/Reader/Controls.css */
-/* .reader-controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-}
-
-.nav-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.audio-controls {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.control-button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  color: #4a69bd;
-  padding: 0.35rem 0.5rem;
-}
-
-.icon-button {
-  background-color: #f0f0f0;
-  border: 1px solid #e0e0e0;
-}
-
-.control-button:hover:not(:disabled) {
-  background-color: #e8eef9;
-}
-
-.control-button:disabled {
-  color: #aaa;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.control-button.active {
-  background-color: #4a69bd;
-  color: white;
-}
-
-.page-info {
-  font-size: 0.85rem;
-  color: #666;
-  min-width: 3.5rem;
-  text-align: center;
-}
-
-.button-text {
-  font-size: 0.8rem;
-  display: none;
-} */
-
-/*
- * This file is now the primary source of truth for component appearance.
- * Tailwind is used in the JSX for layout (flexbox, grid, etc).
-*/
 
 .control-button {
   /* Base styles for all buttons */
@@ -146,56 +13,151 @@
   transition: all 0.2s ease-in-out;
   
   /* Default Appearance (non-active) */
-  background-color: #f9fafb; /* gray-50 */
-  border: 1px solid #e5e7eb; /* gray-200 */
-  color: #374151; /* gray-700 */
+  background-color: var(--control-button-bg, #f9fafb);
+  border: 1px solid var(--control-button-border, #e5e7eb);
+  color: var(--control-button-text, #374151);
 }
 
 /* --- HOVER STATE --- */
 .control-button:hover:not(:disabled) {
-  border-color: #d1d5db; /* gray-300 */
-  background-color: #f3f4f6; /* gray-100 */
+  border-color: var(--control-button-hover-border, #d1d5db);
+  background-color: var(--control-button-hover-bg, #f3f4f6);
 }
 
 /* --- DISABLED STATE --- */
 .control-button:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
+  background-color: var(--control-button-disabled-bg, #f3f4f6);
+  border-color: var(--control-button-disabled-border, #d1d5db);
+  color: var(--control-button-disabled-text, #9ca3af);
 }
 
 /* --- ACTIVE (AMBER THEME) --- */
 .control-button.active {
-  background-color: #92400e; /* amber-800 */
-  border-color: #92400e;
-  color: white;
+  background-color: var(--control-button-active-bg, #92400e);
+  border-color: var(--control-button-active-border, #92400e);
+  color: var(--control-button-active-text, #f8fafc);
 }
 .control-button.active:hover:not(:disabled) {
-  background-color: #78350f; /* amber-900 */
+  background-color: var(--control-button-active-hover-bg, #78350f);
 }
 
 /* --- STOP BUTTON (RED THEME) --- */
 .control-button.stop-button {
-  background-color: #fef2f2; /* red-50 */
-  border-color: #fecaca; /* red-200 */
-  color: #b91c1c; /* red-700 */
+  background-color: var(--control-button-stop-bg, #fef2f2);
+  border-color: var(--control-button-stop-border, #fecaca);
+  color: var(--control-button-stop-text, #b91c1c);
 }
 .control-button.stop-button:hover:not(:disabled) {
-  background-color: #fee2e2; /* red-100 */
-  border-color: #fca5a5; /* red-300 */
+  background-color: var(--control-button-stop-hover-bg, #fee2e2);
+  border-color: var(--control-button-stop-hover-border, #fca5a5);
 }
-
 
 /* --- Page Counter --- */
 .page-info {
   font-size: 0.9rem;
-  color: #4b5563; /* gray-600 */
+  color: var(--page-info-color, #4b5563);
   min-width: 3.5rem;
   text-align: center;
-  font-weight: 500;
 }
 
-/* --- Button Text --- */
-.button-text {
-  font-size: 0.875rem; /* 14px */
-  display: inline; /* Always visible */
+/* Light Theme (Default) */
+:root {
+  --control-button-bg: #f9fafb;
+  --control-button-border: #e5e7eb;
+  --control-button-text: #374151;
+  --control-button-hover-border: #d1d5db;
+  --control-button-hover-bg: #f3f4f6;
+  --control-button-active-bg: #92400e;
+  --control-button-active-border: #92400e;
+  --control-button-active-text: #f8fafc;
+  --control-button-active-hover-bg: #78350f;
+  --control-button-stop-bg: #fef2f2;
+  --control-button-stop-border: #fecaca;
+  --control-button-stop-text: #b91c1c;
+  --control-button-stop-hover-bg: #fee2e2;
+  --control-button-stop-hover-border: #fca5a5;
+  --page-info-color: #4b5563;
+}
+
+/* Dark Theme */
+.theme-dark {
+  --control-button-bg: #374151;
+  --control-button-border: #4b5563;
+  --control-button-text: #e2e8f0;
+  --control-button-hover-border: #6b7280;
+  --control-button-hover-bg: #4b5563;
+  --control-button-active-bg: #92400e;
+  --control-button-active-border: #92400e;
+  --control-button-active-text: #f8fafc;
+  --control-button-active-hover-bg: #78350f;
+  --control-button-stop-bg: #450a0a;
+  --control-button-stop-border: #7f1d1d;
+  --control-button-stop-text: #fca5a5;
+  --control-button-stop-hover-bg: #7f1d1d;
+  --control-button-stop-hover-border: #991b1b;
+  --page-info-color: #9ca3af;
+}
+
+/* Sepia Theme */
+.theme-sepia {
+  --control-button-bg: #faf7ed;
+  --control-button-border: #e6d4b1;
+  --control-button-text: #3c2e26;
+  --control-button-hover-border: #d4c399;
+  --control-button-hover-bg: #f3f0e1;
+  --control-button-active-bg: #92400e;
+  --control-button-active-border: #92400e;
+  --control-button-active-text: #f8fafc;
+  --control-button-active-hover-bg: #78350f;
+  --control-button-stop-bg: #fef2f2;
+  --control-button-stop-border: #fecaca;
+  --control-button-stop-text: #b91c1c;
+  --control-button-stop-hover-bg: #fee2e2;
+  --control-button-stop-hover-border: #fca5a5;
+  --page-info-color: #8b6914;
+}
+
+/* Controls Container Layout Fixes */
+.reader-controls {
+  /* Ensure proper overflow handling */
+  overflow: visible;
+  /* Allow flex wrapping if needed */
+  flex-wrap: wrap;
+  /* Ensure minimum width for controls */
+  min-width: 0;
+}
+
+/* Ensure buttons don't get cut off */
+.control-button {
+  /* Prevent button text from being cut off */
+  white-space: nowrap;
+  /* Ensure button has proper sizing */
+  flex-shrink: 0;
+}
+
+/* Stop button specific styling */
+.stop-button {
+  /* Ensure stop button is always visible */
+  position: relative;
+  z-index: 10;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  .reader-controls {
+    /* Reduce gaps on mobile */
+    gap: 0.5rem;
+  }
+  
+  .control-button {
+    /* Smaller padding on mobile */
+    padding: 0.375rem 0.75rem;
+  }
+  
+  .button-text {
+    /* Smaller text on mobile */
+    font-size: 0.875rem;
+  }
 }

@@ -40,7 +40,7 @@ localforage.config({
 // ... (BookContextValue interface - should be the same as the last full version I provided)
 interface BookContextValue {
   books: BookData[];
-  addBook: (file: File) => Promise<void>;
+  addBook: (file: File) => Promise<BookData>;
   removeBook: (bookId: string) => Promise<void>;
   currentBook: BookData | null;
   isReading: boolean;
@@ -191,93 +191,119 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     loadBooksFromStorage();
   }, [userId]); // Depend on userId so it reloads when user signs in/out
 
-  // *** NEW: Clean up user-specific data when user signs out ***
+  // *** FIXED: Clean up user-specific data when user signs out ***
+  // This effect now includes safeguards to prevent clearing books during page refresh
+  // when the user is just temporarily unauthenticated
   useEffect(() => {
     if (!userId && isInitialLoadComplete) {
-      // User has signed out, clear all user-specific books and reset to default
-      console.log('[BookContext] User signed out, clearing user-specific books');
-      
-      const clearUserData = async () => {
-        try {
-          // Clear all books from state
-          setBooks([]);
-          
-          // Clear ALL user-specific keys from localforage (including current user's keys)
+      // Add a delay to prevent clearing books during page refresh
+      // This gives the auth context time to restore the user's session
+      const timeoutId = setTimeout(async () => {
+        // Double-check that user is still not authenticated after the delay
+        if (!userId) {
+          // Additional safeguard: Check if there are any uploaded books that should be preserved
+          // If there are uploaded books, the user is likely just temporarily unauthenticated
+          // during page refresh, not actually signed out
           const allKeys = await localforage.keys();
-          console.log('[BookContext] All keys in storage:', allKeys);
-          
-          // Remove any keys that start with 'user_' (user-specific data)
-          const userKeys = allKeys.filter(key => 
-            key.startsWith('user_') && 
-            (key.includes('book_metadata_') || key.includes('book_file_'))
+          const hasUploadedBooks = allKeys.some(key => 
+            key.includes('book_metadata_') && !key.includes('1984')
           );
           
-          console.log('[BookContext] Found user-specific keys to remove:', userKeys);
-          
-          for (const key of userKeys) {
-            await localforage.removeItem(key);
-            console.log(`[BookContext] Removed user key: ${key}`);
+          if (hasUploadedBooks) {
+            console.log('[BookContext] Found uploaded books, user may be temporarily unauthenticated - skipping cleanup');
+            return;
           }
           
-                     // *** FIXED: Remove ALL book keys when user signs out, except the default book ***
-           // When userId is undefined (signed out), we need to clear all books
-           const allBookKeys = allKeys.filter(key => 
-             key.includes('book_metadata_') || key.includes('book_file_')
-           );
-           
-           console.log('[BookContext] Found all book keys to process:', allBookKeys);
-           
-           for (const key of allBookKeys) {
-             // Check if this is the default book (1984) - preserve it
-             if (key.startsWith('book_metadata_')) {
-               const bookId = key.replace('book_metadata_', '');
-               const metadata = await localforage.getItem(key) as BookData;
-               if (metadata && metadata.title === '1984') {
-                 console.log(`[BookContext] Preserving default book key: ${key}`);
-                 continue; // Keep the default book
-               }
-             }
+          console.log('[BookContext] User confirmed signed out after delay, clearing user-specific books');
+          
+          const clearUserData = async () => {
+            try {
+              // Clear all books from state
+              setBooks([]);
+              
+              // Clear ALL user-specific keys from localforage (including current user's keys)
+              const allKeys = await localforage.keys();
+              console.log('[BookContext] All keys in storage:', allKeys);
+              
+              // Remove any keys that start with 'user_' (user-specific data)
+              const userKeys = allKeys.filter(key => 
+                key.startsWith('user_') && 
+                (key.includes('book_metadata_') || key.includes('book_file_'))
+              );
+              
+              console.log('[BookContext] Found user-specific keys to remove:', userKeys);
+              
+              for (const key of userKeys) {
+                await localforage.removeItem(key);
+                console.log(`[BookContext] Removed user key: ${key}`);
+              }
+              
+              // *** FIXED: Remove ALL book keys when user signs out, except the default book ***
+              // When userId is undefined (signed out), we need to clear all books
+              const allBookKeys = allKeys.filter(key => 
+                key.includes('book_metadata_') || key.includes('book_file_')
+              );
+              
+              console.log('[BookContext] Found all book keys to process:', allBookKeys);
+              
+              for (const key of allBookKeys) {
+                // Check if this is the default book (1984) - preserve it
+                if (key.startsWith('book_metadata_')) {
+                  const bookId = key.replace('book_metadata_', '');
+                  const metadata = await localforage.getItem(key) as BookData;
+                  if (metadata && metadata.title === '1984') {
+                    console.log(`[BookContext] Preserving default book key: ${key}`);
+                    continue; // Keep the default book
+                  }
+                }
+                
+                // Remove all other book keys
+                await localforage.removeItem(key);
+                console.log(`[BookContext] Removed book key: ${key}`);
+              }
              
-             // Remove all other book keys
-             await localforage.removeItem(key);
-             console.log(`[BookContext] Removed book key: ${key}`);
-           }
+              // Reset flags
+              defaultBookLoadAttempted.current = false;
+              setIsInitialLoadComplete(false);
+              
+              // Clear current book state
+              setCurrentBook(null);
+              setIsReading(false);
+              setBookZip(null);
+              setOpfPath('');
+              setHtmlFiles([]);
+              setToc([]);
+              setCurrentContent('');
+              setBookTitle('');
+              setBookAuthor('');
+              setIsPlayModeVisible(false);
+              setCurrentPageText('');
+              setCurrentPageToLoad(0);
+              setCurrentPageDisplay(0);
+              setTotalPages(0);
+              
+              console.log('[BookContext] User data cleared, ready for new user or default book');
+              
+              // *** NEW: Load the default book after clearing user data ***
+              // This ensures users always see the default book when signed out
+              const defaultBook = await loadDefaultBook();
+              if (defaultBook) {
+                setBooks([defaultBook]);
+                console.log('[BookContext] Default book loaded after sign-out cleanup');
+              }
+            } catch (error) {
+              console.error('[BookContext] Error clearing user data:', error);
+            }
+          };
           
-          // Reset flags
-          defaultBookLoadAttempted.current = false;
-          setIsInitialLoadComplete(false);
-          
-          // Clear current book state
-          setCurrentBook(null);
-          setIsReading(false);
-          setBookZip(null);
-          setOpfPath('');
-          setHtmlFiles([]);
-          setToc([]);
-          setCurrentContent('');
-          setBookTitle('');
-          setBookAuthor('');
-          setIsPlayModeVisible(false);
-          setCurrentPageText('');
-          setCurrentPageToLoad(0);
-          setCurrentPageDisplay(0);
-          setTotalPages(0);
-          
-          console.log('[BookContext] User data cleared, ready for new user or default book');
-          
-          // *** NEW: Load the default book after clearing user data ***
-          // This ensures users always see the default book when signed out
-          const defaultBook = await loadDefaultBook();
-          if (defaultBook) {
-            setBooks([defaultBook]);
-            console.log('[BookContext] Default book loaded after sign-out cleanup');
-          }
-        } catch (error) {
-          console.error('[BookContext] Error clearing user data:', error);
+          clearUserData();
+        } else {
+          console.log('[BookContext] User re-authenticated during delay, skipping book cleanup');
         }
-      };
+      }, 2000); // 2 second delay to allow auth context to restore session
       
-      clearUserData();
+      // Cleanup timeout if userId changes before delay completes
+      return () => clearTimeout(timeoutId);
     }
   }, [userId, isInitialLoadComplete]);
 
@@ -509,10 +535,15 @@ useEffect(() => {
           // IMPORTANT: Keep any default books that aren't in cloud storage
           const defaultBooks = currentLocalBooks.filter(book => 
             !cloudBooksData.some(cloudBook => cloudBook.id === book.id) &&
-            book.title === '1984' // Keep the default book
+            (book.title === '1984' || book.id === 'default-book-1984') // Keep the default book by title or ID
           );
           
-          const booksWithPlaceholders = [...updatedBooks, ...defaultBooks, ...placeholderBooks];
+          // Remove any duplicate default books from updatedBooks to prevent duplicates
+          const updatedBooksWithoutDuplicates = updatedBooks.filter(book => 
+            !(book.title === '1984' && defaultBooks.some(defaultBook => defaultBook.title === '1984'))
+          );
+          
+          const booksWithPlaceholders = [...updatedBooksWithoutDuplicates, ...defaultBooks, ...placeholderBooks];
           setBooks(booksWithPlaceholders);
           console.log(`[SupabaseSync] 📦 ${placeholderBooks.length} placeholder books + ${defaultBooks.length} default books added to UI`);
 
@@ -795,8 +826,10 @@ useEffect(() => {
 
   // *** NEW: Function to ensure default book is always available ***
   const ensureDefaultBookAvailable = async (): Promise<void> => {
-    // Check if 1984 is already in the books array
-    const hasDefaultBook = books.some(book => book.title === '1984');
+    // Check if 1984 is already in the books array (by title or ID)
+    const hasDefaultBook = books.some(book => 
+      book.title === '1984' || book.id === 'default-book-1984'
+    );
     if (!hasDefaultBook) {
       console.log('[Default Book] 1984 not found, loading default book...');
       const defaultBook = await loadDefaultBook();
@@ -804,6 +837,8 @@ useEffect(() => {
         setBooks(prevBooks => [...prevBooks, defaultBook]);
         console.log('[Default Book] 1984 added to library');
       }
+    } else {
+      console.log('[Default Book] 1984 already exists in library, skipping duplicate load');
     }
   };
 
@@ -837,7 +872,8 @@ useEffect(() => {
       const title = opfDoc.getElementsByTagName('dc:title')[0]?.textContent?.trim() || 'Unknown Title';
       const author = opfDoc.getElementsByTagName('dc:creator')[0]?.textContent?.trim() || 'Unknown Author';
       
-      const id = generateUUID();
+      // Use a consistent ID for the default book to prevent duplicates
+      const id = 'default-book-1984';
 
       // This part for cover is complex, can be simplified or kept if needed
       let coverUrl: string | null = null;
@@ -971,7 +1007,7 @@ useEffect(() => {
 
 
     // 👇 THIS IS THE NEW, UNIVERSAL addBook FUNCTION BASED ON YOUR PROVEN LOGIC 👇
-  const addBook = async (file: File): Promise<void> => {
+  const addBook = async (file: File): Promise<BookData> => {
     setIsLoading(true);
     try {
       // Step 1: Process the book locally to get its metadata.
@@ -1040,6 +1076,9 @@ useEffect(() => {
         platform: 'web',
         timestamp: new Date().toISOString()
       });
+
+      // Return the newly created book so it can be auto-opened
+      return newBook;
 
     } catch (error) {
       console.error('[addBook] Error processing EPUB file:', error);

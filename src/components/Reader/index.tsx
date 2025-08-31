@@ -42,6 +42,21 @@ const Reader: React.FC = () => {
   const [showFeatureHighlight, setShowFeatureHighlight] = useState<boolean>(false);
   const [isEnhanced, setIsEnhanced] = useState(false);
   
+  // Mobile detection hook
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Mobile detection effect
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+    
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
+  
   // Defer feature highlight to improve initial load performance
   useEffect(() => {
     const timer = setTimeout(() => setShowFeatureHighlight(true), 2000);
@@ -263,14 +278,15 @@ const Reader: React.FC = () => {
             </button>
           )}
 
-          {/* Mobile TOC Component - Now positioned next to settings icon */}
-          {isEnhanced && (
-            <MobileTOCDrawer 
-              toc={toc} 
-              onItemClick={handleNavigateToTocItem}
-              theme={theme}
-            />
-          )}
+                     {/* Mobile TOC Component - Now positioned next to settings icon */}
+           {isEnhanced && (
+             <MobileTOCDrawer 
+               toc={toc} 
+               onItemClick={handleNavigateToTocItem}
+               theme={theme}
+               openByDefault={isMobile} // Only open by default on mobile devices
+             />
+           )}
 
           {/* Auto-scroll to highlight button */}
           {(isSpeaking || isProcessing || isPaused) && (
@@ -336,6 +352,7 @@ const Reader: React.FC = () => {
               toc={toc} 
               onItemClick={handleNavigateToTocItem}
               theme={theme}
+              openByDefault={isMobile} // Only open by default on mobile devices
             />
           )}
         </div>
@@ -403,7 +420,7 @@ const Reader: React.FC = () => {
     </div>
 
     {/* Bottom Controls - Always visible and accessible */}
-    <div className="reader-bottom-controls fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-30 md:hidden">
+    <div className="reader-bottom-controls fixed bottom-0 left-0 right-0 border-t border-gray-200 shadow-lg z-30 md:hidden">
       <div className="px-4 py-3">
         <Controls
           currentPage={currentPageDisplay}
@@ -424,7 +441,7 @@ const Reader: React.FC = () => {
     </div>
 
     {/* Desktop Bottom Controls - Fixed position for larger screens */}
-    <div className="reader-bottom-controls-desktop hidden md:block fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow-xl border border-gray-200 z-30">
+    <div className="reader-bottom-controls-desktop hidden md:block fixed bottom-6 left-1/2 transform -translate-x-1/2 rounded-full shadow-xl border border-gray-200 z-30">
       <div className="px-6 py-3">
         <Controls
           currentPage={currentPageDisplay}

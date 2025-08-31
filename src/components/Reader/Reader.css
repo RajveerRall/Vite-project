@@ -239,13 +239,13 @@
 /* Bottom Controls Enhanced Styling */
 .reader-bottom-controls {
   backdrop-filter: blur(10px);
-  background-color: rgba(255, 255, 255, 0.95);
+  background-color: var(--reader-sidebar-bg, rgba(255, 255, 255, 0.95));
   transition: all 0.3s ease;
 }
 
 .reader-bottom-controls-desktop {
   backdrop-filter: blur(10px);
-  background-color: rgba(255, 255, 255, 0.95);
+  background-color: var(--reader-sidebar-bg, rgba(255, 255, 255, 0.95));
   transition: all 0.3s ease;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
@@ -1542,12 +1542,12 @@
 
 /* Page info styling */
 .page-info {
-  background-color: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  background-color: var(--reader-hover, #f3f4f6);
+  border: 1px solid var(--reader-border, #e5e7eb);
   border-radius: 0.5rem;
   padding: 0.5rem 1rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--reader-text, #374151);
   min-width: 80px;
   text-align: center;
 }
