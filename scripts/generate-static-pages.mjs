@@ -50,6 +50,9 @@ if (!STRAPI_API_TOKEN) {
 
 // Fetch data from Strapi
 async function fetchFromStrapi(query, variables = {}) {
+  console.log('🔍 Making request to:', `${STRAPI_API_URL}/graphql`);
+  console.log('🔍 Query:', query.substring(0, 100) + '...');
+  
   const response = await fetch(`${STRAPI_API_URL}/graphql`, {
     method: 'POST',
     headers: {
@@ -59,13 +62,19 @@ async function fetchFromStrapi(query, variables = {}) {
     body: JSON.stringify({ query, variables }),
   });
 
+  console.log('🔍 Response status:', response.status);
+  console.log('🔍 Response headers:', Object.fromEntries(response.headers.entries()));
+
   if (!response.ok) {
-    throw new Error(`Strapi API error: ${response.status}`);
+    const errorText = await response.text();
+    console.error('❌ Strapi API error response:', errorText);
+    throw new Error(`Strapi API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
   
   if (data.errors) {
+    console.error('❌ GraphQL errors:', data.errors);
     throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
   }
 
@@ -226,20 +235,6 @@ function generateArticleHTML(article) {
             <div class="prose prose-lg max-w-none">
                 ${article.content || '<p>Content not available.</p>'}
             </div>
-            
-            ${article.faqs && article.faqs.length > 0 ? `
-            <section class="mt-12 pt-8 border-t border-gray-200">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h2>
-                <div class="space-y-4">
-                    ${article.faqs.map(faq => `
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <h3 class="font-semibold text-gray-900 mb-2">${faq.question}</h3>
-                            <p class="text-gray-600">${faq.answer}</p>
-                        </div>
-                    `).join('')}
-                </div>
-            </section>
-            ` : ''}
         </article>
         
         <footer class="mt-16 text-center text-gray-500">
@@ -327,7 +322,6 @@ async function generateStaticPages() {
           slug
           content
           excerpt
-          faqs
           author {
             documentId
             username
