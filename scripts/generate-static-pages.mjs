@@ -11,6 +11,24 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Load environment variables from .env file
+import { readFileSync } from 'fs';
+const envPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '../.env');
+try {
+  const envFile = readFileSync(envPath, 'utf8');
+  envFile.split('\n').forEach(line => {
+    const [key, ...valueParts] = line.split('=');
+    if (key && valueParts.length > 0) {
+      const value = valueParts.join('=').trim();
+      if (!process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+  });
+} catch (error) {
+  console.warn('⚠️ Could not load .env file:', error.message);
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -19,8 +37,14 @@ const STRAPI_API_URL = process.env.VITE_STRAPI_API_URL || 'http://localhost:1337
 const STRAPI_API_TOKEN = process.env.VITE_STRAPI_API_TOKEN;
 const OUTPUT_DIR = path.join(__dirname, '../dist');
 
+// Debug: Show loaded environment variables
+console.log('🔍 Environment variables loaded:');
+console.log('VITE_STRAPI_API_URL:', STRAPI_API_URL);
+console.log('VITE_STRAPI_API_TOKEN:', STRAPI_API_TOKEN ? `${STRAPI_API_TOKEN.substring(0, 20)}...` : 'NOT FOUND');
+
 if (!STRAPI_API_TOKEN) {
   console.error('❌ VITE_STRAPI_API_TOKEN environment variable is required');
+  console.error('💡 Make sure your .env file contains: VITE_STRAPI_API_TOKEN=your_token_here');
   process.exit(1);
 }
 
