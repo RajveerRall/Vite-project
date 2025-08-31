@@ -58,13 +58,39 @@
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .read-button {
-    padding: 0.625rem 1rem;
-    font-size: 0.8rem;
-    min-width: 70px;
+    padding: 0.75rem 1.25rem; /* Slightly larger for easier tapping */
+    font-size: 0.875rem;
+    min-width: 80px;
+    /* Add touch-friendly improvements */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    /* Add a subtle pulse to indicate it's interactive */
+    animation: mobilePulse 2s ease-in-out infinite;
+    /* Ensure button is above Chrome's selection menu */
+    z-index: 1001;
+    /* Add stronger shadow for better visibility */
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
   }
   
   .read-button span {
-    font-size: 0.8rem;
+    font-size: 0.875rem;
+  }
+  
+  /* Ensure button stays visible longer on mobile */
+  .floating-read-button {
+    animation-duration: 0.3s; /* Slightly longer animation */
+    /* Higher z-index to ensure it's above native menus */
+    z-index: 1001;
+  }
+}
+
+/* Subtle pulse animation for mobile to indicate button is ready */
+@keyframes mobilePulse {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.6);
   }
 }
 

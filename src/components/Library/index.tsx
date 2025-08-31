@@ -114,18 +114,21 @@ const Library: React.FC = () => {
     if (e.target.files && e.target.files.length > 0) {
       // TRACK THE INTENT
       trackEvent('add_book_start', {
-        method: 'drag_and_drop'
+        method: 'browse_click'
       });
       try {
         const fileName = e.target.files[0].name;
-        await addBook(e.target.files[0]);
+        const newBook = await addBook(e.target.files[0]);
         e.target.value = ''; // Reset the input
 
-        
         // Show success toast
         setToastMessage(`"${fileName}" has been added to your library`);
         setToastType('success');
         setShowToast(true);
+
+        // Auto-open the newly uploaded book
+        console.log('[Library] Auto-opening uploaded book:', newBook.title);
+        openBook(newBook);
       } catch (error) {
         // Show error toast
         setToastMessage(error instanceof Error ? error.message : 'Error uploading book');
@@ -165,12 +168,16 @@ const Library: React.FC = () => {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       try {
         const fileName = e.dataTransfer.files[0].name;
-        await addBook(e.dataTransfer.files[0]);
+        const newBook = await addBook(e.dataTransfer.files[0]);
         
         // Show success toast
         setToastMessage(`"${fileName}" has been added to your library`);
         setToastType('success');
         setShowToast(true);
+
+        // Auto-open the newly uploaded book
+        console.log('[Library] Auto-opening uploaded book:', newBook.title);
+        openBook(newBook);
       } catch (error) {
         // Show error toast
         setToastMessage(error instanceof Error ? error.message : 'Error uploading book');

@@ -321,7 +321,7 @@
 
 // // // // src/components/Reader/Controls.tsx
 // // // import React from 'react';
-// // // import { ChevronLeft, ChevronRight, Headphones, PlayCircle, PauseCircle, RotateCcw, Loader2 } from 'lucide-react'; // Added RotateCcw for Resume Reading, Loader2
+// // // import { ChevronLeft, ChevronRight, Headphones, PlayCircle, PauseCircle, RotateCcw, Loader2, Square } from 'lucide-react'; // Added RotateCcw for Resume Reading, Loader2, Square
 // // // import './Controls.css'; // Assuming you might have some base styles here
 
 // // // interface ControlsProps {
@@ -336,7 +336,6 @@
 // // //   canResume: boolean;      // Indicates if saved progress exists and TTS is idle
 // // //   onAudiobook: () => void;
 // // //   isPlayModeActive: boolean;
-// // //   // Add derived prop for better className logic on the main read button
 // // //   isReadButtonActive: boolean; // Derived state: true if reading, paused, or canResume
 // // // }
 
@@ -578,7 +577,7 @@
 // //           className={`control-button icon-button ${isPlayModeActive ? 'active' : ''} hidden md:inline-flex items-center justify-center`}
 // //           aria-label="Audiobook mode"
 // //           title="Audiobook mode"
-// //           disabled={isProcessing}
+// //           disabled={isProcessing} // Also disable this if audio is processing
 // //         >
 // //           <Headphones size={20} />
 // //           <span className="button-text ml-1">Audiobook</span>
@@ -813,11 +812,11 @@ const Controls: React.FC<ControlsProps> = ({
   const canGoNext = currentPage + 1 < totalPages;
 
   return (
-    // This container uses Tailwind for high-level layout
-    <div className="flex items-center justify-between gap-x-6">
+    // This container uses Tailwind for high-level layout with better space management
+    <div className="flex flex-wrap items-center justify-between gap-4">
       
       {/* Navigation Controls use Tailwind for layout */}
-      <div className="flex items-center gap-x-3">
+      <div className="flex items-center gap-x-3 flex-shrink-0">
         <button
           onClick={onPrevious}
           disabled={!canGoPrev || isProcessing}
@@ -827,10 +826,10 @@ const Controls: React.FC<ControlsProps> = ({
           title="Previous page"
         >
           <ChevronLeft size={20} />
-          <span className="button-text text-sm font-medium">Previous</span>
+          <span className="button-text text-sm font-medium">Prev</span>
         </button>
 
-        <span className="page-info px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium">
+        <span className="page-info px-4 py-2 rounded-lg text-sm font-medium">
           {currentPage + 1} / {totalPages}
         </span>
 
@@ -846,8 +845,8 @@ const Controls: React.FC<ControlsProps> = ({
         </button>
       </div>
 
-      {/* Audio Controls use Tailwind for layout */}
-      <div className="flex items-center gap-x-3">
+      {/* Audio Controls use Tailwind for layout with better space management */}
+      <div className="flex items-center gap-x-2 flex-shrink-0">
         {/* Read/Pause/Resume Button */}
         <button
           onClick={onReadAloud}

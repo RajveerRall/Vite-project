@@ -314,6 +314,75 @@
   color: var(--reader-text);
 }
 
+/* Bottom Controls Container Theme Support */
+.reader-bottom-controls {
+  background-color: var(--reader-sidebar-bg);
+  border-color: var(--reader-border);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.reader-bottom-controls-desktop {
+  background-color: var(--reader-sidebar-bg);
+  border-color: var(--reader-border);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Page Info Theme Support */
+.page-info {
+  background-color: var(--reader-hover);
+  border: 1px solid var(--reader-border);
+  color: var(--reader-text);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Mobile TOC Button Theme Support */
+.mobile-toc-btn {
+  color: var(--reader-text-secondary);
+}
+
+.mobile-toc-btn:hover {
+  color: var(--reader-accent);
+}
+
+/* Mobile TOC Drawer Theme Support */
+.toc-drawer {
+  background-color: var(--reader-sidebar-bg);
+  border-color: var(--reader-border);
+  color: var(--reader-text);
+}
+
+.toc-drawer-header {
+  border-color: var(--reader-border);
+}
+
+.toc-drawer-title {
+  color: var(--reader-text);
+}
+
+.toc-drawer-close-btn {
+  color: var(--reader-text-secondary);
+}
+
+.toc-drawer-close-btn:hover {
+  color: var(--reader-text);
+}
+
+.toc-drawer-content {
+  color: var(--reader-text);
+  /* Ensure proper scrolling behavior */
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Remove any conflicting styles */
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Mobile header responsiveness */
 @media (max-width: 768px) {
   .reader-header {
