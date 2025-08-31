@@ -371,6 +371,26 @@ async function generateStaticPages() {
     const sitemap = generateSitemap(topics, articles);
     await fs.writeFile(path.join(OUTPUT_DIR, 'sitemap-topics.xml'), sitemap);
     
+    // Update main sitemap.xml to include topics
+    console.log('🗺️ Updating main sitemap...');
+    const mainSitemapPath = path.join(OUTPUT_DIR, 'sitemap.xml');
+    try {
+      const mainSitemap = await fs.readFile(mainSitemapPath, 'utf8');
+      // Add topics sitemap reference
+      const updatedSitemap = mainSitemap.replace(
+        '</urlset>',
+        `  <!-- Topics sitemap -->
+  <sitemap>
+    <loc>https://yoread.com/sitemap-topics.xml</loc>
+    <lastmod>${new Date().toISOString()}</lastmod>
+  </sitemap>
+</urlset>`
+      );
+      await fs.writeFile(mainSitemapPath, updatedSitemap);
+    } catch (error) {
+      console.warn('⚠️ Could not update main sitemap:', error.message);
+    }
+    
     console.log('✅ Static page generation completed successfully!');
     console.log(`📁 Generated ${topics.length + 1} topic pages`);
     console.log(`📁 Generated ${articles.length} article pages`);
