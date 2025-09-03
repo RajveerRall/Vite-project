@@ -45,6 +45,10 @@ const Reader: React.FC = () => {
   // Mobile detection hook
   const [isMobile, setIsMobile] = useState(false);
   
+  // === Chapter Navigation Arrows ===
+  const [showNavigationArrows, setShowNavigationArrows] = useState<boolean>(false);
+  const [arrowsTimeout, setArrowsTimeout] = useState<NodeJS.Timeout | null>(null);
+  
   // Mobile detection effect
   useEffect(() => {
     const checkIsMobile = () => {
@@ -68,6 +72,8 @@ const Reader: React.FC = () => {
     const timer = setTimeout(() => setIsEnhanced(true), 500);
     return () => clearTimeout(timer);
   }, []);
+
+
 
   // === Custom Hooks ===
   // Settings state and functions from custom hook - moved to top level to follow Rules of Hooks
@@ -111,6 +117,8 @@ const Reader: React.FC = () => {
     handleTTS,
     handleStopTTS,
     handleTTSNavigation,
+    handlePreviousSentence,
+    handleNextSentence,
     canTTSResume,
     highlightedContent: ttsHighlightedContent
   } = ttsHook;
@@ -167,6 +175,52 @@ const Reader: React.FC = () => {
     handleTTSNavigation();
     closeBook();
   }, [handleTTSNavigation, closeBook]);
+
+  // === Chapter Navigation Functions ===
+  const handleChapterNavigation = useCallback((direction: 'prev' | 'next') => {
+    if (direction === 'prev') {
+      handlePrevPage();
+    } else {
+      handleNextPage();
+    }
+    
+    // Scroll to top of the new chapter
+    setTimeout(() => {
+      const readerMain = document.querySelector('.reader-main');
+      if (readerMain) {
+        readerMain.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+      }
+    }, 100); // Small delay to ensure content has loaded
+  }, [handlePrevPage, handleNextPage]);
+
+  // Show arrows when user clicks on page content
+  const handlePageClick = useCallback(() => {
+    setShowNavigationArrows(true);
+    
+    // Clear existing timeout
+    if (arrowsTimeout) {
+      clearTimeout(arrowsTimeout);
+    }
+    
+    // Hide arrows after 3 seconds of inactivity
+    const timeout = setTimeout(() => {
+      setShowNavigationArrows(false);
+    }, 3000);
+    
+    setArrowsTimeout(timeout);
+  }, [arrowsTimeout]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (arrowsTimeout) {
+        clearTimeout(arrowsTimeout);
+      }
+    };
+  }, [arrowsTimeout]);
 
   // === Render text with current chunk highlighted ===
   // This is now handled by the useReaderTTS hook which generates highlightedContent
@@ -278,15 +332,15 @@ const Reader: React.FC = () => {
             </button>
           )}
 
-                     {/* Mobile TOC Component - Now positioned next to settings icon */}
-           {isEnhanced && (
-             <MobileTOCDrawer 
-               toc={toc} 
-               onItemClick={handleNavigateToTocItem}
-               theme={theme}
+          {/* Mobile TOC Component - Now positioned next to settings icon */}
+          {isEnhanced && (
+            <MobileTOCDrawer 
+              toc={toc} 
+              onItemClick={handleNavigateToTocItem}
+              theme={theme}
                openByDefault={isMobile} // Only open by default on mobile devices
-             />
-           )}
+            />
+          )}
 
           {/* Auto-scroll to highlight button */}
           {(isSpeaking || isProcessing || isPaused) && (
@@ -388,6 +442,7 @@ const Reader: React.FC = () => {
              lineHeight: '1.6'
            }}
            data-short-content={currentContent && currentContent.length < 1000 ? 'true' : 'false'}
+           onClick={handlePageClick}
          >
           {/* Debug TTS states */}
           {(() => {
@@ -409,6 +464,31 @@ const Reader: React.FC = () => {
             <div dangerouslySetInnerHTML={{ __html: currentContent }} />
           )}
         </div>
+        
+        {/* Chapter Navigation Arrows - Only visible when showNavigationArrows is true */}
+        {showNavigationArrows && (
+          <>
+            {/* Chapter Navigation Arrows - Left Side */}
+            <button
+              onClick={() => handleChapterNavigation('prev')}
+              className="chapter-nav-arrow chapter-nav-arrow-left"
+              aria-label="Previous chapter"
+              title="Previous chapter"
+            >
+              <ChevronLeft className="w-8 h-8" />
+            </button>
+            
+            {/* Chapter Navigation Arrows - Right Side */}
+            <button
+              onClick={() => handleChapterNavigation('next')}
+              className="chapter-nav-arrow chapter-nav-arrow-right"
+              aria-label="Next chapter"
+              title="Next chapter"
+            >
+              <ChevronRight className="w-8 h-8" />
+            </button>
+          </>
+        )}
       </div>
       {isPlayModeVisible && (
         useKokoroTTS ? (
@@ -429,6 +509,8 @@ const Reader: React.FC = () => {
           onNext={handleNextPage}
           onReadAloud={handleTTS}
           onStopTTS={handleStopTTS}
+          onPreviousSentence={handlePreviousSentence}
+          onNextSentence={handleNextSentence}
           isReading={isSpeaking}
           isPaused={isPaused}
           isProcessing={isProcessing && !(isSpeaking || isPaused)}
@@ -450,6 +532,8 @@ const Reader: React.FC = () => {
           onNext={handleNextPage}
           onReadAloud={handleTTS}
           onStopTTS={handleStopTTS}
+          onPreviousSentence={handlePreviousSentence}
+          onNextSentence={handleNextSentence}
           isReading={isSpeaking}
           isPaused={isPaused}
           isProcessing={isProcessing && !(isSpeaking || isPaused)}

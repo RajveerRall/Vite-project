@@ -27,6 +27,8 @@ export interface UseReaderTTSReturn {
   
   // Navigation handlers (TTS-aware)
   handleTTSNavigation: () => void;
+  handlePreviousSentence: () => void;
+  handleNextSentence: () => void;
   
   // Content rendering moved back to Reader component
   
@@ -395,13 +397,22 @@ export const useReaderTTS = ({
 
   // === Handle main TTS button pressed ===
   const handleTTS = useCallback(() => {
+    console.log(`[${readerInstanceId}][handleTTS] TTS function called`, {
+      isPaused,
+      isSpeaking,
+      hasCurrentPageText: !!currentPageText,
+      chunksLength: chunks.length
+    });
+    
     ttsIntentActiveRef.current = true;
 
     if (isPaused) {
+      console.log(`[${readerInstanceId}][handleTTS] Resuming paused playback`);
       resumePlayback();
       return;
     }
     if (isSpeaking) {
+      console.log(`[${readerInstanceId}][handleTTS] Pausing current playback`);
       pausePlayback();
       return;
     }
@@ -411,6 +422,14 @@ export const useReaderTTS = ({
     // Check for user-highlighted text first
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim();
+    
+    console.log(`[${readerInstanceId}][handleTTS] Selection check:`, {
+      hasSelection: !!selection,
+      selectedText: selectedText?.substring(0, 50),
+      selectionLength: selectedText?.length,
+      anchorNode: selection?.anchorNode,
+      isInEpubContent: selection?.anchorNode?.parentElement?.closest('.epub-content') ? true : false
+    });
 
     if (selectedText && selection?.anchorNode?.parentElement?.closest('.epub-content')) {
       const startIndexInPage = currentPageText.indexOf(selectedText);
@@ -453,6 +472,7 @@ export const useReaderTTS = ({
     }
 
     const startPlayback = async () => {
+      console.log(`[${readerInstanceId}][handleTTS] Starting playback from chunk ${startChunk}`);
       setIsProcessing(true); 
       await prefetchChunks(startChunk);
       setIsProcessing(false);
@@ -553,6 +573,45 @@ export const useReaderTTS = ({
     ttsIntentActiveRef.current = false;
   }, [isSpeaking, isPaused, saveResumeIndex, haltPlayback]);
 
+  // === Previous/Next Sentence Navigation ===
+  const handlePreviousSentence = useCallback(() => {
+    if (currentChunkIndex !== null && currentChunkIndex > 0) {
+      // Stop current playback if playing
+      if (isSpeaking) {
+        pausePlayback();
+      }
+      
+      // Play the previous sentence
+      const previousChunkIndex = currentChunkIndex - 1;
+      console.log(`[${readerInstanceId}][Previous Sentence] Moving from chunk ${currentChunkIndex} to ${previousChunkIndex}`);
+      
+      // Prefetch and play the previous chunk
+      prefetchChunks(previousChunkIndex);
+      playChunk(previousChunkIndex);
+    } else {
+      console.log(`[${readerInstanceId}][Previous Sentence] Already at first sentence or no current chunk`);
+    }
+  }, [currentChunkIndex, isSpeaking, pausePlayback, prefetchChunks, playChunk, readerInstanceId]);
+
+  const handleNextSentence = useCallback(() => {
+    if (currentChunkIndex !== null && currentChunkIndex < chunks.length - 1) {
+      // Stop current playback if playing
+      if (isSpeaking) {
+        pausePlayback();
+      }
+      
+      // Play the next sentence
+      const nextChunkIndex = currentChunkIndex + 1;
+      console.log(`[${readerInstanceId}][Next Sentence] Moving from chunk ${currentChunkIndex} to ${nextChunkIndex}`);
+      
+      // Prefetch and play the next chunk
+      prefetchChunks(nextChunkIndex);
+      playChunk(nextChunkIndex);
+    } else {
+      console.log(`[${readerInstanceId}][Next Sentence] Already at last sentence or no current chunk`);
+    }
+  }, [currentChunkIndex, chunks.length, isSpeaking, pausePlayback, prefetchChunks, playChunk, readerInstanceId]);
+
   // === Render content function moved back to Reader component (JSX not allowed in .ts files) ===
 
   // === Computed values ===
@@ -578,6 +637,8 @@ export const useReaderTTS = ({
     
     // Navigation
     handleTTSNavigation,
+    handlePreviousSentence,
+    handleNextSentence,
     
     // Computed
     canTTSResume,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
 import './FloatingReadButton.css';
 
@@ -12,6 +12,8 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, isVisib
   const [selectedText, setSelectedText] = useState('');
   const [hideTimeout, setHideTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isNativeMenuVisible, setIsNativeMenuVisible] = useState(false);
+  // Persist last valid selection range to restore it on mobile before calling TTS
+  const lastSelectionRangeRef = useRef<Range | null>(null);
 
   useEffect(() => {
     const handleSelectionChange = () => {
@@ -20,6 +22,9 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, isVisib
       if (selection && selection.toString().trim().length > 0) {
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
+        
+        // Save range to restore later on mobile
+        lastSelectionRangeRef.current = range.cloneRange();
         
         // Position the button above the selected text
         // On mobile, position it much higher to avoid Chrome's native selection menu
@@ -81,7 +86,7 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, isVisib
           setHideTimeout(timeout);
         } else {
           // On desktop, hide immediately
-        setSelectedText('');
+          setSelectedText('');
         }
       }
     };
@@ -91,13 +96,13 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, isVisib
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       if (isMobile) {
-        // On mobile, temporarily hide our button when native menu appears
+        // On mobile, temporarily note the native menu; do NOT hide the button anymore
         setIsNativeMenuVisible(true);
         
         // Show our button again after a short delay (native menu usually disappears quickly)
         setTimeout(() => {
           setIsNativeMenuVisible(false);
-        }, 1000);
+        }, 700);
       }
     };
 
@@ -130,25 +135,68 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, isVisib
     };
   }, [hideTimeout]);
 
-  const handleReadClick = () => {
+  const restoreSelectionIfNeeded = () => {
+    try {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (!isMobile) return;
+      
+      const selection = window.getSelection();
+      const hasActive = selection && selection.rangeCount > 0 && selection.toString().trim().length > 0;
+      if (!hasActive && lastSelectionRangeRef.current) {
+        selection?.removeAllRanges();
+        selection?.addRange(lastSelectionRangeRef.current);
+        // Update selectedText from restored selection
+        const restored = selection?.toString().trim() || '';
+        if (restored) setSelectedText(restored);
+        console.log('[FloatingReadButton] Restored selection before invoking TTS:', restored.substring(0, 50));
+      }
+    } catch (e) {
+      // Ignore selection restoration failures
+    }
+  };
+
+  const handleReadClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('[FloatingReadButton] Button clicked:', {
+      selectedText: selectedText.substring(0, 50),
+      isVisible,
+      isNativeMenuVisible
+    });
+    
     // Clear any hide timeout when button is clicked
     if (hideTimeout) {
       clearTimeout(hideTimeout);
       setHideTimeout(null);
     }
+
+    // On mobile, Chrome may clear selection when tapping the overlay button.
+    // Restore the selection range right before calling onRead so the TTS logic can detect it.
+    restoreSelectionIfNeeded();
     
     // Call the original onRead function
+    console.log('[FloatingReadButton] Calling onRead function...');
     onRead();
-    
-    // Clear selection after reading starts
-    setTimeout(() => {
-      setSelectedText('');
-    }, 100);
   };
 
-  if (!isVisible || !selectedText || isNativeMenuVisible) {
+  // Always render when visible and there is selected text. Do not hide purely due to native menu visibility.
+  if (!isVisible || !selectedText) {
+    console.log('[FloatingReadButton] Button not rendered:', {
+      isVisible,
+      hasSelectedText: !!selectedText,
+      isNativeMenuVisible,
+      selectedTextPreview: selectedText?.substring(0, 30)
+    });
     return null;
   }
+
+  console.log('[FloatingReadButton] Button rendered:', {
+    position,
+    selectedTextPreview: selectedText.substring(0, 30),
+    isVisible,
+    isNativeMenuVisible
+  });
 
   return (
     <div 
@@ -160,6 +208,7 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, isVisib
     >
       <button
         onClick={handleReadClick}
+        onTouchEnd={handleReadClick}
         className="read-button"
         aria-label={`Read selected text: ${selectedText.substring(0, 50)}${selectedText.length > 50 ? '...' : ''}`}
         title="Read selected text"
