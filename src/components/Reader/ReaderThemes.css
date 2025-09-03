@@ -79,6 +79,11 @@
   color: var(--reader-text);
   transition: font-size 0.2s ease, background-color 0.3s ease, color 0.3s ease;
   scroll-behavior: smooth;
+  cursor: pointer;
+}
+
+.epub-content:hover {
+  background-color: var(--reader-hover, #f3f4f6);
 }
 
 /* Theme-aware text colors */
@@ -627,4 +632,106 @@
   .control-button.hidden {
     display: none !important;
   }
+} 
+
+/* Chapter Navigation Arrows */
+.chapter-nav-arrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--reader-border, #e5e7eb);
+  background: var(--reader-sidebar-bg, #ffffff);
+  color: var(--reader-text, #374151);
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  opacity: 0.7;
+}
+
+.chapter-nav-arrow:hover {
+  opacity: 1;
+  background: var(--reader-hover, #f3f4f6);
+  border-color: var(--reader-text, #374151);
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.chapter-nav-arrow:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.chapter-nav-arrow-left {
+  left: 20px;
+}
+
+.chapter-nav-arrow-right {
+  right: 20px;
+}
+
+/* Theme-specific arrow styling */
+.theme-dark .chapter-nav-arrow {
+  background: var(--reader-sidebar-bg, #1f2937);
+  color: var(--reader-text, #f9fafb);
+  border-color: var(--reader-border, #4b5563);
+}
+
+.theme-dark .chapter-nav-arrow:hover {
+  background: var(--reader-hover, #374151);
+  border-color: var(--reader-text, #f9fafb);
+}
+
+.theme-sepia .chapter-nav-arrow {
+  background: var(--reader-sidebar-bg, #fef3c7);
+  color: var(--reader-text, #92400e);
+  border-color: var(--reader-border, #f59e0b);
+}
+
+.theme-sepia .chapter-nav-arrow:hover {
+  background: var(--reader-hover, #fde68a);
+  border-color: var(--reader-text, #92400e);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .chapter-nav-arrow {
+    width: 40px;
+    height: 40px;
+    opacity: 0.8;
+  }
+  
+  .chapter-nav-arrow-left {
+    left: 10px;
+  }
+  
+  .chapter-nav-arrow-right {
+    right: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chapter-nav-arrow {
+    width: 36px;
+    height: 36px;
+    opacity: 0.9;
+  }
+  
+  .chapter-nav-arrow-left {
+    left: 8px;
+  }
+  
+  .chapter-nav-arrow-right {
+    right: 8px;
+  }
+}
+
+/* Ensure arrows are always visible */
+.chapter-nav-arrow {
+  display: flex !important;
 } 
