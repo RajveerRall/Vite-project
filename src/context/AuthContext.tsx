@@ -131,8 +131,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
-  // Sign in with Google
+  // We're now using Google's pre-built sign-in buttons
+  // This method is kept for backward compatibility but is no longer used
   const signInWithGoogle = async () => {
+    console.warn('signInWithGoogle is deprecated. Please use the GoogleSignIn component instead.');
     setLoading(true);
     try {
       const { supabase } = await import('../lib/supabase');
@@ -144,9 +146,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (error) throw error;
-      
-      // No need to set user here as we'll be redirected to Google
-      // User will be set after redirect back to the app
     } catch (error) {
       console.error('Google sign in failed:', error);
       throw error;
