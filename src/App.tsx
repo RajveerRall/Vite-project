@@ -8,6 +8,8 @@ import Library from './components/Library';
 import Header from "./components/Library/header";
 import Footer from "./components/Common/Footer";
 import SuspenseLoader from './components/Common/SuspenseLoader';
+import { ToastContainer } from './components/Common/Toast';
+import { ToastProvider, useToast } from './context/ToastContext';
 import BlogListPage from './pages/blog/BlogListPage';
 import BlogPostPage from './pages/blog/BlogPostPage';
 import TopicListPage from './pages/blog/TopicListPage';
@@ -72,12 +74,20 @@ const App: React.FC = () => {
   return (
     <HelmetProvider>
       <Router>
-        <BookProvider>
-          <AppContent />
-        </BookProvider>
+        <ToastProvider>
+          <BookProvider>
+            <AppContent />
+            <ToastWrapper />
+          </BookProvider>
+        </ToastProvider>
       </Router>
     </HelmetProvider>
   );
+};
+
+const ToastWrapper: React.FC = () => {
+  const { toasts, removeToast } = useToast();
+  return <ToastContainer toasts={toasts} onRemove={removeToast} />;
 };
 
 export default App;

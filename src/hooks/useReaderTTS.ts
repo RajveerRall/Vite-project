@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useToast } from '../context/ToastContext';
 
 // Helper: split text into sentence chunks
 function splitTextIntoChunks(text: string): string[] {
@@ -62,6 +63,7 @@ export const useReaderTTS = ({
   selectedVoice = 'en-US-BrianMultilingualNeural',
   ttsSpeed = 1
 }: UseReaderTTSProps): UseReaderTTSReturn => {
+  const { addToast } = useToast();
   // === TTS Playback States ===
   const [chunks, setChunks] = useState<string[]>([]);
   const [currentChunkIndex, setCurrentChunkIndex] = useState<number | null>(null);
@@ -228,9 +230,10 @@ export const useReaderTTS = ({
 
       } catch (error) {
         console.warn(`[Prefetch] Failed to pre-fetch chunk #${chunkIndex}`, error);
+        addToast(`Failed to pre-fetch audio chunk ${chunkIndex + 1}. If it does not work contact us.`, 'error');
       }
     }
-  }, [chunks, currentChunkIndex, selectedVoice, ttsSpeed]);
+  }, [chunks, currentChunkIndex, selectedVoice, ttsSpeed, addToast]);
 
   // === Play chunk function ===
   const playChunk = useCallback(async (index: number) => {
@@ -263,6 +266,7 @@ export const useReaderTTS = ({
         setIsPaused(false); 
         setCurrentChunkIndex(null);
         ttsIntentActiveRef.current = false;
+        addToast('Audio playback failed. If it does not work contact us.', 'error');
       };
       audioRef.current.play();
       prefetchChunks(index + 1);
@@ -318,10 +322,23 @@ export const useReaderTTS = ({
           setIsPaused(false); 
           setCurrentChunkIndex(null);
           ttsIntentActiveRef.current = false;
+          
+          // Show error toast
+          if (error instanceof Error) {
+            if (error.message.includes('Failed to fetch')) {
+              addToast('TTS service is unavailable. If it does not work contact us.', 'error');
+            } else if (error.message.includes('502')) {
+              addToast('TTS server error. If it does not work contact us.', 'error');
+            } else {
+              addToast(`TTS error: ${error.message}. If it does not work contact us.`, 'error');
+            }
+          } else {
+            addToast('TTS playback failed. If it does not work contact us.', 'error');
+          }
         }
       }
     }
-  }, [chunks, clearResumeIndex, prefetchChunks, readerInstanceId, selectedVoice, ttsSpeed]);
+  }, [chunks, clearResumeIndex, prefetchChunks, readerInstanceId, selectedVoice, ttsSpeed, addToast]);
 
   // === Pause playback ===
   const pausePlayback = useCallback(() => {
@@ -349,6 +366,7 @@ export const useReaderTTS = ({
             setIsPaused(true);
             setIsSpeaking(false);
             ttsIntentActiveRef.current = false;
+            addToast('Failed to resume audio playback. If it does not work contact us.', 'error');
           });
       } else {
         setIsPaused(false);
@@ -358,7 +376,7 @@ export const useReaderTTS = ({
     } else if (!audioRef.current && currentChunkIndex !== null) {
       playChunk(currentChunkIndex);
     }
-  }, [isPaused, currentChunkIndex, playChunk]);
+  }, [isPaused, currentChunkIndex, playChunk, addToast]);
 
   // === Halt playback (for navigation or stopping) ===
   const haltPlayback = useCallback(() => {
