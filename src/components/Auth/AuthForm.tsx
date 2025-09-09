@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import GoogleLogo from '../../assets/google-logo.svg';
 
 interface AuthFormProps {
   onSuccess?: () => void;
@@ -11,8 +12,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +33,19 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setError(null);
+    
+    try {
+      await signInWithGoogle();
+      // No need to call onSuccess here as we'll be redirected to Google
+    } catch (err: any) {
+      setError(err.message);
+      setGoogleLoading(false);
     }
   };
 
@@ -96,8 +111,38 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
               {loading ? 'Loading...' : (isLogin ? 'Sign in' : 'Sign up')}
             </button>
           </div>
+          
+          <div className="mt-4 relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Or continue with</span>
+            </div>
+          </div>
+          
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading || loading}
+              className="w-full flex justify-center items-center gap-2 py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            >
+              {googleLoading ? (
+                <>
+                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500"></span>
+                  <span>Connecting...</span>
+                </>
+              ) : (
+                <>
+                  <img src={GoogleLogo} alt="Google logo" className="h-5 w-5" />
+                  <span>Sign {isLogin ? 'in' : 'up'} with Google</span>
+                </>
+              )}
+            </button>
+          </div>
 
-          <div className="text-center">
+          <div className="text-center mt-4">
             <button
               type="button"
               className="text-indigo-600 hover:text-indigo-500"
