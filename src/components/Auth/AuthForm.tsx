@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import GoogleSignIn from './GoogleSignIn';
+import SupabaseGoogleButton from './SupabaseGoogleButton';
 
 interface AuthFormProps {
   onSuccess?: () => void;
@@ -105,22 +105,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             </button>
           </div>
           
-          <div className="mt-4 relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or continue with</span>
-            </div>
-          </div>
-          
-          <div className="mt-4">
-            <GoogleSignIn 
-              onSuccess={handleGoogleSuccess} 
-              onError={handleGoogleError} 
-            />
-          </div>
-
           <div className="text-center mt-4">
             <button
               type="button"
@@ -131,6 +115,23 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
             </button>
           </div>
         </form>
+
+        {/* Place Google Sign-In outside the form to avoid re-renders clearing it */}
+        <div className="mt-4 relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Or continue with</span>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <SupabaseGoogleButton 
+            onSuccess={handleGoogleSuccess} 
+            onError={handleGoogleError} 
+          />
+        </div>
       </div>
     </div>
   );
