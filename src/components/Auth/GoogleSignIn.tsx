@@ -74,11 +74,16 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
   
   useEffect(() => {
     // Load the Google Identity Services script
+    console.log("Loading Google Identity Services script...");
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.defer = true;
     script.onload = initializeGoogleSignIn;
+    script.onerror = () => {
+      console.error("Failed to load Google Identity Services script");
+      setIsLoading(false);
+    };
     document.body.appendChild(script);
     
     return () => {
@@ -87,6 +92,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
   }, []);
   
   const initializeGoogleSignIn = () => {
+    console.log("Google script loaded, initializing...");
     setIsLoading(false);
     if (window.google && googleButtonRef.current) {
       // Get your client ID from environment variable
@@ -138,14 +144,17 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
   };
   
   return (
-    <div className="google-sign-in-container">
+    <div className="google-sign-in-container border border-gray-200 rounded p-2">
       {isLoading ? (
         <div className="flex justify-center items-center py-2">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-500"></div>
           <span className="ml-2 text-sm text-gray-600">Loading Google Sign-In...</span>
         </div>
       ) : (
-        <div ref={googleButtonRef} className="w-full flex justify-center"></div>
+        <>
+          <div ref={googleButtonRef} className="w-full flex justify-center min-h-[40px]"></div>
+          {!window.google && <div className="text-red-500 text-sm text-center mt-2">Google API not loaded. Check console for errors.</div>}
+        </>
       )}
     </div>
   );
