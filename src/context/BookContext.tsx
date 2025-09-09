@@ -1,6 +1,6 @@
 // src/context/BookContext.tsx
 import { trackEvent } from '../lib/analytics';
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import localforage from 'localforage';
 import JSZip from 'jszip';
 // Dynamic import for xmldom to avoid blocking initial page load
@@ -63,6 +63,8 @@ interface BookContextValue {
   isPlayModeVisible: boolean;
   togglePlayMode: () => void;
   isSyncingFromCloud: boolean; // Add loading state for cloud sync
+  // NEW: derived current chapter title for display
+  currentChapterTitle: string;
 }
 
 
@@ -107,6 +109,13 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     // 2. Add a ref to track when a book reading session starts
   const readingStartTimestamp = useRef<number | null>(null);
 
+  // NEW: Derive currentChapterTitle from the current book's lastChapter label
+  const currentChapterTitle = useMemo(() => {
+    if (!currentBook) return '';
+    const fresh = books.find(b => b.id === currentBook.id);
+    const label = (fresh?.lastChapter as any)?.label || (currentBook.lastChapter as any)?.label;
+    return typeof label === 'string' ? label : '';
+  }, [books, currentBook]);
 
   // 1. Load books from LocalForage on initial mount
   useEffect(() => {
@@ -199,8 +208,8 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       // Add a delay to prevent clearing books during page refresh
       // This gives the auth context time to restore the user's session
       const timeoutId = setTimeout(async () => {
-        // Double-check that user is still not authenticated after the delay
         if (!userId) {
+          // Double-check that user is still not authenticated after the delay
           // Additional safeguard: Check if there are any uploaded books that should be preserved
           // If there are uploaded books, the user is likely just temporarily unauthenticated
           // during page refresh, not actually signed out
@@ -306,7 +315,6 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       return () => clearTimeout(timeoutId);
     }
   }, [userId, isInitialLoadComplete]);
-
 
   // =================================================================
 // PASTE THIS ENTIRE BLOCK INTO YOUR BookContext.tsx FILE
@@ -1734,6 +1742,7 @@ useEffect(() => {
     htmlFiles, opfPath,
     isPlayModeVisible, togglePlayMode,
     isSyncingFromCloud, // Add loading state
+    currentChapterTitle,
   };
 
   return (

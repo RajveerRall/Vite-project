@@ -178,6 +178,12 @@
 }
 
 /* Settings widget theme adaptation */
+.theme-light .settings-widget {
+  background-color: #ffffff;
+  border-color: var(--reader-border);
+  color: var(--reader-text);
+}
+
 .theme-dark .settings-widget,
 .theme-sepia .settings-widget {
   background-color: var(--reader-sidebar-bg);
@@ -195,13 +201,138 @@
   color: var(--reader-text-secondary);
 }
 
+/* Theme preview boxes and buttons in dark mode */
+.theme-dark .settings-widget [aria-label="Light theme"] {
+  background-color: #1f2937;
+  border-color: #374151;
+}
+
+.theme-dark .settings-widget [aria-label="Light theme"]:hover:not(.border-amber-400) {
+  border-color: #4b5563;
+}
+
+/* Make the light theme preview box more visible with a stronger border */
+.theme-dark .settings-widget [aria-label="Light theme"] .bg-white {
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+}
+
+.theme-dark .settings-widget [aria-label="Dark theme"] .bg-gray-800 {
+  border: 1px solid #4b5563;
+}
+
+.theme-dark .settings-widget [aria-label="Sepia theme"] {
+  background-color: #1f2937;
+  border-color: #374151;
+}
+
+.theme-dark .settings-widget [aria-label="Sepia theme"]:hover:not(.border-amber-400) {
+  border-color: #4b5563;
+}
+
+.theme-dark .settings-widget [aria-label="Sepia theme"] .bg-amber-50 {
+  border: 1px solid #d4c399;
+}
+
+/* Selected theme in all modes - make sure only one is selected */
+.theme-light .settings-widget [aria-label="Light theme"] {
+  border-color: #d97706 !important;
+  background-color: #fffbeb !important;
+}
+
+.theme-light .settings-widget [aria-label="Dark theme"],
+.theme-light .settings-widget [aria-label="Sepia theme"] {
+  border-color: #e5e7eb !important;
+  background-color: transparent !important;
+}
+
+.theme-dark .settings-widget [aria-label="Dark theme"] {
+  border-color: #d97706 !important;
+  background-color: #422006 !important;
+}
+
+.theme-dark .settings-widget [aria-label="Light theme"],
+.theme-dark .settings-widget [aria-label="Sepia theme"] {
+  border-color: #374151 !important;
+  background-color: #1f2937 !important;
+}
+
+.theme-sepia .settings-widget [aria-label="Sepia theme"] {
+  border-color: #d97706 !important;
+  background-color: #fffbeb !important;
+}
+
+.theme-sepia .settings-widget [aria-label="Light theme"],
+.theme-sepia .settings-widget [aria-label="Dark theme"] {
+  border-color: #e6d4b1 !important;
+  background-color: transparent !important;
+}
+
+/* Theme text in dark mode */
+.theme-dark .settings-widget .settings-theme-text {
+  color: var(--reader-text);
+}
+
+/* Fix dropdown select in dark and sepia modes */
+.theme-dark .settings-widget .settings-select,
+.theme-sepia .settings-widget .settings-select {
+  background-color: var(--reader-content-bg);
+  color: var(--reader-text);
+  border-color: var(--reader-border);
+}
+
+.theme-dark .settings-widget .settings-select option,
+.theme-sepia .settings-widget .settings-select option {
+  background-color: var(--reader-content-bg);
+  color: var(--reader-text);
+}
+
+.theme-dark .settings-widget .settings-select-icon,
+.theme-sepia .settings-widget .settings-select-icon {
+  color: var(--reader-text);
+}
+
+/* Mobile optimization for dropdowns */
+.settings-widget .settings-select {
+  max-width: 100%;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.9rem;
+}
+
+/* Mobile dropdown size optimization */
+@media (max-width: 480px) {
+  .settings-widget .settings-select {
+    font-size: 0.85rem;
+    padding: 0.5rem;
+  }
+  
+  .settings-widget .settings-select option {
+    font-size: 0.85rem;
+    padding: 0.5rem;
+  }
+}
+
+.theme-light .settings-widget .settings-control-bg {
+  background-color: #f9fafb;
+}
+
+.theme-light .settings-widget .settings-control-btn:hover {
+  background-color: #ffffff;
+}
+
 .theme-dark .settings-widget .bg-gray-50,
-.theme-sepia .settings-widget .bg-gray-50 {
+.theme-sepia .settings-widget .bg-gray-50,
+.theme-dark .settings-widget .settings-control-bg,
+.theme-sepia .settings-widget .settings-control-bg {
   background-color: var(--reader-hover);
 }
 
 .theme-dark .settings-widget .bg-white,
-.theme-sepia .settings-widget .bg-white {
+.theme-sepia .settings-widget .bg-white,
+.theme-dark .settings-widget .settings-control-btn:hover,
+.theme-sepia .settings-widget .settings-control-btn:hover {
   background-color: var(--reader-content-bg);
   border-color: var(--reader-border);
 }
@@ -252,6 +383,18 @@
     max-width: none;
     max-height: calc(100vh - 2rem);
     overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1rem;
+  }
+  
+  /* Ensure dropdown stays within the widget */
+  .settings-widget .relative {
+    position: static;
+  }
+  
+  .settings-widget select {
+    position: relative;
+    z-index: 20;
   }
 }
 
@@ -264,6 +407,18 @@
     max-height: calc(100vh - 1rem);
     border-radius: 12px 12px 0 0;
     padding: 1rem;
+  }
+  
+  /* Fix dropdown positioning on small screens */
+  .settings-widget .settings-select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  /* Make the dropdown container take full width */
+  .settings-widget .relative {
+    width: 100%;
   }
 }
 
