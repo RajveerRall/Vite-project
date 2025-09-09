@@ -11,6 +11,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Create Supabase client with auth enabled
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// Add event listener for auth state changes
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log(`Supabase auth event: ${event}`, session)
+})
+
 // Database types for TypeScript
 export interface BookRecord {
   id: string

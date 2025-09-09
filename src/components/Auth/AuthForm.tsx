@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import GoogleLogo from '../../assets/google-logo.svg';
+import GoogleSignIn from './GoogleSignIn';
 
 interface AuthFormProps {
   onSuccess?: () => void;
@@ -12,9 +12,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [googleLoading, setGoogleLoading] = useState(false);
-
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,17 +34,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
     }
   };
   
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true);
-    setError(null);
-    
-    try {
-      await signInWithGoogle();
-      // No need to call onSuccess here as we'll be redirected to Google
-    } catch (err: any) {
-      setError(err.message);
-      setGoogleLoading(false);
-    }
+  const handleGoogleSuccess = () => {
+    onSuccess?.();
+  };
+  
+  const handleGoogleError = (err: Error) => {
+    setError(err.message);
   };
 
   return (
@@ -122,24 +115,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
           </div>
           
           <div className="mt-4">
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={googleLoading || loading}
-              className="w-full flex justify-center items-center gap-2 py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              {googleLoading ? (
-                <>
-                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500"></span>
-                  <span>Connecting...</span>
-                </>
-              ) : (
-                <>
-                  <img src={GoogleLogo} alt="Google logo" className="h-5 w-5" />
-                  <span>Sign {isLogin ? 'in' : 'up'} with Google</span>
-                </>
-              )}
-            </button>
+            <GoogleSignIn 
+              onSuccess={handleGoogleSuccess} 
+              onError={handleGoogleError} 
+            />
           </div>
 
           <div className="text-center mt-4">
