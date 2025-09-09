@@ -16,6 +16,7 @@ import TopicListPage from './pages/blog/TopicListPage';
 import TopicPage from './pages/blog/TopicPage';
 import TopicArticlePage from './pages/blog/TopicArticlePage';
 import BlogExample from './components/Blog/BlogExample';
+import AuthCallback from './pages/auth/callback';
 import './App.css';
 
 // Lazy load the Reader component since it's heavy and not needed initially
@@ -55,6 +56,15 @@ const AppContent: React.FC = () => {
       <Route path="/topics" element={<TopicListPage />} />
       <Route path="/topics/:topicSlug" element={<TopicPage />} />
       <Route path="/topics/:topicSlug/:articleSlug" element={<TopicArticlePage />} />
+      
+      {/* Auth callback route for OAuth providers */}
+      <Route path="/auth/callback" element={
+        <React.Suspense fallback={<div className="flex items-center justify-center min-h-screen">
+          <div className="text-lg text-gray-600">Loading...</div>
+        </div>}>
+          <AuthCallback />
+        </React.Suspense>
+      } />
       
       {/* Protected routes - auth required */}
       <Route path="/" element={
