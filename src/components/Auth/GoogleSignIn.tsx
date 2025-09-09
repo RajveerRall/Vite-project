@@ -30,6 +30,9 @@ interface GoogleSignInProps {
 
 const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
   const googleButtonRef = useRef<HTMLDivElement>(null);
+  const hasRenderedButtonRef = useRef(false);
+  const mutationObserverRef = useRef<MutationObserver | null>(null);
+  const isMountedRef = useRef(true);
   const [isLoading, setIsLoading] = useState(true);
   
   // Function to handle Google sign-in
@@ -73,9 +76,24 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
   };
   
   useEffect(() => {
-    // Load the Google Identity Services script
+    isMountedRef.current = true;
+    // Load the Google Identity Services script once
+    if ((window as any).google?.accounts?.id) {
+      console.log("Google Identity Services already loaded");
+      initializeGoogleSignIn();
+      return;
+    }
+
     console.log("Loading Google Identity Services script...");
+    const existing = document.getElementById('google-identity-services');
+    if (existing) {
+      // If script exists but API not yet ready, attach onload
+      existing.addEventListener('load', initializeGoogleSignIn as any);
+      return;
+    }
+
     const script = document.createElement('script');
+    script.id = 'google-identity-services';
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.defer = true;
@@ -87,14 +105,20 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
     document.body.appendChild(script);
     
     return () => {
-      document.body.removeChild(script);
+      // Do not remove the script on unmount to avoid double-loading in StrictMode
+      isMountedRef.current = false;
+      if (mutationObserverRef.current && googleButtonRef.current) {
+        try { mutationObserverRef.current.disconnect(); } catch {}
+      }
+      mutationObserverRef.current = null;
     };
   }, []);
   
   const initializeGoogleSignIn = () => {
     console.log("Google script loaded, initializing...");
     setIsLoading(false);
-    if (window.google && googleButtonRef.current) {
+    const googleApi = (window as any).google;
+    if (googleApi && googleButtonRef.current) {
       // Get your client ID from environment variable
       const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
       
@@ -110,7 +134,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
         console.log("Initializing Google Sign-In with Client ID:", clientId.substring(0, 8) + "..." + clientId.substring(clientId.length - 4));
       }
       
-      window.google.accounts.id.initialize({
+      googleApi.accounts.id.initialize({
         client_id: clientId,
         callback: handleCredentialResponse,
         auto_select: false,
@@ -119,32 +143,58 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
         use_fedcm_for_prompt: false,
       });
       
-      // Render the Google Sign In button
-      window.google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: 'outline',
-        size: 'large',
-        type: 'standard',
-        text: 'signin_with',
-        shape: 'pill',
-        logo_alignment: 'left',
-        width: googleButtonRef.current.offsetWidth,
-        // Add additional options to help with origin issues
-        ux_mode: 'popup',
-      });
+      const renderGsiButton = () => {
+        if (!isMountedRef.current || !googleButtonRef.current) return;
+        try {
+          // Clear then render to avoid duplicated children
+          googleButtonRef.current.innerHTML = '';
+          googleApi.accounts.id.renderButton(googleButtonRef.current, {
+            theme: 'outline',
+            size: 'large',
+            type: 'standard',
+            text: 'signin_with',
+            shape: 'pill',
+            logo_alignment: 'left',
+            width: 320,
+          });
+          hasRenderedButtonRef.current = true;
+          console.log("Google Sign-In button rendered successfully");
+        } catch (error) {
+          console.error("Failed to render Google Sign-In button:", error);
+        }
+      };
+
+      // Initial render (defer to next frame to let layout settle)
+      requestAnimationFrame(renderGsiButton);
       
       // Apply custom styling to the Google button container
       const buttonContainer = googleButtonRef.current.querySelector('div[role="button"]');
       if (buttonContainer) {
         buttonContainer.classList.add('google-sign-in-button');
       }
+
+      // Observe container; if children removed by re-render, re-inject button
+      if (!mutationObserverRef.current && googleButtonRef.current) {
+        mutationObserverRef.current = new MutationObserver(() => {
+          if (!isMountedRef.current || !googleButtonRef.current) return;
+          const hasChild = googleButtonRef.current.childElementCount > 0;
+          if (!hasChild) {
+            console.log('GSI button missing, re-rendering');
+            renderGsiButton();
+          }
+        });
+        try {
+          mutationObserverRef.current.observe(googleButtonRef.current, { childList: true });
+        } catch {}
+      }
       
       // Disable One Tap UI for now to avoid origin issues
-      // window.google.accounts.id.prompt();
+      // googleApi.accounts.id.prompt();
     }
   };
   
   return (
-    <div className="google-sign-in-container border border-gray-200 rounded p-2">
+    <div className="google-sign-in-container">
       {isLoading ? (
         <div className="flex justify-center items-center py-2">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-500"></div>
@@ -152,12 +202,12 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
         </div>
       ) : (
         <>
-          <div ref={googleButtonRef} className="w-full flex justify-center min-h-[40px]"></div>
-          {!window.google && <div className="text-red-500 text-sm text-center mt-2">Google API not loaded. Check console for errors.</div>}
+          <div ref={googleButtonRef} className="w-full flex justify-center"></div>
+          {!(window as any).google && <div className="text-red-500 text-sm text-center mt-2">Google API not loaded. Check console for errors.</div>}
         </>
       )}
     </div>
   );
 };
 
-export default GoogleSignIn;
+export default React.memo(GoogleSignIn);

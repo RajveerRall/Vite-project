@@ -10,7 +10,57 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Process the OAuth callback
+        // First handle implicit hash tokens (#access_token, #refresh_token)
+        const hash = window.location.hash?.startsWith('#') ? window.location.hash.slice(1) : '';
+        const hashParams = new URLSearchParams(hash);
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+          const { data: setData, error: setErr } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (setErr) throw setErr;
+          if (setData?.session?.user) {
+            identifyUser(setData.session.user.id, {
+              user_id: setData.session.user.id,
+              email: setData.session.user.email,
+              sign_in_method: 'google',
+              platform: 'web',
+              auth_event: 'oauth_callback_hash',
+              timestamp: new Date().toISOString()
+            });
+            // Clean URL (remove hash)
+            window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+            navigate('/');
+            return;
+          }
+        }
+
+        // Next handle PKCE code flow if present (?code=)
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get('code');
+        if (code) {
+          // exchangeCodeForSession processes the full URL
+          // @ts-ignore - runtime method in supabase-js v2
+          const { data: exData, error: exErr } = await (supabase.auth as any).exchangeCodeForSession(window.location.href);
+          if (exErr) throw exErr;
+          if (exData?.session?.user) {
+            identifyUser(exData.session.user.id, {
+              user_id: exData.session.user.id,
+              email: exData.session.user.email,
+              sign_in_method: 'google',
+              platform: 'web',
+              auth_event: 'oauth_callback_code',
+              timestamp: new Date().toISOString()
+            });
+            navigate('/');
+            return;
+          }
+        }
+
+        // Fallback: check current session
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {

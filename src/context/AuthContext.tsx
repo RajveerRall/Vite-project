@@ -203,6 +203,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // The checkExistingSession will only be called when explicitly needed
   // (e.g., when user clicks Sign In button)
   
+  // Subscribe to Supabase auth state changes so UI stays in sync (Google, email, etc.)
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    (async () => {
+      try {
+        const { supabase } = await import('../lib/supabase');
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          console.log('[AuthContext] onAuthStateChange:', event, session);
+          const nextUser = session?.user ?? null;
+          setUser(nextUser);
+          setAuthInitialized(true);
+          if (event === 'SIGNED_OUT') {
+            setHasExplicitlySignedOut(true);
+          } else if (nextUser) {
+            setHasExplicitlySignedOut(false);
+          }
+        });
+        unsubscribe = () => subscription.unsubscribe();
+      } catch (error) {
+        console.error('[AuthContext] Failed to subscribe to auth state changes:', error);
+      }
+    })();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
   // Log the current auth state for debugging
   useEffect(() => {
     console.log('[AuthContext] Current state:', {
