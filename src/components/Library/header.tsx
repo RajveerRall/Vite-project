@@ -102,6 +102,13 @@ const Header: React.FC = () => {
           {/* === Left Side: The App Logo/Name and Navigation === */}
           <div className="flex items-center space-x-8">
             <Link to="/" className="text-xl sm:text-2xl font-semibold text-gray-800">YoRead</Link>
+            {isAuthenticated && (
+              <nav className="hidden md:flex space-x-6">
+                <Link to="/scanner" className="text-gray-600 hover:text-amber-800 transition-colors">
+                  Scan Book
+                </Link>
+              </nav>
+            )}
           </div>
 
           {/* === Right Side: Authentication Controls === */}
