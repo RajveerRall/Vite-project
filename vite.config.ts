@@ -127,6 +127,14 @@ export default defineConfig({
     sourcemap: false
   },
   server: {
+    host: true, // Allow external connections
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      '5dd73f473ba7.ngrok-free.app', // Your ngrok URL
+      '.ngrok-free.app', // Allow all ngrok subdomains
+      '.ngrok.io' // Allow legacy ngrok domains
+    ],
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

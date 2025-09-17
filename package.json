@@ -40,6 +40,7 @@
     "kokoro-js": "^1.2.0",
     "localforage": "^1.10.0",
     "lucide-react": "^0.344.0",
+    "modular-tts": "./modular-tts-0.1.0.tgz",
     "msedge-tts": "^2.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

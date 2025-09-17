@@ -313,12 +313,12 @@ const Reader: React.FC = () => {
       <div className="reader-main">
         <div
           className="epub-content"
-          onClick={handlePageClick}
+          onClick={isMobile ? undefined : handlePageClick}
           style={{ whiteSpace: 'pre-wrap' }}
           dangerouslySetInnerHTML={{ __html: ttsHighlightedContent || currentContent }}
         />
 
-        {showNavigationArrows && (
+        {!isMobile && showNavigationArrows && (
           <>
             <button
               onClick={() => handleChapterNavigation('prev')}
