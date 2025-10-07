@@ -200,6 +200,10 @@ export const useReaderTTS = ({
         const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
         
         // Build query parameters with voice and speed
+        // Build the absolute API base using env when provided
+        const ttsApiUrlForPlay = import.meta.env.VITE_TTS_API_URL || '';
+        const apiUrlForPlay = ttsApiUrlForPlay ? `${ttsApiUrlForPlay}/api/tts` : '/api/tts';
+
         const params = new URLSearchParams({
           text: textChunk,
           voice: selectedVoice,
@@ -303,7 +307,7 @@ export const useReaderTTS = ({
           params.set('rate', speedParam);
         }
         
-        let response = await fetch(`/api/tts?${params.toString()}`);
+        let response = await fetch(`${apiUrlForPlay}?${params.toString()}`);
         
         if (!response.ok) throw new Error(`Failed to fetch TTS audio: ${response.statusText}`);
 
