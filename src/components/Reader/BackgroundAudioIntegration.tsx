@@ -53,8 +53,10 @@ const BackgroundAudioIntegration: React.FC<BackgroundAudioIntegrationProps> = ({
     if (chunks.length > 0) {
       // This is where you'd integrate with your TTS service
       // For now, we'll create placeholder URLs
+      const base = import.meta.env.VITE_TTS_API_URL || '';
+      const prefix = base ? `${base}/api/tts` : '/api/tts';
       const urls = chunks.map((_, index) => 
-        `/api/tts?text=${encodeURIComponent(chunks[index])}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`
+        `${prefix}?text=${encodeURIComponent(chunks[index])}&voice=en-US-BrianMultilingualNeural&format=audio-24khz-48kbitrate-mono-mp3`
       );
       setAudioUrls(urls);
     }
