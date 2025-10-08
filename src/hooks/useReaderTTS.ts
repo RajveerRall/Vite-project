@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 
 // Helper: split text into sentence chunks
 function splitTextIntoChunks(text: string): string[] {
@@ -64,6 +65,7 @@ export const useReaderTTS = ({
   ttsSpeed = 1
 }: UseReaderTTSProps): UseReaderTTSReturn => {
   const { addToast } = useToast();
+  const { user } = useAuth();
   // === TTS Playback States ===
   const [chunks, setChunks] = useState<string[]>([]);
   const [currentChunkIndex, setCurrentChunkIndex] = useState<number | null>(null);
@@ -82,6 +84,47 @@ export const useReaderTTS = ({
   const readerInstanceId = useRef(`ReaderInstance_${Date.now()}_${Math.random().toString(36).substring(2,7)}`).current;
   const ttsIntentActiveRef = useRef(false);
   const currentTTSBaseOffsetRef = useRef<number>(0);
+  // === Usage Tracking Refs ===
+  const durationsBuffer = useRef<Record<number, number>>({});
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const playStartTimeRef = useRef<Record<number, number>>({});
+
+  // === Usage recording helper ===
+  const recordUsageSeconds = useCallback(async (seconds: number) => {
+    if (!seconds || seconds <= 0) return;
+    try {
+      const { supabase } = await import('../lib/supabase');
+      await supabase.rpc('increment_tts_usage', {
+        p_user_id: user?.id ?? null,
+        p_seconds: seconds,
+        p_source: 'reader'
+      });
+      try {
+        // Notify UI (e.g., header) to refresh usage indicator
+        window.dispatchEvent(new CustomEvent('tts-usage-updated', { detail: { seconds } }));
+      } catch {}
+    } catch (e) {
+      console.warn('[TTS Usage] Failed to record usage:', e);
+    }
+  }, [user?.id]);
+
+  // Decode an audio Blob once to get duration in seconds (fallback if server doesn't send header)
+  const getBlobDurationSeconds = useCallback(async (blob: Blob): Promise<number> => {
+    try {
+      if (!audioCtxRef.current) {
+        const Ctx: any = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (!Ctx) return 0;
+        audioCtxRef.current = new Ctx();
+      }
+      const arrayBuf = await blob.arrayBuffer();
+      const audioBuf = await new Promise<AudioBuffer>((resolve, reject) => {
+        audioCtxRef.current!.decodeAudioData(arrayBuf, resolve, reject);
+      });
+      return Math.max(0, Math.round(audioBuf.duration));
+    } catch {
+      return 0;
+    }
+  }, []);
 
   // === Local Storage Helpers ===
   const getStorageKey = useCallback((): string | null => {
@@ -200,9 +243,7 @@ export const useReaderTTS = ({
         const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
         
         // Build query parameters with voice and speed
-        // Build the absolute API base using env when provided
-        const ttsApiUrlForPlay = import.meta.env.VITE_TTS_API_URL || '';
-        const apiUrlForPlay = ttsApiUrlForPlay ? `${ttsApiUrlForPlay}/api/tts` : '/api/tts';
+        // Build the absolute API base using env when provided (for other callers)
 
         const params = new URLSearchParams({
           text: textChunk,
@@ -227,6 +268,13 @@ export const useReaderTTS = ({
           console.warn(`[Prefetch] Received empty audio blob for chunk #${chunkIndex}. Skipping.`);
           continue;
         }
+
+        // Track duration for this prefetched chunk (prefer server header, else decode)
+        try {
+          const headerSeconds = Number(response.headers.get('X-Audio-Duration') || 0);
+          const seconds = headerSeconds > 0 ? headerSeconds : await getBlobDurationSeconds(audioBlob);
+          durationsBuffer.current[chunkIndex] = seconds;
+        } catch {}
 
         const audioUrl = URL.createObjectURL(audioBlob);
         audioBuffer.current[chunkIndex] = audioUrl;
@@ -261,7 +309,15 @@ export const useReaderTTS = ({
       else audioRef.current = new Audio();
 
       audioRef.current.src = audioUrl;
-      audioRef.current.onended = () => {
+      audioRef.current.onplay = () => {
+        playStartTimeRef.current[index] = Date.now();
+      };
+      audioRef.current.onended = async () => {
+        const elapsed = playStartTimeRef.current[index] ? Math.round((Date.now() - playStartTimeRef.current[index]) / 1000) : 0;
+        const seconds = (durationsBuffer.current[index] && durationsBuffer.current[index] > 0)
+          ? durationsBuffer.current[index]
+          : (elapsed > 0 ? elapsed : Math.round((audioRef.current as any)?.duration || 0));
+        await recordUsageSeconds(seconds);
         playChunk(index + 1);
       };
       audioRef.current.onerror = (e) => {
@@ -291,6 +347,8 @@ export const useReaderTTS = ({
       console.log(`[playChunk] Playing chunk #${index} from NETWORK.`);
       try {
         const textChunk = chunks[index];
+        const ttsApiUrlForPlay = import.meta.env.VITE_TTS_API_URL || '';
+        const apiUrlForPlay = ttsApiUrlForPlay ? `${ttsApiUrlForPlay}/api/tts` : '/api/tts';
         
         // Build query parameters with voice and speed
         const params = new URLSearchParams({
@@ -315,6 +373,13 @@ export const useReaderTTS = ({
         if (audioBlob.size === 0) {
           throw new Error(`Received empty audio blob for chunk #${index}`);
         }
+
+        // Track duration for this on-demand fetched chunk
+        try {
+          const headerSeconds = Number(response.headers.get('X-Audio-Duration') || 0);
+          const seconds = headerSeconds > 0 ? headerSeconds : await getBlobDurationSeconds(audioBlob);
+          durationsBuffer.current[index] = seconds;
+        } catch {}
 
         const audioUrl = URL.createObjectURL(audioBlob);
         audioBuffer.current[index] = audioUrl;
