@@ -18,6 +18,8 @@ import TopicArticlePage from './pages/blog/TopicArticlePage';
 import BlogExample from './components/Blog/BlogExample';
 import AuthCallback from './pages/auth/callback';
 import TermsOfService from './pages/TermsOfService';
+import FloatingGooglePrompt from './components/Auth/FloatingGooglePrompt';
+import GoogleOneTap from './components/Auth/GoogleOneTap';
 // import ScannerPage from './pages/ScannerPage'; // Temporarily disabled
 import './App.css';
 
@@ -26,8 +28,10 @@ const Reader = React.lazy(() => import('./components/Reader'));
 
 const MainApp: React.FC = () => {
   const { isReading } = useBook();
+  const { isAuthenticated } = useAuth();
   return (
     <div className="app">
+      {!isAuthenticated && <GoogleOneTap />}
       {!isReading && <Header />}
       {isReading ? (
         <React.Suspense fallback={<SuspenseLoader />}>
@@ -37,6 +41,7 @@ const MainApp: React.FC = () => {
         <>
           <Library />
           <Footer />
+          {!isAuthenticated && <FloatingGooglePrompt />}
         </>
       )}
     </div>
