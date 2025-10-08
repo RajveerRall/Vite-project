@@ -76,10 +76,13 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from "../../context/AuthContext";
 import { AuthForm } from "../Auth/AuthForm";
+import { supabase } from "../../lib/supabase";
+import { useTTSUsage } from "../../hooks/useTTSUsage";
 
 const Header: React.FC = () => {
   const { isAuthenticated, user, signOut, loading, checkExistingSession } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const { usedMinutes, totalMinutes, loading: usageLoading, refresh } = useTTSUsage();
 
   const handleSignInClick = async () => {
     // Don't check for existing session - user should manually sign in
@@ -134,6 +137,40 @@ const Header: React.FC = () => {
                   Pro
                 </span>
 
+              {/* Usage indicator with refresh button */}
+              <div className="hidden sm:flex items-center gap-x-1">
+                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-l-full">
+                  {usageLoading ? 'Usage: …' : `Usage: ${usedMinutes ?? 0}/${totalMinutes} min`}
+                </span>
+                <button 
+                  onClick={() => refresh()}
+                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs px-1.5 py-1 rounded-r-full transition-colors"
+                  title="Refresh usage data"
+                  disabled={usageLoading}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Usage indicator with refresh button (mobile) */}
+              <div className="sm:hidden flex items-center gap-x-1">
+                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-l-full">
+                  {usageLoading ? '…' : `${usedMinutes ?? 0}/${totalMinutes} min`}
+                </span>
+                <button 
+                  onClick={() => refresh()}
+                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs px-1.5 py-1 rounded-r-full transition-colors"
+                  title="Refresh usage data"
+                  disabled={usageLoading}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
+
                 {/* User email and sign out button */}
                 <span className="hidden sm:inline text-sm text-gray-600">
                   {user?.email}
@@ -166,7 +203,7 @@ const Header: React.FC = () => {
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">Sign In</h3>
+                  <h3 className="text-lg font-medium text-gray-900">Sign In / Sign Up</h3>
                   <button
                     onClick={() => setShowAuthModal(false)}
                     className="text-gray-400 hover:text-gray-600"

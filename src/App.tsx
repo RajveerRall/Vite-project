@@ -4,6 +4,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { HelmetProvider } from 'react-helmet-async';
 import { BookProvider, useBook } from './context/BookContext';
 import { useAuth } from './context/AuthContext';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 import Library from './components/Library';
 import Header from "./components/Library/header";
 import Footer from "./components/Common/Footer";
@@ -50,6 +52,38 @@ const MainApp: React.FC = () => {
 
 const AppContent: React.FC = () => {
   const { loading } = useAuth();
+  React.useEffect(() => {
+    // Handle warm link
+    const sub = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
+      console.log('[Auth Deep Link] appUrlOpen url =', url);
+      if (url?.startsWith('yoread://auth/callback')) {
+        try {
+          const { supabase } = await import('./lib/supabase');
+          console.log('[Auth Deep Link] Exchanging code for session (warm)...');
+          await supabase.auth.exchangeCodeForSession(url);
+          console.log('[Auth Deep Link] Session exchange complete (warm).');
+        } finally {
+          try { await Browser.close(); } catch {}
+        }
+      }
+    });
+    // Handle cold start
+    (async () => {
+      try {
+        const anyApp: any = CapacitorApp as any;
+        const info = await anyApp.getLaunchUrl?.();
+        const url = info?.url as string | undefined;
+        console.log('[Auth Deep Link] getLaunchUrl url =', url);
+        if (url?.startsWith('yoread://auth/callback')) {
+          const { supabase } = await import('./lib/supabase');
+          console.log('[Auth Deep Link] Exchanging code for session (cold)...');
+          await supabase.auth.exchangeCodeForSession(url);
+          console.log('[Auth Deep Link] Session exchange complete (cold).');
+        }
+      } catch {}
+    })();
+    return () => { (sub as any)?.remove?.(); };
+  }, []);
 
   // *** NEW: Don't gate everything behind auth loading ***
   return (

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run preprocess && npm run generate-static && tsc && vite build",
+    "build:mobile": "npm run preprocess && npm run generate-static && tsc && vite build --mode mobile",
     "preprocess": "node scripts/preprocess-books-improved.mjs",
     "convert-webp": "node scripts/convert-to-webp.mjs",
     "generate-static": "node scripts/generate-static-pages.mjs",
@@ -17,6 +18,8 @@
     "start": "node server.cjs"
   },
   "dependencies": {
+    "@capacitor/app": "^7.1.0",
+    "@capacitor/browser": "^7.0.2",
     "@capacitor/core": "^7.4.3",
     "@clerk/backend": "^2.9.1",
     "@google/generative-ai": "^0.24.0",

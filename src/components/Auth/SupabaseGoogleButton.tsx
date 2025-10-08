@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { Browser } from '@capacitor/browser';
 
 interface Props {
   onSuccess?: () => void;
@@ -12,18 +13,35 @@ const SupabaseGoogleButton: React.FC<Props> = ({ onSuccess, onError }) => {
   const handleClick = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            prompt: 'select_account',
-            access_type: 'offline',
+      const isCapacitor = !!(window as any).Capacitor?.isNativePlatform?.() || /Capacitor|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isCapacitor) {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: 'yoread://auth/callback',
+            skipBrowserRedirect: true,
+            queryParams: {
+              prompt: 'consent',
+              access_type: 'offline',
+            },
           },
-        },
-      });
-      if (error) throw error;
-      onSuccess?.();
+        });
+        if (error) throw error;
+        if (data?.url) await Browser.open({ url: data.url });
+      } else {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: `${window.location.origin}/auth/callback`,
+            queryParams: {
+              prompt: 'select_account',
+              access_type: 'offline',
+            },
+          },
+        });
+        if (error) throw error;
+        onSuccess?.();
+      }
     } catch (err) {
       onError?.(err as Error);
     } finally {
