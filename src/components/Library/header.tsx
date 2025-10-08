@@ -166,7 +166,7 @@ const Header: React.FC = () => {
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">Sign In / Sign Up</h3>
+                  <h3 className="text-lg font-medium text-gray-900">Sign In</h3>
                   <button
                     onClick={() => setShowAuthModal(false)}
                     className="text-gray-400 hover:text-gray-600"
