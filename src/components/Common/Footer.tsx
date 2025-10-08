@@ -27,7 +27,7 @@ const Footer: React.FC = () => {
 
         <div className="border-t border-gray-200 mt-6 pt-6 text-center">
           <p className="text-gray-500 text-sm">
-            © 2025 YoRead. All rights reserved.
+            © 2025 YoRead. All rights reserved. · <a href="/terms" className="text-gray-600 hover:text-gray-900 underline">Terms of Service</a>
           </p>
         </div>
       </div>
