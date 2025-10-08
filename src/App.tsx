@@ -17,6 +17,7 @@ import TopicPage from './pages/blog/TopicPage';
 import TopicArticlePage from './pages/blog/TopicArticlePage';
 import BlogExample from './components/Blog/BlogExample';
 import AuthCallback from './pages/auth/callback';
+import TermsOfService from './pages/TermsOfService';
 // import ScannerPage from './pages/ScannerPage'; // Temporarily disabled
 import './App.css';
 
@@ -52,6 +53,7 @@ const AppContent: React.FC = () => {
       <Route path="/blog" element={<BlogListPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />
       <Route path="/blog-test" element={<BlogExample />} />
+      <Route path="/terms" element={<TermsOfService />} />
       
       {/* New topic-based blog routes */}
       <Route path="/topics" element={<TopicListPage />} />
