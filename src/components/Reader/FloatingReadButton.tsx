@@ -178,6 +178,13 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, isVisib
     // Call the original onRead function
     console.log('[FloatingReadButton] Calling onRead function...');
     onRead();
+
+    // After starting TTS, clear selection and hide the button
+    try {
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+    } catch {}
+    setSelectedText('');
   };
 
   // Always render when visible and there is selected text. Do not hide purely due to native menu visibility.

@@ -413,7 +413,7 @@ const Reader: React.FC = () => {
      
      <FloatingReadButton 
        onRead={handleTTS}
-       isVisible={isEnhanced}
+       isVisible={isEnhanced && !(isSpeaking || isProcessing || isPaused)}
      />
    </div>
  );

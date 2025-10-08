@@ -1,59 +1,16 @@
 // src/components/Library/index.tsx
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useBook } from '../../context/BookContext';
 import BookGrid from './BookGrid';
 import './Library.css';
 import { trackEvent } from '../../lib/analytics'; // Make sure to import it
 import { useAuth } from "../../context/AuthContext";
-const BookCarousel = React.lazy(() => import('./BookCarousel').then(m => ({ default: m.BookCarousel })));
-import preprocessedBooks from '../../lib/preprocessedBooks.json';
-import { BookData } from '@/types/books'; // Make sure BookData is imported
 
-// Helper function to create book data from preprocessed information
-function createBookFromPreprocessed(preprocessedBook: any): BookData {
-    return {
-    id: preprocessedBook.filename,
-    title: preprocessedBook.title,
-    author: preprocessedBook.author,
-    coverUrl: preprocessedBook.coverPath || '', // Use extracted cover or empty string
-    file: null as any, // Will be lazy-loaded when user clicks
-      currentPage: 0,
-      totalPages: 0,
-      lastRead: new Date().toISOString(),
-    };
-}
 
 const Library: React.FC = () => {
   const { books, addBook, isLoading, openBook, isSyncingFromCloud } = useBook();
   
-  // 🚀 Lazy loading function for sample books
-  const handleSampleBookSelect = useCallback(async (book: BookData) => {
-    if (!book.file) {
-      try {
-        console.log(`📖 Lazy loading: ${book.title}`);
-        
-        // Fetch the EPUB file only when user clicks
-        const response = await fetch(`/sample-books/${book.id}`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch book: ${response.statusText}`);
-        }
-        
-        const blob = await response.blob();
-        const file = new File([blob], book.id, { type: 'application/epub+zip' });
-        
-        // Update the book with the actual file
-        book.file = file;
-        
-        console.log(`✅ Loaded: ${book.title} (${Math.round(blob.size / 1024)}KB)`);
-      } catch (error) {
-        console.error(`❌ Failed to load ${book.title}:`, error);
-        return; // Don't open the book if loading failed
-      }
-    }
-    
-    // Now open the book (either already had file or just loaded it)
-    openBook(book);
-  }, [openBook]);
+  // showcase/sample loading removed
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState<boolean>(false);
   // Toast notification states
@@ -62,43 +19,13 @@ const Library: React.FC = () => {
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const { isAuthenticated } = useAuth();
     // State specifically for the anonymous user's showcase carousel
-  const [carouselBooks, setCarouselBooks] = useState<BookData[]>([]);
-  const [isCarouselLoading, setIsCarouselLoading] = useState<boolean>(true);
-  const displayBooks = isAuthenticated ? books : carouselBooks;
+  // showcase state removed
  
    // Defer mounting Carousel until after first paint/idle
- const [showCarousel, setShowCarousel] = useState<boolean>(false);
- useEffect(() => {
-   if ('requestIdleCallback' in window) {
-     (window as any).requestIdleCallback(() => setShowCarousel(true));
-   } else {
-     setTimeout(() => setShowCarousel(true), 0);
-   }
- }, []);
+ // showcase state removed
 
   // ⚡ OPTIMIZED: Load sample books from preprocessed data (instant loading!)
-  useEffect(() => {
-    const loadSampleBooks = () => {
-      setIsCarouselLoading(true);
-      
-      // Filter out corrupted books (like jane eyre.epub)
-      const validPreprocessedBooks = preprocessedBooks.filter(book => 
-        book.title !== 'jane eyre' && 
-        book.title !== 'The Power of Now: A Guide to Spiritual Enlightenment' // Remove as requested
-      );
-      
-      // Convert preprocessed data to BookData format (instant!)
-      const books = validPreprocessedBooks.map(createBookFromPreprocessed);
-      
-      setCarouselBooks(books);
-        setIsCarouselLoading(false);
-    };
-
-    // Add a small delay to let the page render first, then load instantly
-    const timer = setTimeout(loadSampleBooks, 100);
-
-    return () => clearTimeout(timer);
-  }, []); // Runs once on mount
+  // Showcase disabled: skip loading sample books
 
   const handleUploadClick = () => {
       // TRACK THE INTENT
@@ -236,18 +163,7 @@ const Library: React.FC = () => {
         {/* --- START: Simplified Display Logic --- */}
         
                  {/* Showcase Carousel: Always visible */}
-         {isCarouselLoading ? (
-           <div className="text-center mb-12"><p>Loading Collection...</p></div>
-         ) : (showCarousel && carouselBooks.length > 0) && (
-           <section className="showcase-section mb-12">
-             <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">
-               Turn E-books to Audiobooks
-             </h2>
-             <React.Suspense fallback={<div className="text-center mb-12"><p>Loading Collection...</p></div>}>
-               <BookCarousel books={carouselBooks} onBookSelect={handleSampleBookSelect} />
-             </React.Suspense>
-           </section>
-         )}
+        {/* Showcase disabled for performance */}
 
         {/* Welcome Message: Only for users with NO personal books */}
         {books.length === 0 && !isLoading && (
@@ -262,6 +178,34 @@ const Library: React.FC = () => {
         )}
         
         {/* --- All sections below this point are independent --- */}
+
+        {/* Hero title */}
+        <section className="text-center mt-6">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
+            AI Narrator to read aloud your ebooks
+          </h1>
+          <p className="mt-2 sm:mt-3 text-base sm:text-lg text-gray-600 max-w-3xl mx-auto">
+            Upload an EPUB to convert it to audio and follow along with synchronized text highlighting.
+          </p>
+        </section>
+
+        {/* Upload Area */}
+        <div 
+          className={`upload-area mt-10 max-w-2xl mx-auto ${dragActive ? 'active' : ''}`}
+          onDragEnter={handleDrag}
+          onDragOver={handleDrag}
+          onDragLeave={handleDrag}
+          onDrop={handleDrop}
+        >
+          {/* Minimal, clear messaging for EPUB + TTS */}
+          <h3 className="text-lg font-semibold mb-1.5 text-gray-800">Upload your EPUB</h3>
+          <p className="text-sm text-gray-500 mb-3">Drag & drop a .epub file, or click to choose</p>
+          <button className="browse-button" onClick={handleUploadClick}>
+            Choose EPUB
+          </button>
+          <input ref={fileInputRef} type="file" accept=".epub" onChange={handleFileChange} className="hidden" />
+          <p className="mt-2 text-xs text-gray-500">After upload, open your book and tap Read Aloud.</p>
+        </div>
 
         {/* Free ebook resources */}
         <section className="mt-12 text-center">
@@ -288,23 +232,6 @@ const Library: React.FC = () => {
             </button>
           </div>
         </section>
-        
-        {/* Upload Area */}
-        <div 
-          className={`upload-area mt-10 max-w-2xl mx-auto ${dragActive ? 'active' : ''}`}
-          onDragEnter={handleDrag}
-          onDragOver={handleDrag}
-          onDragLeave={handleDrag}
-          onDrop={handleDrop}
-        >
-          {/* ... SVG and text content ... */}
-          <h3 className="text-lg font-medium mb-1.5 text-gray-800">Upload your eBook</h3>
-          <p className="text-gray-600 mb-3">Drag and drop your ePub file here, or click to browse</p>
-          <button className="browse-button" onClick={handleUploadClick}>
-            Upload ebook .epub
-          </button>
-          <input ref={fileInputRef} type="file" accept=".epub" onChange={handleFileChange} className="hidden" />
-        </div>
 
         {/* User's Library Section: Appears here ONLY if they have books */}
         {books.length > 0 && (
