@@ -22,6 +22,12 @@ interface ControlsProps {
   onAudiobook: () => void;
   isPlayModeActive: boolean;
   isReadButtonActive: boolean;
+  // Full Cast props
+  fullCastActive: boolean;
+  fullCastStatus: string;
+  fullCastBuffered: number;
+  fullCastNeedsTap: boolean;
+  onFullCastStop: () => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -39,7 +45,13 @@ const Controls: React.FC<ControlsProps> = ({
   canResume,
   onAudiobook,
   isPlayModeActive,
-  isReadButtonActive
+  isReadButtonActive,
+  // Full Cast props
+  fullCastActive,
+  fullCastStatus,
+  fullCastBuffered,
+  fullCastNeedsTap,
+  onFullCastStop
 }) => {
 
   let readButtonIcon: React.ReactNode;
@@ -69,6 +81,7 @@ const Controls: React.FC<ControlsProps> = ({
   }
 
   const showStopButton = isReading || isPaused || isProcessing;
+  const showFullCastStatus = fullCastActive;
 
   return (
     // This container uses Tailwind for high-level layout with better space management
@@ -83,85 +96,125 @@ const Controls: React.FC<ControlsProps> = ({
 
       {/* Audio Controls use Tailwind for layout with better space management */}
       <div className="flex items-center gap-x-2 flex-shrink-0">
-        {/* Read/Pause/Resume Button */}
-        <button
-          onClick={onReadAloud}
-          className={`control-button flex items-center gap-2 px-3 py-2 ${isReadButtonActive ? 'active' : ''}`}
-          aria-label={readButtonTitle}
-          title={readButtonTitle}
-          disabled={isProcessing && !isReading && !isPaused}
-        >
-          {readButtonIcon}
-          <span className="button-text text-sm font-medium">{readButtonLabel}</span>
-        </button>
+        {/* Full Cast Status Display - shows when Full Cast is active */}
+        {showFullCastStatus ? (
+          <>
+            {/* Full Cast Status */}
+            <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600">
+              <span className="inline-flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+              <span className="text-xs md:text-sm">{fullCastStatus}</span>
+              {fullCastBuffered > 0 && (
+                <span className="text-xs bg-gray-100 rounded px-2 py-0.5">Buffered: {fullCastBuffered}</span>
+              )}
+              {fullCastNeedsTap && (
+                <button
+                  className="px-2 py-1 text-xs bg-blue-600 text-white rounded"
+                  onClick={() => {
+                    try {
+                      const a = (window as any).__fullCastAudio as HTMLAudioElement | undefined;
+                      a?.play();
+                    } catch {}
+                  }}
+                >
+                  Tap to Play
+                </button>
+              )}
+            </div>
+            
+            {/* Full Cast Stop Button */}
+            <button
+              onClick={onFullCastStop}
+              className="control-button stop-button flex items-center gap-2 px-3 py-2"
+              aria-label="Stop Full Cast"
+              title="Stop Full Cast narration"
+            >
+              <Square size={20} />
+              <span className="button-text text-sm font-medium">Stop</span>
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Read/Pause/Resume Button */}
+            <button
+              onClick={onReadAloud}
+              className={`control-button flex items-center gap-2 px-3 py-2 ${isReadButtonActive ? 'active' : ''}`}
+              aria-label={readButtonTitle}
+              title={readButtonTitle}
+              disabled={isProcessing && !isReading && !isPaused}
+            >
+              {readButtonIcon}
+              <span className="button-text text-sm font-medium">{readButtonLabel}</span>
+            </button>
 
-        {/* Previous Sentence Button - Only show when TTS is active */}
-        {(isReading || isPaused || canResume) && (
-          <button
-            onClick={onPreviousSentence}
-            className="control-button flex items-center gap-2 px-3 py-2"
-            aria-label="Previous sentence"
-            title="Listen to previous sentence"
-            disabled={isProcessing}
-          >
-            <ChevronLeft size={16} />
-            <span className="button-text text-sm font-medium">Prev</span>
-          </button>
+            {/* Previous Sentence Button - Only show when TTS is active */}
+            {(isReading || isPaused || canResume) && (
+              <button
+                onClick={onPreviousSentence}
+                className="control-button flex items-center gap-2 px-3 py-2"
+                aria-label="Previous sentence"
+                title="Listen to previous sentence"
+                disabled={isProcessing}
+              >
+                <ChevronLeft size={16} />
+                <span className="button-text text-sm font-medium">Prev</span>
+              </button>
+            )}
+
+            {/* Next Sentence Button - Only show when TTS is active */}
+            {(isReading || isPaused || canResume) && (
+              <button
+                onClick={onNextSentence}
+                className="control-button flex items-center gap-2 px-3 py-2"
+                aria-label="Next sentence"
+                title="Listen to next sentence"
+                disabled={isProcessing}
+              >
+                <span className="button-text text-sm font-medium">Next</span>
+                <ChevronRight size={16} />
+              </button>
+            )}
+
+            {/* Stop Button */}
+            {showStopButton && (
+              <button
+                onClick={onStopTTS}
+                className="control-button stop-button flex items-center gap-2 px-3 py-2"
+                aria-label="Stop TTS"
+                title="Stop TTS and clear saved position"
+              >
+                <Square size={20} />
+                <span className="button-text text-sm font-medium">Stop</span>
+              </button>
+            )}
+
+            {/* Audiobook Button */}
+            <button
+              onClick={onAudiobook}
+              // We keep Tailwind's responsive classes for layout control
+              className={`control-button hidden md:flex items-center gap-2 px-3 py-2 ${isPlayModeActive ? 'active' : ''}`}
+              aria-label="Audiobook mode"
+              title="Audiobook mode"
+              disabled={isProcessing}
+            >
+              <Headphones size={20} />
+              <span className="button-text text-sm font-medium">Audiobook</span>
+            </button>
+
+            {/* Full Cast Narration (Beta) */}
+            <button
+              className="control-button flex items-center gap-2 px-3 py-2 border border-gray-300"
+              onClick={() => {
+                const event = new CustomEvent('full-cast-request');
+                window.dispatchEvent(event);
+              }}
+              title="Full Cast Narration (Beta)"
+              aria-label="Full Cast Narration"
+              disabled={isProcessing}
+            >
+              <span className="button-text text-sm font-medium">Full Cast</span>
+            </button>
+          </>
         )}
-
-        {/* Next Sentence Button - Only show when TTS is active */}
-        {(isReading || isPaused || canResume) && (
-          <button
-            onClick={onNextSentence}
-            className="control-button flex items-center gap-2 px-3 py-2"
-            aria-label="Next sentence"
-            title="Listen to next sentence"
-            disabled={isProcessing}
-          >
-            <span className="button-text text-sm font-medium">Next</span>
-            <ChevronRight size={16} />
-          </button>
-        )}
-
-        {/* Stop Button */}
-        {showStopButton && (
-          <button
-            onClick={onStopTTS}
-            className="control-button stop-button flex items-center gap-2 px-3 py-2"
-            aria-label="Stop TTS"
-            title="Stop TTS and clear saved position"
-          >
-            <Square size={20} />
-            <span className="button-text text-sm font-medium">Stop</span>
-          </button>
-        )}
-
-        {/* Audiobook Button */}
-        <button
-          onClick={onAudiobook}
-          // We keep Tailwind's responsive classes for layout control
-          className={`control-button hidden md:flex items-center gap-2 px-3 py-2 ${isPlayModeActive ? 'active' : ''}`}
-          aria-label="Audiobook mode"
-          title="Audiobook mode"
-          disabled={isProcessing}
-        >
-          <Headphones size={20} />
-          <span className="button-text text-sm font-medium">Audiobook</span>
-        </button>
-
-      {/* Full Cast Narration (Beta) */}
-      <button
-        className="control-button flex items-center gap-2 px-3 py-2 border border-gray-300"
-        onClick={() => {
-          const event = new CustomEvent('full-cast-request');
-          window.dispatchEvent(event);
-        }}
-        title="Full Cast Narration (Beta)"
-        aria-label="Full Cast Narration"
-        disabled={isProcessing}
-      >
-        <span className="button-text text-sm font-medium">Full Cast</span>
-      </button>
       </div>
     </div>
   );

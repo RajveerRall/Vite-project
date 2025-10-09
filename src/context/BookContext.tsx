@@ -1021,6 +1021,15 @@ useEffect(() => {
       // This makes the book appear in the library right away for everyone.
       setBooks(prevBooks => [...prevBooks, newBook]);
 
+      // Fire-and-forget: warm up Kokoro via microserver to reduce cold starts
+      try {
+        const baseURL = (import.meta as any).env?.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
+        // Don't await; short timeout via AbortController
+        const controller = new AbortController();
+        setTimeout(() => { try { controller.abort(); } catch {} }, 2000);
+        fetch(`${baseURL}/api/warmup/kokoro`, { method: 'POST', signal: controller.signal }).catch(() => {});
+      } catch {}
+
       // Step 3 (Conditional Enhancement): If the user is signed in, sync the new book to the cloud.
       if (isAuthenticated) {
         // This runs in the background ("fire and forget") so the UI is not blocked.

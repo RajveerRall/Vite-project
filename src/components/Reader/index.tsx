@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useBook } from '../../context/BookContext';
 import SimplePlayMode from './SimplePlayMode';
 import TableOfContents from '../Library/TableOfContents';
@@ -8,7 +8,7 @@ import { TOCItem } from '../../types/books';
 import './Reader.css';
 import './ReaderThemes.css';
 import FeatureHighlight from './FeatureHighlight';
-import { ChevronLeft, ChevronRight, Play, Headphones, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Headphones, Settings } from 'lucide-react';
 import { useReaderSettings } from '../../hooks/useReaderSettings';
 import { useReaderTTS } from '../../hooks/useReaderTTS';
 import { useAutoScroll } from '../../hooks/useAutoScroll';
@@ -24,7 +24,6 @@ import { requestFullCast, ttsForLine } from '../../services/fullCastTTS';
 const Reader: React.FC = () => {
   const {
     bookTitle,
-    bookAuthor,
     currentPageDisplay,
     totalPages,
     currentContent,
@@ -110,8 +109,8 @@ const Reader: React.FC = () => {
   });
   
   const {
-    chunks,
-    currentChunkIndex,
+    chunks: _chunks,
+    currentChunkIndex: _currentChunkIndex,
     isSpeaking,
     isProcessing,
     isPaused,
@@ -440,35 +439,6 @@ const Reader: React.FC = () => {
           dangerouslySetInnerHTML={{ __html: ttsHighlightedContent || currentContent }}
         />
 
-        {fullCastActive && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600 px-2 md:px-0">
-            <span className="inline-flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-xs md:text-sm">{fullCastStatus}</span>
-            {fullCastBuffered > 0 && (
-              <span className="text-xs bg-gray-100 rounded px-2 py-0.5">Buffered: {fullCastBuffered}</span>
-            )}
-            {fullCastNeedsTap && (
-              <button
-                className="px-2 py-1 text-xs bg-blue-600 text-white rounded"
-                onClick={() => {
-                  try {
-                    setFullCastNeedsTap(false);
-                    const a = (window as any).__fullCastAudio as HTMLAudioElement | undefined;
-                    a?.play();
-                  } catch {}
-                }}
-              >
-                Tap to Play
-              </button>
-            )}
-            <button
-              className="ml-auto px-2 py-1 text-xs border rounded"
-              onClick={() => { try { (window as any).__fullCastStop?.(); } catch {} }}
-            >
-              Stop
-            </button>
-          </div>
-        )}
 
         {showNavigationArrows && (
           <>
@@ -519,6 +489,11 @@ const Reader: React.FC = () => {
           onAudiobook={togglePlayMode}
           isPlayModeActive={isPlayModeVisible}
           isReadButtonActive={isSpeaking || isPaused || canTTSResume}
+          fullCastActive={fullCastActive}
+          fullCastStatus={fullCastStatus}
+          fullCastBuffered={fullCastBuffered}
+          fullCastNeedsTap={fullCastNeedsTap}
+          onFullCastStop={() => { try { (window as any).__fullCastStop?.(); } catch {} }}
         />
       </div>
     </div>
@@ -541,6 +516,11 @@ const Reader: React.FC = () => {
           onAudiobook={togglePlayMode}
           isPlayModeActive={isPlayModeVisible}
           isReadButtonActive={isSpeaking || isPaused || canTTSResume}
+          fullCastActive={fullCastActive}
+          fullCastStatus={fullCastStatus}
+          fullCastBuffered={fullCastBuffered}
+          fullCastNeedsTap={fullCastNeedsTap}
+          onFullCastStop={() => { try { (window as any).__fullCastStop?.(); } catch {} }}
         />
       </div>
     </div>

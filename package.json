@@ -31,6 +31,7 @@
     "@supabase/supabase-js": "^2.55.0",
     "@types/localforage": "^0.0.34",
     "@types/react-router-dom": "^5.3.3",
+    "@your-scope/modular-tts": "file:your-scope-modular-tts-0.1.0.tgz",
     "adm-zip": "^0.5.16",
     "axios": "^1.8.3",
     "class-variance-authority": "^0.7.1",

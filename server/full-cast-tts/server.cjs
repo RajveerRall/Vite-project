@@ -2,8 +2,18 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-// Import from vendored copy (isolated deps)
-const api = require('./vendor/modular-tts/dist/api.js');
+// Switch to installed package
+let Modular;
+try {
+  Modular = require('@your-scope/modular-tts');
+} catch (e) {
+  // Fallback to vendored copy if package missing
+  Modular = {
+    ...require('./vendor/modular-tts/dist/api.js'),
+    ModularAIFactory: require('./vendor/modular-tts/dist/core/ModularAIFactory.js').ModularAIFactory,
+    CastingManager: require('./vendor/modular-tts/dist/core/casting-manager.js').CastingManager,
+  };
+}
 
 const app = express();
 app.use(cors());
@@ -37,60 +47,74 @@ const ENV_KEYS = {
   openai: process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY,
   // Gemini
   gemini: process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.VITE_GOOGLE_GEMINI_API_KEY,
-  // Cartesia
+  // Cartesia (disabled in this pipeline)
   cartesia: process.env.CARTESIA_API_KEY || process.env.VITE_CARTESIA_API_KEY,
+  // MsEdge (self-hosted)
+  msedgeBaseUrl: process.env.MSEDGE_BASE_URL || process.env.VITE_MSEDGE_BASE_URL,
+  msedgeApiKey: process.env.MSEDGE_API_KEY || process.env.VITE_MSEDGE_API_KEY,
+  // Kokoro
+  kokoroApiUrl: process.env.KOKORO_API_URL || process.env.VITE_KOKORO_API_URL,
+  kokoroApiKey: process.env.KOKORO_API_KEY || process.env.VITE_KOKORO_API_KEY,
 };
 
 // Choose LLM (prefer OpenAI)
 const DEFAULT_LLM = ENV_KEYS.openai ? 'gpt-4o' : (ENV_KEYS.gemini ? 'gemini-2.0-flash' : null);
 
 // Maintain casting memory across requests by keeping a single factory + casting manager
-const { ModularAIFactory } = require('./vendor/modular-tts/dist/core/ModularAIFactory.js');
-const { CastingManager } = require('./vendor/modular-tts/dist/core/casting-manager.js');
+const { ModularAIFactory, CastingManager, Pipeline } = Modular;
 const sharedFactory = new ModularAIFactory({
   openai: ENV_KEYS.openai ? { apiKey: ENV_KEYS.openai } : undefined,
   gemini: ENV_KEYS.gemini ? { apiKey: ENV_KEYS.gemini, model: 'gemini-2.0-flash' } : undefined,
-  cartesia: ENV_KEYS.cartesia ? { apiKey: ENV_KEYS.cartesia } : undefined,
+  // cartesia intentionally omitted to match pipeline (no cartesia)
+  msedge: ENV_KEYS.msedgeBaseUrl ? { baseUrl: ENV_KEYS.msedgeBaseUrl, apiKey: ENV_KEYS.msedgeApiKey } : undefined,
+  kokoro: ENV_KEYS.kokoroApiUrl ? { apiUrl: ENV_KEYS.kokoroApiUrl, apiKey: ENV_KEYS.kokoroApiKey } : undefined,
 });
 
-// Expanded voice pool with Cartesia voices (more diverse for characters)
-const VOICE_POOL = [
-  // Male voices - Cartesia (rich, varied)
-  { voiceId: '694f9389-aac1-45b6-b726-9d9369183238', gender: 'male', provider: 'cartesia' }, // Confident British Male
-  { voiceId: 'a0e99841-438c-4a64-b679-ae501e7d6091', gender: 'male', provider: 'cartesia' }, // Wise Old Man
-  { voiceId: '79a125e8-cd45-4c13-8a67-188112f4dd22', gender: 'male', provider: 'cartesia' }, // Friendly Guy
-  { voiceId: '248be419-c632-4f23-adf1-5324ed7dbf1d', gender: 'male', provider: 'cartesia' }, // Midwestern Man
-  { voiceId: '87748186-23bb-4158-a1eb-332911b0b708', gender: 'male', provider: 'cartesia' }, // Friendly Sidekick
-  { voiceId: '41534e16-2966-4c6b-9670-111411def906', gender: 'male', provider: 'cartesia' }, // Middle Aged Man
-  // Female voices - Cartesia
-  { voiceId: 'b7d50908-b17c-442d-ad8d-810c63997ed9', gender: 'female', provider: 'cartesia' }, // Confident British Woman
-  { voiceId: '79f8b5fb-2cc8-479a-80df-29f7a7cf1a3e', gender: 'female', provider: 'cartesia' }, // Wise Woman
-  { voiceId: 'f9836c6e-a0bd-460e-9d3c-f7299fa60f94', gender: 'female', provider: 'cartesia' }, // Friendly Woman
-  { voiceId: '2ee87190-8f84-4925-97da-e52547f9462c', gender: 'female', provider: 'cartesia' }, // Midwestern Woman
-  // OpenAI fallbacks (keep for variety)
-  { voiceId: 'onyx', gender: 'male', provider: 'openai' },
-  { voiceId: 'echo', gender: 'male', provider: 'openai' },
-  { voiceId: 'fable', gender: 'male', provider: 'openai' },
-  { voiceId: 'nova', gender: 'female', provider: 'openai' },
-  { voiceId: 'shimmer', gender: 'female', provider: 'openai' },
-  { voiceId: 'alloy', gender: 'neutral', provider: 'openai' },
+// Voice pool limited to enabled providers (Kokoro, MsEdge)
+const ALL_VOICES = [
+  // Kokoro
+  { voiceId: 'bm_george', gender: 'male', provider: 'kokoro', description: 'British Male - Narrator' },
+  { voiceId: 'am_adam', gender: 'male', provider: 'kokoro', description: 'American Male - Confident' },
+  { voiceId: 'am_eric', gender: 'male', provider: 'kokoro', description: 'American Male - Young' },
+  { voiceId: 'bf_emma', gender: 'female', provider: 'kokoro', description: 'British Female - Mature' },
+  { voiceId: 'af_heart', gender: 'female', provider: 'kokoro', description: 'American Female - Warm' },
+  { voiceId: 'af_sarah', gender: 'female', provider: 'kokoro', description: 'American Female - Clear' },
+  // MsEdge examples (if configured)
+  { voiceId: 'en-US-BrianMultilingualNeural', gender: 'male', provider: 'msedge', description: 'Brian - Multilingual' },
+  { voiceId: 'en-US-JennyMultilingualNeural', gender: 'female', provider: 'msedge', description: 'Jenny - Multilingual' },
+  { voiceId: 'en-US-AriaNeural', gender: 'female', provider: 'msedge', description: 'Aria - Friendly' },
 ];
 
-// Extended casting manager that accepts custom voice pool
-class ExtendedCastingManager extends CastingManager {
-  constructor(voicePool) {
-    super();
-    if (voicePool && Array.isArray(voicePool)) {
-      this.allVoices = voicePool;
-    }
-  }
-}
+// Filter to only enabled providers
+const VOICE_POOL = ALL_VOICES.filter(v => {
+  if (v.provider === 'kokoro') return !!ENV_KEYS.kokoroApiUrl;
+  if (v.provider === 'msedge') return !!ENV_KEYS.msedgeBaseUrl;
+  return false;
+});
 
-const sharedCastingManager = new ExtendedCastingManager(VOICE_POOL);
+console.log(`[full-cast-tts] Voice pool has ${VOICE_POOL.length} voices from enabled providers`);
+
+// Use the standard CastingManager from the library
+const sharedCastingManager = new CastingManager();
+// Manually set the voice pool to our filtered list.
+// This is the key to preventing the manager from knowing about disabled providers.
+sharedCastingManager.allVoices = VOICE_POOL;
+
+// Clear any old casting memory on server start to avoid stale Cartesia assignments
+if (sharedCastingManager.characterMap) {
+  sharedCastingManager.characterMap = {};
+}
+if (sharedCastingManager.usedVoices) {
+  sharedCastingManager.usedVoices = new Set();
+}
+console.log('[full-cast-tts] Casting memory has been reset.');
+
+
 console.log('[full-cast-tts] providers:', {
   openai: !!ENV_KEYS.openai,
   gemini: !!ENV_KEYS.gemini,
-  cartesia: !!ENV_KEYS.cartesia,
+  msedge: !!ENV_KEYS.msedgeBaseUrl,
+  kokoro: !!ENV_KEYS.kokoroApiUrl,
   llm: DEFAULT_LLM,
 });
 
@@ -144,44 +168,42 @@ app.post('/api/full-cast-tts', async (req, res) => {
     }
 
     const structured = structureTextForLLM(text);
-    // Let the parser decide voices by providing the current casting context
+    // Use factory chain per package docs, with persistentCastingParser by default
     const script = await sharedFactory.createAndExecuteChain({
       llmIds: [chosen],
       parserId: parser === 'simple' ? 'simpleDialogueParser'
         : parser === 'singleNarrator' ? 'singleNarratorParser'
-        : 'intelligentCastingParser',
+        : 'persistentCastingParser',
       rawTextInput: structured,
-      context: { characterMap: sharedCastingManager.getCharacterMap() }
-    });
-    // Update casting memory based on resulting characters (non-narrator)
-    const uniqueCharactersWithGender = (Array.isArray(script) ? script : [])
-      .filter(l => (l?.character || '').toLowerCase() !== 'narrator')
-      .reduce((acc, line) => {
-        const name = (line?.character || '').trim();
-        if (!name) return acc;
-        if (!acc.some(c => c.character === name)) acc.push({ character: name, gender: (line?.gender || 'neutral') });
-        return acc;
-      }, []);
-    sharedCastingManager.ensureVoiceCast(uniqueCharactersWithGender);
-
-    // Enrich script with voice assignments from casting manager
-    const characterMap = sharedCastingManager.getCharacterMap();
-    const enrichedScript = (Array.isArray(script) ? script : []).map(line => {
-      const char = (line?.character || '').trim();
-      if (!char) return line;
-      const profile = characterMap[char];
-      if (profile && profile.voice) {
-        return { ...line, provider: profile.voice.provider, voiceId: profile.voice.voiceId };
+      context: {
+        CASTING_CONTEXT: JSON.stringify(sharedCastingManager.getCharacterMap(), null, 2),
+        AVAILABLE_VOICES: sharedCastingManager.getAvailableVoicesForLLM ? sharedCastingManager.getAvailableVoicesForLLM() : undefined
       }
-      // Narrator or unmapped: default to cartesia
-      if (char.toLowerCase() === 'narrator') {
-        return { ...line, provider: 'cartesia' };
-      }
-      return line;
     });
+    // Persist new voice assignments so future chunks reuse them
+    try {
+      const characterMap = sharedCastingManager.getCharacterMap();
+      const assignments = [];
+      for (const line of (Array.isArray(script) ? script : [])) {
+        const char = (line?.character || '').trim();
+        if (!char || char.toLowerCase() === 'narrator') continue;
+        const provider = line?.provider;
+        const voiceId = line?.voiceId;
+        const gender = line?.gender || 'neutral';
+        if (provider && voiceId) {
+          const existing = characterMap[char]?.voice;
+          if (!existing || existing.voiceId !== voiceId || existing.provider !== provider) {
+            assignments.push({ character: char, provider, voiceId, gender });
+          }
+        }
+      }
+      if (assignments.length && sharedCastingManager.setManualAssignments) {
+        sharedCastingManager.setManualAssignments(assignments);
+      }
+    } catch {}
 
-    console.log(`[full-cast-tts] [req ${req.reqId}] pipeline done scriptLines=${enrichedScript.length}`);
-    res.json({ script: enrichedScript });
+    console.log(`[full-cast-tts] [req ${req.reqId}] pipeline done scriptLines=${(Array.isArray(script) ? script.length : 0)}`);
+    res.json({ script });
   } catch (err) {
     console.error('[full-cast-tts] failed:', err);
     res.status(500).json({ error: 'Failed to process text' });
@@ -189,45 +211,68 @@ app.post('/api/full-cast-tts', async (req, res) => {
 });
 
 // --- TTS endpoint (per-line synthesis) ---
-let ttsProviders = {};
-try {
-  if (ENV_KEYS.openai) {
-    const { OpenAITts } = require('./vendor/modular-tts/dist/plugins/tts/openai-tts.js');
-    ttsProviders.openai = new OpenAITts({ apiKey: ENV_KEYS.openai });
-  }
-} catch (e) {
-  console.warn('[full-cast-tts] OpenAI TTS not initialized:', e.message);
-}
-try {
-  if (ENV_KEYS.cartesia) {
-    const { CartesiaTts } = require('./vendor/modular-tts/dist/plugins/tts/cartesia-tts.js');
-    ttsProviders.cartesia = new CartesiaTts({ apiKey: ENV_KEYS.cartesia });
-  }
-} catch (e) {
-  console.warn('[full-cast-tts] Cartesia TTS not initialized:', e.message);
-}
 
 app.post('/api/tts', async (req, res) => {
-  const { provider = (ttsProviders.openai ? 'openai' : (ttsProviders.cartesia ? 'cartesia' : null)), text, voiceId } = req.body || {};
+  const { provider, text, voiceId } = req.body || {};
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ error: 'text is required' });
   }
-  if (!provider || !ttsProviders[provider]) {
+  const selected = provider || (ENV_KEYS.openai ? 'openai' : (ENV_KEYS.cartesia ? 'cartesia' : null));
+  if (!selected) {
     return res.status(400).json({ error: 'No TTS provider available. Set OPENAI_API_KEY or CARTESIA_API_KEY.' });
   }
   try {
-    console.log(`[tts] [req ${req.reqId}] provider=${provider} voiceId=${voiceId || '-'} len=${text.length} preview="${previewStr(text, 120)}"`);
-    const stream = await ttsProviders[provider].synthesizeStream(text, { voiceId });
+    console.log(`[tts] [req ${req.reqId}] provider=${selected} voiceId=${voiceId || '-'} len=${text.length} preview="${previewStr(text, 120)}"`);
+    const tts = sharedFactory.getTTS(selected);
+    if (!tts) return res.status(400).json({ error: `TTS provider not configured: ${selected}` });
+    const result = await tts.synthesizeWithMetadata(text, { voiceId });
     res.setHeader('Content-Type', 'audio/mpeg');
-    stream.on('error', (e) => {
+    result.stream.on('error', (e) => {
       console.error('[full-cast-tts] TTS stream error:', e);
       if (!res.headersSent) res.status(500).end();
     });
-    stream.pipe(res);
+    result.stream.pipe(res);
   } catch (e) {
     console.error('[full-cast-tts] TTS failed:', e);
     res.status(500).json({ error: 'TTS synthesis failed' });
   }
+});
+
+// --- Kokoro warmup endpoint ---
+app.post('/api/warmup/kokoro', async (_req, res) => {
+  try {
+    // Prefer direct health ping if URL available
+    if (ENV_KEYS.kokoroApiUrl) {
+      try {
+        const url = new URL(ENV_KEYS.kokoroApiUrl.replace(/\/$/, '') + '/health');
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 2000);
+        await fetch(url.toString(), { method: 'GET', signal: controller.signal }).catch(() => {});
+        clearTimeout(t);
+      } catch {}
+    }
+    // Also nudge the provider via a tiny synthesis with immediate abort
+    const kokoro = sharedFactory.getTTS && sharedFactory.getTTS('kokoro');
+    if (kokoro && kokoro.synthesizeWithMetadata) {
+      const result = await kokoro.synthesizeWithMetadata('ping', { voiceId: 'bm_george' }).catch(() => null);
+      try { result && result.stream && result.stream.destroy && result.stream.destroy(); } catch {}
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(200).json({ ok: true });
+  }
+});
+
+// --- Reset casting memory endpoint ---
+app.post('/api/reset-casting', (_req, res) => {
+  if (sharedCastingManager.characterMap) {
+    sharedCastingManager.characterMap = {};
+  }
+  if (sharedCastingManager.usedVoices) {
+    sharedCastingManager.usedVoices = new Set();
+  }
+  console.log('[full-cast-tts] Casting memory has been reset via API.');
+  res.json({ ok: true, message: 'Casting memory reset' });
 });
 
 app.listen(PORT, () => {
