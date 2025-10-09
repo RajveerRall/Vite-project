@@ -18,6 +18,7 @@ import { generateUUID } from '../lib/utils';
 import { registerAdapter, getAdapterForFile } from './book/formats';
 import { epubAdapter } from './book/formats/epubAdapter';
 import { pdfAdapter } from './book/formats/pdfAdapter';
+import { mobiAdapter } from './book/formats/mobiAdapter';
 
 // Lightweight local type to avoid importing supabase client at startup
 interface CloudBookRecord {
@@ -87,6 +88,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     try {
       registerAdapter(epubAdapter);
       registerAdapter(pdfAdapter);
+      registerAdapter(mobiAdapter);
     } catch {}
   }, []);
   const { isAuthenticated, user } = useAuth();

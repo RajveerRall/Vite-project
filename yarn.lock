@@ -1591,6 +1591,23 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
+"@lingo-reader/mobi-parser@^0.4.1":
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/@lingo-reader/mobi-parser/-/mobi-parser-0.4.1.tgz#ff0d67f9ba09b7bb701182adf9f66251faba244e"
+  integrity sha512-saGsqPTotpSctlTkSS6F38XUiy7AAoB08zchUoL1K9/sXJYWRc/L4q+TVBxwD/tlnAjmCaW8QDm8vGgrzmpBaw==
+  dependencies:
+    "@lingo-reader/shared" "^0.4.1"
+    fflate "^0.8.2"
+
+"@lingo-reader/shared@^0.4.1":
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/@lingo-reader/shared/-/shared-0.4.1.tgz#ce30dec2bb33158f6f0e5aaa121aea6722aa0b63"
+  integrity sha512-ipiEXuP4+qYRVqmjqJsY8+iLHHpy5bZ4sR8ACaxTf5eUapUfL3yiQLWvwe2NG5pma8pEjIhqxNpWGB/dtN4FtQ==
+  dependencies:
+    events "^3.3.0"
+    path-browserify "^1.0.1"
+    sax "^1.4.1"
+
 "@manypkg/cli@^0.20.0":
   version "0.20.0"
   resolved "https://registry.yarnpkg.com/@manypkg/cli/-/cli-0.20.0.tgz#fe4fec8fc49e831e94fa48c9b41d8fcea1aa20e2"
@@ -5465,6 +5482,11 @@ fdir@^6.4.4:
   resolved "https://registry.yarnpkg.com/fdir/-/fdir-6.4.4.tgz#1cfcf86f875a883e19a8fab53622cfe992e8d2f9"
   integrity sha512-1NZP+GK4GfuAv3PqKvxQRDMjdSRZjnkq7KfhlNrCNNlZ0ygQFpebfrnfnq/W7fpUnAv9aGWmY1zKx7FYL3gwhg==
 
+fflate@^0.8.2:
+  version "0.8.2"
+  resolved "https://registry.yarnpkg.com/fflate/-/fflate-0.8.2.tgz#fc8631f5347812ad6028bbe4a2308b2792aa1dea"
+  integrity sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==
+
 file-entry-cache@^6.0.1:
   version "6.0.1"
   resolved "https://registry.yarnpkg.com/file-entry-cache/-/file-entry-cache-6.0.1.tgz#211b2dd9659cb0394b073e7323ac3c933d522027"
@@ -8285,6 +8307,11 @@ parseurl@~1.3.3:
   resolved "https://registry.yarnpkg.com/parseurl/-/parseurl-1.3.3.tgz#9da19e7bee8d12dff0513ed5b76957793bc2e8d4"
   integrity sha512-CiyeOxFT/JZyN5m0z9PfXw4SCBJ6Sygz1Dpl0wqjlhDEGGBP1GnsUVEL0p63hoG1fcj3fHynXi9NYO4nWOL+qQ==
 
+path-browserify@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/path-browserify/-/path-browserify-1.0.1.tgz#d98454a9c3753d5790860f16f68867b9e46be1fd"
+  integrity sha512-b7uo2UCUOYZcnF/3ID0lulOJi/bafxa1xPe7ZPsammBSpjSWQkjNxlt635YGS2MiR9GjvuXCtz2emr3jbsz98g==
+
 path-exists@^3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/path-exists/-/path-exists-3.0.0.tgz#ce0ebeaa5f78cb18925ea7d810d7b59b010fd515"
@@ -9284,7 +9311,7 @@ sax@1.1.4:
   resolved "https://registry.yarnpkg.com/sax/-/sax-1.1.4.tgz#74b6d33c9ae1e001510f179a91168588f1aedaa9"
   integrity sha512-5f3k2PbGGp+YtKJjOItpg3P99IMD84E4HOvcfleTb5joCHNXYLsR9yWFPOYGgaeMPDubQILTCMdsFb2OMeOjtg==
 
-sax@>=0.6.0, sax@^1.2.4:
+sax@>=0.6.0, sax@^1.2.4, sax@^1.4.1:
   version "1.4.1"
   resolved "https://registry.yarnpkg.com/sax/-/sax-1.4.1.tgz#44cc8988377f126304d3b3fc1010c733b929ef0f"
   integrity sha512-+aWOz7yVScEGoKNd4PA10LZ8sk0A/z5+nXQG5giUO5rprX9jgYsTdov9qCchZiPIZezbZH+jRut8nPodFAX4Jg==

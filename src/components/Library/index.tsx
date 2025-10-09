@@ -198,12 +198,12 @@ const Library: React.FC = () => {
           onDrop={handleDrop}
         >
           {/* Minimal, clear messaging for EPUB + TTS */}
-          <h3 className="text-lg font-semibold mb-1.5 text-gray-800">Upload your EPUB or PDF</h3>
-          <p className="text-sm text-gray-500 mb-3">Drag & drop a .epub or .pdf file, or click to choose</p>
+          <h3 className="text-lg font-semibold mb-1.5 text-gray-800">Upload your EPUB, PDF, or MOBI</h3>
+          <p className="text-sm text-gray-500 mb-3">Drag & drop a .epub, .pdf, or .mobi file, or click to choose</p>
           <button className="browse-button" onClick={handleUploadClick}>
-            Choose EPUB or PDF
+            Choose EPUB, PDF, or MOBI
           </button>
-          <input ref={fileInputRef} type="file" accept="application/epub+zip,.epub,application/pdf,.pdf" onChange={handleFileChange} className="hidden" />
+          <input ref={fileInputRef} type="file" accept="application/epub+zip,.epub,application/pdf,.pdf,application/x-mobipocket-ebook,.mobi" onChange={handleFileChange} className="hidden" />
           <p className="mt-2 text-xs text-gray-500">After upload, open your book and tap Read Aloud.</p>
         </div>
 
