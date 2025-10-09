@@ -6,12 +6,10 @@ import JSZip from 'jszip';
 // Dynamic import for xmldom to avoid blocking initial page load
 // const { DOMParser } = await import('xmldom');
 import { getDirectoryPath, resolveRelativePath } from '../utils/pathUtils';
+import { getDOMParser } from './book/domParser';
+import { regenerateCoverUrl } from './book/storage';
 
-// Helper function to get DOMParser dynamically
-const getDOMParser = async () => {
-  const { DOMParser } = await import('xmldom');
-  return DOMParser;
-};
+// getDOMParser moved to ./book/domParser
 import { processHtmlContent, extractTextFromHtml, cleanEpubContent, deepCleanEpubContent } from '../utils/textExtraction';
 import { BookData, TOCItem } from '@/types/books'; // Ensure BookData includes all necessary fields like lastChapter
 import { useAuth } from "./AuthContext";
@@ -791,46 +789,7 @@ useEffect(() => {
 
 // =================================================================
 
-  // *** NEW: Function to regenerate cover URL from book file ***
-  const regenerateCoverUrl = async (bookFile: File): Promise<string | null> => {
-    try {
-      const zip = new JSZip();
-      const loadedZip = await zip.loadAsync(bookFile);
-      const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
-      if (!containerXml) return null;
-      
-      const DOMParser = await getDOMParser();
-      const parser = new DOMParser();
-      const containerDoc = parser.parseFromString(containerXml, 'application/xml');
-      const rootfiles = containerDoc.getElementsByTagName('rootfile');
-      if (rootfiles.length === 0) return null;
-      
-      const opfPath = rootfiles[0].getAttribute('full-path') || '';
-      const opfContent = await loadedZip.file(opfPath)?.async('text');
-      if (!opfContent) return null;
-      
-      const opfDoc = parser.parseFromString(opfContent, 'application/xml');
-      const metaCover = Array.from(opfDoc.getElementsByTagName('meta')).find(m => m.getAttribute('name') === 'cover');
-      if (metaCover) {
-        const coverId = metaCover.getAttribute('content');
-        const coverItem = Array.from(opfDoc.getElementsByTagName('item')).find(item => item.getAttribute('id') === coverId);
-        if (coverItem) {
-          const href = coverItem.getAttribute('href');
-          if (href) {
-            const coverPath = resolveRelativePath(getDirectoryPath(opfPath), href);
-            const coverBlob = await loadedZip.file(coverPath)?.async('blob');
-            if (coverBlob) {
-              return URL.createObjectURL(coverBlob);
-            }
-          }
-        }
-      }
-      return null;
-    } catch (error) {
-      console.error('[regenerateCoverUrl] Error regenerating cover:', error);
-      return null;
-    }
-  };
+  // regenerateCoverUrl moved to ./book/storage
 
   // *** NEW: Function to ensure default book is always available ***
   const ensureDefaultBookAvailable = async (): Promise<void> => {
