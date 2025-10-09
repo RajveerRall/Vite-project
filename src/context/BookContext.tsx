@@ -15,6 +15,9 @@ import { BookData, TOCItem } from '@/types/books'; // Ensure BookData includes a
 import { useAuth } from "./AuthContext";
 // import { supabase, uploadFile, deleteFile, getFileUrl, type BookRecord } from '../lib/supabase'; // Switch to dynamic import
 import { generateUUID } from '../lib/utils';
+import { registerAdapter, getAdapterForFile } from './book/formats';
+import { epubAdapter } from './book/formats/epubAdapter';
+import { pdfAdapter } from './book/formats/pdfAdapter';
 
 // Lightweight local type to avoid importing supabase client at startup
 interface CloudBookRecord {
@@ -79,6 +82,13 @@ interface BookProviderProps {
 }
 
 export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
+  // Register format adapters once
+  useEffect(() => {
+    try {
+      registerAdapter(epubAdapter);
+      registerAdapter(pdfAdapter);
+    } catch {}
+  }, []);
   const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
   const [books, setBooks] = useState<BookData[]>([]);
@@ -106,6 +116,14 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   const defaultBookLoadAttempted = useRef(false);
     // 2. Add a ref to track when a book reading session starts
   const readingStartTimestamp = useRef<number | null>(null);
+  // Adapter session for non-EPUB formats (single active book at a time)
+  const currentAdapterSessionRef = useRef<{
+    bookId: string;
+    adapterId: string;
+    loadPage: (index: number) => Promise<{ html: string; text: string }>;
+    getToc: () => Promise<TOCItem[]>;
+    dispose?: () => void;
+  } | null>(null);
 
   // NEW: Derive currentChapterTitle from the current book's lastChapter label
   const currentChapterTitle = useMemo(() => {
@@ -977,49 +995,22 @@ useEffect(() => {
   const addBook = async (file: File): Promise<BookData> => {
     setIsLoading(true);
     try {
-      // Step 1: Process the book locally to get its metadata.
-      // This is the universal foundation, used for all users.
-      const zip = new JSZip();
-      const loadedZip = await zip.loadAsync(file);
-      const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
-      if (!containerXml) throw new Error('Invalid EPUB: container.xml not found');
-
-      const DOMParser = await getDOMParser();
-      const parser = new DOMParser();
-      const containerDoc = parser.parseFromString(containerXml, 'application/xml');
-      const rootfiles = containerDoc.getElementsByTagName('rootfile');
-      if (rootfiles.length === 0) throw new Error('Invalid EPUB: No rootfile found');
-
-      const opfPath = rootfiles[0].getAttribute('full-path') || '';
-      const opfContent = await loadedZip.file(opfPath)?.async('text');
-      if (!opfContent) throw new Error('Invalid EPUB: OPF file not found');
-      
-      const opfDoc = parser.parseFromString(opfContent, 'application/xml');
-      const title = opfDoc.getElementsByTagName('dc:title')[0]?.textContent?.trim() || 'Unknown Title';
-      const author = opfDoc.getElementsByTagName('dc:creator')[0]?.textContent?.trim() || 'Unknown Author';
-
-      let coverUrl: string | null = null;
-      const metaCover = Array.from(opfDoc.getElementsByTagName('meta')).find(m => m.getAttribute('name') === 'cover');
-      if (metaCover) {
-        const coverId = metaCover.getAttribute('content');
-        const coverItem = Array.from(opfDoc.getElementsByTagName('item')).find(item => item.getAttribute('id') === coverId);
-        if (coverItem) {
-          const href = coverItem.getAttribute('href');
-          if (href) {
-            const coverPath = resolveRelativePath(getDirectoryPath(opfPath), href);
-            const coverBlob = await loadedZip.file(coverPath)?.async('blob');
-            if (coverBlob) coverUrl = URL.createObjectURL(coverBlob);
-          }
-        }
+      // Detect and open via registered adapter. For now, only EPUB adapter is registered.
+      const adapter = await getAdapterForFile(file);
+      if (!adapter) {
+        throw new Error('Unsupported format. Currently supported: EPUB');
       }
+
+      // Use adapter.open to obtain meta; BookContext still manages state uniformly.
+      const { meta } = await adapter.open(file);
 
       const newBook: BookData = {
         id: generateUUID(),
-        title,
-        author,
-        coverUrl,
+        title: meta.title,
+        author: meta.author,
+        coverUrl: meta.coverUrl,
         currentPage: 0,
-        totalPages: 0,
+        totalPages: meta.totalPages || 0,
         file,
         lastRead: new Date().toISOString(),
       };
@@ -1288,15 +1279,46 @@ useEffect(() => {
     }
   }, [findChapterForPageCallback]);
 
-  useEffect(() => { /* useEffect for Page Loading - unchanged */
+  useEffect(() => { /* useEffect for Page Loading - supports adapter sessions */
     console.log('[useEffect PageLoad] Triggered. States:', {
       currentBookName: currentBook?.title, bookZipExists: !!bookZip, htmlFilesCount: htmlFiles.length,
       currentPageToLoad, tocCount: toc.length, isReading
     });
-    if (isReading && currentBook && bookZip && htmlFiles && htmlFiles.length > 0 &&
+    const session = currentAdapterSessionRef.current;
+    const useAdapter = !!(session && currentBook && session.bookId === currentBook.id && session.adapterId !== 'epub');
+    if (isReading && currentBook && htmlFiles && htmlFiles.length > 0 &&
         currentPageToLoad >= 0 && currentPageToLoad < htmlFiles.length) {
-      console.log('[useEffect PageLoad] Conditions MET. Calling loadPageCallback.');
-      loadPageCallback(currentPageToLoad, bookZip, htmlFiles, currentBook, toc);
+      if (useAdapter && session) {
+        (async () => {
+          try {
+            setIsPageLoading(true);
+            const { html, text } = await session.loadPage(currentPageToLoad);
+            setCurrentContent(html);
+            setCurrentPageDisplay(currentPageToLoad);
+            setCurrentPageText(text);
+            const chapterForPage = findChapterForPageCallback(currentPageToLoad, toc, htmlFiles);
+            setBooks(prevBooks =>
+              prevBooks.map(b =>
+                b.id === currentBook.id ? { ...b, currentPage: currentPageToLoad, lastChapter: chapterForPage } : b
+              )
+            );
+            if (isAuthenticated && userId) {
+              syncProgressToCloud(currentBook.id, currentPageToLoad, chapterForPage);
+            }
+          } catch (e) {
+            console.error('[useEffect PageLoad Adapter ERROR]', e);
+            setCurrentContent(`<div>Error loading page: ${(e as Error).message}</div>`);
+            setCurrentPageText('');
+          } finally {
+            setIsPageLoading(false);
+          }
+        })();
+      } else if (bookZip) {
+        console.log('[useEffect PageLoad] Conditions MET. Calling loadPageCallback.');
+        loadPageCallback(currentPageToLoad, bookZip, htmlFiles, currentBook, toc);
+      } else {
+        console.log('[useEffect PageLoad] No adapter session and no EPUB zip available.');
+      }
     } else {
       console.log('[useEffect PageLoad] Conditions NOT MET or book not in reading state.');
       if (!currentBook || !isReading) {
@@ -1457,12 +1479,53 @@ useEffect(() => {
     return tocItems;
   }, []);
 
-  const openBook = async (book: BookData): Promise<void> => { /* Unchanged from previous full version */
+  const openBook = async (book: BookData): Promise<void> => { /* Extended to support adapter sessions */
     console.log(`[openBook] Opening: ${book.title}`); 
     console.time(`[Performance] Opening ${book.title}`);
     setIsLoading(true); closeBook(false);
     setBookTitle(book.title); setBookAuthor(book.author); setCurrentBook(book);
     try {
+      // Determine if a non-EPUB adapter should handle this book
+      const adapter = await getAdapterForFile(book.file);
+      if (adapter && adapter.id !== 'epub') {
+        console.log(`[openBook] Using adapter: ${adapter.id}`);
+        const result = await adapter.open(book.file);
+        currentAdapterSessionRef.current = {
+          bookId: book.id,
+          adapterId: adapter.id,
+          loadPage: result.loadPage,
+          getToc: result.getToc,
+          dispose: result.dispose,
+        };
+
+        const fileOrder = Array.from({ length: Math.max(1, result.meta.totalPages || 0) }, (_, i) => `page-${i + 1}`);
+        setHtmlFiles(fileOrder); setTotalPages(fileOrder.length);
+        const extractedToc = await result.getToc();
+        setToc(extractedToc);
+        setBookZip(null); setIsReading(true);
+
+        let pageIdxToLoadInitially = 0;
+        if (book.currentPage != null && book.currentPage >= 0 && book.currentPage < fileOrder.length) {
+          pageIdxToLoadInitially = book.currentPage;
+        }
+        pageIdxToLoadInitially = Math.max(0, Math.min(pageIdxToLoadInitially, fileOrder.length - 1));
+        setCurrentPageToLoad(pageIdxToLoadInitially); setCurrentPageDisplay(pageIdxToLoadInitially);
+        setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? { ...b, lastRead: new Date().toISOString(), totalPages: fileOrder.length } : b));
+        trackEvent('open_book', {
+          book_title: book.title,
+          book_author: book.author || 'Unknown',
+          book_id: book.id,
+          total_pages: fileOrder.length,
+          starting_page: pageIdxToLoadInitially,
+          has_last_chapter: !!book.lastChapter,
+          platform: 'web',
+          timestamp: new Date().toISOString()
+        });
+        readingStartTimestamp.current = Date.now();
+        console.timeEnd(`[Performance] Opening ${book.title}`);
+        console.log(`[Performance] Book ${book.title} opened successfully`);
+        return;
+      }
       // Remove dynamic import - JSZip is now preloaded
       console.log(`[Performance] Loading ZIP for ${book.title}...`);
       const zip = new JSZip(); const loadedZip = await zip.loadAsync(book.file);

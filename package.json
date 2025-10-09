@@ -46,6 +46,7 @@
     "lucide-react": "^0.344.0",
     "modular-tts": "./modular-tts-0.1.0.tgz",
     "msedge-tts": "^2.0.0",
+    "pdfjs-dist": "4.6.82",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-helmet-async": "^2.0.5",
