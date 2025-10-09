@@ -1,0 +1,21 @@
+{
+  "name": "full-cast-tts-service",
+  "private": true,
+  "type": "commonjs",
+  "main": "server.cjs",
+  "scripts": {
+    "start": "node server.cjs"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "pino": "^9.7.0",
+    "zod": "^3.25.8",
+    "zod-to-json-schema": "^3.24.6",
+    "openai": "^5.11.0",
+    "@google/generative-ai": "^0.24.1",
+    "@cartesia/cartesia-js": "^2.2.5",
+    "pino-pretty": "^13.1.1"
+  }
+}

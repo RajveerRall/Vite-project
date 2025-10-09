@@ -148,6 +148,20 @@ const Controls: React.FC<ControlsProps> = ({
           <Headphones size={20} />
           <span className="button-text text-sm font-medium">Audiobook</span>
         </button>
+
+      {/* Full Cast Narration (Beta) */}
+      <button
+        className="control-button flex items-center gap-2 px-3 py-2 border border-gray-300"
+        onClick={() => {
+          const event = new CustomEvent('full-cast-request');
+          window.dispatchEvent(event);
+        }}
+        title="Full Cast Narration (Beta)"
+        aria-label="Full Cast Narration"
+        disabled={isProcessing}
+      >
+        <span className="button-text text-sm font-medium">Full Cast</span>
+      </button>
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ import SettingsWidget from './SettingsWidget';
 import MobileTOCDrawer from './MobileTOCDrawer';
 import EnhancedLoader from './EnhancedLoader';
 import FloatingReadButton from './FloatingReadButton';
+import { requestFullCast, ttsForLine } from '../../services/fullCastTTS';
 
 
 // TTS highlighting is now handled by the useReaderTTS hook
@@ -49,6 +50,12 @@ const Reader: React.FC = () => {
   // === Chapter Navigation Arrows ===
   const [showNavigationArrows, setShowNavigationArrows] = useState<boolean>(false);
   const [arrowsTimeout, setArrowsTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Full Cast UI state
+  const [fullCastActive, setFullCastActive] = useState(false);
+  const [fullCastStatus, setFullCastStatus] = useState<string>('');
+  const [fullCastBuffered, setFullCastBuffered] = useState<number>(0);
+  const [fullCastNeedsTap, setFullCastNeedsTap] = useState<boolean>(false);
   
   // Mobile detection effect
   useEffect(() => {
@@ -195,6 +202,121 @@ const Reader: React.FC = () => {
     };
   }, [arrowsTimeout]);
 
+  // Handle Full Cast requests from Controls (Streaming controller)
+  useEffect(() => {
+    const handler = async () => {
+      const fullText = (currentPageText || currentContent || '').trim();
+      if (!fullText) return;
+
+      // Split by blank lines (paragraphs) and then into fixed-size segments to cap payload size
+      const MAX_CHARS = 1200;
+      const paras = fullText.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+      const chunks: string[] = [];
+      const sources = paras.length > 0 ? paras : [fullText];
+      for (const src of sources) {
+        const t = src.trim();
+        if (!t) continue;
+        for (let i = 0; i < t.length; i += MAX_CHARS) {
+          chunks.push(t.slice(i, i + MAX_CHARS));
+        }
+      }
+
+      let isPlaying = true;
+      let isFetching = false;
+      const LOOKAHEAD = 3; // number of audio items to buffer
+      const audioQueue: Array<{ blob: Blob; line: { dialogue: string; provider?: string; voiceId?: string } }> = [];
+      const audio = new Audio();
+      let chunkIndex = 0;
+      let startTs = 0;
+
+      // Initialize UI state
+      setFullCastActive(true);
+      setFullCastStatus('Starting…');
+      setFullCastBuffered(0);
+      setFullCastNeedsTap(false);
+      (window as any).__fullCastAudio = audio;
+
+      const produce = async () => {
+        if (!isPlaying || isFetching) return;
+        if (audioQueue.length >= LOOKAHEAD) return;
+        if (chunkIndex >= chunks.length) return;
+        isFetching = true;
+        setFullCastStatus(`Casting (chunk ${chunkIndex + 1}/${chunks.length})…`);
+        const chunk = chunks[chunkIndex++];
+        try {
+          const { script } = await requestFullCast(chunk, { parser: 'intelligent', useVoiceCasting: true });
+          const lines = Array.isArray(script) ? script : [];
+          // Fetch audio sequentially per line to reduce burst load
+          for (const line of lines as any[]) {
+            if (!isPlaying) break;
+            const dialogue: string = line?.dialogue || line?.line || '';
+            if (!dialogue) continue;
+            const provider = line?.provider as string | undefined;
+            const voiceId = line?.voiceId as string | undefined;
+            try {
+              const blob = await ttsForLine(dialogue, provider, voiceId);
+              audioQueue.push({ blob, line: { dialogue, provider, voiceId } });
+              setFullCastBuffered(audioQueue.length);
+            } catch (e) {
+              console.error('[Full Cast] TTS failed for line', e);
+            }
+          }
+        } catch (e) {
+          console.error('[Full Cast] casting failed for chunk', e);
+        } finally {
+          isFetching = false;
+          // Keep producing until lookahead is satisfied or no chunks left
+          if (isPlaying && audioQueue.length < LOOKAHEAD) {
+            produce();
+          }
+        }
+      };
+
+      const consume = async () => {
+        if (!isPlaying) return;
+        if (audioQueue.length === 0) {
+          // Try to produce more and retry soon
+          produce();
+          setFullCastStatus('Buffering…');
+          setTimeout(consume, 300);
+          return;
+        }
+        const { blob } = audioQueue.shift()!;
+        setFullCastBuffered(audioQueue.length);
+        const url = URL.createObjectURL(blob);
+        audio.src = url;
+        audio.onplay = () => { startTs = Date.now(); setFullCastStatus('Playing…'); };
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+          const elapsed = Math.max(0, Math.round((Date.now() - startTs) / 1000));
+          try { window.dispatchEvent(new CustomEvent('tts-usage-updated', { detail: { seconds: elapsed } })); } catch {}
+          // Top up buffer while playing next
+          produce();
+          consume();
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          consume();
+        };
+        try { await audio.play(); } catch (e) {
+          console.error('[Full Cast] play failed', e);
+          setFullCastNeedsTap(true);
+          setFullCastStatus('Tap to start audio');
+        }
+      };
+
+      // Expose stop so a new request cancels the current one
+      const stop = () => { try { isPlaying = false; audio.pause(); audio.src = ''; } catch {} finally { setFullCastActive(false); setFullCastNeedsTap(false); } };
+      (window as any).__fullCastStop = stop;
+
+      // Kick off producer/consumer
+      produce();
+      consume();
+    };
+    window.addEventListener('full-cast-request', handler as any);
+    return () => window.removeEventListener('full-cast-request', handler as any);
+  }, [currentPageText, currentContent]);
+
   return (
   <div className={`reader theme-${theme}`}>
     <header className="reader-header">
@@ -317,6 +439,36 @@ const Reader: React.FC = () => {
           style={{ whiteSpace: 'pre-wrap' }}
           dangerouslySetInnerHTML={{ __html: ttsHighlightedContent || currentContent }}
         />
+
+        {fullCastActive && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600 px-2 md:px-0">
+            <span className="inline-flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-xs md:text-sm">{fullCastStatus}</span>
+            {fullCastBuffered > 0 && (
+              <span className="text-xs bg-gray-100 rounded px-2 py-0.5">Buffered: {fullCastBuffered}</span>
+            )}
+            {fullCastNeedsTap && (
+              <button
+                className="px-2 py-1 text-xs bg-blue-600 text-white rounded"
+                onClick={() => {
+                  try {
+                    setFullCastNeedsTap(false);
+                    const a = (window as any).__fullCastAudio as HTMLAudioElement | undefined;
+                    a?.play();
+                  } catch {}
+                }}
+              >
+                Tap to Play
+              </button>
+            )}
+            <button
+              className="ml-auto px-2 py-1 text-xs border rounded"
+              onClick={() => { try { (window as any).__fullCastStop?.(); } catch {} }}
+            >
+              Stop
+            </button>
+          </div>
+        )}
 
         {showNavigationArrows && (
           <>
