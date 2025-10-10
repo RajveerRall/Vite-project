@@ -4,6 +4,7 @@
 import type { FormatAdapter, OpenResult, ParsedBookMeta } from './types';
 import type { TOCItem } from '../../../types/books';
 import { initMobiFile } from '@lingo-reader/mobi-parser';
+import { getDOMParser } from '../domParser';
 
 const isMobi = (name: string, type: string) => name.toLowerCase().endsWith('.mobi') || /mobipocket|application\/x-mobipocket-ebook/i.test(type);
 
@@ -37,52 +38,80 @@ export const mobiAdapter: FormatAdapter = {
     };
 
     const getToc = async (): Promise<TOCItem[]> => {
-      // Prefer explicit TOC if provided by parser
-      try {
-        const nav: any[] | undefined = (mobi as any).getToc?.() || (mobi as any).getNavMap?.();
-        if (Array.isArray(nav) && nav.length > 0) {
-          // Best-effort mapping: keep order; label from nav entry, href aligned to page-N
-          return nav.map((entry: any, i: number) => ({
-            id: `mobi-${i + 1}`,
-            label: (entry?.title || entry?.label || `Chapter ${i + 1}`).toString(),
-            href: `page-${i + 1}`,
-            children: Array.isArray(entry?.children) ? entry.children.map((c: any, j: number) => ({
-              id: `mobi-${i + 1}-${j + 1}`,
-              label: (c?.title || c?.label || `Section ${i + 1}.${j + 1}`).toString(),
-              href: `page-${Math.min(totalPages, i + 1)}`,
-              children: [],
-            })) : [],
-          }));
-        }
-      } catch {}
-
-      // Otherwise, derive chapter titles from content headings
-      const extractTitleFromHtml = (html: string, fallback: string) => {
-        const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-        if (h1 && h1[1]) return h1[1].replace(/<[^>]+>/g, '').trim();
-        const h2 = html.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i);
-        if (h2 && h2[1]) return h2[1].replace(/<[^>]+>/g, '').trim();
-        const titleTag = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-        if (titleTag && titleTag[1]) return titleTag[1].replace(/<[^>]+>/g, '').trim();
-        const firstLine = html.replace(/\s+/g, ' ').replace(/<[^>]+>/g, ' ').trim().split(/\s{2,}|\.\s|!\s|\?\s|;\s|\n/)[0];
-        if (firstLine) return firstLine.slice(0, 120);
-        return fallback;
-      };
-
-      const items = spine.length ? spine : Array.from({ length: totalPages }, (_, i) => ({ id: `p${i}`, title: `Chapter ${i + 1}` } as any));
-      const toc: TOCItem[] = [];
-      for (let i = 0; i < items.length; i++) {
+      // Always generate TOC from spine sections to ensure navigation works
+      const spine = mobi.getSpine();
+      console.log(`[mobiAdapter] Generating TOC from ${spine.length} spine sections`);
+      
+      const generatedToc: TOCItem[] = [];
+      
+      for (let index = 0; index < spine.length; index++) {
+        const item = spine[index];
+        let label = `Section ${index + 1}`;
+        
         try {
-          const entry = items[i];
-          const chapter = await mobi.loadChapter(entry?.id ?? i);
-          const html = (chapter?.html || '').toString();
-          const label = extractTitleFromHtml(html, (entry?.title || `Chapter ${i + 1}`).toString());
-          toc.push({ id: `mobi-${i + 1}`, label, href: `page-${i + 1}`, children: [] });
-        } catch {
-          toc.push({ id: `mobi-${i + 1}`, label: (items[i]?.title || `Chapter ${i + 1}`).toString(), href: `page-${i + 1}`, children: [] });
+          const chapter = await mobi.loadChapter(item.id);
+          const html = chapter.html || '';
+          
+          // Try to extract meaningful title from HTML content
+          const DOMParser = await getDOMParser();
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          
+          // Look for headings in order of preference
+          const headingSelectors = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+          let foundHeading = false;
+          
+          for (const selector of headingSelectors) {
+            const heading = doc.querySelector(selector);
+            if (heading && heading.textContent && heading.textContent.trim()) {
+              const headingText = heading.textContent.trim();
+              // Skip if it's just the book title or very short
+              if (headingText.length > 3 && headingText !== title) {
+                label = headingText;
+                foundHeading = true;
+                break;
+              }
+            }
+          }
+          
+          // If no good heading found, try to extract from first paragraph or text
+          if (!foundHeading) {
+            const firstParagraph = doc.querySelector('p');
+            if (firstParagraph && firstParagraph.textContent) {
+              const text = firstParagraph.textContent.trim();
+              if (text.length > 10 && text.length < 200) {
+                label = text.substring(0, 100) + (text.length > 100 ? '...' : '');
+              }
+            }
+          }
+          
+          // Final fallback: extract first meaningful text line
+          if (label === `Section ${index + 1}`) {
+            const bodyText = doc.body.textContent;
+            if (bodyText) {
+              const lines = bodyText.split('\n').map(s => s.trim()).filter(Boolean);
+              for (const line of lines) {
+                if (line.length > 10 && line.length < 200 && line !== title) {
+                  label = line.substring(0, 100) + (line.length > 100 ? '...' : '');
+                  break;
+                }
+              }
+            }
+          }
+          
+        } catch (e) {
+          console.warn(`[mobiAdapter] Could not extract title for section ${index + 1}:`, e);
         }
+        
+        generatedToc.push({
+          id: `mobi-page-${index + 1}`,
+          label: label,
+          href: `page-${index + 1}`,
+          children: [],
+        });
       }
-      return toc;
+      
+      console.log(`[mobiAdapter] Generated TOC with ${generatedToc.length} items:`, generatedToc.map(item => item.label));
+      return generatedToc;
     };
 
     const loadPage = async (index: number): Promise<{ html: string; text: string }> => {

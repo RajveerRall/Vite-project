@@ -276,7 +276,6 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
               for (const key of allBookKeys) {
                 // Check if this is the default book (1984) - preserve it
                 if (key.startsWith('book_metadata_')) {
-                  const bookId = key.replace('book_metadata_', '');
                   const metadata = await localforage.getItem(key) as BookData;
                   if (metadata && metadata.title === '1984') {
                     console.log(`[BookContext] Preserving default book key: ${key}`);
@@ -1075,7 +1074,7 @@ useEffect(() => {
       console.log(`[SupabaseSync] User ID: ${userId}`);
       console.log(`[SupabaseSync] Book ID: ${book.id}`);
       
-      const fileUpload = await uploadFile('book-files', filePath, book.file);
+      await uploadFile('book-files', filePath, book.file);
       const fileUrl = getFileUrl('book-files', filePath);
       
       // Upload cover image if available
@@ -1106,7 +1105,7 @@ useEffect(() => {
         cover_url: coverUrl || undefined
       };
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('books')
         .upsert(bookRecord as any, { 
           onConflict: 'id',
@@ -1498,9 +1497,11 @@ useEffect(() => {
     try {
       // Determine if a non-EPUB adapter should handle this book
       const adapter = await getAdapterForFile(book.file);
+      console.log(`[openBook] Detected adapter for ${book.file.name}:`, adapter?.id || 'none');
       if (adapter && adapter.id !== 'epub') {
         console.log(`[openBook] Using adapter: ${adapter.id}`);
         const result = await adapter.open(book.file);
+        console.log(`[openBook] Adapter result meta:`, result.meta);
         currentAdapterSessionRef.current = {
           bookId: book.id,
           adapterId: adapter.id,
@@ -1511,7 +1512,9 @@ useEffect(() => {
 
         const fileOrder = Array.from({ length: Math.max(1, result.meta.totalPages || 0) }, (_, i) => `page-${i + 1}`);
         setHtmlFiles(fileOrder); setTotalPages(fileOrder.length);
+        console.log(`[openBook] Calling getToc() for adapter ${adapter.id}...`);
         const extractedToc = await result.getToc();
+        console.log(`[openBook] Extracted TOC from adapter:`, extractedToc);
         setToc(extractedToc);
         setBookZip(null); setIsReading(true);
 
