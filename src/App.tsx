@@ -25,6 +25,7 @@ import GoogleOneTap from './components/Auth/GoogleOneTap';
 // import ScannerPage from './pages/ScannerPage'; // Temporarily disabled
 import './App.css';
 import { useTTSUsageRecorder } from './hooks/useTTSUsageRecorder';
+import { Capacitor } from '@capacitor/core';
 
 // Lazy load the Reader component since it's heavy and not needed initially
 const Reader = React.lazy(() => import('./components/Reader'));
@@ -34,7 +35,7 @@ const MainApp: React.FC = () => {
   const { isAuthenticated } = useAuth();
   return (
     <div className="app">
-      {!isAuthenticated && <GoogleOneTap />}
+      {!isAuthenticated && !Capacitor.isNativePlatform() && <GoogleOneTap />}
       {!isReading && <Header />}
       {isReading ? (
         <React.Suspense fallback={<SuspenseLoader />}>

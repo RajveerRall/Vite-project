@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import SupabaseGoogleButton from './SupabaseGoogleButton';
+import GoogleSignIn from './GoogleSignIn';
+import { Capacitor } from '@capacitor/core';
 
 interface AuthFormProps {
   onSuccess?: () => void;
@@ -118,7 +120,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
         </div>
 
         <div className="mt-4">
-          <SupabaseGoogleButton onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
+          {Capacitor.isNativePlatform() ? (
+            <SupabaseGoogleButton onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
+          ) : (
+            <GoogleSignIn onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
+          )}
         </div>
       </div>
     </div>

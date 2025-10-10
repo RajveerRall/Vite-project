@@ -11,7 +11,7 @@ export interface DialogueLine {
 }
 
 export async function requestFullCast(text: string, options: FullCastOptions = {}) {
-  const baseURL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
+  const baseURL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://161.35.186.252:4001';
   let userId: string | undefined;
   let userEmail: string | undefined;
   try {
@@ -39,7 +39,7 @@ export async function requestFullCast(text: string, options: FullCastOptions = {
 }
 
 export async function ttsForLine(text: string, provider?: string, voiceId?: string): Promise<Blob> {
-  const baseURL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
+  const baseURL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://161.35.186.252:4001';
   let userId: string | undefined;
   let userEmail: string | undefined;
   try {

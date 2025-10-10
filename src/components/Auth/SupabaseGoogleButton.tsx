@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 
 interface Props {
   onSuccess?: () => void;
@@ -13,8 +14,8 @@ const SupabaseGoogleButton: React.FC<Props> = ({ onSuccess, onError }) => {
   const handleClick = async () => {
     try {
       setLoading(true);
-      const isCapacitor = !!(window as any).Capacitor?.isNativePlatform?.() || /Capacitor|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isCapacitor) {
+      const isNative = Capacitor.isNativePlatform();
+      if (isNative) {
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {

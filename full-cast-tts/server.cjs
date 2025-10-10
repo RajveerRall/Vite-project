@@ -18,31 +18,13 @@ try {
 }
 
 const app = express();
-// CORS configuration to handle preflight with custom headers
-const corsOptions = {
-  origin: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'X-User-Id', 'X-User-Email'],
-};
-app.use(cors(corsOptions));
-// Express 5 no longer accepts '*' path patterns; handle preflight generically
-app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    const origin = req.headers.origin || '*';
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-User-Id, X-User-Email');
-    return res.sendStatus(204);
-  }
-  next();
-});
 // Initialize usage tracker from the package (singleton)
 let getUsageTracker;
 try {
   getUsageTracker = Modular.getUsageTracker || require('@your-scope/modular-tts').getUsageTracker;
 } catch {}
 const usageTracker = typeof getUsageTracker === 'function' ? getUsageTracker() : null;
+app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 
 // Simple per-request logging

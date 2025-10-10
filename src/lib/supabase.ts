@@ -8,8 +8,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Please check your .env file.')
 }
 
-// Create Supabase client with auth enabled
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Create Supabase client with PKCE auth flow for mobile deep links
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    flowType: 'pkce',
+    autoRefreshToken: true,
+    persistSession: true,
+  },
+})
 
 // Add event listener for auth state changes
 supabase.auth.onAuthStateChange((event, session) => {
