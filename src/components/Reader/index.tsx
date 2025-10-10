@@ -239,11 +239,13 @@ const Reader: React.FC = () => {
         if (!isPlaying || isFetching) return;
         if (audioQueue.length >= LOOKAHEAD) return;
         if (chunkIndex >= chunks.length) return;
+        const currentIdx = chunkIndex; // tentative chunk index
         isFetching = true;
-        setFullCastStatus(`Casting (chunk ${chunkIndex + 1}/${chunks.length})…`);
-        const chunk = chunks[chunkIndex++];
+        setFullCastStatus(`Casting (chunk ${currentIdx + 1}/${chunks.length})…`);
+        const chunk = chunks[currentIdx];
+        let producedAny = false;
         try {
-          const { script } = await requestFullCast(chunk, { parser: 'intelligent', useVoiceCasting: true });
+          const { script } = await requestFullCast(chunk, { llm: 'gpt-4o', parser: 'intelligent', useVoiceCasting: true });
           const lines = Array.isArray(script) ? script : [];
           // Fetch audio sequentially per line to reduce burst load
           for (const line of lines as any[]) {
@@ -256,6 +258,7 @@ const Reader: React.FC = () => {
               const blob = await ttsForLine(dialogue, provider, voiceId);
               audioQueue.push({ blob, line: { dialogue, provider, voiceId } });
               setFullCastBuffered(audioQueue.length);
+              producedAny = true;
             } catch (e) {
               console.error('[Full Cast] TTS failed for line', e);
             }
@@ -264,6 +267,16 @@ const Reader: React.FC = () => {
           console.error('[Full Cast] casting failed for chunk', e);
         } finally {
           isFetching = false;
+          // Advance chunk index only if we produced at least one audio item
+          if (producedAny) {
+            chunkIndex = currentIdx + 1;
+          } else {
+            // Retry the same chunk after a short backoff
+            if (isPlaying) {
+              setTimeout(() => { if (isPlaying) produce(); }, 800);
+              return;
+            }
+          }
           // Keep producing until lookahead is satisfied or no chunks left
           if (isPlaying && audioQueue.length < LOOKAHEAD) {
             produce();
@@ -476,8 +489,6 @@ const Reader: React.FC = () => {
         <Controls
           currentPage={currentPageDisplay}
           totalPages={totalPages}
-          onPrevious={handlePrevPage}
-          onNext={handleNextPage}
           onReadAloud={handleTTS}
           onStopTTS={handleStopTTS}
           onPreviousSentence={handlePreviousSentence}
@@ -503,8 +514,6 @@ const Reader: React.FC = () => {
         <Controls
           currentPage={currentPageDisplay}
           totalPages={totalPages}
-          onPrevious={handlePrevPage}
-          onNext={handleNextPage}
           onReadAloud={handleTTS}
           onStopTTS={handleStopTTS}
           onPreviousSentence={handlePreviousSentence}

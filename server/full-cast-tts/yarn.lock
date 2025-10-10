@@ -23,6 +23,20 @@
   resolved "https://registry.yarnpkg.com/@google/generative-ai/-/generative-ai-0.24.1.tgz#634a3c06f8ea7a6125c1b0d6c1e66bb11afb52c9"
   integrity sha512-MqO+MLfM6kjxcKoy0p1wRzG3b4ZZXtPI+z2IE26UogS2Cm/XHO+7gGRBh6gcJsOiIVoH93UwKvW4HdgiOZCy9Q==
 
+"@your-scope/modular-tts@../../your-scope-modular-tts-0.1.0.tgz":
+  version "0.1.0"
+  resolved "../../your-scope-modular-tts-0.1.0.tgz#1ee8053ded34410d36c052f9b8365e6f2e89d5c5"
+  dependencies:
+    "@cartesia/cartesia-js" "^2.2.5"
+    "@google/generative-ai" "^0.24.1"
+    axios "^1.12.2"
+    dotenv "^17.2.1"
+    openai "^5.11.0"
+    pino "^9.7.0"
+    zod "^3.25.76"
+  optionalDependencies:
+    multer "^2.0.2"
+
 "@your-scope/modular-tts@..\\..\\your-scope-modular-tts-0.1.0.tgz":
   version "0.1.0"
   resolved "..\\..\\your-scope-modular-tts-0.1.0.tgz#38fc1bcfc27c479e09ad0b7990b43665773b2933"

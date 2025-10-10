@@ -12,9 +12,21 @@ export interface DialogueLine {
 
 export async function requestFullCast(text: string, options: FullCastOptions = {}) {
   const baseURL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
+  let userId: string | undefined;
+  let userEmail: string | undefined;
+  try {
+    const { supabase } = await import('../lib/supabase');
+    const { data } = await supabase.auth.getUser();
+    userId = data?.user?.id;
+    userEmail = (data?.user as any)?.email as string | undefined;
+  } catch {}
   const response = await fetch(`${baseURL}/api/full-cast-tts`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(userId ? { 'X-User-Id': userId } : {}),
+      ...(userEmail ? { 'X-User-Email': userEmail } : {}),
+    },
     body: JSON.stringify({ text, ...options })
   });
   if (!response.ok) {
@@ -28,9 +40,21 @@ export async function requestFullCast(text: string, options: FullCastOptions = {
 
 export async function ttsForLine(text: string, provider?: string, voiceId?: string): Promise<Blob> {
   const baseURL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
+  let userId: string | undefined;
+  let userEmail: string | undefined;
+  try {
+    const { supabase } = await import('../lib/supabase');
+    const { data } = await supabase.auth.getUser();
+    userId = data?.user?.id;
+    userEmail = (data?.user as any)?.email as string | undefined;
+  } catch {}
   const response = await fetch(`${baseURL}/api/tts`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(userId ? { 'X-User-Id': userId } : {}),
+      ...(userEmail ? { 'X-User-Email': userEmail } : {}),
+    },
     body: JSON.stringify({ provider, text, voiceId })
   });
   if (!response.ok) {

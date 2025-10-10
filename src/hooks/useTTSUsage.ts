@@ -51,7 +51,7 @@ export function useTTSUsage() {
 
   return {
     usedSeconds,
-    usedMinutes: Math.round(usedSeconds / 60),
+    usedMinutes: Math.ceil(usedSeconds / 60),
     totalMinutes: 600,
     loading,
     error,

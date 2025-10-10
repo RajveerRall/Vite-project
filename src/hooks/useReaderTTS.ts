@@ -101,7 +101,7 @@ export const useReaderTTS = ({
       });
       try {
         // Notify UI (e.g., header) to refresh usage indicator
-        window.dispatchEvent(new CustomEvent('tts-usage-updated', { detail: { seconds } }));
+        window.dispatchEvent(new CustomEvent('tts-usage-updated', { detail: { seconds, source: 'reader' } }));
       } catch {}
     } catch (e) {
       console.warn('[TTS Usage] Failed to record usage:', e);

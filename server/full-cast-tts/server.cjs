@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
+const path = require('path');
+// Load .env from this server directory regardless of process.cwd()
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 // Switch to installed package
 let Modular;
@@ -16,6 +18,12 @@ try {
 }
 
 const app = express();
+// Initialize usage tracker from the package (singleton)
+let getUsageTracker;
+try {
+  getUsageTracker = Modular.getUsageTracker || require('@your-scope/modular-tts').getUsageTracker;
+} catch {}
+const usageTracker = typeof getUsageTracker === 'function' ? getUsageTracker() : null;
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 
@@ -145,6 +153,63 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+// --- Usage tracking API (if tracker available) ---
+if (usageTracker) {
+  app.get('/api/usage/summary', (req, res) => {
+    try {
+      const summary = usageTracker.getStats({ windowHours: 24 });
+      res.json({ message: 'Usage summary retrieved successfully', summary });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to fetch usage summary' });
+    }
+  });
+  app.get('/api/usage/recent', (req, res) => {
+    try {
+      const limit = Math.max(1, Math.min(500, Number(req.query.limit || 100)));
+      const entries = usageTracker.getRecentEntries(limit);
+      res.json({ message: 'Recent usage entries retrieved successfully', count: entries.length, entries });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to fetch recent usage' });
+    }
+  });
+  app.get('/api/usage/by-provider', (req, res) => {
+    try {
+      const startDate = req.query.startDate ? new Date(String(req.query.startDate)) : undefined;
+      const endDate = req.query.endDate ? new Date(String(req.query.endDate)) : undefined;
+      const byProvider = usageTracker.getStatsByProvider({ startDate, endDate });
+      res.json({ message: 'Usage by provider retrieved successfully', byProvider, timeRange: { start: startDate, end: endDate } });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to fetch usage by provider' });
+    }
+  });
+  app.get('/api/usage/by-voice', (req, res) => {
+    try {
+      const startDate = req.query.startDate ? new Date(String(req.query.startDate)) : undefined;
+      const endDate = req.query.endDate ? new Date(String(req.query.endDate)) : undefined;
+      const byVoice = usageTracker.getStatsByVoice({ startDate, endDate });
+      res.json({ message: 'Usage by voice retrieved successfully', byVoice, timeRange: { start: startDate, end: endDate } });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to fetch usage by voice' });
+    }
+  });
+  app.get('/api/usage/export', (_req, res) => {
+    try {
+      const data = usageTracker.exportData();
+      res.json({ message: 'Usage data exported successfully', count: data.length, data });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to export usage data' });
+    }
+  });
+  app.delete('/api/usage/clear', (_req, res) => {
+    try {
+      usageTracker.clearData();
+      res.json({ message: 'Usage data cleared successfully' });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to clear usage data' });
+    }
+  });
+}
+
 // Body: { text: string, llm?: string, parser?: 'simple'|'intelligent'|'singleNarrator', useVoiceCasting?: boolean, apiKeys?: { openai?, gemini?, cartesia? } }
 app.post('/api/full-cast-tts', async (req, res) => {
   const { text, llm, parser = 'intelligent', useVoiceCasting = true, apiKeys } = req.body || {};
@@ -161,7 +226,14 @@ app.post('/api/full-cast-tts', async (req, res) => {
       gemini: (apiKeys && apiKeys.gemini) || ENV_KEYS.gemini,
       cartesia: (apiKeys && apiKeys.cartesia) || ENV_KEYS.cartesia,
     };
-    const chosen = llm || (mergedKeys.openai ? 'gpt-4o' : mergedKeys.gemini ? 'gemini-2.0-flash' : null);
+    // Prefer explicit llm, else prefer OpenAI if available, else Gemini.
+    // If explicit llm isn't configured, gracefully fall back to the available provider.
+    let chosen = llm || (mergedKeys.openai ? 'gpt-4o' : (mergedKeys.gemini ? 'gemini-2.0-flash' : null));
+    if (llm === 'gpt-4o' && !mergedKeys.openai) {
+      chosen = mergedKeys.gemini ? 'gemini-2.0-flash' : null;
+    } else if ((llm && llm.startsWith('gemini')) && !mergedKeys.gemini) {
+      chosen = mergedKeys.openai ? 'gpt-4o' : null;
+    }
     if (!chosen) {
       console.warn('[full-cast-tts] 400: no LLM configured (missing OPENAI_API_KEY / GEMINI_API_KEY)');
       return res.status(400).json({ error: 'No LLM configured. Set OPENAI_API_KEY or GEMINI_API_KEY.' });
@@ -227,6 +299,27 @@ app.post('/api/tts', async (req, res) => {
     if (!tts) return res.status(400).json({ error: `TTS provider not configured: ${selected}` });
     const result = await tts.synthesizeWithMetadata(text, { voiceId });
     res.setHeader('Content-Type', 'audio/mpeg');
+    // If provider returns duration metadata, expose it to clients
+    try {
+      if (result && (result.durationSeconds || result.duration_ms)) {
+        const secs = result.durationSeconds || Math.round((result.duration_ms || 0) / 1000);
+        if (secs && secs > 0) res.setHeader('X-Audio-Duration', String(secs));
+      }
+    } catch {}
+    // Track usage via package tracker if available
+    try {
+      if (usageTracker) {
+        const estimatedSeconds = Number(result?.durationSeconds) || Math.round((Number(result?.duration_ms) || 0) / 1000) || undefined;
+        usageTracker.trackUsage({
+          provider: selected,
+          voiceId: voiceId || '-',
+          text,
+          characterCount: text.length,
+          estimatedDurationSeconds: estimatedSeconds,
+          metadata: { format: 'audio/mpeg', userId: req.header('x-user-id'), userEmail: req.header('x-user-email') }
+        });
+      }
+    } catch {}
     result.stream.on('error', (e) => {
       console.error('[full-cast-tts] TTS stream error:', e);
       if (!res.headersSent) res.status(500).end();

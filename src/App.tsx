@@ -24,6 +24,7 @@ import FloatingGooglePrompt from './components/Auth/FloatingGooglePrompt';
 import GoogleOneTap from './components/Auth/GoogleOneTap';
 // import ScannerPage from './pages/ScannerPage'; // Temporarily disabled
 import './App.css';
+import { useTTSUsageRecorder } from './hooks/useTTSUsageRecorder';
 
 // Lazy load the Reader component since it's heavy and not needed initially
 const Reader = React.lazy(() => import('./components/Reader'));
@@ -52,6 +53,8 @@ const MainApp: React.FC = () => {
 
 const AppContent: React.FC = () => {
   const { loading } = useAuth();
+  // Globally listen for TTS usage events and persist to Supabase when needed
+  useTTSUsageRecorder();
   React.useEffect(() => {
     // Handle warm link
     const sub = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
