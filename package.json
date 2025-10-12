@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "npm run preprocess && npm run generate-static && tsc && vite build",
     "build:mobile": "npm run preprocess && npm run generate-static && tsc && vite build --mode mobile",
+    "build:mobile-clean": "npm run generate-static && tsc && vite build --mode mobile",
     "preprocess": "node scripts/preprocess-books-improved.mjs",
     "generate-static": "node scripts/generate-static-pages.mjs",
     "build-with-static": "npm run generate-static && npm run build",
