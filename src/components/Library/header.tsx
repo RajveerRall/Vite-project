@@ -72,18 +72,38 @@
 // export default Header;
 
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from "../../context/AuthContext";
 import { AuthForm } from "../Auth/AuthForm";
 import { useTTSUsage } from "../../hooks/useTTSUsage";
 import { useFullCastUsage } from "../../hooks/useFullCastUsage";
+import { Menu, X, RefreshCw } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { isAuthenticated, user, signOut } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { usedMinutes, totalMinutes, loading: usageLoading, refresh } = useTTSUsage();
   const { usedMinutes: fcUsed, totalMinutes: fcTotal, loading: fcLoading, refresh: fcRefresh } = useFullCastUsage();
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setShowMobileMenu(false);
+      }
+    };
+
+    if (showMobileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMobileMenu]);
 
   const handleSignInClick = async () => {
     // Don't check for existing session - user should manually sign in
@@ -129,94 +149,83 @@ const Header: React.FC = () => {
                 </button>
             )}
 
-            {/* --- Logged-In State --- */}
+            {/* --- Logged-In State - Desktop --- */}
             {isAuthenticated && (
-              <div className="flex items-center gap-x-4">
-                
-                {/* A small "Pro" badge to add value to the logged-in experience */}
-                <span className="hidden sm:inline-block bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-1 rounded-full">
+              <div className="hidden md:flex items-center gap-x-4">
+                {/* Pro Badge */}
+                <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-1 rounded-full">
                   Pro
                 </span>
-
-              {/* Usage indicator with refresh button */}
-              <div className="hidden sm:flex items-center gap-x-1">
-                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-l-full">
-                  {usageLoading ? 'Usage: …' : `Usage: ${usedMinutes ?? 0}/${totalMinutes} min`}
-                </span>
-                <button 
-                  onClick={() => refresh()}
-                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs px-1.5 py-1 rounded-r-full transition-colors"
-                  title="Refresh usage data"
-                  disabled={usageLoading}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Full Cast usage indicator */}
-              <div className="hidden sm:flex items-center gap-x-1">
-                <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-1 rounded-l-full">
-                  {fcLoading ? 'Full Cast: …' : `Full Cast: ${fcUsed ?? 0}/${fcTotal} min`}
-                </span>
-                <button 
-                  onClick={() => fcRefresh()}
-                  className="bg-purple-100 hover:bg-purple-200 text-purple-800 text-xs px-1.5 py-1 rounded-r-full transition-colors"
-                  title="Refresh Full Cast usage"
-                  disabled={fcLoading}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Usage indicator with refresh button (mobile) */}
-              <div className="sm:hidden flex items-center gap-x-1">
-                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-l-full">
-                  {usageLoading ? '…' : `${usedMinutes ?? 0}/${totalMinutes} min`}
-                </span>
-                <button 
-                  onClick={() => refresh()}
-                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs px-1.5 py-1 rounded-r-full transition-colors"
-                  title="Refresh usage data"
-                  disabled={usageLoading}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Full Cast usage indicator (mobile) */}
-              <div className="sm:hidden flex items-center gap-x-1">
-                <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2 py-1 rounded-l-full">
-                  {fcLoading ? '…' : `${fcUsed ?? 0}/${fcTotal} min`}
-                </span>
-                <button 
-                  onClick={() => fcRefresh()}
-                  className="bg-purple-100 hover:bg-purple-200 text-purple-800 text-xs px-1.5 py-1 rounded-r-full transition-colors"
-                  title="Refresh Full Cast usage"
-                  disabled={fcLoading}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
-              </div>
-
-                {/* User email and sign out button */}
-                <span className="hidden sm:inline text-sm text-gray-600">
+                
+                {/* TTS Usage */}
+                <div className="flex items-center gap-x-1">
+                  <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-l-full">
+                    {usageLoading ? 'Usage: …' : `Usage: ${usedMinutes ?? 0}/${totalMinutes} min`}
+                  </span>
+                  <button 
+                    onClick={() => refresh()}
+                    className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs px-1.5 py-1 rounded-r-full transition-colors"
+                    title="Refresh usage data"
+                    disabled={usageLoading}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                
+                {/* Full Cast Usage */}
+                <div className="flex items-center gap-x-1">
+                  <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-1 rounded-l-full">
+                    {fcLoading ? 'Full Cast: …' : `Full Cast: ${fcUsed ?? 0}/${fcTotal} min`}
+                  </span>
+                  <button 
+                    onClick={() => fcRefresh()}
+                    className="bg-purple-100 hover:bg-purple-200 text-purple-800 text-xs px-1.5 py-1 rounded-r-full transition-colors"
+                    title="Refresh Full Cast usage"
+                    disabled={fcLoading}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                
+                {/* User Email */}
+                <span className="text-sm text-gray-600">
                   {user?.email}
                 </span>
+                
+                {/* Sign Out Button */}
                 <button 
                   onClick={signOut}
                   className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 hover:border-gray-400 rounded transition-colors"
                 >
                   Sign Out
                 </button>
-
+              </div>
+            )}
+            
+            {/* --- Logged-In State - Mobile (Simplified) --- */}
+            {isAuthenticated && (
+              <div className="md:hidden flex items-center gap-x-2">
+                {/* Pro Badge - Mobile */}
+                <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-1 rounded-full">
+                  Pro
+                </span>
+                
+                {/* Sign Out Button - Mobile */}
+                <button 
+                  onClick={signOut}
+                  className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800 border border-gray-300 hover:border-gray-400 rounded transition-colors"
+                >
+                  Sign Out
+                </button>
+                
+                {/* Mobile Menu Button - At the very end */}
+                <button
+                  onClick={() => setShowMobileMenu(!showMobileMenu)}
+                  className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
+                  aria-label="Toggle mobile menu"
+                >
+                  {showMobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                </button>
               </div>
             )}
           </div>
@@ -224,6 +233,72 @@ const Header: React.FC = () => {
         </div>
       </div>
       
+      {/* Mobile Menu Dropdown */}
+      {isAuthenticated && showMobileMenu && (
+        <div ref={mobileMenuRef} className="md:hidden bg-white border-t border-gray-200 shadow-lg">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="space-y-4">
+              {/* User Info */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{user?.email}</p>
+                  <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-1 rounded-full">
+                    Pro
+                  </span>
+                </div>
+              </div>
+              
+              {/* Usage Stats */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-gray-700">Usage Statistics</h3>
+                
+                {/* TTS Usage */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">TTS Usage</span>
+                  <div className="flex items-center gap-x-1">
+                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-l-full">
+                      {usageLoading ? '…' : `${usedMinutes ?? 0}/${totalMinutes} min`}
+                    </span>
+                    <button 
+                      onClick={() => {
+                        refresh();
+                        setShowMobileMenu(false);
+                      }}
+                      className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs px-1.5 py-1 rounded-r-full transition-colors"
+                      title="Refresh usage data"
+                      disabled={usageLoading}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Full Cast Usage */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Full Cast Usage</span>
+                  <div className="flex items-center gap-x-1">
+                    <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-1 rounded-l-full">
+                      {fcLoading ? '…' : `${fcUsed ?? 0}/${fcTotal} min`}
+                    </span>
+                    <button 
+                      onClick={() => {
+                        fcRefresh();
+                        setShowMobileMenu(false);
+                      }}
+                      className="bg-purple-100 hover:bg-purple-200 text-purple-800 text-xs px-1.5 py-1 rounded-r-full transition-colors"
+                      title="Refresh Full Cast usage"
+                      disabled={fcLoading}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Auth Modal */}
       {showAuthModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">

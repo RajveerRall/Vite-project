@@ -1022,7 +1022,7 @@ useEffect(() => {
 
       // Fire-and-forget: warm up Kokoro via microserver to reduce cold starts
       try {
-        const baseURL = (import.meta as any).env?.VITE_FULL_CAST_TTS_URL || 'http://161.35.186.252:4001';
+        const baseURL = (import.meta as any).env?.VITE_FULL_CAST_TTS_URL || 'https://full-cast.yoread.com';
         // Don't await; short timeout via AbortController
         const controller = new AbortController();
         setTimeout(() => { try { controller.abort(); } catch {} }, 2000);

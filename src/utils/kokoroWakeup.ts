@@ -4,7 +4,7 @@
  */
 export async function triggerKokoroWakeup(): Promise<void> {
   try {
-    const baseURL = (import.meta as any).env?.VITE_FULL_CAST_TTS_URL || 'http://161.35.186.252:4001';
+    const baseURL = (import.meta as any).env?.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
     
     // Don't await; short timeout via AbortController
     const controller = new AbortController();

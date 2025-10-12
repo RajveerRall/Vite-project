@@ -1,14 +1,25 @@
 {
-  "name": "modular-tts",
+  "name": "@your-scope/modular-tts",
   "version": "0.1.0",
   "description": "A modular text-to-speech pipeline with support for multiple LLMs, parsers, and TTS providers",
-  "main": "dist/api.js",
-  "module": "dist/api.js",
-  "types": "dist/api.d.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "private": false,
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "USAGE_TRACKING_GUIDE.md",
+    "PIPELINE_ARCHITECTURE.md",
+    "INSTALL.md",
+    "QUICKSTART.md",
+    "CHANGELOG.md",
+    "MANUAL_VOICE_ASSIGNMENT.md",
+    "NPM_PACKAGE_VERIFICATION.md",
+    "WHAT_IS_IN_NPM_PACKAGE.md",
+    "public",
+    "test-npm-package.js"
   ],
   "scripts": {
     "build": "tsc",
@@ -36,6 +47,7 @@
   "dependencies": {
     "@cartesia/cartesia-js": "^2.2.5",
     "@google/generative-ai": "^0.24.1",
+    "axios": "^1.12.2",
     "dotenv": "^17.2.1",
     "openai": "^5.11.0",
     "pino": "^9.7.0",

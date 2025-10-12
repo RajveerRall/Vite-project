@@ -8,7 +8,6 @@ interface SettingsWidgetProps {
   theme: Theme;
   isSettingsOpen: boolean;
   selectedVoice: string;
-  ttsSpeed: number;
   
   // Font controls
   increaseFontSize: () => void;
@@ -20,7 +19,6 @@ interface SettingsWidgetProps {
   
   // TTS controls
   onVoiceChange: (voice: string) => void;
-  onSpeedChange: (speed: number) => void;
   
   // Widget controls
   closeSettings: () => void;
@@ -33,15 +31,6 @@ const availableVoices = [
   { id: 'en-US-AndrewNeural', name: 'Andrew (M)' },
 ];
 
-const availableSpeeds = [
-  { value: 0.5, label: '0.5x' },
-  { value: 0.75, label: '0.75x' },
-  { value: 1, label: 'Normal' },
-  { value: 1.25, label: '1.25x' },
-  { value: 1.5, label: '1.5x' },
-  { value: 2, label: '2x' },
-];
-
 /**
  * Floating settings widget component
  * Extracted from main Reader for better modularity
@@ -51,13 +40,11 @@ export const SettingsWidget: React.FC<SettingsWidgetProps> = ({
   theme,
   isSettingsOpen,
   selectedVoice,
-  ttsSpeed,
   increaseFontSize,
   decreaseFontSize,
   resetFontSize,
   changeTheme,
   onVoiceChange,
-  onSpeedChange,
   closeSettings,
 }) => {
   if (!isSettingsOpen) {
@@ -195,35 +182,6 @@ export const SettingsWidget: React.FC<SettingsWidgetProps> = ({
           </div>
         </div>
 
-        {/* TTS Speed Control */}
-        <div className="border-t pt-4 mt-4 space-y-3 settings-section-border">
-          <label className="block text-sm font-medium settings-label">Read Aloud Speed</label>
-          <div className="flex items-center justify-between rounded-lg p-3 settings-control-bg">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => onSpeedChange(Math.max(0.5, parseFloat((ttsSpeed - 0.1).toFixed(1))))}
-                className="p-2 transition-colors rounded-lg hover:bg-white settings-control-btn"
-                aria-label="Decrease reading speed"
-                title="Decrease reading speed by 0.1"
-              >
-                <Minus className="w-5 h-5" />
-              </button>
-              <span
-                className="px-4 py-2 text-sm font-medium rounded-lg border min-w-[4rem] text-center settings-reset-btn"
-              >
-                {ttsSpeed.toFixed(1)}x
-              </span>
-              <button
-                onClick={() => onSpeedChange(Math.min(2.0, parseFloat((ttsSpeed + 0.1).toFixed(1))))}
-                className="p-2 transition-colors rounded-lg hover:bg-white settings-control-btn"
-                aria-label="Increase reading speed"
-                title="Increase reading speed by 0.1"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </>
   );

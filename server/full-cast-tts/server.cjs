@@ -83,8 +83,8 @@ const ENV_KEYS = {
   kokoroApiKey: process.env.KOKORO_API_KEY || process.env.VITE_KOKORO_API_KEY,
 };
 
-// Choose LLM (prefer OpenAI)
-const DEFAULT_LLM = ENV_KEYS.openai ? 'gpt-4o' : (ENV_KEYS.gemini ? 'gemini-2.0-flash' : null);
+// Choose LLM (prefer Gemini)
+const DEFAULT_LLM = ENV_KEYS.gemini ? 'gemini-2.0-flash' : (ENV_KEYS.openai ? 'gpt-4o' : null);
 
 // Maintain casting memory across requests by keeping a single factory + casting manager
 const { ModularAIFactory, CastingManager, Pipeline } = Modular;
@@ -144,26 +144,55 @@ console.log('[full-cast-tts] providers:', {
   llm: DEFAULT_LLM,
 });
 
+// --- Chat thread session memory (in-memory, per-sessionId) ---
+const CHAT_SESSIONS = new Map();
+function getSessionHistory(sessionId) {
+  if (!sessionId || typeof sessionId !== 'string') return null;
+  let history = CHAT_SESSIONS.get(sessionId);
+  if (!history) {
+    history = [];
+    CHAT_SESSIONS.set(sessionId, history);
+  }
+  return history;
+}
+
 // Minimal structuring: split quoted dialogue and narration into segments JSON
 function structureTextForLLM(raw) {
   if (!raw || typeof raw !== 'string') return JSON.stringify({ segments: [] });
-  const regex = /"([^"]+)"/g;
+  
+  // Handle straight quotes, smart quotes, and other dialogue markers
+  const regex = /[""]([^""]+)[""]|"([^"]+)"/g;
   let lastIndex = 0;
   const segments = [];
-  raw.replace(regex, (match, dialogueContent, offset) => {
+  
+  raw.replace(regex, (match, smartQuoteContent, straightQuoteContent, offset) => {
+    // Add narration before this dialogue
     if (offset > lastIndex) {
       const narration = raw.substring(lastIndex, offset).trim();
-      if (narration) segments.push({ type: 'narration', content: narration });
+      if (narration) {
+        segments.push({ type: 'narration', content: narration });
+      }
     }
+    
+    // Add the dialogue content
+    const dialogueContent = smartQuoteContent || straightQuoteContent;
     const cleanDialogue = String(dialogueContent || '').trim();
-    if (cleanDialogue) segments.push({ type: 'dialogue', content: cleanDialogue });
+    if (cleanDialogue) {
+      segments.push({ type: 'dialogue', content: cleanDialogue });
+    }
+    
     lastIndex = offset + match.length;
     return match;
   });
+  
+  // Add any remaining narration at the end
   if (lastIndex < raw.length) {
     const tail = raw.substring(lastIndex).trim();
-    if (tail) segments.push({ type: 'narration', content: tail });
+    if (tail) {
+      segments.push({ type: 'narration', content: tail });
+    }
   }
+  
   return JSON.stringify({ segments });
 }
 
@@ -297,6 +326,60 @@ app.post('/api/full-cast-tts', async (req, res) => {
   } catch (err) {
     console.error('[full-cast-tts] failed:', err);
     res.status(500).json({ error: 'Failed to process text' });
+  }
+});
+
+// --- Chat-thread parser endpoint (two-step JSON-only flow with session memory) ---
+// Body: { sessionId: string, text: string, llm?: string, inputChunkId?: string }
+app.post('/api/chat-thread', async (req, res) => {
+  const { sessionId, text, llm, inputChunkId } = req.body || {};
+  if (!text || typeof text !== 'string') {
+    return res.status(400).json({ error: 'text is required' });
+  }
+  const history = getSessionHistory(sessionId || 'default');
+  try {
+    const chosen = llm || DEFAULT_LLM;
+    if (!chosen) {
+      return res.status(400).json({ error: 'No LLM configured. Set OPENAI_API_KEY or GEMINI_API_KEY.' });
+    }
+    // Structure text minimally (reuse util) to give the LLM a stable JSON input
+    const structured = structureTextForLLM(text);
+    const script = await sharedFactory.createAndExecuteChain({
+      llmIds: [chosen],
+      parserId: 'chatThreadParser',
+      rawTextInput: structured,
+      context: {
+        chatHistory: history,
+        inputChunkId: inputChunkId || `chunk-${Date.now()}`,
+        CASTING_CONTEXT: JSON.stringify(sharedCastingManager.getCharacterMap(), null, 2),
+        AVAILABLE_VOICES: sharedCastingManager.getAvailableVoicesForLLM ? sharedCastingManager.getAvailableVoicesForLLM() : undefined
+      }
+    });
+    // Persist any new assignments into the casting manager
+    try {
+      const characterMap = sharedCastingManager.getCharacterMap();
+      const assignments = [];
+      for (const line of (Array.isArray(script) ? script : [])) {
+        const char = (line?.character || '').trim();
+        if (!char || char.toLowerCase() === 'narrator') continue;
+        const provider = line?.provider;
+        const voiceId = line?.voiceId;
+        const gender = line?.gender || 'neutral';
+        if (provider && voiceId) {
+          const existing = characterMap[char]?.voice;
+          if (!existing || existing.voiceId !== voiceId || existing.provider !== provider) {
+            assignments.push({ character: char, provider, voiceId, gender });
+          }
+        }
+      }
+      if (assignments.length && sharedCastingManager.setManualAssignments) {
+        sharedCastingManager.setManualAssignments(assignments);
+      }
+    } catch {}
+    res.json({ script, sessionId: sessionId || 'default' });
+  } catch (e) {
+    console.error('[chat-thread] failed:', e);
+    res.status(500).json({ error: 'Chat-thread parser failed' });
   }
 });
 

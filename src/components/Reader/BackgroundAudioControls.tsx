@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useBackgroundAudio } from '../../hooks/useBackgroundAudio';
-import { Play, Pause, Stop, SkipBack, SkipForward, Volume2, Settings, Lock } from 'lucide-react';
+import { Play, Pause, Square, SkipBack, SkipForward, Volume2, Settings, Lock } from 'lucide-react';
 
 interface BackgroundAudioControlsProps {
   // TTS integration
@@ -51,7 +51,7 @@ const BackgroundAudioControls: React.FC<BackgroundAudioControlsProps> = ({
   } = useBackgroundAudio();
 
   const [showSettings, setShowSettings] = useState(false);
-  const [volume, setVolume] = useState(1.0);
+  const [uiVolume, setUiVolume] = useState(1.0);
   const [backgroundEnabled, setBackgroundEnabled] = useState(false);
 
   // Sync TTS chunks with background audio
@@ -93,7 +93,7 @@ const BackgroundAudioControls: React.FC<BackgroundAudioControlsProps> = ({
 
   // Handle volume change
   const handleVolumeChange = (newVolume: number) => {
-    setVolume(newVolume);
+    setUiVolume(newVolume);
     setVolume(newVolume);
   };
 
@@ -165,7 +165,7 @@ const BackgroundAudioControls: React.FC<BackgroundAudioControlsProps> = ({
           className="control-btn stop-btn"
           aria-label="Stop"
         >
-          <Stop className="w-4 h-4" />
+          <Square className="w-4 h-4" />
         </button>
       </div>
 
@@ -195,7 +195,7 @@ const BackgroundAudioControls: React.FC<BackgroundAudioControlsProps> = ({
           min="0"
           max="1"
           step="0.1"
-          value={volume}
+          value={uiVolume}
           onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
           className="volume-slider"
         />

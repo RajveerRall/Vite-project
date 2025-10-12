@@ -95,9 +95,7 @@ const Reader: React.FC = () => {
     toggleSettings,
     closeSettings,
     selectedVoice,
-    ttsSpeed,
-    setSelectedVoice,
-    setTtsSpeed
+    setSelectedVoice
   } = settingsHook;
   
   const ttsHook = useReaderTTS({
@@ -106,7 +104,7 @@ const Reader: React.FC = () => {
     currentPageText,
     currentContent,
     selectedVoice,
-    ttsSpeed
+    ttsSpeed: 1 // Default speed since we removed the speed control
   });
   
   const {
@@ -139,12 +137,6 @@ const Reader: React.FC = () => {
     }
   };
 
-  const handleSpeedChange = (speed: number) => {
-    setTtsSpeed(speed);
-    if (isSpeaking || isPaused) {
-      handleStopTTS();
-    }
-  };
 
   const handleNavigateToTocItem = useCallback((item: TOCItem) => {
     handleTTSNavigation();
@@ -253,7 +245,7 @@ const Reader: React.FC = () => {
         const chunk = chunks[currentIdx];
         let producedAny = false;
         try {
-          const { script } = await requestFullCast(chunk, { llm: 'gpt-4o', parser: 'intelligent', useVoiceCasting: true });
+          const { script } = await requestFullCast(chunk, { llm: 'gemini-2.0-flash', parser: 'chatThread', useVoiceCasting: true });
           const lines = Array.isArray(script) ? script : [];
           // Fetch audio sequentially per line to reduce burst load
           for (const line of lines as any[]) {
@@ -606,8 +598,6 @@ const Reader: React.FC = () => {
         changeTheme={changeTheme}
         selectedVoice={selectedVoice}
         onVoiceChange={handleVoiceChange}
-        ttsSpeed={ttsSpeed}
-        onSpeedChange={handleSpeedChange}
         closeSettings={closeSettings}
       />
     )}
