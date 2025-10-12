@@ -1,5 +1,6 @@
 import React from 'react';
 import { useFullCastUsage } from '../../hooks/useFullCastUsage';
+import { trackEvent } from '../../lib/analytics';
 import {
   ChevronLeft, ChevronRight, Headphones, PlayCircle, PauseCircle, RotateCcw, Loader2, Square
 } from 'lucide-react';
@@ -273,9 +274,23 @@ const Controls: React.FC<ControlsProps> = ({
                 onClick={() => {
                   // Enforce 300-minute monthly quota for Full Cast
                   if (typeof fcUsed === 'number' && typeof fcTotal === 'number' && fcUsed >= fcTotal) {
+                    // Track quota exceeded event
+                    trackEvent('full_cast_quota_exceeded', {
+                      used_minutes: fcUsed,
+                      total_minutes: fcTotal,
+                      remaining_minutes: Math.max(0, fcTotal - fcUsed)
+                    });
                     alert('You have reached your Full Cast monthly quota (300 minutes).');
                     return;
                   }
+                  
+                  // Track Full Cast button click
+                  trackEvent('full_cast_start', {
+                    used_minutes: fcUsed || 0,
+                    total_minutes: fcTotal || 300,
+                    remaining_minutes: Math.max(0, (fcTotal || 300) - (fcUsed || 0))
+                  });
+                  
                   const event = new CustomEvent('full-cast-request');
                   window.dispatchEvent(event);
                 }}

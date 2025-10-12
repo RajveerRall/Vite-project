@@ -5,6 +5,7 @@ import TableOfContents from '../Library/TableOfContents';
 // import SearchBar from '../Library/SearchBar';
 import Controls from './Controls';
 import { TOCItem } from '../../types/books';
+import { trackEvent } from '../../lib/analytics';
 import './Reader.css';
 import './ReaderThemes.css';
 import FeatureHighlight from './FeatureHighlight';
@@ -200,6 +201,12 @@ const Reader: React.FC = () => {
       const fullText = (currentPageText || currentContent || '').trim();
       if (!fullText) return;
 
+      // Track Full Cast processing start
+      trackEvent('full_cast_processing_start', {
+        text_length: fullText.length,
+        page_number: currentPageDisplay
+      });
+
       // Fire-and-forget: warm up Kokoro via microserver to reduce cold starts
       try {
         const { triggerKokoroWakeup } = await import('../../utils/kokoroWakeup');
@@ -238,7 +245,17 @@ const Reader: React.FC = () => {
       const produce = async () => {
         if (!isPlaying || isFetching) return;
         if (audioQueue.length >= LOOKAHEAD) return;
-        if (chunkIndex >= chunks.length) return;
+        if (chunkIndex >= chunks.length) {
+          // Track Full Cast completion when all chunks are processed
+          if (chunkIndex === chunks.length && audioQueue.length === 0) {
+            trackEvent('full_cast_completed', {
+              total_chunks: chunks.length,
+              total_text_length: fullText.length,
+              page_number: currentPageDisplay
+            });
+          }
+          return;
+        }
         const currentIdx = chunkIndex; // tentative chunk index
         isFetching = true;
         setFullCastStatus(`Casting (chunk ${currentIdx + 1}/${chunks.length})…`);
@@ -261,10 +278,20 @@ const Reader: React.FC = () => {
               producedAny = true;
             } catch (e) {
               console.error('[Full Cast] TTS failed for line', e);
+              trackEvent('full_cast_tts_error', {
+                error: e instanceof Error ? e.message : String(e),
+                chunk_index: currentIdx,
+                line_dialogue: dialogue.substring(0, 100) // First 100 chars for context
+              });
             }
           }
         } catch (e) {
           console.error('[Full Cast] casting failed for chunk', e);
+          trackEvent('full_cast_casting_error', {
+            error: e instanceof Error ? e.message : String(e),
+            chunk_index: currentIdx,
+            chunk_length: chunk.length
+          });
         } finally {
           isFetching = false;
           // Advance chunk index only if we produced at least one audio item
@@ -551,9 +578,27 @@ const Reader: React.FC = () => {
           fullCastBuffered={fullCastBuffered}
           fullCastNeedsTap={fullCastNeedsTap}
             fullCastPaused={fullCastPaused}
-          onFullCastStop={() => { try { (window as any).__fullCastStop?.(); } catch {} }}
-            onFullCastPause={() => { try { (window as any).__fullCastPause?.(); } catch {} }}
-            onFullCastResume={() => { try { (window as any).__fullCastResume?.(); } catch {} }}
+          onFullCastStop={() => { 
+            trackEvent('full_cast_stop', { 
+              status: fullCastStatus,
+              buffered: fullCastBuffered 
+            });
+            try { (window as any).__fullCastStop?.(); } catch {} 
+          }}
+            onFullCastPause={() => { 
+              trackEvent('full_cast_pause', { 
+                status: fullCastStatus,
+                buffered: fullCastBuffered 
+              });
+              try { (window as any).__fullCastPause?.(); } catch {} 
+            }}
+            onFullCastResume={() => { 
+              trackEvent('full_cast_resume', { 
+                status: fullCastStatus,
+                buffered: fullCastBuffered 
+              });
+              try { (window as any).__fullCastResume?.(); } catch {} 
+            }}
         />
       </div>
     </div>
