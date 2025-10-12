@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
+import { useGoogleOneTapLogin } from '@react-oauth/google';
 import { supabase } from '../../lib/supabase';
 
 interface GoogleOneTapProps {
@@ -7,72 +8,41 @@ interface GoogleOneTapProps {
 }
 
 const GoogleOneTap: React.FC<GoogleOneTapProps> = ({ onSuccess, onError }) => {
-  const initializedRef = useRef(false);
-
-  useEffect(() => {
-    const initializeOneTap = () => {
-      if (initializedRef.current) return;
-      initializedRef.current = true;
-
-      const googleAny = (window as any).google;
-      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-      if (!clientId || !googleAny?.accounts?.id) {
-        console.warn('[GoogleOneTap] Missing client ID or Google API not available');
-        return;
+  console.log('[GoogleOneTap] Component mounted - initializing One Tap...');
+  
+  const handleLoginSuccess = async (credentialResponse: any) => {
+    try {
+      console.log('[GoogleOneTap] Credential received:', credentialResponse);
+      
+      if (!credentialResponse.credential) {
+        throw new Error('No credential received from Google One Tap');
       }
 
-      googleAny.accounts.id.initialize({
-        client_id: clientId,
-        callback: async (response: any) => {
-          try {
-            const token = response?.credential;
-            if (!token) throw new Error('No credential received from Google One Tap');
-            const { error } = await supabase.auth.signInWithIdToken({
-              provider: 'google',
-              token
-            });
-            if (error) throw error;
-            onSuccess?.();
-          } catch (err: any) {
-            console.error('[GoogleOneTap] Sign-in failed', err);
-            onError?.(err instanceof Error ? err : new Error('Unknown error during Google One Tap sign-in'));
-          }
-        },
-        auto_select: false,
-        cancel_on_tap_outside: true,
-        use_fedcm_for_prompt: true
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: credentialResponse.credential
       });
-
-      // Show the One Tap prompt (Google controls positioning; typically top-right)
-      googleAny.accounts.id.prompt((notification: any) => {
-        // Optional: observe reasons it might not display
-        // console.log('[GoogleOneTap] prompt notification', notification);
-      });
-    };
-
-    if ((window as any).google?.accounts?.id) {
-      initializeOneTap();
-      return;
+      
+      if (error) throw error;
+      
+      console.log('[GoogleOneTap] Successfully signed in with Supabase');
+      onSuccess?.();
+    } catch (err: any) {
+      console.error('[GoogleOneTap] Sign-in failed:', err);
+      onError?.(err instanceof Error ? err : new Error('Unknown error during Google One Tap sign-in'));
     }
+  };
 
-    const existing = document.getElementById('google-identity-services');
-    if (existing) {
-      existing.addEventListener('load', initializeOneTap as any);
-      return;
-    }
+  const handleLoginError = () => {
+    console.log('[GoogleOneTap] One Tap login failed or was dismissed');
+    // Don't call onError here as dismissal is normal behavior
+  };
 
-    const script = document.createElement('script');
-    script.id = 'google-identity-services';
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = initializeOneTap;
-    document.head.appendChild(script);
-
-    return () => {
-      script.onload = null;
-    };
-  }, [onSuccess, onError]);
+  // This hook automatically triggers the One Tap prompt on component mount
+  useGoogleOneTapLogin({
+    onSuccess: handleLoginSuccess,
+    onError: handleLoginError,
+  });
 
   return null;
 };

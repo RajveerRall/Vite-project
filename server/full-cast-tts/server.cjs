@@ -258,12 +258,12 @@ app.post('/api/full-cast-tts', async (req, res) => {
     }
 
     const structured = structureTextForLLM(text);
-    // Use factory chain per package docs, with persistentCastingParser by default
+    // Use factory chain per package docs, with intelligentCastingParser by default
     const script = await sharedFactory.createAndExecuteChain({
       llmIds: [chosen],
       parserId: parser === 'simple' ? 'simpleDialogueParser'
         : parser === 'singleNarrator' ? 'singleNarratorParser'
-        : 'persistentCastingParser',
+        : 'intelligentCastingParser',
       rawTextInput: structured,
       context: {
         CASTING_CONTEXT: JSON.stringify(sharedCastingManager.getCharacterMap(), null, 2),

@@ -1494,6 +1494,12 @@ useEffect(() => {
     console.time(`[Performance] Opening ${book.title}`);
     setIsLoading(true); closeBook(false);
     setBookTitle(book.title); setBookAuthor(book.author); setCurrentBook(book);
+
+    // Fire-and-forget: warm up Kokoro via microserver to reduce cold starts
+    try {
+      const { triggerKokoroWakeup } = await import('../utils/kokoroWakeup');
+      triggerKokoroWakeup();
+    } catch {}
     try {
       // Determine if a non-EPUB adapter should handle this book
       const adapter = await getAdapterForFile(book.file);

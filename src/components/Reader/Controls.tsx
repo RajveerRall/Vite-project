@@ -26,7 +26,10 @@ interface ControlsProps {
   fullCastStatus: string;
   fullCastBuffered: number;
   fullCastNeedsTap: boolean;
+  fullCastPaused?: boolean;
   onFullCastStop: () => void;
+  onFullCastPause?: () => void;
+  onFullCastResume?: () => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -48,7 +51,10 @@ const Controls: React.FC<ControlsProps> = ({
   fullCastStatus,
   fullCastBuffered,
   fullCastNeedsTap,
-  onFullCastStop
+  fullCastPaused,
+  onFullCastStop,
+  onFullCastPause,
+  onFullCastResume
 }) => {
   const { usedMinutes: fcUsed, totalMinutes: fcTotal } = useFullCastUsage();
 
@@ -123,7 +129,29 @@ const Controls: React.FC<ControlsProps> = ({
               )}
             </div>
             
-            {/* Full Cast Stop Button */}
+            {/* Full Cast Controls: Pause/Resume and Stop */}
+            {!fullCastPaused ? (
+              <button
+                onClick={onFullCastPause}
+                className="control-button flex items-center gap-2 px-3 py-2"
+                aria-label="Pause Full Cast"
+                title="Pause Full Cast narration"
+              >
+                <PauseCircle size={20} />
+                <span className="button-text text-sm font-medium">Pause</span>
+              </button>
+            ) : (
+              <button
+                onClick={onFullCastResume}
+                className="control-button flex items-center gap-2 px-3 py-2"
+                aria-label="Resume Full Cast"
+                title="Resume Full Cast narration"
+              >
+                <PlayCircle size={20} />
+                <span className="button-text text-sm font-medium">Resume</span>
+              </button>
+            )}
+
             <button
               onClick={onFullCastStop}
               className="control-button stop-button flex items-center gap-2 px-3 py-2"
@@ -203,7 +231,7 @@ const Controls: React.FC<ControlsProps> = ({
                   disabled={isProcessing && !isReading && !isPaused}
                 >
                   <PlayCircle size={20} />
-                  <span className="button-text text-sm font-medium">Read</span>
+                  <span className="button-text text-sm font-medium">Read Aloud</span>
                 </button>
               </>
             )}
@@ -233,7 +261,7 @@ const Controls: React.FC<ControlsProps> = ({
                   disabled={isProcessing}
                 >
                   <Headphones size={20} />
-                  <span className="button-text text-sm font-medium">Audiobook</span>
+                  <span className="button-text text-sm font-medium">Offline TTS</span>
                 </button>
               </>
             ) : null}
@@ -255,7 +283,7 @@ const Controls: React.FC<ControlsProps> = ({
                 aria-label="Full Cast Narration"
                 disabled={isProcessing}
               >
-                <span className="button-text text-sm font-medium">Full Cast</span>
+                <span className="button-text text-sm font-medium">Full Cast Audiobook</span>
               </button>
             )}
           </>

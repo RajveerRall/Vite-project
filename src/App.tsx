@@ -1,6 +1,6 @@
 // src/App.tsx
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { BookProvider, useBook } from './context/BookContext';
 import { useAuth } from './context/AuthContext';
@@ -20,7 +20,6 @@ import TopicArticlePage from './pages/blog/TopicArticlePage';
 import BlogExample from './components/Blog/BlogExample';
 import AuthCallback from './pages/auth/callback';
 import TermsOfService from './pages/TermsOfService';
-import FloatingGooglePrompt from './components/Auth/FloatingGooglePrompt';
 import GoogleOneTap from './components/Auth/GoogleOneTap';
 // import ScannerPage from './pages/ScannerPage'; // Temporarily disabled
 import './App.css';
@@ -33,9 +32,21 @@ const Reader = React.lazy(() => import('./components/Reader'));
 const MainApp: React.FC = () => {
   const { isReading } = useBook();
   const { isAuthenticated } = useAuth();
+
+  const handleGoogleSuccess = () => {
+    console.log('[App] Google One Tap login successful!');
+    // The auth state will be updated automatically via Supabase auth state change
+  };
+
+  const handleGoogleError = (error: Error) => {
+    console.error('[App] Google One Tap login failed:', error);
+  };
+
   return (
     <div className="app">
-      {!isAuthenticated && !Capacitor.isNativePlatform() && <GoogleOneTap />}
+      {!isAuthenticated && !Capacitor.isNativePlatform() && (
+        <GoogleOneTap onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
+      )}
       {!isReading && <Header />}
       {isReading ? (
         <React.Suspense fallback={<SuspenseLoader />}>
@@ -45,7 +56,6 @@ const MainApp: React.FC = () => {
         <>
           <Library />
           <Footer />
-          {!isAuthenticated && <FloatingGooglePrompt />}
         </>
       )}
     </div>

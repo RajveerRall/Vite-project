@@ -55,6 +55,7 @@ const Reader: React.FC = () => {
   const [fullCastStatus, setFullCastStatus] = useState<string>('');
   const [fullCastBuffered, setFullCastBuffered] = useState<number>(0);
   const [fullCastNeedsTap, setFullCastNeedsTap] = useState<boolean>(false);
+  const [fullCastPaused, setFullCastPaused] = useState<boolean>(false);
   
   // Mobile detection effect
   useEffect(() => {
@@ -207,6 +208,12 @@ const Reader: React.FC = () => {
       const fullText = (currentPageText || currentContent || '').trim();
       if (!fullText) return;
 
+      // Fire-and-forget: warm up Kokoro via microserver to reduce cold starts
+      try {
+        const { triggerKokoroWakeup } = await import('../../utils/kokoroWakeup');
+        triggerKokoroWakeup();
+      } catch {}
+
       // Split by blank lines (paragraphs) and then into fixed-size segments to cap payload size
       const MAX_CHARS = 1200;
       const paras = fullText.split(/\n\s*\n/).filter(p => p.trim().length > 0);
@@ -233,6 +240,7 @@ const Reader: React.FC = () => {
       setFullCastStatus('Starting…');
       setFullCastBuffered(0);
       setFullCastNeedsTap(false);
+      setFullCastPaused(false);
       (window as any).__fullCastAudio = audio;
 
       const produce = async () => {
@@ -318,8 +326,33 @@ const Reader: React.FC = () => {
       };
 
       // Expose stop so a new request cancels the current one
-      const stop = () => { try { isPlaying = false; audio.pause(); audio.src = ''; } catch {} finally { setFullCastActive(false); setFullCastNeedsTap(false); } };
+      const pause = () => {
+        try { audio.pause(); } catch {}
+        isPlaying = false;
+        setFullCastPaused(true);
+        setFullCastStatus('Paused');
+      };
+
+      const resume = async () => {
+        if (isPlaying) return;
+        isPlaying = true;
+        setFullCastPaused(false);
+        try {
+          await audio.play();
+          setFullCastStatus('Playing…');
+        } catch (e) {
+          console.error('[Full Cast] resume play failed', e);
+          setFullCastNeedsTap(true);
+          setFullCastStatus('Tap to start audio');
+        }
+        produce();
+        consume();
+      };
+
+      const stop = () => { try { isPlaying = false; audio.pause(); audio.src = ''; } catch {} finally { setFullCastActive(false); setFullCastNeedsTap(false); setFullCastPaused(false); } };
       (window as any).__fullCastStop = stop;
+      (window as any).__fullCastPause = pause;
+      (window as any).__fullCastResume = resume;
 
       // Kick off producer/consumer
       produce();
@@ -440,6 +473,27 @@ const Reader: React.FC = () => {
         <EnhancedLoader />
       ) : null}
 
+        {/* Full Cast waiting overlay - show during startup/casting/buffering before playback */}
+        {(fullCastActive && (
+          fullCastStatus === 'Starting…' ||
+          fullCastStatus === 'Buffering…' ||
+          fullCastStatus.startsWith('Casting')
+        )) && (
+          <div className="simple-loading-overlay">
+            <div className="simple-loading-content">
+              <div className="simple-spinner"></div>
+              <div className="simple-text-section">
+                <h3 className="simple-primary-text">Preparing Full Cast Audiobook</h3>
+                <p className="simple-secondary-text">
+                  This may take a few minutes as we generate character voices and buffer audio.
+                  {fullCastStatus ? ` Status: ${fullCastStatus}` : ''}
+                  {fullCastBuffered > 0 ? ` • Buffered: ${fullCastBuffered}` : ''}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
       <div className="reader-sidebar hidden md:block">
         <TableOfContents items={toc} onItemClick={handleNavigateToTocItem} />
       </div>
@@ -504,7 +558,10 @@ const Reader: React.FC = () => {
           fullCastStatus={fullCastStatus}
           fullCastBuffered={fullCastBuffered}
           fullCastNeedsTap={fullCastNeedsTap}
+            fullCastPaused={fullCastPaused}
           onFullCastStop={() => { try { (window as any).__fullCastStop?.(); } catch {} }}
+            onFullCastPause={() => { try { (window as any).__fullCastPause?.(); } catch {} }}
+            onFullCastResume={() => { try { (window as any).__fullCastResume?.(); } catch {} }}
         />
       </div>
     </div>
@@ -529,7 +586,10 @@ const Reader: React.FC = () => {
           fullCastStatus={fullCastStatus}
           fullCastBuffered={fullCastBuffered}
           fullCastNeedsTap={fullCastNeedsTap}
+          fullCastPaused={fullCastPaused}
           onFullCastStop={() => { try { (window as any).__fullCastStop?.(); } catch {} }}
+          onFullCastPause={() => { try { (window as any).__fullCastPause?.(); } catch {} }}
+          onFullCastResume={() => { try { (window as any).__fullCastResume?.(); } catch {} }}
         />
       </div>
     </div>
