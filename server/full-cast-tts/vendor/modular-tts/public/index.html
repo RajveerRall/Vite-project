@@ -645,7 +645,7 @@
             // false = SLOW, but safe and reliable.
             const FETCH_IN_PARALLEL = false;
 
-            const chunkText = (text, maxLength = 1500) => {
+            const chunkText = (text, maxLength = 2400) => {
                 const sentences = text.match(/[^.!?]+[.!?]*|[^.!?\s]+/g) || [];
                 const chunks = [];
                 let currentChunk = "";

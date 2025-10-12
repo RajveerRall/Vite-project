@@ -45,6 +45,21 @@ try {
 const usageTracker = typeof getUsageTracker === 'function' ? getUsageTracker() : null;
 app.use(express.json({ limit: '2mb' }));
 
+// User authentication middleware - extract user ID from headers
+app.use((req, res, next) => {
+  // Priority: X-User-Id header > Authorization Bearer token > anonymous
+  let userId = req.headers['x-user-id'] || req.headers['X-User-Id'];
+  
+  if (!userId && req.headers.authorization) {
+    const token = req.headers.authorization.replace('Bearer ', '');
+    userId = token || 'anonymous';
+  }
+  
+  req.userId = userId || 'anonymous';
+  req.userEmail = req.headers['x-user-email'] || req.headers['X-User-Email'] || null;
+  next();
+});
+
 // Simple per-request logging
 let __REQ = 0;
 app.use((req, res, next) => {
@@ -53,7 +68,7 @@ app.use((req, res, next) => {
   res.on('finish', () => {
     const ms = Date.now() - t0;
     const len = res.getHeader('content-length');
-    console.log(`[req ${id}] ${req.method} ${req.originalUrl} -> ${res.statusCode} ${ms}ms${len ? ` ${len}b` : ''}`);
+    console.log(`[req ${id}] ${req.method} ${req.originalUrl} -> ${res.statusCode} ${ms}ms${len ? ` ${len}b` : ''} [user: ${req.userId}]`);
   });
   req.reqId = id;
   next();
@@ -120,20 +135,32 @@ const VOICE_POOL = ALL_VOICES.filter(v => {
 
 console.log(`[full-cast-tts] Voice pool has ${VOICE_POOL.length} voices from enabled providers`);
 
-// Use the standard CastingManager from the library
-const sharedCastingManager = new CastingManager();
-// Manually set the voice pool to our filtered list.
-// This is the key to preventing the manager from knowing about disabled providers.
-sharedCastingManager.allVoices = VOICE_POOL;
+// Per-user CastingManager instances for session isolation
+const userCastingManagers = new Map();
 
-// Clear any old casting memory on server start to avoid stale Cartesia assignments
-if (sharedCastingManager.characterMap) {
-  sharedCastingManager.characterMap = {};
+// Function to get or create a CastingManager for a specific user
+function getUserCastingManager(userId) {
+  if (!userCastingManagers.has(userId)) {
+    const castingManager = new CastingManager();
+    // Manually set the voice pool to our filtered list.
+    // This is the key to preventing the manager from knowing about disabled providers.
+    castingManager.allVoices = VOICE_POOL;
+    
+    // Clear any old casting memory on creation
+    if (castingManager.characterMap) {
+      castingManager.characterMap = {};
+    }
+    if (castingManager.usedVoices) {
+      castingManager.usedVoices = new Set();
+    }
+    
+    userCastingManagers.set(userId, castingManager);
+    console.log(`[full-cast-tts] Created new CastingManager for user: ${userId}`);
+  }
+  return userCastingManagers.get(userId);
 }
-if (sharedCastingManager.usedVoices) {
-  sharedCastingManager.usedVoices = new Set();
-}
-console.log('[full-cast-tts] Casting memory has been reset.');
+
+console.log('[full-cast-tts] Per-user CastingManager system initialized.');
 
 
 console.log('[full-cast-tts] providers:', {
@@ -156,19 +183,27 @@ function getSessionHistory(sessionId) {
   return history;
 }
 
-// Minimal structuring: split quoted dialogue and narration into segments JSON
+// Enhanced structuring: split quoted dialogue and narration into segments JSON
 function structureTextForLLM(raw) {
   if (!raw || typeof raw !== 'string') return JSON.stringify({ segments: [] });
+  
+  // Clean up the text first - preserve punctuation but normalize whitespace
+  const cleanText = raw
+    .replace(/\n/g, ' ')           // Replace line breaks with spaces
+    .replace(/\r/g, ' ')           // Replace carriage returns with spaces
+    .replace(/\t/g, ' ')           // Replace tabs with spaces
+    .replace(/\s+/g, ' ')          // Replace multiple spaces with single space
+    .trim();
   
   // Handle straight quotes, smart quotes, and other dialogue markers
   const regex = /[""]([^""]+)[""]|"([^"]+)"/g;
   let lastIndex = 0;
   const segments = [];
   
-  raw.replace(regex, (match, smartQuoteContent, straightQuoteContent, offset) => {
+  cleanText.replace(regex, (match, smartQuoteContent, straightQuoteContent, offset) => {
     // Add narration before this dialogue
     if (offset > lastIndex) {
-      const narration = raw.substring(lastIndex, offset).trim();
+      const narration = cleanText.substring(lastIndex, offset).trim();
       if (narration) {
         segments.push({ type: 'narration', content: narration });
       }
@@ -186,18 +221,44 @@ function structureTextForLLM(raw) {
   });
   
   // Add any remaining narration at the end
-  if (lastIndex < raw.length) {
-    const tail = raw.substring(lastIndex).trim();
+  if (lastIndex < cleanText.length) {
+    const tail = cleanText.substring(lastIndex).trim();
     if (tail) {
       segments.push({ type: 'narration', content: tail });
     }
   }
   
-  return JSON.stringify({ segments });
+  // If no segments found, treat entire text as narration
+  if (segments.length === 0) {
+    segments.push({ type: 'narration', content: cleanText });
+  }
+  
+  // Add explicit instructions for the LLM about dialogue attribution
+  const result = {
+    segments,
+    instructions: "CRITICAL: Dialogue attribution phrases like 'said Sofia', 'whispered Locke', 'replied John' are NARRATION, not dialogue. Only the actual spoken words inside quotes should be dialogue. All dialogue attribution, actions, and descriptions should be assigned to 'Narrator' character."
+  };
+  
+  return JSON.stringify(result);
 }
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
+});
+
+// Test endpoint for text processing
+app.post('/api/test-text-processing', (req, res) => {
+  const { text } = req.body || {};
+  if (!text) {
+    return res.status(400).json({ error: 'text is required' });
+  }
+  
+  const structured = structureTextForLLM(text);
+  res.json({ 
+    original: text,
+    structured: JSON.parse(structured),
+    message: 'Text processing test completed'
+  });
 });
 
 // --- Usage tracking API (if tracker available) ---
@@ -286,6 +347,9 @@ app.post('/api/full-cast-tts', async (req, res) => {
       return res.status(400).json({ error: 'No LLM configured. Set OPENAI_API_KEY or GEMINI_API_KEY.' });
     }
 
+    // Get user-specific CastingManager
+    const userCastingManager = getUserCastingManager(req.userId);
+    
     const structured = structureTextForLLM(text);
     // Use factory chain per package docs, with intelligentCastingParser by default
     const script = await sharedFactory.createAndExecuteChain({
@@ -295,13 +359,13 @@ app.post('/api/full-cast-tts', async (req, res) => {
         : 'intelligentCastingParser',
       rawTextInput: structured,
       context: {
-        CASTING_CONTEXT: JSON.stringify(sharedCastingManager.getCharacterMap(), null, 2),
-        AVAILABLE_VOICES: sharedCastingManager.getAvailableVoicesForLLM ? sharedCastingManager.getAvailableVoicesForLLM() : undefined
+        CASTING_CONTEXT: JSON.stringify(userCastingManager.getCharacterMap(), null, 2),
+        AVAILABLE_VOICES: userCastingManager.getAvailableVoicesForLLM ? userCastingManager.getAvailableVoicesForLLM() : undefined
       }
     });
     // Persist new voice assignments so future chunks reuse them
     try {
-      const characterMap = sharedCastingManager.getCharacterMap();
+      const characterMap = userCastingManager.getCharacterMap();
       const assignments = [];
       for (const line of (Array.isArray(script) ? script : [])) {
         const char = (line?.character || '').trim();
@@ -316,8 +380,8 @@ app.post('/api/full-cast-tts', async (req, res) => {
           }
         }
       }
-      if (assignments.length && sharedCastingManager.setManualAssignments) {
-        sharedCastingManager.setManualAssignments(assignments);
+      if (assignments.length && userCastingManager.setManualAssignments) {
+        userCastingManager.setManualAssignments(assignments);
       }
     } catch {}
 
@@ -336,7 +400,12 @@ app.post('/api/chat-thread', async (req, res) => {
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ error: 'text is required' });
   }
-  const history = getSessionHistory(sessionId || 'default');
+  
+  // Get user-specific CastingManager
+  const userCastingManager = getUserCastingManager(req.userId);
+  const userSessionId = `${req.userId}-${sessionId || 'default'}`;
+  const history = getSessionHistory(userSessionId);
+  
   try {
     const chosen = llm || DEFAULT_LLM;
     if (!chosen) {
@@ -344,6 +413,7 @@ app.post('/api/chat-thread', async (req, res) => {
     }
     // Structure text minimally (reuse util) to give the LLM a stable JSON input
     const structured = structureTextForLLM(text);
+    console.log(`[chat-thread] [req ${req.reqId}] Structured text for LLM:`, structured);
     const script = await sharedFactory.createAndExecuteChain({
       llmIds: [chosen],
       parserId: 'chatThreadParser',
@@ -351,13 +421,14 @@ app.post('/api/chat-thread', async (req, res) => {
       context: {
         chatHistory: history,
         inputChunkId: inputChunkId || `chunk-${Date.now()}`,
-        CASTING_CONTEXT: JSON.stringify(sharedCastingManager.getCharacterMap(), null, 2),
-        AVAILABLE_VOICES: sharedCastingManager.getAvailableVoicesForLLM ? sharedCastingManager.getAvailableVoicesForLLM() : undefined
+        CASTING_CONTEXT: JSON.stringify(userCastingManager.getCharacterMap(), null, 2),
+        AVAILABLE_VOICES: userCastingManager.getAvailableVoicesForLLM ? userCastingManager.getAvailableVoicesForLLM() : undefined
       }
     });
-    // Persist any new assignments into the casting manager
+    console.log(`[chat-thread] [req ${req.reqId}] LLM returned script:`, JSON.stringify(script, null, 2));
+    // Persist any new assignments into the user's casting manager
     try {
-      const characterMap = sharedCastingManager.getCharacterMap();
+      const characterMap = userCastingManager.getCharacterMap();
       const assignments = [];
       for (const line of (Array.isArray(script) ? script : [])) {
         const char = (line?.character || '').trim();
@@ -372,13 +443,13 @@ app.post('/api/chat-thread', async (req, res) => {
           }
         }
       }
-      if (assignments.length && sharedCastingManager.setManualAssignments) {
-        sharedCastingManager.setManualAssignments(assignments);
+      if (assignments.length && userCastingManager.setManualAssignments) {
+        userCastingManager.setManualAssignments(assignments);
       }
     } catch {}
-    res.json({ script, sessionId: sessionId || 'default' });
+    res.json({ script, sessionId: userSessionId });
   } catch (e) {
-    console.error('[chat-thread] failed:', e);
+    console.error(`[chat-thread] failed for user ${req.userId}:`, e);
     res.status(500).json({ error: 'Chat-thread parser failed' });
   }
 });
@@ -390,15 +461,90 @@ app.post('/api/tts', async (req, res) => {
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ error: 'text is required' });
   }
-  const selected = provider || (ENV_KEYS.openai ? 'openai' : (ENV_KEYS.cartesia ? 'cartesia' : null));
+  
+  // Clean up text for TTS: remove line breaks, normalize whitespace, and clean up formatting
+  const cleanText = text
+    .replace(/\n/g, ' ')           // Replace line breaks with spaces
+    .replace(/\r/g, ' ')           // Replace carriage returns with spaces
+    .replace(/\t/g, ' ')           // Replace tabs with spaces
+    .replace(/\s+/g, ' ')          // Replace multiple spaces with single space
+    .replace(/[""]/g, '"')         // Replace smart quotes with regular quotes
+    .replace(/['']/g, "'")         // Replace smart apostrophes with regular apostrophes
+    .replace(/ΓÇ£/g, '"')          // Replace specific smart quote characters
+    .replace(/ΓÇ¥/g, '"')          // Replace specific smart quote characters
+    .replace(/ΓÇö/g, ' - ')        // Replace em dash with regular dash
+    .replace(/\b[A-Z]{2,}\b/g, (match) => {
+      // Convert ALL CAPS words to Title Case, but preserve common acronyms
+      const commonAcronyms = ['AI', 'API', 'URL', 'HTTP', 'HTTPS', 'JSON', 'XML', 'HTML', 'CSS', 'JS', 'TTS', 'LLM', 'GPT', 'CEO', 'USA', 'UK', 'EU', 'NASA', 'FBI', 'CIA'];
+      if (commonAcronyms.includes(match)) {
+        return match;
+      }
+      // Convert to title case
+      return match.charAt(0) + match.slice(1).toLowerCase();
+    })
+    .trim();                       // Remove leading/trailing whitespace
+
+  // Validate cleaned text
+  if (!cleanText || cleanText.length === 0) {
+    console.warn(`[tts] [req ${req.reqId}] Empty text after cleaning, skipping TTS request`);
+    return res.status(400).json({ error: 'Text is empty after cleaning' });
+  }
+  // Validate and determine the correct provider and voiceId
+  let selected = provider;
+  let validatedVoiceId = voiceId;
+  
+  // Step 1: Validate voiceId against the actual voice pool
+  if (validatedVoiceId) {
+    const voiceInPool = VOICE_POOL.find(v => v.voiceId === validatedVoiceId);
+    if (!voiceInPool) {
+      console.warn(`[tts] [req ${req.reqId}] Invalid voiceId: ${validatedVoiceId}. Available voices: ${VOICE_POOL.map(v => v.voiceId).join(', ')}`);
+      return res.status(400).json({ 
+        error: `Invalid voiceId: ${validatedVoiceId}`,
+        availableVoices: VOICE_POOL.map(v => ({ voiceId: v.voiceId, provider: v.provider, description: v.description }))
+      });
+    }
+    // If voiceId is valid, use its provider
+    selected = voiceInPool.provider;
+  }
+  
+  // Step 2: Handle cases where provider is actually a voiceId (legacy format)
+  if (selected && (selected.startsWith('am_') || selected.startsWith('bf_') || selected.startsWith('bm_') || selected.startsWith('af_') || selected.startsWith('en-US-'))) {
+    // Provider is actually a voiceId, find the correct provider
+    const voiceInPool = VOICE_POOL.find(v => v.voiceId === selected);
+    if (voiceInPool) {
+      selected = voiceInPool.provider;
+      validatedVoiceId = voiceInPool.voiceId;
+    } else {
+      console.warn(`[tts] [req ${req.reqId}] Provider '${selected}' is a voiceId but not found in voice pool`);
+      return res.status(400).json({ 
+        error: `Invalid provider/voiceId: ${selected}`,
+        availableVoices: VOICE_POOL.map(v => ({ voiceId: v.voiceId, provider: v.provider, description: v.description }))
+      });
+    }
+  }
+  
+  // Step 3: Fallback to available providers if no provider specified
   if (!selected) {
-    return res.status(400).json({ error: 'No TTS provider available. Set OPENAI_API_KEY or CARTESIA_API_KEY.' });
+    selected = ENV_KEYS.kokoroApiUrl ? 'kokoro' : (ENV_KEYS.msedgeBaseUrl ? 'msedge' : (ENV_KEYS.openai ? 'openai' : null));
+  }
+  
+  // Step 4: Validate that the selected provider is available
+  if (!selected) {
+    return res.status(400).json({ error: 'No TTS provider available. Configure KOKORO_API_URL, MSEDGE_BASE_URL, or OPENAI_API_KEY.' });
+  }
+  
+  // Step 5: If no voiceId specified, use a default for the provider
+  if (!validatedVoiceId) {
+    const defaultVoice = VOICE_POOL.find(v => v.provider === selected);
+    if (defaultVoice) {
+      validatedVoiceId = defaultVoice.voiceId;
+    }
   }
   try {
-    console.log(`[tts] [req ${req.reqId}] provider=${selected} voiceId=${voiceId || '-'} len=${text.length} preview="${previewStr(text, 120)}"`);
+    console.log(`[tts] [req ${req.reqId}] provider=${selected} voiceId=${validatedVoiceId || '-'} len=${cleanText.length} preview="${previewStr(cleanText, 120)}"`);
     const tts = sharedFactory.getTTS(selected);
     if (!tts) return res.status(400).json({ error: `TTS provider not configured: ${selected}` });
-    const result = await tts.synthesizeWithMetadata(text, { voiceId });
+    const result = await tts.synthesizeWithMetadata(cleanText, { voiceId: validatedVoiceId });
     res.setHeader('Content-Type', 'audio/mpeg');
     // If provider returns duration metadata, expose it to clients
     try {
@@ -413,9 +559,9 @@ app.post('/api/tts', async (req, res) => {
         const estimatedSeconds = Number(result?.durationSeconds) || Math.round((Number(result?.duration_ms) || 0) / 1000) || undefined;
         usageTracker.trackUsage({
           provider: selected,
-          voiceId: voiceId || '-',
-          text,
-          characterCount: text.length,
+          voiceId: validatedVoiceId || '-',
+          text: cleanText,
+          characterCount: cleanText.length,
           estimatedDurationSeconds: estimatedSeconds,
           metadata: { format: 'audio/mpeg', userId: req.header('x-user-id'), userEmail: req.header('x-user-email') }
         });
@@ -427,7 +573,13 @@ app.post('/api/tts', async (req, res) => {
     });
     result.stream.pipe(res);
   } catch (e) {
-    console.error('[full-cast-tts] TTS failed:', e);
+    console.error(`[tts] [req ${req.reqId}] TTS failed:`, {
+      error: e.message,
+      provider: selected,
+      voiceId: voiceId || 'none',
+      textLength: cleanText.length,
+      textPreview: cleanText.substring(0, 100)
+    });
     res.status(500).json({ error: 'TTS synthesis failed' });
   }
 });
@@ -458,15 +610,33 @@ app.post('/api/warmup/kokoro', async (_req, res) => {
 });
 
 // --- Reset casting memory endpoint ---
-app.post('/api/reset-casting', (_req, res) => {
-  if (sharedCastingManager.characterMap) {
-    sharedCastingManager.characterMap = {};
+app.post('/api/reset-casting', (req, res) => {
+  const userCastingManager = getUserCastingManager(req.userId);
+  if (userCastingManager.characterMap) {
+    userCastingManager.characterMap = {};
   }
-  if (sharedCastingManager.usedVoices) {
-    sharedCastingManager.usedVoices = new Set();
+  if (userCastingManager.usedVoices) {
+    userCastingManager.usedVoices = new Set();
   }
-  console.log('[full-cast-tts] Casting memory has been reset via API.');
-  res.json({ ok: true, message: 'Casting memory reset' });
+  console.log(`[full-cast-tts] Casting memory has been reset via API for user: ${req.userId}`);
+  res.json({ ok: true, message: 'Casting memory reset', userId: req.userId });
+});
+
+// --- Get user session info endpoint ---
+app.get('/api/user-session', (req, res) => {
+  const userCastingManager = getUserCastingManager(req.userId);
+  const characterMap = userCastingManager.getCharacterMap();
+  const usedVoices = userCastingManager.usedVoices ? Array.from(userCastingManager.usedVoices) : [];
+  
+  res.json({
+    userId: req.userId,
+    userEmail: req.userEmail,
+    characterCount: Object.keys(characterMap).length,
+    characters: Object.keys(characterMap),
+    usedVoices: usedVoices,
+    availableVoices: VOICE_POOL.length,
+    sessionActive: true
+  });
 });
 
 app.listen(PORT, () => {

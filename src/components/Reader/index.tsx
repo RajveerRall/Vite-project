@@ -207,7 +207,7 @@ const Reader: React.FC = () => {
       } catch {}
 
       // Split by blank lines (paragraphs) and then into fixed-size segments to cap payload size
-      const MAX_CHARS = 1200;
+      const MAX_CHARS = 2400;
       const paras = fullText.split(/\n\s*\n/).filter(p => p.trim().length > 0);
       const chunks: string[] = [];
       const sources = paras.length > 0 ? paras : [fullText];
