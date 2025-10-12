@@ -1090,5 +1090,18 @@
     },
     "id": "1760290111138-51ktcduw1",
     "timestamp": "2025-10-12T17:28:31.138Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "“Thank you, Lukas. Do be seated. Alchemically reducing the frame of larger botanicals\n         is an old art, but one I happen to part",
+    "characterCount": 134,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760290113629-upbxjcpxi",
+    "timestamp": "2025-10-12T17:28:33.629Z"
   }
 ]
