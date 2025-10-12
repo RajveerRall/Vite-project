@@ -192,6 +192,24 @@ function structureTextForLLM(raw) {
     .replace(/\n/g, ' ')           // Replace line breaks with spaces
     .replace(/\r/g, ' ')           // Replace carriage returns with spaces
     .replace(/\t/g, ' ')           // Replace tabs with spaces
+    .replace(/\xa0/g, ' ')         // Replace non-breaking space
+    .replace(/\u1680/g, ' ')       // Replace Ogham space mark
+    .replace(/\u2000/g, ' ')       // Replace En quad
+    .replace(/\u2001/g, ' ')       // Replace Em quad
+    .replace(/\u2002/g, ' ')       // Replace En space
+    .replace(/\u2003/g, ' ')       // Replace Em space
+    .replace(/\u2004/g, ' ')       // Replace Three-per-em space
+    .replace(/\u2005/g, ' ')       // Replace Four-per-em space
+    .replace(/\u2006/g, ' ')       // Replace Six-per-em space
+    .replace(/\u2007/g, ' ')       // Replace Figure space
+    .replace(/\u2008/g, ' ')       // Replace Punctuation space
+    .replace(/\u2009/g, ' ')       // Replace Thin space
+    .replace(/\u200A/g, ' ')       // Replace Hair space
+    .replace(/\u2028/g, ' ')       // Replace Line separator
+    .replace(/\u2029/g, ' ')       // Replace Paragraph separator
+    .replace(/\u202F/g, ' ')       // Replace Narrow no-break space
+    .replace(/\u205F/g, ' ')       // Replace Medium mathematical space
+    .replace(/\u3000/g, ' ')       // Replace Ideographic space
     .replace(/\s+/g, ' ')          // Replace multiple spaces with single space
     .trim();
   
@@ -467,6 +485,24 @@ app.post('/api/tts', async (req, res) => {
     .replace(/\n/g, ' ')           // Replace line breaks with spaces
     .replace(/\r/g, ' ')           // Replace carriage returns with spaces
     .replace(/\t/g, ' ')           // Replace tabs with spaces
+    .replace(/\xa0/g, ' ')         // Replace non-breaking space
+    .replace(/\u1680/g, ' ')       // Replace Ogham space mark
+    .replace(/\u2000/g, ' ')       // Replace En quad
+    .replace(/\u2001/g, ' ')       // Replace Em quad
+    .replace(/\u2002/g, ' ')       // Replace En space
+    .replace(/\u2003/g, ' ')       // Replace Em space
+    .replace(/\u2004/g, ' ')       // Replace Three-per-em space
+    .replace(/\u2005/g, ' ')       // Replace Four-per-em space
+    .replace(/\u2006/g, ' ')       // Replace Six-per-em space
+    .replace(/\u2007/g, ' ')       // Replace Figure space
+    .replace(/\u2008/g, ' ')       // Replace Punctuation space
+    .replace(/\u2009/g, ' ')       // Replace Thin space
+    .replace(/\u200A/g, ' ')       // Replace Hair space
+    .replace(/\u2028/g, ' ')       // Replace Line separator
+    .replace(/\u2029/g, ' ')       // Replace Paragraph separator
+    .replace(/\u202F/g, ' ')       // Replace Narrow no-break space
+    .replace(/\u205F/g, ' ')       // Replace Medium mathematical space
+    .replace(/\u3000/g, ' ')       // Replace Ideographic space
     .replace(/\s+/g, ' ')          // Replace multiple spaces with single space
     .replace(/[""]/g, '"')         // Replace smart quotes with regular quotes
     .replace(/['']/g, "'")         // Replace smart apostrophes with regular apostrophes
