@@ -123,7 +123,7 @@ import React, { useState } from 'react';
 import { BookData } from '../../types/books';
 import { useBook } from '../../context/BookContext';
 import { trackEvent } from '../../lib/analytics';
-import { getResponsiveCoverUrls } from '../../utils/imageOptimization';
+// Removed image optimization import - using simple image loading
 
 interface BookGridProps {
   books: BookData[];
@@ -209,19 +209,12 @@ const BookGrid: React.FC<BookGridProps> = ({ books }) => {
               onClick={() => !book.isDownloading && openBook(book)}
             >
               {book.coverUrl ? (
-                (() => {
-                  const { src, srcSet, sizes } = getResponsiveCoverUrls(book.coverUrl);
-                  return (
-                    <img 
-                      src={src}
-                      srcSet={srcSet}
-                      sizes={sizes}
-                      alt={`Cover of ${book.title}`}
-                      className="w-full h-full object-cover" 
-                      loading="lazy"
-                    />
-                  );
-                })()
+                <img 
+                  src={book.coverUrl}
+                  alt={`Cover of ${book.title}`}
+                  className="w-full h-full object-cover" 
+                  loading="lazy"
+                />
               ) : (
                 <div className="default-cover w-full h-full flex items-center justify-center bg-amber-800">
                   <span className="text-2xl font-medium text-white">{book.title.charAt(0)}</span>

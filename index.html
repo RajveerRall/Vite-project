@@ -85,6 +85,10 @@
     </script>
     
     <!-- ANALYTICS_PLACEHOLDER -->
+    
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9843933612972203"
+         crossorigin="anonymous"></script>
 
     <!-- Critical CSS - Inline to prevent render blocking -->
     <style>
@@ -214,9 +218,7 @@
           <!-- Preload critical resources (production only) -->
       <!-- These paths are generated at build time and won't work in development -->
     
-    <!-- Preload critical images for faster LCP -->
-    <link rel="preload" href="/sample-book-covers-webp/Alice in Wonderland-300w.webp" as="image" />
-    <link rel="preload" href="/sample-book-covers-webp/Frankenstein by Mary Wollstonescraft Shelley-300w.webp" as="image" />
+    <!-- Removed book cover preloads - no longer using optimized covers -->
     
     <!-- Removed blocking JSZip/ePub.js; using ESM imports -->
   </head>

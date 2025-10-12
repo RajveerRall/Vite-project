@@ -69,7 +69,7 @@
 import React, { useCallback } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { BookData } from '@/types/books';
-import { getResponsiveCoverUrls } from '../../utils/imageOptimization';
+// Removed image optimization import - using simple image loading
 
 const ChevronLeftIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -111,19 +111,12 @@ export const BookCarousel: React.FC<BookCarouselProps> = React.memo(({ books, on
                 onClick={() => handleBookClick(book)}
               >
                 {book.coverUrl ? (
-                  (() => {
-                    const { src, srcSet, sizes } = getResponsiveCoverUrls(book.coverUrl);
-                    return (
-                      <img 
-                        src={src}
-                        srcSet={srcSet}
-                        sizes={sizes}
-                        alt={book.title} 
-                        loading="lazy" 
-                        className="w-full h-full object-cover" 
-                      />
-                    );
-                  })()
+                  <img 
+                    src={book.coverUrl}
+                    alt={book.title} 
+                    loading="lazy" 
+                    className="w-full h-full object-cover" 
+                  />
                 ) : (
                   <div className="default-cover p-2 text-center">
                     <h3 className="font-bold text-sm sm:text-base line-clamp-2">{book.title}</h3>

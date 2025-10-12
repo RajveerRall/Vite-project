@@ -37,7 +37,7 @@ const TermsOfService: React.FC = () => {
 
         <h2 className="text-xl font-semibold text-gray-900">5. Text‑to‑Speech Usage Limits</h2>
         <ul>
-          <li>Free tier includes up to <strong>10 hours (600 minutes)</strong> of TTS per monthly billing cycle. Exact allotments displayed in‑app control. We may adjust this in the future with notice.</li>
+          <li>Free tier includes up to <strong>16.67 hours (1000 minutes)</strong> of TTS per monthly billing cycle. Exact allotments displayed in‑app control. We may adjust this in the future with notice.</li>
           <li>Once you exhaust free minutes, continued TTS requires an active paid plan or add‑on minutes.</li>
           <li>We may implement fair‑use safeguards (e.g., rate limiting, daily caps) to ensure stability.</li>
         </ul>

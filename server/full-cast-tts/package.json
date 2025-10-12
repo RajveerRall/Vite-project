@@ -5,7 +5,7 @@
   "main": "server.cjs",
   "scripts": {
     "start": "node server.cjs",
-    "sync-vendor": "powershell -ExecutionPolicy Bypass -File sync-vendor.ps1",
+    "sync-vendor": "bash sync-vendor.sh",
     "postinstall": "npm run sync-vendor"
   },
   "dependencies": {
