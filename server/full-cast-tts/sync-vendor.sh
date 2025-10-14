@@ -20,3 +20,4 @@ else
 fi
 
 echo "Vendor sync complete!"
+

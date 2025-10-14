@@ -51,7 +51,6 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [modelLoaded, setModelLoaded] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [estimatedTime, setEstimatedTime] = useState(10);
   const [windowSize, setWindowSize] = useState(3);
 
   
@@ -180,9 +179,6 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
           // Progress callback
           (progress: number) => {
             setLoadingProgress(progress);
-            // Update estimated time
-            const remainingTime = Math.ceil((100 - progress) / 10);
-            setEstimatedTime(remainingTime);
           }
         );
         
@@ -539,298 +535,390 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div
         className={`
-          relative bg-white text-gray-900 rounded-lg shadow-lg transition-all duration-300 overflow-hidden 
+          relative bg-white rounded-xl shadow-xl transition-all duration-300 ease-out overflow-hidden
           ${!isPlaying
-            ? "w-[300px] h-[400px] sm:w-[650px] sm:max-h-[85%] sm:p-6"
-            : "w-full h-full sm:max-w-[800px] sm:h-[85%]"}
+            ? "w-[90%] max-w-md mx-4 max-h-[85vh]"
+            : "w-[95%] max-w-4xl mx-4 h-[90%]"}
         `}
       >
-        {/* Always-visible Close Icon */}
+        {/* Modern Close Button */}
         <button
-          className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 z-50 focus:outline-none"
+          className="absolute top-4 right-4 z-50 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
           onClick={handleClose}
           aria-label="Close"
         >
-          ×
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
 
         {playbackFinished && (
-          <div className="flex items-center justify-center p-4 bg-yellow-100 text-yellow-800">
-            Playback finished. Click "Stop" or "Close" to exit.
+          <div className="flex items-center justify-center p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
+            <div className="flex items-center gap-2 text-green-700">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span className="font-medium">Playback completed successfully!</span>
+            </div>
           </div>
         )}
 
         {errorMessage ? (
-          <div className="flex flex-col items-center justify-center h-full">
-            <p className="mt-4 text-base sm:text-lg font-medium text-red-600">
+          <div className="flex flex-col items-center justify-center h-full p-8">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Something went wrong</h3>
+            <p className="text-gray-600 text-center mb-6 max-w-md">
               {errorMessage}
             </p>
             <button 
               onClick={handleClose}
-              className="mt-4 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md"
+              className="px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-medium transition-colors duration-200"
             >
               Close
             </button>
           </div>
         ) : isLoading ? (
-          <div className="flex flex-col items-center justify-center h-full">
-            <div className="w-full max-w-md bg-gray-200 rounded-full h-2.5 mb-4">
-              <div className="bg-gray-700 h-2.5 rounded-full" style={{ width: `${loadingProgress}%` }}></div>
+          <div className="flex flex-col items-center justify-center h-full p-8">
+            <div className="w-16 h-16 bg-amber-600 rounded-xl flex items-center justify-center mb-6 animate-pulse">
+              <svg className="w-8 h-8 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
             </div>
-            <p className="mt-4 text-base sm:text-lg font-medium">
-              We are loading a Text-to-Speech model for you. This may take a few seconds.
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading AI Voice Model</h3>
+            <p className="text-gray-600 text-center mb-6 max-w-sm text-sm">
+              Downloading and initializing the Kokoro TTS model. This may take a few moments on first use.
             </p>
+            <div className="w-full max-w-xs bg-gray-200 rounded-full h-2 mb-2">
+              <div 
+                className="bg-amber-600 h-2 rounded-full transition-all duration-300 ease-out" 
+                style={{ width: `${loadingProgress}%` }}
+              ></div>
+            </div>
+            <p className="text-sm text-gray-500">{loadingProgress}% complete</p>
           </div>
         ) : !isPlaying ? (
-          <div className="flex flex-col items-center justify-center gap-4 relative h-full">
-            <h2 className="text-xl sm:text-2xl font-bold mb-4">Kokoro Audio Player</h2>
-            <button
-              onClick={() => startPlayback(0)}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-6 py-2 rounded-md shadow-md transition-colors focus:outline-none"
-              disabled={!modelLoaded}
-            >
-              {!modelLoaded ? 'Model Loading...' : 'Start Audiobook'}
-            </button>
-            
-            {/* Voice selection */}
-            {/* Voice selection */}
-            {availableVoices.length > 0 && (
-              <div className="mt-4 px-4 w-full max-w-md">
-                <label htmlFor="voice-select" className="block text-sm font-medium text-gray-700 mb-1">
-                  Voice
-                </label>
-                <select
-                  id="voice-select"
-                  value={selectedVoice}
-                  onChange={handleVoiceChange}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
-                >
-                  {availableVoices.map(voice => (
-                    <option key={voice} value={voice}>
-                      {getVoiceName(voice)}
-                    </option>
-                  ))}
-                </select>
+          <div className="p-6 max-h-[80vh] overflow-y-auto">
+            {/* Compact Header */}
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-amber-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
               </div>
-            )}
+              <h2 className="text-xl font-semibold text-gray-900 mb-1">Offline Audiobook</h2>
+              <p className="text-sm text-gray-600">AI-powered text-to-speech</p>
+            </div>
 
-            {/* Add this to the playback state UI, where the playback rate selector is */}
-            {isPlaying && availableVoices.length > 0 && (
-              <div className="absolute top-4 right-12 flex items-center gap-3">
-                {/* Voice selector during playback */}
-                <select
-                  value={selectedVoice}
-                  onChange={handleVoiceChange}
-                  className="form-select rounded border-gray-300 text-sm"
-                >
-                  {availableVoices.map(voice => (
-                    <option key={voice} value={voice}>
-                      {getVoiceName(voice)}
-                    </option>
-                  ))}
-                </select>
-                
-                {/* Your existing playback rate selector */}
-                <select
-                  value={playbackRate.toString()}
-                  onChange={handleRateChange}
-                  className="form-select rounded border-gray-300 text-sm"
-                >
-                  {/* options */}
-                </select>
+            {/* Main Action Button */}
+            <div className="text-center mb-6">
+              <button
+                onClick={() => startPlayback(0)}
+                className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!modelLoaded}
+              >
+                <span className="flex items-center gap-2">
+                  {!modelLoaded ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Loading Model...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Start Audiobook
+                    </>
+                  )}
+                </span>
+              </button>
+            </div>
+
+            {/* Compact Settings Grid */}
+            <div className="grid grid-cols-1 gap-4 mb-6">
+              {/* Voice Selection */}
+              {availableVoices.length > 0 && (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <label htmlFor="voice-select" className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Voice
+                  </label>
+                  <select
+                    id="voice-select"
+                    value={selectedVoice}
+                    onChange={handleVoiceChange}
+                    className="w-full p-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white text-sm"
+                  >
+                    {availableVoices.map(voice => (
+                      <option key={voice} value={voice}>
+                        {getVoiceName(voice)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Playback Speed */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <label htmlFor="rate-slider" className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Speed: {playbackRate.toFixed(1)}x
+                </label>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500">0.5x</span>
+                  <input
+                    type="range"
+                    id="rate-slider"
+                    min="0.5"
+                    max="2"
+                    step="0.1"
+                    value={playbackRate}
+                    onChange={handleRateChange}
+                    className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                  <span className="text-xs text-gray-500">2.0x</span>
+                </div>
               </div>
-            )}
-            
-            <div className="mt-4 px-4 w-full max-w-md">
-              <label htmlFor="rate-slider" className="block text-sm font-medium text-gray-700 mb-1">
-                Speed: {playbackRate.toFixed(1)}x
-              </label>
-              <input
-                type="range"
-                id="rate-slider"
-                min="0.5"
-                max="2"
-                step="0.1"
-                value={playbackRate}
-                onChange={handleRateChange}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-              />
-            </div>
-            
-            <div className="mt-4 px-4 w-full max-w-md">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sentences per segment: {windowSize}
-              </label>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => handleWindowSizeChange(1)}
-                  className={`px-2 py-1 rounded ${windowSize === 1 ? 'bg-gray-700 text-white' : 'bg-gray-200'}`}
-                >
-                  1
-                </button>
-                <button 
-                  onClick={() => handleWindowSizeChange(3)}
-                  className={`px-2 py-1 rounded ${windowSize === 3 ? 'bg-gray-700 text-white' : 'bg-gray-200'}`}
-                >
-                  3
-                </button>
-                <button 
-                  onClick={() => handleWindowSizeChange(5)}
-                  className={`px-2 py-1 rounded ${windowSize === 5 ? 'bg-gray-700 text-white' : 'bg-gray-200'}`}
-                >
-                  5
-                </button>
+
+              {/* Segment Size & Auto-advance in one row */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Segment
+                  </label>
+                  <div className="flex gap-1">
+                    {[1, 3, 5].map(size => (
+                      <button 
+                        key={size}
+                        onClick={() => handleWindowSizeChange(size)}
+                        className={`flex-1 py-1.5 px-2 rounded text-xs font-medium transition-all duration-200 ${
+                          windowSize === size 
+                            ? 'bg-amber-600 text-white' 
+                            : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Auto
+                  </label>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="auto-play"
+                      checked={autoPlay}
+                      onChange={toggleAutoPlay}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-amber-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                  </label>
+                </div>
               </div>
             </div>
-            
-            {/* Auto play toggle */}
-            <div className="mt-4 flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="auto-play"
-                checked={autoPlay}
-                onChange={toggleAutoPlay}
-                className="h-4 w-4 text-gray-700 focus:ring-gray-500 border-gray-300 rounded"
-              />
-              <label htmlFor="auto-play" className="text-sm font-medium text-gray-700">
-                Auto-advance between segments
-              </label>
-            </div>
-            
-            <div className="mt-8 max-h-48 overflow-y-auto p-4 border border-gray-200 rounded bg-gray-50 w-full max-w-md">
-              <p className="text-sm text-gray-700">
-                {segments.length > 0 ? segments[0].text + '...' : 'Loading text...'}
-              </p>
+
+            {/* Compact Content Preview */}
+            <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+              <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
+                <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                Preview
+              </h4>
+              <div className="max-h-20 overflow-y-auto">
+                <p className="text-xs text-gray-700 leading-relaxed">
+                  {segments.length > 0 ? segments[0].text.substring(0, 150) + '...' : 'Loading content...'}
+                </p>
+              </div>
             </div>
           </div>
         ) : (
           <div className="flex flex-col h-full">
-            {/* Progress bar */}
-            <div className="w-full bg-gray-200 h-2">
-              <div 
-                className="bg-gray-700 h-2 transition-all duration-300" 
-                style={{ width: `${progressPercentage}%` }}
-              ></div>
+            {/* Compact Header with progress */}
+            <div className="bg-amber-600 text-white p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Audiobook Player</h3>
+                    <p className="text-amber-100 text-sm">Segment {currentSegmentIndex + 1} of {segments.length}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  {/* Voice indicator */}
+                  <div className="flex items-center gap-2 bg-white/20 rounded-md px-2 py-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span className="text-xs font-medium">{getVoiceName(selectedVoice)}</span>
+                  </div>
+                  
+                  {/* Auto-advance indicator */}
+                  <div className="flex items-center gap-2 bg-white/20 rounded-md px-2 py-1">
+                    <div className={`w-1.5 h-1.5 rounded-full ${autoPlay ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+                    <span className="text-xs font-medium">{autoPlay ? 'Auto' : 'Manual'}</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Progress bar */}
+              <div className="w-full bg-white/20 rounded-full h-1.5 mb-1">
+                <div 
+                  className="bg-white h-1.5 rounded-full transition-all duration-300 ease-out" 
+                  style={{ width: `${progressPercentage}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-xs text-amber-100">
+                <span>{Math.round(progressPercentage)}% complete</span>
+                <span>{segments.length - currentSegmentIndex - 1} remaining</span>
+              </div>
             </div>
             
             {/* Text display area */}
             <div
-              className="relative flex-grow w-full bg-[#f8f5e6] p-4 sm:p-8 overflow-y-auto"
+              className="relative flex-grow w-full bg-amber-50 p-6 overflow-y-auto"
               ref={textContainerRef}
             >
-              <p className="text-base sm:text-2xl leading-relaxed font-serif">
-                <span className={segments[currentSegmentIndex]?.isPlaying ? 'current-segment' : ''}>
-                  {getCurrentSegmentText()}
-                </span>
-                {isPlaying && !isPaused && <span className="inline-block animate-pulse">|</span>}
-              </p>
-            </div>
-            
-            {/* Auto-play and voice indicator */}
-            <div className="py-2 bg-gray-100 text-center text-sm flex justify-between items-center px-4">
-              <span className="text-gray-700">
-                Segment {currentSegmentIndex + 1} of {segments.length}
-              </span>
-              <div className="flex items-center gap-4">
-                {/* Voice indicator */}
-                <span className="text-xs text-gray-600 flex items-center gap-1">
-                  <span className="font-medium">Voice:</span> {getVoiceName(selectedVoice)}
-                </span>
-                
-                {/* Auto-advance indicator */}
-                <span className="flex items-center gap-1">
-                  <span 
-                    className={`inline-block w-2 h-2 rounded-full ${autoPlay ? 'bg-green-500' : 'bg-gray-400'}`}
-                  ></span>
-                  <span className="text-xs text-gray-600">
-                    {autoPlay ? 'Auto' : 'Manual'}
-                  </span>
-                </span>
+              <div className="max-w-3xl mx-auto">
+                <div className="bg-white/90 rounded-xl p-6 shadow-sm border border-amber-200">
+                  <p className="text-base sm:text-lg leading-relaxed font-serif text-gray-800">
+                    <span className={segments[currentSegmentIndex]?.isPlaying ? 'text-amber-700 font-medium' : 'text-gray-700'}>
+                      {getCurrentSegmentText()}
+                    </span>
+                    {isPlaying && !isPaused && (
+                      <span className="inline-block w-0.5 h-5 bg-amber-600 ml-1 animate-pulse"></span>
+                    )}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {isPlaying && !errorMessage && (
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center flex-wrap gap-4">
-            <button
-              onClick={handlePrevious}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none disabled:opacity-50"
-              disabled={currentSegmentIndex <= 0}
-            >
-              ← Previous
-            </button>
             
-            <button
-              onClick={handlePlay}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-            >
-              {isPaused ? '▶ Resume' : isPlaying ? '⏸ Pause' : '▶ Play'}
-            </button>
-            
-            <button
-              onClick={handleNext}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none disabled:opacity-50"
-              disabled={currentSegmentIndex >= segments.length - 1}
-            >
-              Next →
-            </button>
-            
-            <button
-              onClick={handleStop}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-            >
-              ⏹ Stop
-            </button>
-            
-            {/* Auto-play toggle */}
-            <button
-              onClick={toggleAutoPlay}
-              className={`px-4 py-2 rounded-md shadow-md focus:outline-none flex items-center gap-2 ${
-                autoPlay 
-                  ? 'bg-green-600 hover:bg-green-700 text-white' 
-                  : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
-              }`}
-            >
-              {autoPlay ? '🔄 Auto' : '⏭️ Manual'}
-            </button>
-          </div>
-        )}
-        
-        {isPlaying && (
-          <div className="absolute top-4 right-12 flex items-center gap-3">
-            {/* Voice selector during playback */}
-            {availableVoices.length > 0 && (
-              <select
-                value={selectedVoice}
-                onChange={handleVoiceChange}
-                className="form-select rounded border-gray-300 text-sm"
-              >
-                {availableVoices.map(voice => (
-                  <option key={voice} value={voice}>
-                    {getVoiceName(voice)}
-                  </option>
-                ))}
-              </select>
-            )}
-            
-            {/* Playback speed */}
-            <select
-              value={playbackRate.toString()}
-              onChange={handleRateChange}
-              className="form-select rounded border-gray-300 text-sm"
-            >
-              <option value="0.5">0.5x</option>
-              <option value="0.75">0.75x</option>
-              <option value="1">1x</option>
-              <option value="1.25">1.25x</option>
-              <option value="1.5">1.5x</option>
-              <option value="1.75">1.75x</option>
-              <option value="2">2x</option>
-            </select>
+            {/* Compact Control Bar */}
+            <div className="bg-white border-t border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                {/* Playback Controls */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePrevious}
+                    className="w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={currentSegmentIndex <= 0}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  
+                  <button
+                    onClick={handlePlay}
+                    className="w-12 h-12 bg-amber-600 hover:bg-amber-700 text-white rounded-lg flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg"
+                  >
+                    {isPaused ? (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6l4-3-4-3z" />
+                      </svg>
+                    )}
+                  </button>
+                  
+                  <button
+                    onClick={handleNext}
+                    className="w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={currentSegmentIndex >= segments.length - 1}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  
+                  <button
+                    onClick={handleStop}
+                    className="w-10 h-10 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg flex items-center justify-center transition-all duration-200"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10h6v4H9z" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Settings Controls */}
+                <div className="flex items-center gap-3">
+                  {/* Voice selector */}
+                  {availableVoices.length > 0 && (
+                    <select
+                      value={selectedVoice}
+                      onChange={handleVoiceChange}
+                      className="px-2 py-1 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                    >
+                      {availableVoices.map(voice => (
+                        <option key={voice} value={voice}>
+                          {getVoiceName(voice)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  
+                  {/* Playback speed */}
+                  <select
+                    value={playbackRate.toString()}
+                    onChange={handleRateChange}
+                    className="px-2 py-1 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                  >
+                    <option value="0.5">0.5x</option>
+                    <option value="0.75">0.75x</option>
+                    <option value="1">1x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                    <option value="1.75">1.75x</option>
+                    <option value="2">2x</option>
+                  </select>
+                  
+                  {/* Auto-play toggle */}
+                  <button
+                    onClick={toggleAutoPlay}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
+                      autoPlay 
+                        ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full ${autoPlay ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                    {autoPlay ? 'Auto' : 'Manual'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
