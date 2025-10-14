@@ -2,7 +2,8 @@ import React from 'react';
 import { useFullCastUsage } from '../../hooks/useFullCastUsage';
 import { trackEvent } from '../../lib/analytics';
 import {
-  ChevronLeft, ChevronRight, Headphones, PlayCircle, PauseCircle, RotateCcw, Loader2, Square
+  Headphones, PlayCircle, PauseCircle, RotateCcw, 
+  Loader2, Square, SkipBack, SkipForward, Settings
 } from 'lucide-react';
 
 // Import the stylesheet. It will now handle all the appearance styling.
@@ -13,8 +14,8 @@ interface ControlsProps {
   totalPages: number;
   onReadAloud: () => void;
   onStopTTS: () => void;
-  onPreviousSentence: () => void;  // New: Previous sentence navigation
-  onNextSentence: () => void;      // New: Next sentence navigation
+  onPreviousSentence: () => void;
+  onNextSentence: () => void;
   isReading: boolean;
   isPaused: boolean;
   isProcessing: boolean;
@@ -22,6 +23,14 @@ interface ControlsProps {
   onAudiobook: () => void;
   isPlayModeActive: boolean;
   isReadButtonActive: boolean;
+  // Progress tracking
+  currentChunkIndex?: number | null;
+  totalChunks?: number;
+  // Speed control
+  ttsSpeed?: number;
+  onSpeedChange?: (speed: number) => void;
+  // Settings
+  onOpenSettings?: () => void;
   // Full Cast props
   fullCastActive: boolean;
   fullCastStatus: string;
@@ -38,8 +47,8 @@ const Controls: React.FC<ControlsProps> = ({
   totalPages,
   onReadAloud,
   onStopTTS,
-  onPreviousSentence,  // New: Previous sentence navigation
-  onNextSentence,      // New: Next sentence navigation
+  onPreviousSentence,
+  onNextSentence,
   isReading,
   isPaused,
   isProcessing,
@@ -47,6 +56,14 @@ const Controls: React.FC<ControlsProps> = ({
   onAudiobook,
   isPlayModeActive,
   isReadButtonActive,
+  // Progress tracking
+  currentChunkIndex = null,
+  totalChunks = 0,
+  // Speed control
+  ttsSpeed = 1,
+  onSpeedChange,
+  // Settings
+  onOpenSettings,
   // Full Cast props
   fullCastActive,
   fullCastStatus,
@@ -59,250 +76,289 @@ const Controls: React.FC<ControlsProps> = ({
 }) => {
   const { usedMinutes: fcUsed, totalMinutes: fcTotal } = useFullCastUsage();
 
-  let readButtonIcon: React.ReactNode;
-  let readButtonLabel: string;
-  let readButtonTitle: string;
-
-  if (isProcessing && !isReading && !isPaused) {
-    readButtonIcon = <Loader2 size={20} className="animate-spin" />;
-    readButtonLabel = 'Loading...';
-    readButtonTitle = 'Preparing audio...';
-  } else if (isPaused) {
-    readButtonIcon = <PlayCircle size={20} />;
-    readButtonLabel = 'Resume';
-    readButtonTitle = 'Resume paused reading';
-  } else if (isReading) {
-    readButtonIcon = <PauseCircle size={20} />;
-    readButtonLabel = 'Pause';
-    readButtonTitle = 'Pause reading';
-  } else if (canResume) {
-    readButtonIcon = <RotateCcw size={20} />;
-    readButtonLabel = 'Resume';
-    readButtonTitle = 'Resume reading from last TTS position';
-  } else {
-    readButtonIcon = <PlayCircle size={20} />;
-    readButtonLabel = 'Read';
-    readButtonTitle = 'Read aloud (select text or from start of page)';
-  }
+  // Calculate chapter progress percentage
+  const chapterProgress = totalChunks > 0 && currentChunkIndex !== null 
+    ? Math.round(((currentChunkIndex + 1) / totalChunks) * 100)
+    : 0;
 
   const showStopButton = isReading || isPaused || isProcessing;
-  const showFullCastStatus = fullCastActive;
   
   // Determine which mode is active to hide other options
   const isReadModeActive = isReading || isPaused || isProcessing || canResume;
   const isAudiobookModeActive = isPlayModeActive;
 
+  // Button title logic
+  let readButtonTitle: string;
+  if (isProcessing && !isReading && !isPaused) {
+    readButtonTitle = 'Preparing audio...';
+  } else if (isPaused) {
+    readButtonTitle = 'Resume paused reading';
+  } else if (isReading) {
+    readButtonTitle = 'Pause reading';
+  } else if (canResume) {
+    readButtonTitle = 'Resume reading from last TTS position';
+  } else {
+    readButtonTitle = 'Read aloud (select text or from start of page)';
+  }
+
+  // Show Full Cast controls when Full Cast is active
+  if (fullCastActive) {
+    return (
+      <div className="music-player-controls bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+        {/* Full Cast Status */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <span className="inline-flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+            <span>{fullCastStatus}</span>
+            {fullCastBuffered > 0 && (
+              <span className="text-xs bg-gray-100 rounded px-2 py-0.5">Buffered: {fullCastBuffered}</span>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {fullCastNeedsTap && (
+              <button
+                className="px-2 py-1 text-xs bg-blue-600 text-white rounded"
+                onClick={() => {
+                  try {
+                    const a = (window as any).__fullCastAudio as HTMLAudioElement | undefined;
+                    a?.play();
+                  } catch {}
+                }}
+              >
+                Tap to Play
+              </button>
+            )}
+            
+            {!fullCastPaused ? (
+              <button
+                onClick={onFullCastPause}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                aria-label="Pause Full Cast"
+                title="Pause Full Cast"
+              >
+                <PauseCircle size={18} className="text-gray-600" />
+              </button>
+            ) : (
+              <button
+                onClick={onFullCastResume}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                aria-label="Resume Full Cast"
+                title="Resume Full Cast"
+              >
+                <PlayCircle size={18} className="text-gray-600" />
+              </button>
+            )}
+
+            <button
+              onClick={onFullCastStop}
+              className="p-2 rounded-full hover:bg-red-100 text-red-600 transition-colors"
+              aria-label="Stop Full Cast"
+              title="Stop Full Cast"
+            >
+              <Square size={18} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show Read Aloud music player controls when Read Aloud is active
+  if (isReadModeActive) {
+    return (
+      <div className="music-player-controls bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+        {/* Progress Section */}
+        <div className="mb-6">
+          {/* Chapter Progress Bar */}
+          <div className="relative mb-3">
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-gradient-to-r from-amber-600 to-amber-800 h-2 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${chapterProgress}%` }}
+              />
+            </div>
+            {/* Progress percentage */}
+            <div className="flex justify-between text-sm text-gray-600 mt-2">
+              <span>Chapter Progress</span>
+              <span className="font-medium text-amber-700">{chapterProgress}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Controls */}
+        <div className="flex items-center justify-between gap-6">
+          {/* Left Side - Settings Button */}
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              className="p-3 rounded-full hover:bg-amber-100 transition-colors"
+              aria-label="Open settings"
+              title="Open settings"
+            >
+              <Settings size={22} className="text-amber-700" />
+            </button>
+          )}
+
+          {/* Center - Play Controls */}
+          <div className="flex items-center gap-4">
+            {/* Previous Button */}
+            <button
+              onClick={onPreviousSentence}
+              className="p-3 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="Previous sentence"
+              title="Previous sentence"
+              disabled={isProcessing}
+            >
+              <SkipBack size={22} className="text-gray-600" />
+            </button>
+
+          {/* Main Play/Pause Button */}
+          <button
+            onClick={onReadAloud}
+            className={`p-4 rounded-full transition-all duration-200 ${
+              isReadButtonActive 
+                ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg' 
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            }`}
+            aria-label={readButtonTitle}
+            title={readButtonTitle}
+            disabled={isProcessing && !isReading && !isPaused}
+          >
+            {isProcessing && !isReading && !isPaused ? (
+              <Loader2 size={26} className="animate-spin" />
+            ) : isPaused ? (
+              <PlayCircle size={26} />
+            ) : isReading ? (
+              <PauseCircle size={26} />
+            ) : canResume ? (
+              <RotateCcw size={26} />
+            ) : (
+              <PlayCircle size={26} />
+            )}
+          </button>
+
+            {/* Next Button */}
+            <button
+              onClick={onNextSentence}
+              className="p-3 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="Next sentence"
+              title="Next sentence"
+              disabled={isProcessing}
+            >
+              <SkipForward size={22} className="text-gray-600" />
+            </button>
+          </div>
+
+          {/* Right Side - Speed Control and Stop Button */}
+          <div className="flex items-center gap-4">
+            {/* Speed Control */}
+            {onSpeedChange && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onSpeedChange(Math.max(0.5, ttsSpeed - 0.1))}
+                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-amber-100 border border-gray-200 hover:border-amber-300 flex items-center justify-center text-sm font-medium transition-colors text-gray-600 hover:text-amber-700"
+                  disabled={ttsSpeed <= 0.5}
+                >
+                  -
+                </button>
+                <span className="text-sm font-medium min-w-[2rem] text-center text-amber-700">
+                  {Math.round(ttsSpeed * 10) / 10}x
+                </span>
+                <button
+                  onClick={() => onSpeedChange(Math.min(2.0, ttsSpeed + 0.1))}
+                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-amber-100 border border-gray-200 hover:border-amber-300 flex items-center justify-center text-sm font-medium transition-colors text-gray-600 hover:text-amber-700"
+                  disabled={ttsSpeed >= 2.0}
+                >
+                  +
+                </button>
+              </div>
+            )}
+
+            {/* Stop Button */}
+            {showStopButton && (
+              <button
+                onClick={onStopTTS}
+                className="p-3 rounded-full hover:bg-red-100 text-red-600 transition-colors"
+                aria-label="Stop TTS"
+                title="Stop TTS"
+              >
+                <Square size={22} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Original Button Layout - When no TTS is active
   return (
-    // This container uses Tailwind for high-level layout with better space management
     <div className="flex flex-wrap items-center justify-between gap-4">
-      
-      {/* Navigation Controls - Prev/Next removed; keep page info */}
+      {/* Page Info */}
       <div className="flex items-center gap-x-3 flex-shrink-0">
         <span className="page-info px-4 py-2 rounded-lg text-sm font-medium">
           {currentPage + 1} / {totalPages}
         </span>
       </div>
 
-      {/* Audio Controls use Tailwind for layout with better space management */}
+      {/* Original Action Buttons */}
       <div className="flex items-center gap-x-2 flex-shrink-0">
-        {/* Full Cast Status Display - shows when Full Cast is active */}
-        {showFullCastStatus ? (
-          <>
-            {/* Full Cast Status */}
-            <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600">
-              <span className="inline-flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-              <span className="text-xs md:text-sm">{fullCastStatus}</span>
-              {fullCastBuffered > 0 && (
-                <span className="text-xs bg-gray-100 rounded px-2 py-0.5">Buffered: {fullCastBuffered}</span>
-              )}
-              {fullCastNeedsTap && (
-                <button
-                  className="px-2 py-1 text-xs bg-blue-600 text-white rounded"
-                  onClick={() => {
-                    try {
-                      const a = (window as any).__fullCastAudio as HTMLAudioElement | undefined;
-                      a?.play();
-                    } catch {}
-                  }}
-                >
-                  Tap to Play
-                </button>
-              )}
-            </div>
-            
-            {/* Full Cast Controls: Pause/Resume and Stop */}
-            {!fullCastPaused ? (
-              <button
-                onClick={onFullCastPause}
-                className="control-button flex items-center gap-2 px-3 py-2"
-                aria-label="Pause Full Cast"
-                title="Pause Full Cast narration"
-              >
-                <PauseCircle size={20} />
-                <span className="button-text text-sm font-medium">Pause</span>
-              </button>
-            ) : (
-              <button
-                onClick={onFullCastResume}
-                className="control-button flex items-center gap-2 px-3 py-2"
-                aria-label="Resume Full Cast"
-                title="Resume Full Cast narration"
-              >
-                <PlayCircle size={20} />
-                <span className="button-text text-sm font-medium">Resume</span>
-              </button>
-            )}
+        {/* Read Aloud Button */}
+        <button
+          onClick={onReadAloud}
+          className="control-button flex items-center gap-2 px-3 py-2"
+          aria-label={readButtonTitle}
+          title={readButtonTitle}
+          disabled={isProcessing && !isReading && !isPaused}
+        >
+          <PlayCircle size={20} />
+          <span className="button-text text-sm font-medium">Read Aloud</span>
+        </button>
 
-            <button
-              onClick={onFullCastStop}
-              className="control-button stop-button flex items-center gap-2 px-3 py-2"
-              aria-label="Stop Full Cast"
-              title="Stop Full Cast narration"
-            >
-              <Square size={20} />
-              <span className="button-text text-sm font-medium">Stop</span>
-            </button>
-          </>
-        ) : (
-          <>
-            {/* Read Mode Controls - Show when Read mode is active */}
-            {isReadModeActive ? (
-              <>
-                {/* Read/Pause/Resume Button */}
-                <button
-                  onClick={onReadAloud}
-                  className={`control-button flex items-center gap-2 px-3 py-2 ${isReadButtonActive ? 'active' : ''}`}
-                  aria-label={readButtonTitle}
-                  title={readButtonTitle}
-                  disabled={isProcessing && !isReading && !isPaused}
-                >
-                  {readButtonIcon}
-                  <span className="button-text text-sm font-medium">{readButtonLabel}</span>
-                </button>
-
-                {/* Previous Sentence Button - Only show when TTS is active */}
-                {(isReading || isPaused || canResume) && (
-                  <button
-                    onClick={onPreviousSentence}
-                    className="control-button flex items-center gap-2 px-3 py-2"
-                    aria-label="Previous sentence"
-                    title="Listen to previous sentence"
-                    disabled={isProcessing}
-                  >
-                    <ChevronLeft size={16} />
-                    <span className="button-text text-sm font-medium">Prev</span>
-                  </button>
-                )}
-
-                {/* Next Sentence Button - Only show when TTS is active */}
-                {(isReading || isPaused || canResume) && (
-                  <button
-                    onClick={onNextSentence}
-                    className="control-button flex items-center gap-2 px-3 py-2"
-                    aria-label="Next sentence"
-                    title="Listen to next sentence"
-                    disabled={isProcessing}
-                  >
-                    <span className="button-text text-sm font-medium">Next</span>
-                    <ChevronRight size={16} />
-                  </button>
-                )}
-
-                {/* Stop Button */}
-                {showStopButton && (
-                  <button
-                    onClick={onStopTTS}
-                    className="control-button stop-button flex items-center gap-2 px-3 py-2"
-                    aria-label="Stop TTS"
-                    title="Stop TTS and clear saved position"
-                  >
-                    <Square size={20} />
-                    <span className="button-text text-sm font-medium">Stop</span>
-                  </button>
-                )}
-              </>
-            ) : (
-              <>
-                {/* Read Button - Show when no mode is active */}
-                <button
-                  onClick={onReadAloud}
-                  className="control-button flex items-center gap-2 px-3 py-2"
-                  aria-label={readButtonTitle}
-                  title={readButtonTitle}
-                  disabled={isProcessing && !isReading && !isPaused}
-                >
-                  <PlayCircle size={20} />
-                  <span className="button-text text-sm font-medium">Read Aloud</span>
-                </button>
-              </>
-            )}
-
-            {/* Audiobook Mode Controls - Show when Audiobook mode is active */}
-            {isAudiobookModeActive ? (
-              <>
-                {/* Audiobook Stop Button */}
-                <button
-                  onClick={onAudiobook}
-                  className="control-button stop-button flex items-center gap-2 px-3 py-2"
-                  aria-label="Stop Audiobook"
-                  title="Stop Audiobook mode"
-                >
-                  <Square size={20} />
-                  <span className="button-text text-sm font-medium">Stop</span>
-                </button>
-              </>
-            ) : !isReadModeActive ? (
-              <>
-                {/* Audiobook Button - Show when no mode is active */}
-                <button
-                  onClick={onAudiobook}
-                  className="control-button hidden md:flex items-center gap-2 px-3 py-2"
-                  aria-label="Audiobook mode"
-                  title="Audiobook mode"
-                  disabled={isProcessing}
-                >
-                  <Headphones size={20} />
-                  <span className="button-text text-sm font-medium">Offline TTS</span>
-                </button>
-              </>
-            ) : null}
-
-            {/* Full Cast Button - Only show when no mode is active */}
-            {!isReadModeActive && !isAudiobookModeActive && (
-              <button
-                className="control-button flex items-center gap-2 px-3 py-2 border border-gray-300"
-                onClick={() => {
-                  // Enforce 300-minute monthly quota for Full Cast
-                  if (typeof fcUsed === 'number' && typeof fcTotal === 'number' && fcUsed >= fcTotal) {
-                    // Track quota exceeded event
-                    trackEvent('full_cast_quota_exceeded', {
-                      used_minutes: fcUsed,
-                      total_minutes: fcTotal,
-                      remaining_minutes: Math.max(0, fcTotal - fcUsed)
-                    });
-                    alert('You have reached your Full Cast monthly quota (300 minutes).');
-                    return;
-                  }
-                  
-                  // Track Full Cast button click
-                  trackEvent('full_cast_start', {
-                    used_minutes: fcUsed || 0,
-                    total_minutes: fcTotal || 300,
-                    remaining_minutes: Math.max(0, (fcTotal || 300) - (fcUsed || 0))
-                  });
-                  
-                  const event = new CustomEvent('full-cast-request');
-                  window.dispatchEvent(event);
-                }}
-                title="Full Cast Narration (Beta)"
-                aria-label="Full Cast Narration"
-                disabled={isProcessing}
-              >
-                <span className="button-text text-sm font-medium">Full Cast Audiobook</span>
-              </button>
-            )}
-          </>
+        {/* Audiobook Button */}
+        {!isAudiobookModeActive && (
+          <button
+            onClick={onAudiobook}
+            className="control-button hidden md:flex items-center gap-2 px-3 py-2"
+            aria-label="Audiobook mode"
+            title="Audiobook mode"
+            disabled={isProcessing}
+          >
+            <Headphones size={20} />
+            <span className="button-text text-sm font-medium">Offline TTS</span>
+          </button>
         )}
+
+        {/* Full Cast Button */}
+        <button
+          className="control-button flex items-center gap-2 px-3 py-2 border border-gray-300"
+          onClick={() => {
+            if (typeof fcUsed === 'number' && typeof fcTotal === 'number' && fcUsed >= fcTotal) {
+              trackEvent('full_cast_quota_exceeded', {
+                used_minutes: fcUsed,
+                total_minutes: fcTotal,
+                remaining_minutes: Math.max(0, fcTotal - fcUsed)
+              });
+              alert('You have reached your Full Cast monthly quota (300 minutes).');
+              return;
+            }
+            
+            trackEvent('full_cast_start', {
+              used_minutes: fcUsed || 0,
+              total_minutes: fcTotal || 300,
+              remaining_minutes: Math.max(0, (fcTotal || 300) - (fcUsed || 0))
+            });
+            
+            const event = new CustomEvent('full-cast-request');
+            window.dispatchEvent(event);
+          }}
+          title="Full Cast Narration (Beta)"
+          aria-label="Full Cast Narration"
+          disabled={isProcessing}
+        >
+          <span className="button-text text-sm font-medium">Full Cast Audiobook</span>
+        </button>
       </div>
     </div>
   );

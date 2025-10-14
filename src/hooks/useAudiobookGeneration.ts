@@ -10,7 +10,9 @@ export interface UseAudiobookGeneration {
   chapterAudios: ChapterAudio[];
   extractChapters: (epubFile: File) => Promise<void>;
   generateSingleChapter: (chapterIndex: number, options: AudiobookOptions) => Promise<void>;
+  regenerateChapter: (chapterIndex: number, options: AudiobookOptions) => Promise<void>;
   downloadChapter: (chapterIndex: number) => void;
+  streamChapter: (chapterIndex: number, options: AudiobookOptions) => Promise<void>;
   reset: () => void;
 }
 
@@ -116,6 +118,34 @@ export function useAudiobookGeneration(): UseAudiobookGeneration {
     }
   }, [generator, chapters]);
 
+  const regenerateChapter = useCallback(async (
+    chapterIndex: number, 
+    options: AudiobookOptions
+  ): Promise<void> => {
+    const chapter = chapters.find(c => c.index === chapterIndex);
+    if (!chapter) {
+      setError(`Chapter ${chapterIndex} not found`);
+      return;
+    }
+
+    // First, reset the chapter's audio state to "not generated"
+    setChapterAudios(prev => prev.map(ca => 
+      ca.chapterIndex === chapterIndex 
+        ? { 
+            ...ca, 
+            isGenerated: false, 
+            isGenerating: false, 
+            error: undefined,
+            audioBlob: new Blob([''], { type: 'audio/wav' }),
+            duration: 0
+          }
+        : ca
+    ));
+
+    // Then generate the audio with new settings
+    await generateSingleChapter(chapterIndex, options);
+  }, [chapters, generateSingleChapter]);
+
   const downloadChapter = useCallback((chapterIndex: number): void => {
     const chapterAudio = chapterAudios.find(ca => ca.chapterIndex === chapterIndex);
     if (!chapterAudio || !chapterAudio.isGenerated) {
@@ -132,6 +162,39 @@ export function useAudiobookGeneration(): UseAudiobookGeneration {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }, [chapterAudios]);
+
+  const streamChapter = useCallback(async (
+    chapterIndex: number, 
+    options: AudiobookOptions
+  ): Promise<void> => {
+    const chapter = chapters.find(c => c.index === chapterIndex);
+    if (!chapter) {
+      setError(`Chapter ${chapterIndex} not found`);
+      return;
+    }
+
+    try {
+      console.log(`[useAudiobookGeneration] Starting streaming for chapter: ${chapter.title}`);
+      
+      // Import KokoroTTSService for streaming
+      const { KokoroTTSService } = await import('../services/KokoroTTSService');
+      const ttsService = new KokoroTTSService();
+      
+      // Initialize with the selected voice
+      await ttsService.initialize((progress) => {
+        console.log(`[useAudiobookGeneration] TTS initialization progress: ${progress}%`);
+      }, options.voice);
+      
+      // Stream the chapter content directly (this will play audio)
+      await ttsService.playText(chapter.content);
+      
+      console.log(`[useAudiobookGeneration] Completed streaming for chapter: ${chapter.title}`);
+      
+    } catch (error) {
+      console.error(`[useAudiobookGeneration] Failed to stream chapter "${chapter.title}":`, error);
+      setError(`Failed to stream chapter: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, [chapters]);
 
   const reset = useCallback(() => {
     setIsInitializing(false);
@@ -151,7 +214,9 @@ export function useAudiobookGeneration(): UseAudiobookGeneration {
     chapterAudios,
     extractChapters,
     generateSingleChapter,
+    regenerateChapter,
     downloadChapter,
+    streamChapter,
     reset
   };
 }

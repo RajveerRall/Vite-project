@@ -1,11 +1,9 @@
-import { KokoroTTSService, ProgressCallback } from './KokoroTTSService';
-import { BookData, TOCItem } from '../types/books';
+import { KokoroTTSService } from './KokoroTTSService';
 
 // Audiobook generation interfaces
 export interface AudiobookOptions {
   voice: string;
   speed: number;
-  quality: 'standard' | 'premium';
   includeChapters: boolean;
   backgroundMusic?: boolean;
 }
@@ -253,7 +251,9 @@ export class AudiobookGenerator {
           title: chapter.title,
           audioBlob,
           duration,
-          startTime: totalDuration
+          startTime: totalDuration,
+          isGenerated: true,
+          isGenerating: false
         });
         
         totalDuration += duration;
@@ -351,7 +351,39 @@ export class AudiobookGenerator {
       }
     }
     
-    // Extract TOC (simplified version of BookContext logic)
+    // Extract TOC from toc.ncx file
+    const tocContent = await loadedZip.file('OEBPS/toc.ncx')?.async('text');
+    const tocMap = new Map<string, string>(); // file path -> title mapping
+    
+    if (tocContent) {
+      try {
+        const tocDoc = parser.parseFromString(tocContent, 'application/xml');
+        const navPoints = tocDoc.getElementsByTagName('navPoint');
+        
+        for (let i = 0; i < navPoints.length; i++) {
+          const navPoint = navPoints[i];
+          const navLabel = navPoint.getElementsByTagName('navLabel')[0];
+          const content = navPoint.getElementsByTagName('content')[0];
+          
+          if (navLabel && content) {
+            const title = navLabel.getElementsByTagName('text')[0]?.textContent?.trim();
+            const src = content.getAttribute('src');
+            
+            if (title && src) {
+              // Convert src path to match our file paths
+              const filePath = src.startsWith('html/') ? `OEBPS/${src}` : `OEBPS/html/${src}`;
+              tocMap.set(filePath, title);
+            }
+          }
+        }
+        
+        console.log(`[AudiobookGenerator] Loaded ${tocMap.size} chapter titles from TOC`);
+      } catch (error) {
+        console.warn('[AudiobookGenerator] Could not parse TOC file:', error);
+      }
+    }
+    
+    // Extract chapters
     const chapters: Chapter[] = [];
     
     for (let i = 0; i < fileOrder.length; i++) {
@@ -365,13 +397,23 @@ export class AudiobookGenerator {
         const cleanedHtml = cleanEpubContent(processedHtml);
         const textContent = extractTextFromHtml(cleanedHtml);
         
-        // Generate chapter title
-        const fileName = filePath.split('/').pop()?.replace(/\.[^/.]+$/, '') || '';
-        const title = fileName || `Chapter ${i + 1}`;
+        // Get chapter title from TOC, fallback to generic name
+        let title = tocMap.get(filePath) || `Chapter ${i + 1}`;
         
-        // Estimate duration (rough calculation: ~150 words per minute)
+        // Clean up the title (remove extra whitespace, etc.)
+        title = title.replace(/\s+/g, ' ').trim();
+        
+        // Estimate duration using improved calculation
         const wordCount = textContent.split(/\s+/).length;
-        const estimatedDuration = (wordCount / 150) * 60; // seconds
+        
+        // Use default settings for initial estimation
+        const defaultOptions: AudiobookOptions = {
+          voice: 'af_heart',
+          speed: 1.0,
+          includeChapters: true
+        };
+        
+        const estimatedDuration = this.getAccurateDurationEstimate(textContent, defaultOptions);
         
         chapters.push({
           index: i,
@@ -395,116 +437,158 @@ export class AudiobookGenerator {
   }
   
   /**
+   * Get more accurate duration estimate based on TTS settings
+   */
+  private getAccurateDurationEstimate(textContent: string, options: AudiobookOptions): number {
+    const wordCount = textContent.split(/\s+/).length;
+    
+    // Base TTS speed (words per minute)
+    let baseWPM = 150; // Default Kokoro speed
+    
+    // Adjust for voice speed setting
+    baseWPM = baseWPM * options.speed;
+    
+    // Note: Quality is now auto-detected, so we use a standard overhead
+    
+    // Calculate base duration
+    const baseDuration = (wordCount / baseWPM) * 60; // seconds
+    
+    // Add overheads
+    const punctuationOverhead = baseDuration * 0.12; // 12% for punctuation pauses
+    const processingOverhead = baseDuration * 0.08; // 8% for TTS processing
+    const kokoroOverhead = baseDuration * 0.05; // 5% for Kokoro-specific processing
+    
+    return baseDuration + punctuationOverhead + processingOverhead + kokoroOverhead;
+  }
+
+  /**
    * Generate audio for a single chapter using Kokoro TTS
    */
   private async generateChapterAudio(chapter: Chapter, options: AudiobookOptions): Promise<Blob> {
-    // Use your existing Kokoro TTS service to generate audio
-    // This is a simplified implementation - we'll enhance it step by step
+    console.log(`[AudiobookGenerator] Generating audio for chapter: ${chapter.title}`);
     
-    const text = chapter.content;
-    const chunks = this.splitTextIntoChunks(text, 2000); // Your existing chunking logic
-    const audioChunks: Blob[] = [];
+    // Use KokoroTTSService directly - same as the working offline TTS
+    const captureService = new KokoroTTSService();
     
-    for (const chunk of chunks) {
-      try {
-        // Generate audio for this chunk using Kokoro
-        const audioBlob = await this.generateAudioChunk(chunk, options.voice);
-        audioChunks.push(audioBlob);
-      } catch (error) {
-        console.error(`[AudiobookGenerator] Failed to generate audio for chunk:`, error);
-        // Continue with other chunks
-      }
+    try {
+      // Initialize with the selected voice
+      await captureService.initialize((progress) => {
+        console.log(`[AudiobookGenerator] Kokoro initialization progress: ${progress}%`);
+      }, options.voice);
+      
+      // Use the new generateAudioStream method to capture audio
+      console.log(`[AudiobookGenerator] Generating audio stream for chapter: ${chapter.title}`);
+      const audioBlob = await captureService.generateAudioStream(chapter.content, options.voice);
+      
+      console.log(`[AudiobookGenerator] Successfully generated audio: ${audioBlob.size} bytes`);
+      return audioBlob;
+      
+    } catch (error) {
+      console.error(`[AudiobookGenerator] Failed to generate audio for chapter "${chapter.title}":`, error);
+      throw error;
+    } finally {
+      // Clean up
+      captureService.dispose();
     }
-    
-    // Combine all chunks into single audio blob
-    return await this.combineAudioChunks(audioChunks);
   }
   
+  /**
+   * Preprocess text to improve TTS quality (same as KokoroTTSService)
+   */
+  private preprocessText(text: string): string {
+    // Remove excess whitespace
+    let cleaned = text.replace(/\s+/g, ' ').trim();
+    
+    // Replace common abbreviations
+    cleaned = cleaned.replace(/(\w)\.(\w)/g, '$1. $2'); // e.g., "Mr.Smith" -> "Mr. Smith"
+    
+    // Add periods to make sure we have complete sentences
+    if (!cleaned.endsWith('.') && !cleaned.endsWith('!') && !cleaned.endsWith('?')) {
+      cleaned += '.';
+    }
+    
+    return cleaned;
+  }
+
   /**
    * Generate audio for a text chunk using Kokoro TTS
    */
   private async generateAudioChunk(text: string, voice: string): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      const audioChunks: ArrayBuffer[] = [];
-      let isComplete = false;
+    console.log(`[AudiobookGenerator] Generating audio with voice: ${voice}`);
+    
+    // Use the same initialization approach as KokoroTTSService.ts
+    const { KokoroTTS } = await import('kokoro-js');
+    
+    try {
+      // Check for WebGPU support (same as KokoroTTSService.ts)
+      const supportsWebGPU = 'gpu' in navigator;
+      console.log("WebGPU supported:", supportsWebGPU);
+
+      // Initialize Kokoro TTS (same approach as KokoroTTSService.ts)
+      const model_id = "onnx-community/Kokoro-82M-v1.0-ONNX";
+
+      // Automatically choose the best device/dtype combination
+      let device: "webgpu" | "wasm" | "cpu";
+      let dtype: "fp32" | "fp16" | "q8" | "q4" | "q4f16";
       
-      // Create a custom Kokoro TTS service instance for audio capture
-      const captureService = new KokoroTTSService();
+      if (supportsWebGPU) {
+        device = "webgpu";
+        dtype = "fp32";
+        console.log(`[AudiobookGenerator] Auto-detected WebGPU support: Using WebGPU + fp32 (best quality)`);
+      } else {
+        device = "wasm";
+        dtype = "q8";
+        console.log(`[AudiobookGenerator] No WebGPU support: Using WASM + q8 (compatible)`);
+      }
       
-      // Set up callbacks to capture audio instead of playing it
-      captureService.setCallbacks(
-        (text: string) => {
-          // Text update callback - we don't need this for audio generation
-          console.log(`[AudiobookGenerator] Processing: ${text.substring(0, 50)}...`);
-        },
-        (error: string) => {
-          console.error(`[AudiobookGenerator] TTS Error: ${error}`);
-          if (!isComplete) {
-            isComplete = true;
-            reject(new Error(error));
-          }
-        },
-        () => {
-          // Completion callback - combine all audio chunks
-          console.log(`[AudiobookGenerator] Audio generation complete for chunk`);
-          if (!isComplete) {
-            isComplete = true;
-            try {
-              const combinedAudio = this.combineAudioBuffers(audioChunks);
-              const blob = new Blob([combinedAudio], { type: 'audio/wav' });
-              resolve(blob);
-            } catch (error) {
-              reject(error);
-            }
-          }
-        }
-      );
+      console.log(`[AudiobookGenerator] Initializing with device: ${device}, dtype: ${dtype}`);
       
-      // Override the audio playback methods to capture audio instead
-      const originalPlayAudioFromArrayBuffer = captureService['playAudioFromArrayBuffer'];
-      captureService['playAudioFromArrayBuffer'] = async (audioData: ArrayBuffer) => {
-        console.log(`[AudiobookGenerator] Captured audio chunk: ${audioData.byteLength} bytes`);
-        audioChunks.push(audioData);
-        // Don't actually play the audio, just capture it
-      };
-      
-      const originalPlayRawAudioData = captureService['playRawAudioData'];
-      captureService['playRawAudioData'] = (audioData: Float32Array, sampleRate: number) => {
-        console.log(`[AudiobookGenerator] Captured raw audio: ${audioData.length} samples at ${sampleRate}Hz`);
-        // Convert Float32Array to ArrayBuffer
-        const buffer = new ArrayBuffer(audioData.length * 4);
-        const view = new Float32Array(buffer);
-        view.set(audioData);
-        audioChunks.push(buffer);
-        // Don't actually play the audio, just capture it
-      };
-      
-      // Initialize and generate audio
-      captureService.initialize((progress) => {
-        console.log(`[AudiobookGenerator] Kokoro initialization progress: ${progress}%`);
-      }).then(() => {
-        // Generate audio for the text
-        captureService.playText(text, voice).catch((error) => {
-          if (!isComplete) {
-            isComplete = true;
-            reject(error);
-          }
-        });
-      }).catch((error) => {
-        if (!isComplete) {
-          isComplete = true;
-          reject(error);
+      const tts = await KokoroTTS.from_pretrained(model_id, {
+        dtype: dtype,
+        device: device,
+        progress_callback: (progressInfo: any) => {
+          console.log("Loading progress:", progressInfo);
         }
       });
+
+      console.log("Kokoro TTS model loaded successfully for audiobook generation");
       
-      // Set a timeout to prevent hanging
-      setTimeout(() => {
-        if (!isComplete) {
-          isComplete = true;
-          reject(new Error('Audio generation timeout'));
-        }
-      }, 30000); // 30 second timeout
-    });
+      // Generate audio with the specified voice using the generate method
+      console.log(`[AudiobookGenerator] Generating audio with voice: ${voice}`);
+      const audio = await tts.generate(text, {
+        voice: voice as any, // Type assertion for voice parameter
+      });
+      
+      // Convert audio to Blob using browser-compatible methods
+      console.log(`[AudiobookGenerator] Converting audio to Blob for browser download`);
+      
+      let audioBlob: Blob;
+      
+      // Try the most common methods in order of preference
+      if (audio.toBlob && typeof audio.toBlob === 'function') {
+        audioBlob = await audio.toBlob();
+        console.log(`[AudiobookGenerator] Used toBlob() method - ${audioBlob.size} bytes`);
+      } else if (audio.toWav && typeof audio.toWav === 'function') {
+        const wavData = audio.toWav();
+        audioBlob = new Blob([wavData], { type: 'audio/wav' });
+        console.log(`[AudiobookGenerator] Used toWav() method - ${audioBlob.size} bytes`);
+      } else if ((audio as any).arrayBuffer && typeof (audio as any).arrayBuffer === 'function') {
+        const audioData = await (audio as any).arrayBuffer();
+        audioBlob = new Blob([audioData], { type: 'audio/wav' });
+        console.log(`[AudiobookGenerator] Used arrayBuffer() method - ${audioBlob.size} bytes`);
+      } else {
+        // Last resort: try to access the audio data directly
+        console.log(`[AudiobookGenerator] Audio object methods:`, Object.getOwnPropertyNames(audio));
+        throw new Error('Unable to extract audio data from Kokoro TTS result');
+      }
+      
+      console.log(`[AudiobookGenerator] Successfully generated audio with voice: ${voice}`);
+      return audioBlob;
+      
+    } catch (error) {
+      console.error(`[AudiobookGenerator] Failed to generate audio with voice ${voice}:`, error);
+      throw error;
+    }
   }
   
   /**
@@ -616,8 +700,8 @@ export class AudiobookGenerator {
    */
   private async combineChaptersIntoAudiobook(
     chapterAudios: ChapterAudio[],
-    epubFile: File,
-    options: AudiobookOptions
+    _epubFile: File,
+    _options: AudiobookOptions
   ): Promise<Blob> {
     // For now, return the first chapter as a placeholder
     // We'll implement proper audiobook packaging in the next step

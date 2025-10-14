@@ -32,6 +32,9 @@ export interface UseReaderTTSReturn {
   handlePreviousSentence: () => void;
   handleNextSentence: () => void;
   
+  // Audio control
+  setPlaybackRate: (rate: number) => void;
+  
   // Content rendering moved back to Reader component
   
   // Computed values
@@ -701,6 +704,14 @@ export const useReaderTTS = ({
 
   // === Render content function moved back to Reader component (JSX not allowed in .ts files) ===
 
+  // === Set playback rate for current audio ===
+  const setPlaybackRate = useCallback((rate: number) => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = rate;
+      console.log(`[${readerInstanceId}] Changed playback rate to ${rate}x`);
+    }
+  }, [readerInstanceId]);
+
   // === Computed values ===
   const canTTSResume = !!currentPageText && resumeIndex !== null && !isSpeaking && !isPaused && !isProcessing && !hasFinishedPlayback;
 
@@ -726,6 +737,9 @@ export const useReaderTTS = ({
     handleTTSNavigation,
     handlePreviousSentence,
     handleNextSentence,
+    
+    // Audio control
+    setPlaybackRate,
     
     // Computed
     canTTSResume,

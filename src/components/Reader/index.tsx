@@ -9,7 +9,7 @@ import { trackEvent } from '../../lib/analytics';
 import './Reader.css';
 import './ReaderThemes.css';
 import FeatureHighlight from './FeatureHighlight';
-import { ChevronLeft, ChevronRight, Headphones, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Headphones } from 'lucide-react';
 import { useReaderSettings } from '../../hooks/useReaderSettings';
 import { useReaderTTS } from '../../hooks/useReaderTTS';
 import { useAutoScroll } from '../../hooks/useAutoScroll';
@@ -96,7 +96,9 @@ const Reader: React.FC = () => {
     toggleSettings,
     closeSettings,
     selectedVoice,
-    setSelectedVoice
+    setSelectedVoice,
+    ttsSpeed,
+    setTtsSpeed
   } = settingsHook;
   
   const ttsHook = useReaderTTS({
@@ -105,7 +107,7 @@ const Reader: React.FC = () => {
     currentPageText,
     currentContent,
     selectedVoice,
-    ttsSpeed: 1 // Default speed since we removed the speed control
+    ttsSpeed: ttsSpeed // Use actual speed setting instead of hardcoded 1
   });
   
   const {
@@ -121,7 +123,8 @@ const Reader: React.FC = () => {
     handlePreviousSentence,
     handleNextSentence,
     canTTSResume,
-    highlightedContent: ttsHighlightedContent
+    highlightedContent: ttsHighlightedContent,
+    setPlaybackRate
   } = ttsHook;
 
   const { scrollToHighlight } = useAutoScroll({
@@ -135,6 +138,17 @@ const Reader: React.FC = () => {
     setSelectedVoice(voice);
     if (isSpeaking || isPaused) {
       handleStopTTS();
+    }
+  };
+
+  const handleSpeedChangeWithStop = (speed: number) => {
+    setTtsSpeed(speed);
+    
+    // If TTS is currently playing, change the playback rate instead of stopping
+    if (isSpeaking || isPaused) {
+      setPlaybackRate(speed);
+      console.log(`Changed playback rate to ${speed}x while playing`);
+      return; // Don't stop playback
     }
   };
 
@@ -406,18 +420,6 @@ const Reader: React.FC = () => {
         
         <div className="flex items-center justify-center gap-3 mt-2">
           {isEnhanced && (
-            <button 
-              onClick={toggleSettings}
-              className="settings-button flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-gray-50"
-              aria-label="Open reading settings"
-              title="Reading settings"
-            >
-              <Settings className="w-5 h-5" />
-              <span className="text-sm font-medium">Settings</span>
-            </button>
-          )}
-
-          {isEnhanced && (
             <MobileTOCDrawer 
               toc={toc} 
               onItemClick={handleNavigateToTocItem}
@@ -460,18 +462,6 @@ const Reader: React.FC = () => {
         </div>
         
         <div className="reader-right flex items-center gap-3">
-          {isEnhanced && (
-            <button 
-              onClick={toggleSettings}
-              className="settings-button flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-gray-50"
-              aria-label="Open reading settings"
-              title="Reading settings"
-            >
-              <Settings className="w-5 h-5" />
-              <span className="text-sm font-medium">Settings</span>
-            </button>
-          )}
-
           {(isSpeaking || isProcessing || isPaused) && (
             <button 
               onClick={() => scrollToHighlight()}
@@ -573,6 +563,14 @@ const Reader: React.FC = () => {
           onAudiobook={togglePlayMode}
           isPlayModeActive={isPlayModeVisible}
           isReadButtonActive={isSpeaking || isPaused || canTTSResume}
+          // Progress tracking
+          currentChunkIndex={_currentChunkIndex}
+          totalChunks={_chunks.length}
+          // Speed control
+          ttsSpeed={ttsSpeed}
+          onSpeedChange={handleSpeedChangeWithStop}
+          // Settings
+          onOpenSettings={toggleSettings}
           fullCastActive={fullCastActive}
           fullCastStatus={fullCastStatus}
           fullCastBuffered={fullCastBuffered}
@@ -619,6 +617,14 @@ const Reader: React.FC = () => {
           onAudiobook={togglePlayMode}
           isPlayModeActive={isPlayModeVisible}
           isReadButtonActive={isSpeaking || isPaused || canTTSResume}
+          // Progress tracking
+          currentChunkIndex={_currentChunkIndex}
+          totalChunks={_chunks.length}
+          // Speed control
+          ttsSpeed={ttsSpeed}
+          onSpeedChange={handleSpeedChangeWithStop}
+          // Settings
+          onOpenSettings={toggleSettings}
           fullCastActive={fullCastActive}
           fullCastStatus={fullCastStatus}
           fullCastBuffered={fullCastBuffered}
