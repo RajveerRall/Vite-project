@@ -10,6 +10,7 @@ interface VideoQuoteModalProps {
   selectedText: string;
   bookTitle: string;
   author: string;
+  coverUrl?: string | null;
 }
 
 const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
@@ -17,7 +18,8 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
   onClose,
   selectedText,
   bookTitle,
-  author
+  author,
+  coverUrl
 }) => {
   const [selectedVoice, setSelectedVoice] = useState('en-US-BrianMultilingualNeural');
   const [selectedBackground, setSelectedBackground] = useState<BackgroundTemplate | null>(null);
@@ -71,7 +73,8 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
         bookTitle,
         author,
         voice: selectedVoice,
-        backgroundTemplate: selectedBackground
+        backgroundTemplate: selectedBackground,
+        coverUrl: coverUrl
       };
 
       const result = await generatorRef.current.generateVideoQuote(
@@ -182,10 +185,18 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
                     className={`background-template ${selectedBackground?.id === template.id ? 'selected' : ''}`}
                     onClick={() => setSelectedBackground(template)}
                     disabled={isGenerating}
-                    style={{ background: template.preview }}
+                    style={template.type === 'torn-cover' ? {} : { background: template.preview }}
                     title={template.name}
                   >
-                    <span className="template-name">{template.name}</span>
+                    {template.type === 'torn-cover' ? (
+                      <div className="torn-cover-preview">
+                        <div className="cover-section">Book Cover</div>
+                        <div className="paper-section">Paper Text Area</div>
+                        <div className="cover-section">Book Cover</div>
+                      </div>
+                    ) : (
+                      <span className="template-name">{template.name}</span>
+                    )}
                   </button>
                 ))}
               </div>

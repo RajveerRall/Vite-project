@@ -18,8 +18,8 @@ export class VideoQuoteGenerator {
       canvasHeight: 1920,
       fontSize: 48,
       lineHeight: 1.6, // Increased line height for better spacing
-      highlightColor: '#FFD700',
-      textColor: '#FFFFFF',
+      highlightColor: '#FFB700', // Richer gold for better visibility
+      textColor: '#1a1a1a', // Dark text on light paper
       attributionFontSize: 24,
       maxWordsPerLine: 6, // Reduced for better readability
       padding: 80 // Increased padding
@@ -27,32 +27,42 @@ export class VideoQuoteGenerator {
 
     this.backgroundTemplates = [
       {
+        id: 'torn-cover',
+        name: 'Book Cover (Torn Paper)',
+        type: 'torn-cover'
+      },
+      {
         id: 'sunset',
         name: 'Sunset',
+        type: 'gradient',
         gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         preview: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
       },
       {
         id: 'ocean',
         name: 'Ocean',
+        type: 'gradient',
         gradient: 'linear-gradient(120deg, #89f7fe 0%, #66a6ff 100%)',
         preview: 'linear-gradient(120deg, #89f7fe 0%, #66a6ff 100%)'
       },
       {
         id: 'forest',
         name: 'Forest',
+        type: 'gradient',
         gradient: 'linear-gradient(135deg, #0fd850 0%, #f9f047 100%)',
         preview: 'linear-gradient(135deg, #0fd850 0%, #f9f047 100%)'
       },
       {
         id: 'twilight',
         name: 'Twilight',
+        type: 'gradient',
         gradient: 'linear-gradient(135deg, #434343 0%, #000000 100%)',
         preview: 'linear-gradient(135deg, #434343 0%, #000000 100%)'
       },
       {
         id: 'rose',
         name: 'Rose',
+        type: 'gradient',
         gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
         preview: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
       }
@@ -103,6 +113,41 @@ export class VideoQuoteGenerator {
         message: 'Preparing video rendering...'
       });
 
+      // PRE-LOAD cover image and video BEFORE animation starts
+      let coverImage: HTMLImageElement | null = null;
+      let tornPaperVideo: HTMLVideoElement | null = null;
+      
+      if (options.backgroundTemplate.type === 'torn-cover' && options.coverUrl) {
+        try {
+          onProgress?.({
+            stage: 'rendering',
+            progress: 60,
+            message: 'Loading book cover and effects...'
+          });
+          
+          // Load both in parallel
+          const [cover, video] = await Promise.all([
+            this.loadImage(options.coverUrl),
+            this.loadTornPaperVideo().catch(() => null) // Graceful fallback
+          ]);
+          
+          coverImage = cover;
+          tornPaperVideo = video;
+          
+          console.log('[VideoQuoteGenerator] Cover and video pre-loaded successfully');
+        } catch (err) {
+          console.warn('[VideoQuoteGenerator] Cover failed to load, using fallback:', err);
+          coverImage = null;
+          tornPaperVideo = null;
+        }
+      }
+
+      onProgress?.({
+        stage: 'rendering',
+        progress: 70,
+        message: 'Starting video generation...'
+      });
+
       // Step 3: Create canvas and render video
       const canvas = this.createCanvas();
       const videoBlob = await this.renderVideo(
@@ -111,6 +156,8 @@ export class VideoQuoteGenerator {
         timestamps,
         audioBlob,
         audioDuration,
+        coverImage, // Pass pre-loaded image
+        tornPaperVideo, // Pass pre-loaded video
         onProgress
       );
 
@@ -346,6 +393,8 @@ export class VideoQuoteGenerator {
     timestamps: WordTimestamp[],
     audioBlob: Blob,
     audioDuration: number,
+    coverImage: HTMLImageElement | null, // NEW PARAMETER
+    tornPaperVideo: HTMLVideoElement | null, // NEW PARAMETER
     onProgress?: (progress: VideoGenerationProgress) => void
   ): Promise<Blob> {
     const ctx = canvas.getContext('2d');
@@ -355,7 +404,7 @@ export class VideoQuoteGenerator {
 
     // Set up MediaRecorder
     const stream = canvas.captureStream(30); // 30 FPS
-    const { stream: audioStream, startAudio } = await this.createAudioStream(audioBlob);
+    const { stream: audioStream, startAudio } = await this.createAudioStream(audioBlob, tornPaperVideo);
     
     // Combine video and audio streams
     const combinedStream = new MediaStream([
@@ -418,7 +467,7 @@ export class VideoQuoteGenerator {
       });
 
       // Render animation
-      this.renderAnimation(ctx, options, timestamps, audioDuration, () => {
+      this.renderAnimation(ctx, options, timestamps, audioDuration, coverImage, tornPaperVideo, () => {
         console.log('[VideoQuoteGenerator] Animation complete, stopping recorder in 500ms');
         // Stop recording after animation completes
         setTimeout(() => {
@@ -433,24 +482,52 @@ export class VideoQuoteGenerator {
   }
 
   /**
-   * Create audio stream from blob
+   * Create mixed audio stream from TTS blob and video audio
    */
-  private async createAudioStream(audioBlob: Blob): Promise<{
+  private async createAudioStream(
+    audioBlob: Blob, 
+    videoElement: HTMLVideoElement | null
+  ): Promise<{
     stream: MediaStream;
     startAudio: () => void;
   }> {
     const audioContext = new AudioContext();
-    const audioBuffer = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
-    
-    const source = audioContext.createBufferSource();
-    source.buffer = audioBuffer;
-    
     const destination = audioContext.createMediaStreamDestination();
-    source.connect(destination);
+    
+    // Create TTS audio source
+    const ttsBuffer = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
+    const ttsSource = audioContext.createBufferSource();
+    ttsSource.buffer = ttsBuffer;
+    
+    // Create video audio source if video element is available
+    let videoSource: MediaElementAudioSourceNode | null = null;
+    if (videoElement) {
+      try {
+        videoSource = audioContext.createMediaElementSource(videoElement);
+        videoSource.connect(destination);
+        console.log('[VideoQuoteGenerator] Video audio connected');
+      } catch (err) {
+        console.warn('[VideoQuoteGenerator] Could not connect video audio:', err);
+      }
+    }
+    
+    // Connect TTS source
+    ttsSource.connect(destination);
     
     return {
       stream: destination.stream,
-      startAudio: () => source.start()
+      startAudio: () => {
+        // Start video audio immediately (if available)
+        if (videoSource) {
+          console.log('[VideoQuoteGenerator] Video audio started immediately');
+        }
+        
+        // Delay TTS audio start by 2 seconds to match video intro
+        setTimeout(() => {
+          ttsSource.start();
+          console.log('[VideoQuoteGenerator] TTS audio started after 2s delay');
+        }, 2000);
+      }
     };
   }
 
@@ -483,12 +560,25 @@ export class VideoQuoteGenerator {
     options: VideoQuoteOptions,
     timestamps: WordTimestamp[],
     audioDuration: number,
+    coverImage: HTMLImageElement | null, // NEW PARAMETER
+    tornPaperVideo: HTMLVideoElement | null, // NEW PARAMETER
     onComplete: () => void
   ): void {
     const startTime = Date.now();
-    console.log(`[VideoQuoteGenerator] Animation started, target duration: ${audioDuration}s`);
+    const VIDEO_INTRO_DURATION = 2.0; // Duration of torn paper animation
     
-    const animate = () => {
+    console.log(`[VideoQuoteGenerator] Animation started, intro: ${VIDEO_INTRO_DURATION}s, total: ${audioDuration}s`);
+    
+    // Start video playback if available (plays once, then pauses on last frame)
+    if (tornPaperVideo) {
+      tornPaperVideo.currentTime = 0;
+      tornPaperVideo.loop = false; // Don't loop
+      tornPaperVideo.play().catch(err => {
+        console.warn('[VideoQuoteGenerator] Video playback failed:', err);
+      });
+    }
+    
+    const animate = () => { // NO ASYNC - keep synchronous!
       const elapsed = (Date.now() - startTime) / 1000;
       
       // Log progress every 5 seconds
@@ -505,14 +595,25 @@ export class VideoQuoteGenerator {
       // Clear canvas
       ctx.clearRect(0, 0, this.config.canvasWidth, this.config.canvasHeight);
       
-      // Draw background
-      this.drawBackground(ctx, options.backgroundTemplate);
+      // Always draw with video composited over cover (if available)
+      if (options.backgroundTemplate.type === 'torn-cover') {
+        this.drawTornCoverWithVideo(ctx, coverImage, tornPaperVideo);
+      } else {
+        this.drawBackgroundSync(ctx, options.backgroundTemplate, coverImage);
+      }
       
-      // Draw text with highlighting
-      this.drawTextWithHighlighting(ctx, options, timestamps, elapsed, audioDuration);
-      
-      // Draw attribution
-      this.drawAttribution(ctx, options.bookTitle, options.author);
+      // Only draw text and attribution AFTER video intro (when cover is torn)
+      if (elapsed >= VIDEO_INTRO_DURATION) {
+        // Adjust elapsed time for text animation (subtract intro duration)
+        const textElapsed = elapsed - VIDEO_INTRO_DURATION;
+        const textDuration = audioDuration - VIDEO_INTRO_DURATION;
+        
+        // Draw text with highlighting (scrolls over the video effect)
+        this.drawTextWithHighlighting(ctx, options, timestamps, textElapsed, textDuration);
+        
+        // Draw attribution
+        this.drawAttribution(ctx, options.bookTitle, options.author, options.backgroundTemplate.type);
+      }
       
       requestAnimationFrame(animate);
     };
@@ -521,14 +622,109 @@ export class VideoQuoteGenerator {
   }
 
   /**
+   * Draw torn cover with video composited over it using pixel processing
+   */
+  private drawTornCoverWithVideo(
+    ctx: CanvasRenderingContext2D,
+    coverImage: HTMLImageElement | null,
+    video: HTMLVideoElement | null
+  ): void {
+    const canvasWidth = this.config.canvasWidth;
+    const canvasHeight = this.config.canvasHeight;
+    
+    // Draw full book cover as background
+    if (coverImage) {
+      ctx.drawImage(coverImage, 0, 0, canvasWidth, canvasHeight);
+    } else {
+      // Fallback gradient
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+      gradient.addColorStop(0, '#1a1a2e');
+      gradient.addColorStop(1, '#16213e');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    }
+    
+    // If no video, just return (cover is already drawn)
+    if (!video) return;
+    
+    // Create temporary canvas to process video frame
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvasWidth;
+    tempCanvas.height = canvasHeight;
+    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+    
+    if (!tempCtx) return;
+    
+    // Scale video to fit canvas
+    const videoAspect = video.videoWidth / video.videoHeight;
+    const canvasAspect = canvasWidth / canvasHeight;
+    
+    let drawWidth, drawHeight, drawX, drawY;
+    
+    if (videoAspect > canvasAspect) {
+      drawHeight = canvasHeight;
+      drawWidth = drawHeight * videoAspect;
+      drawX = (canvasWidth - drawWidth) / 2;
+      drawY = 0;
+    } else {
+      drawWidth = canvasWidth;
+      drawHeight = drawWidth / videoAspect;
+      drawX = 0;
+      drawY = (canvasHeight - drawHeight) / 2;
+    }
+    
+    // Draw video to temp canvas
+    tempCtx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+    
+    // Get pixel data
+    const imageData = tempCtx.getImageData(0, 0, canvasWidth, canvasHeight);
+    const data = imageData.data;
+    
+    // Process pixels: make black areas transparent
+    const blackThreshold = 30; // Adjust if needed (0-255)
+    
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      
+      // If pixel is close to black, make it transparent
+      if (r < blackThreshold && g < blackThreshold && b < blackThreshold) {
+        data[i + 3] = 0; // Set alpha to 0 (transparent)
+      }
+    }
+    
+    // Put processed pixels back
+    tempCtx.putImageData(imageData, 0, 0);
+    
+    // Draw processed video frame over the cover
+    ctx.drawImage(tempCanvas, 0, 0);
+  }
+
+  /**
    * Draw gradient background
    */
-  private drawBackground(ctx: CanvasRenderingContext2D, template: BackgroundTemplate): void {
+  private drawBackgroundSync(
+    ctx: CanvasRenderingContext2D,
+    template: BackgroundTemplate,
+    coverImage: HTMLImageElement | null
+  ): void {
+    if (template.type === 'torn-cover') {
+      this.drawTornCoverBackgroundSync(ctx, coverImage);
+    } else {
+      this.drawGradientBackground(ctx, template);
+    }
+  }
+
+  /**
+   * Draw gradient background (existing functionality)
+   */
+  private drawGradientBackground(ctx: CanvasRenderingContext2D, template: BackgroundTemplate): void {
     // Create gradient based on template
     const gradient = ctx.createLinearGradient(0, 0, this.config.canvasWidth, this.config.canvasHeight);
     
     // Parse gradient colors from CSS
-    const gradientMatch = template.gradient.match(/linear-gradient\(([^,]+),\s*([^)]+)\)/);
+    const gradientMatch = template.gradient?.match(/linear-gradient\(([^,]+),\s*([^)]+)\)/);
     if (gradientMatch) {
       const [, , colorStops] = gradientMatch;
       const stops = colorStops.split(',').map(stop => stop.trim());
@@ -549,11 +745,137 @@ export class VideoQuoteGenerator {
   }
 
   /**
+   * Draw torn cover background with book cover sections and paper middle
+   */
+  private drawTornCoverBackgroundSync(
+    ctx: CanvasRenderingContext2D,
+    coverImage: HTMLImageElement | null
+  ): void {
+    const canvasHeight = this.config.canvasHeight; // 1920
+    const canvasWidth = this.config.canvasWidth; // 1080
+    
+    // Define sections
+    const topHeight = canvasHeight * 0.30; // 576px
+    const middleHeight = canvasHeight * 0.40; // 768px
+    const bottomStart = topHeight + middleHeight; // 1344px
+    
+    if (coverImage) {
+      // Draw top section of cover (30%) - SYNCHRONOUS
+      ctx.drawImage(
+        coverImage,
+        0, 0, coverImage.width, coverImage.height * 0.30,
+        0, 0, canvasWidth, topHeight
+      );
+      
+      // Draw bottom section of cover (30%) - SYNCHRONOUS
+      ctx.drawImage(
+        coverImage,
+        0, coverImage.height * 0.70, coverImage.width, coverImage.height * 0.30,
+        0, bottomStart, canvasWidth, canvasHeight - bottomStart
+      );
+    } else {
+      // Fallback gradient
+      this.drawFallbackCoverSections(ctx, topHeight, bottomStart, canvasWidth, canvasHeight);
+    }
+    
+    // Draw paper texture in middle section
+    ctx.fillStyle = 'rgba(240, 237, 230, 1)'; // Darker cream for better contrast
+    ctx.fillRect(0, topHeight, canvasWidth, middleHeight);
+    
+    // Draw realistic torn edges using pure canvas/math
+    this.drawRealisticTornEdge(ctx, topHeight, canvasWidth, 'top');
+    this.drawRealisticTornEdge(ctx, bottomStart, canvasWidth, 'bottom');
+  }
+
+  /**
+   * Draw fallback gradient sections when cover is not available
+   */
+  private drawFallbackCoverSections(
+    ctx: CanvasRenderingContext2D,
+    topHeight: number,
+    bottomStart: number,
+    canvasWidth: number,
+    canvasHeight: number
+  ): void {
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+    gradient.addColorStop(0, '#1a1a2e');
+    gradient.addColorStop(1, '#16213e');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvasWidth, topHeight);
+    ctx.fillRect(0, bottomStart, canvasWidth, canvasHeight - bottomStart);
+  }
+
+  /**
+   * Draw realistic torn edge using mathematical curves (NO images needed)
+   */
+  private drawRealisticTornEdge(
+    ctx: CanvasRenderingContext2D,
+    y: number,
+    width: number,
+    direction: 'top' | 'bottom'
+  ): void {
+    ctx.save();
+    
+    // Create irregular torn edge path
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    
+    // Use random seed for consistent pattern (optional)
+    const seed = y; // Use Y position as seed for consistency
+    let randomState = seed;
+    const seededRandom = () => {
+      randomState = (randomState * 9301 + 49297) % 233280;
+      return randomState / 233280;
+    };
+    
+    // Draw irregular edge with multiple wave frequencies
+    for (let x = 0; x <= width; x += 8) {
+      // Combine multiple sine waves for natural variation
+      const wave1 = Math.sin(x * 0.02) * 10;
+      const wave2 = Math.sin(x * 0.05) * 6;
+      const wave3 = Math.sin(x * 0.1) * 3;
+      
+      // Add random jaggedness
+      const jag = (seededRandom() - 0.5) * 12;
+      
+      // Occasional larger "tears"
+      const tear = (x % 80 < 15) ? (seededRandom() - 0.5) * 15 : 0;
+      
+      const totalOffset = wave1 + wave2 + wave3 + jag + tear;
+      const edgeY = direction === 'top' ? y + totalOffset : y - totalOffset;
+      
+      ctx.lineTo(x, edgeY);
+    }
+    
+    // Complete the shape for shadow
+    const extend = 25;
+    ctx.lineTo(width, direction === 'top' ? y + extend : y - extend);
+    ctx.lineTo(width, y);
+    ctx.lineTo(0, y);
+    ctx.closePath();
+    
+    // Draw shadow gradient for depth
+    const gradient = direction === 'top' 
+      ? ctx.createLinearGradient(0, y - 10, 0, y + 20)
+      : ctx.createLinearGradient(0, y - 20, 0, y + 10);
+      
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(0.3, 'rgba(0, 0, 0, 0.08)');
+    gradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.12)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    
+    ctx.restore();
+  }
+
+  /**
    * Draw text with precise timing highlighting and scrolling support
    */
   private drawTextWithHighlighting(
     ctx: CanvasRenderingContext2D,
-    _options: VideoQuoteOptions,
+    options: VideoQuoteOptions,
     timestamps: WordTimestamp[],
     currentTime: number,
     totalDuration: number
@@ -565,9 +887,24 @@ export class VideoQuoteGenerator {
     const maxWidth = this.config.canvasWidth - (2 * this.config.padding);
     const lineHeight = this.config.fontSize * this.config.lineHeight;
     
+    // Define middle section bounds for torn cover template
+    const topBound = this.config.canvasHeight * 0.30; // 576px
+    const bottomBound = this.config.canvasHeight * 0.70; // 1344px
+    const middleHeight = bottomBound - topBound; // 768px
+    
+    // Set clipping region for torn cover template
+    if (options.backgroundTemplate.type === 'torn-cover') {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, topBound, this.config.canvasWidth, middleHeight);
+      ctx.clip();
+    }
+    
     // Calculate available height (excluding attribution area)
     const attributionHeight = 120; // Space for book title/author at bottom
-    const availableHeight = this.config.canvasHeight - (2 * this.config.padding) - attributionHeight;
+    const availableHeight = options.backgroundTemplate.type === 'torn-cover' 
+      ? middleHeight - (2 * this.config.padding) - attributionHeight
+      : this.config.canvasHeight - (2 * this.config.padding) - attributionHeight;
     
     // Wrap each timestamp's text and track which lines belong to which timestamp
     const wrappedLines: Array<{
@@ -594,11 +931,20 @@ export class VideoQuoteGenerator {
       // Scrolling mode: calculate scroll progress and offset
       const scrollProgress = Math.min(currentTime / totalDuration, 1);
       
-      // Calculate scroll range
-      // Start: first line centered
-      // End: last line centered
-      const startY = this.config.canvasHeight / 2;
-      const endY = this.config.canvasHeight / 2 - totalHeight;
+      // Calculate scroll range based on template type
+      let startY: number;
+      let endY: number;
+      
+      if (options.backgroundTemplate.type === 'torn-cover') {
+        // For torn cover, scroll within middle section
+        startY = topBound + (middleHeight / 2);
+        endY = topBound + (middleHeight / 2) - totalHeight;
+      } else {
+        // For gradient templates, scroll in full canvas
+        startY = this.config.canvasHeight / 2;
+        endY = this.config.canvasHeight / 2 - totalHeight;
+      }
+      
       const scrollRange = startY - endY;
       
       // Calculate current scroll offset
@@ -629,8 +975,16 @@ export class VideoQuoteGenerator {
         }
       });
     } else {
-      // Non-scrolling mode: keep existing centered behavior
-      const startY = (this.config.canvasHeight - totalHeight) / 2;
+      // Non-scrolling mode: center text based on template type
+      let startY: number;
+      
+      if (options.backgroundTemplate.type === 'torn-cover') {
+        // For torn cover, center within middle section
+        startY = topBound + (middleHeight - totalHeight) / 2;
+      } else {
+        // For gradient templates, center in full canvas
+        startY = (this.config.canvasHeight - totalHeight) / 2;
+      }
       
       // Draw each wrapped line
       wrappedLines.forEach((line, index) => {
@@ -654,23 +1008,48 @@ export class VideoQuoteGenerator {
     }
     
     ctx.shadowBlur = 0;
+    
+    // Restore clipping region if it was set
+    if (options.backgroundTemplate.type === 'torn-cover') {
+      ctx.restore();
+    }
   }
 
   /**
    * Draw book attribution with semi-transparent background
    */
-  private drawAttribution(ctx: CanvasRenderingContext2D, bookTitle: string, author: string): void {
-    const attributionY = this.config.canvasHeight - this.config.padding - 40;
+  private drawAttribution(
+    ctx: CanvasRenderingContext2D, 
+    bookTitle: string, 
+    author: string, 
+    templateType?: string
+  ): void {
+    let attributionY: number;
+    let backgroundY: number;
+    let backgroundHeight: number;
+    
+    if (templateType === 'torn-cover') {
+      // Position attribution on top cover area
+      const topSectionHeight = this.config.canvasHeight * 0.30;
+      attributionY = topSectionHeight - 80; // 80px from bottom of top section
+      backgroundY = attributionY - 60;
+      backgroundHeight = 120;
+    } else {
+      // Position attribution at bottom for gradient templates
+      attributionY = this.config.canvasHeight - this.config.padding - 40;
+      backgroundY = this.config.canvasHeight - 120;
+      backgroundHeight = 120;
+    }
     
     // Draw semi-transparent background for attribution area
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(0, this.config.canvasHeight - 120, this.config.canvasWidth, 120);
+    ctx.fillRect(0, backgroundY, this.config.canvasWidth, backgroundHeight);
     
     ctx.font = `${this.config.attributionFontSize}px Arial, sans-serif`;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
     ctx.textAlign = 'center';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-    ctx.shadowBlur = 3;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+    ctx.shadowBlur = 5;
     
     // Draw book title
     ctx.fillText(bookTitle, this.config.canvasWidth / 2, attributionY);
@@ -714,5 +1093,40 @@ export class VideoQuoteGenerator {
     }
     
     return lines.length > 0 ? lines : [text];
+  }
+
+  /**
+   * Load image from URL
+   */
+  private async loadImage(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  private async loadTornPaperVideo(): Promise<HTMLVideoElement> {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.preload = 'auto';
+      video.muted = true;
+      
+      video.onloadeddata = () => {
+        console.log('[VideoQuoteGenerator] Torn paper video loaded');
+        resolve(video);
+      };
+      
+      video.onerror = (err) => {
+        console.warn('[VideoQuoteGenerator] Failed to load torn paper video:', err);
+        reject(err);
+      };
+      
+      // Use cover-animate.mp4 as requested
+      video.src = '/assets/cover-animate.mp4';
+    });
   }
 }

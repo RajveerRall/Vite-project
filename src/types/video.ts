@@ -6,13 +6,15 @@ export interface VideoQuoteOptions {
   author: string;
   voice: string;
   backgroundTemplate: BackgroundTemplate;
+  coverUrl?: string | null;
 }
 
 export interface BackgroundTemplate {
   id: string;
   name: string;
-  gradient: string;
-  preview: string;
+  type: 'gradient' | 'torn-cover';
+  gradient?: string; // Optional for gradients
+  preview?: string; // Optional preview
 }
 
 export interface WordTimestamp {

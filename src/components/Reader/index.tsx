@@ -27,6 +27,7 @@ const Reader: React.FC = () => {
   const {
     bookTitle,
     bookAuthor,
+    currentBook, // Add this to access coverUrl
     currentPageDisplay,
     totalPages,
     currentContent,
@@ -768,6 +769,7 @@ const Reader: React.FC = () => {
        selectedText={selectedTextForVideo}
        bookTitle={bookTitle}
        author={bookAuthor}
+       coverUrl={currentBook?.coverUrl || null}
      />
    </div>
  );
