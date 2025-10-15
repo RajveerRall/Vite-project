@@ -5,11 +5,17 @@
   animation: slideInFromBottom 0.2s ease-out;
 }
 
-.read-button {
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.read-button,
+.video-button {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
   color: white;
   border: none;
   border-radius: 2rem;
@@ -17,11 +23,15 @@
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
   transition: all 0.2s ease;
   min-width: 80px;
   justify-content: center;
   backdrop-filter: blur(8px);
+}
+
+.read-button {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
 }
 
 .read-button:hover {
@@ -30,16 +40,37 @@
   box-shadow: 0 6px 16px rgba(245, 158, 11, 0.5);
 }
 
-.read-button:active {
+.video-button {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.video-button:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+}
+
+.read-button:active,
+.video-button:active {
   transform: translateY(0);
+}
+
+.read-button:active {
   box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
 }
 
-.read-button svg {
+.video-button:active {
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.read-button svg,
+.video-button svg {
   transition: transform 0.2s ease;
 }
 
-.read-button:hover svg {
+.read-button:hover svg,
+.video-button:hover svg {
   transform: scale(1.1);
 }
 
@@ -57,7 +88,13 @@
 
 /* Mobile optimizations */
 @media (max-width: 768px) {
-  .read-button {
+  .button-group {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .read-button,
+  .video-button {
     padding: 0.75rem 1.25rem; /* Slightly larger for easier tapping */
     font-size: 0.875rem;
     min-width: 80px;
@@ -68,11 +105,20 @@
     animation: mobilePulse 2s ease-in-out infinite;
     /* Ensure button is above Chrome's selection menu */
     z-index: 1001;
+  }
+  
+  .read-button {
     /* Add stronger shadow for better visibility */
     box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
   }
   
-  .read-button span {
+  .video-button {
+    /* Add stronger shadow for better visibility */
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+  }
+  
+  .read-button span,
+  .video-button span {
     font-size: 0.875rem;
   }
   
@@ -95,13 +141,15 @@
 }
 
 /* Ensure button is visible on different backgrounds */
-.read-button {
+.read-button,
+.video-button {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
-  .read-button {
+  .read-button,
+  .video-button {
     border: 2px solid white;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
   }
@@ -113,11 +161,13 @@
     animation: none;
   }
   
-  .read-button {
+  .read-button,
+  .video-button {
     transition: none;
   }
   
-  .read-button:hover svg {
+  .read-button:hover svg,
+  .video-button:hover svg {
     transform: none;
   }
 }

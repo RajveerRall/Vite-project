@@ -17,6 +17,7 @@ import SettingsWidget from './SettingsWidget';
 import MobileTOCDrawer from './MobileTOCDrawer';
 import EnhancedLoader from './EnhancedLoader';
 import FloatingReadButton from './FloatingReadButton';
+import VideoQuoteModal from './VideoQuoteModal';
 import { requestFullCast, ttsForLine } from '../../services/fullCastTTS';
 
 
@@ -25,6 +26,7 @@ import { requestFullCast, ttsForLine } from '../../services/fullCastTTS';
 const Reader: React.FC = () => {
   const {
     bookTitle,
+    bookAuthor,
     currentPageDisplay,
     totalPages,
     currentContent,
@@ -44,6 +46,10 @@ const Reader: React.FC = () => {
   const [showFeatureHighlight, setShowFeatureHighlight] = useState<boolean>(false);
   const [isEnhanced, setIsEnhanced] = useState(false);
   
+  // Video Quote Modal state
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [selectedTextForVideo, setSelectedTextForVideo] = useState('');
+  
   // Mobile detection hook
   const [isMobile, setIsMobile] = useState(false);
   
@@ -57,6 +63,7 @@ const Reader: React.FC = () => {
   const [fullCastBuffered, setFullCastBuffered] = useState<number>(0);
   const [fullCastNeedsTap, setFullCastNeedsTap] = useState<boolean>(false);
   const [fullCastPaused, setFullCastPaused] = useState<boolean>(false);
+  const [hasStartedPlaying, setHasStartedPlaying] = useState<boolean>(false);
   
   // Mobile detection effect
   useEffect(() => {
@@ -173,6 +180,16 @@ const Reader: React.FC = () => {
     closeBook();
   }, [handleTTSNavigation, closeBook]);
 
+  const handleCreateVideo = useCallback(() => {
+    const selection = window.getSelection();
+    const selectedText = selection?.toString().trim() || '';
+    
+    if (selectedText) {
+      setSelectedTextForVideo(selectedText);
+      setIsVideoModalOpen(true);
+    }
+  }, []);
+
   const handleChapterNavigation = useCallback((direction: 'prev' | 'next') => {
     if (direction === 'prev') {
       handlePrevPage();
@@ -208,6 +225,84 @@ const Reader: React.FC = () => {
       }
     };
   }, [arrowsTimeout]);
+
+  // Track user interaction for beforeunload event
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+
+  // Track user interaction when they start full cast
+  useEffect(() => {
+    if (fullCastActive) {
+      setHasUserInteracted(true);
+    }
+  }, [fullCastActive]);
+
+  // Browser close warning when full cast is playing
+  useEffect(() => {
+    // Debug function to check current state
+    const debugState = () => {
+      console.log('Full Cast State:', {
+        fullCastActive,
+        hasStartedPlaying,
+        hasUserInteracted,
+        fullCastPaused,
+        shouldShowWarning: fullCastActive && hasStartedPlaying && hasUserInteracted
+      });
+    };
+
+    // Standard-compliant beforeunload handler
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      debugState(); // Log current state
+      
+      // Only show warning if full cast is active, audio has started playing, and user has interacted
+      if (fullCastActive && hasStartedPlaying && hasUserInteracted) {
+        console.log('beforeunload triggered - showing warning');
+        
+        // Modern browsers require preventDefault() to be called
+        event.preventDefault();
+        // Set returnValue to empty string (modern browsers ignore custom messages)
+        event.returnValue = '';
+        
+        // Return empty string (required for some browsers)
+        return '';
+      }
+    };
+
+    // Only add the event listener if we have user interaction
+    // This is required by modern browsers
+    if (fullCastActive && hasStartedPlaying && hasUserInteracted) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+    
+    // Also handle page visibility change (when user switches tabs)
+    const handleVisibilityChange = () => {
+      if (document.hidden && fullCastActive && hasStartedPlaying) {
+        console.log('Page hidden while audiobook is playing');
+        // You could add additional logic here if needed
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Handle pagehide event (more reliable for navigation)
+    const handlePageHide = () => {
+      if (fullCastActive && hasStartedPlaying) {
+        console.log('Page hide event triggered while audiobook is playing');
+        // This is more reliable for browser navigation
+      }
+    };
+    
+    window.addEventListener('pagehide', handlePageHide);
+    
+    // Expose debug function globally for testing
+    (window as any).debugFullCastState = debugState;
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+      delete (window as any).debugFullCastState;
+    };
+  }, [fullCastActive, hasStartedPlaying, hasUserInteracted, fullCastPaused]);
 
   // Handle Full Cast requests from Controls (Streaming controller)
   useEffect(() => {
@@ -254,6 +349,7 @@ const Reader: React.FC = () => {
       setFullCastBuffered(0);
       setFullCastNeedsTap(false);
       setFullCastPaused(false);
+      setHasStartedPlaying(false);
       (window as any).__fullCastAudio = audio;
 
       const produce = async () => {
@@ -330,7 +426,10 @@ const Reader: React.FC = () => {
         if (audioQueue.length === 0) {
           // Try to produce more and retry soon
           produce();
-          setFullCastStatus('Buffering…');
+          // Only show buffering status if we haven't started playing yet
+          if (!hasStartedPlaying) {
+            setFullCastStatus('Buffering…');
+          }
           setTimeout(consume, 300);
           return;
         }
@@ -338,7 +437,11 @@ const Reader: React.FC = () => {
         setFullCastBuffered(audioQueue.length);
         const url = URL.createObjectURL(blob);
         audio.src = url;
-        audio.onplay = () => { startTs = Date.now(); setFullCastStatus('Playing…'); };
+        audio.onplay = () => { 
+          startTs = Date.now(); 
+          setFullCastStatus('Playing…'); 
+          setHasStartedPlaying(true);
+        };
         audio.onended = () => {
           URL.revokeObjectURL(url);
           const elapsed = Math.max(0, Math.round((Date.now() - startTs) / 1000));
@@ -382,7 +485,7 @@ const Reader: React.FC = () => {
         consume();
       };
 
-      const stop = () => { try { isPlaying = false; audio.pause(); audio.src = ''; } catch {} finally { setFullCastActive(false); setFullCastNeedsTap(false); setFullCastPaused(false); } };
+      const stop = () => { try { isPlaying = false; audio.pause(); audio.src = ''; } catch {} finally { setFullCastActive(false); setFullCastNeedsTap(false); setFullCastPaused(false); setHasStartedPlaying(false); } };
       (window as any).__fullCastStop = stop;
       (window as any).__fullCastPause = pause;
       (window as any).__fullCastResume = resume;
@@ -483,7 +586,7 @@ const Reader: React.FC = () => {
       ) : null}
 
         {/* Full Cast waiting overlay - show during startup/casting/buffering before playback */}
-        {(fullCastActive && (
+        {(fullCastActive && !hasStartedPlaying && (
           fullCastStatus === 'Starting…' ||
           fullCastStatus === 'Buffering…' ||
           fullCastStatus.startsWith('Casting')
@@ -655,7 +758,16 @@ const Reader: React.FC = () => {
      
      <FloatingReadButton 
        onRead={handleTTS}
+       onCreateVideo={handleCreateVideo}
        isVisible={isEnhanced && !(isSpeaking || isProcessing || isPaused)}
+     />
+     
+     <VideoQuoteModal
+       isOpen={isVideoModalOpen}
+       onClose={() => setIsVideoModalOpen(false)}
+       selectedText={selectedTextForVideo}
+       bookTitle={bookTitle}
+       author={bookAuthor}
      />
    </div>
  );

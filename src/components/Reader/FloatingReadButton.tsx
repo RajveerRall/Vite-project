@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Play } from 'lucide-react';
+import { Play, Video } from 'lucide-react';
 import './FloatingReadButton.css';
 
 interface FloatingReadButtonProps {
   onRead: () => void;
+  onCreateVideo: () => void;
   isVisible: boolean;
 }
 
-const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, isVisible }) => {
+const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreateVideo, isVisible }) => {
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [selectedText, setSelectedText] = useState('');
   const [hideTimeout, setHideTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -155,6 +156,34 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, isVisib
     }
   };
 
+  const handleVideoClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('[FloatingReadButton] Video button clicked:', {
+      selectedText: selectedText.substring(0, 50),
+      isVisible,
+      isNativeMenuVisible
+    });
+    
+    // Clear any hide timeout when button is clicked
+    if (hideTimeout) {
+      clearTimeout(hideTimeout);
+      setHideTimeout(null);
+    }
+
+    // Call the onCreateVideo function
+    console.log('[FloatingReadButton] Calling onCreateVideo function...');
+    onCreateVideo();
+
+    // After opening video modal, clear selection and hide the button
+    try {
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+    } catch {}
+    setSelectedText('');
+  };
+
   const handleReadClick = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -213,16 +242,29 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, isVisib
         left: `${position.left}px`
       }}
     >
-      <button
-        onClick={handleReadClick}
-        onTouchEnd={handleReadClick}
-        className="read-button"
-        aria-label={`Read selected text: ${selectedText.substring(0, 50)}${selectedText.length > 50 ? '...' : ''}`}
-        title="Read selected text"
-      >
-        <Play className="w-4 h-4" />
-        <span>Read</span>
-      </button>
+      <div className="button-group">
+        <button
+          onClick={handleReadClick}
+          onTouchEnd={handleReadClick}
+          className="read-button"
+          aria-label={`Read selected text: ${selectedText.substring(0, 50)}${selectedText.length > 50 ? '...' : ''}`}
+          title="Read selected text"
+        >
+          <Play className="w-4 h-4" />
+          <span>Read</span>
+        </button>
+        
+        <button
+          onClick={handleVideoClick}
+          onTouchEnd={handleVideoClick}
+          className="video-button"
+          aria-label={`Create video from: ${selectedText.substring(0, 50)}${selectedText.length > 50 ? '...' : ''}`}
+          title="Create video quote"
+        >
+          <Video className="w-4 h-4" />
+          <span>Video</span>
+        </button>
+      </div>
     </div>
   );
 };
