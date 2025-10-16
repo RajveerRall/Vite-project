@@ -2,7 +2,8 @@ import React from 'react';
 import { useFullCastUsage } from '../../hooks/useFullCastUsage';
 import { trackEvent } from '../../lib/analytics';
 import {
-  Headphones, PlayCircle, PauseCircle, RotateCcw, 
+  Headphones, 
+  PlayCircle, PauseCircle, RotateCcw, 
   Loader2, Square, SkipBack, SkipForward, Settings
 } from 'lucide-react';
 
@@ -10,8 +11,7 @@ import {
 import './Controls.css'; 
 
 interface ControlsProps {
-  currentPage: number;
-  totalPages: number;
+  readingProgress: number;
   onReadAloud: () => void;
   onStopTTS: () => void;
   onPreviousSentence: () => void;
@@ -20,8 +20,8 @@ interface ControlsProps {
   isPaused: boolean;
   isProcessing: boolean;
   canResume: boolean;
-  onAudiobook: () => void;
-  isPlayModeActive: boolean;
+  // onAudiobook: () => void;
+  // isPlayModeActive: boolean;
   isReadButtonActive: boolean;
   // Progress tracking
   currentChunkIndex?: number | null;
@@ -43,8 +43,7 @@ interface ControlsProps {
 }
 
 const Controls: React.FC<ControlsProps> = ({
-  currentPage,
-  totalPages,
+  readingProgress,
   onReadAloud,
   onStopTTS,
   onPreviousSentence,
@@ -53,8 +52,8 @@ const Controls: React.FC<ControlsProps> = ({
   isPaused,
   isProcessing,
   canResume,
-  onAudiobook,
-  isPlayModeActive,
+  // onAudiobook,
+  // isPlayModeActive,
   isReadButtonActive,
   // Progress tracking
   currentChunkIndex = null,
@@ -85,7 +84,7 @@ const Controls: React.FC<ControlsProps> = ({
   
   // Determine which mode is active to hide other options
   const isReadModeActive = isReading || isPaused || isProcessing || canResume;
-  const isAudiobookModeActive = isPlayModeActive;
+  // const isAudiobookModeActive = isPlayModeActive;
 
   // Button title logic
   let readButtonTitle: string;
@@ -167,19 +166,19 @@ const Controls: React.FC<ControlsProps> = ({
   // Show Read Aloud music player controls when Read Aloud is active
   if (isReadModeActive) {
     return (
-      <div className="music-player-controls bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+      <div className="music-player-controls bg-white rounded-xl border border-gray-200 shadow-lg p-2">
         {/* Progress Section */}
-        <div className="mb-6">
+        <div className="mb-2">
           {/* Chapter Progress Bar */}
-          <div className="relative mb-3">
-            <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="relative mb-1">
+            <div className="w-full bg-gray-200 rounded-full h-1">
               <div 
-                className="bg-gradient-to-r from-amber-600 to-amber-800 h-2 rounded-full transition-all duration-300 ease-out"
+                className="bg-gradient-to-r from-amber-600 to-amber-800 h-1 rounded-full transition-all duration-300 ease-out"
                 style={{ width: `${chapterProgress}%` }}
               />
             </div>
             {/* Progress percentage */}
-            <div className="flex justify-between text-sm text-gray-600 mt-2">
+            <div className="flex justify-between text-xs text-gray-600 mt-1">
               <span>Chapter Progress</span>
               <span className="font-medium text-amber-700">{chapterProgress}%</span>
             </div>
@@ -187,36 +186,36 @@ const Controls: React.FC<ControlsProps> = ({
         </div>
 
         {/* Main Controls */}
-        <div className="flex items-center justify-between gap-6">
+        <div className="flex items-center justify-between gap-1 md:gap-3">
           {/* Left Side - Settings Button */}
           {onOpenSettings && (
             <button
               onClick={onOpenSettings}
-              className="p-3 rounded-full hover:bg-amber-100 transition-colors"
+              className="p-1 rounded-full hover:bg-amber-100 transition-colors"
               aria-label="Open settings"
               title="Open settings"
             >
-              <Settings size={22} className="text-amber-700" />
+              <Settings size={14} className="text-amber-700" />
             </button>
           )}
 
           {/* Center - Play Controls */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 md:gap-3">
             {/* Previous Button */}
             <button
               onClick={onPreviousSentence}
-              className="p-3 rounded-full hover:bg-gray-100 transition-colors"
+              className="p-0.5 md:p-2 rounded-full hover:bg-gray-100 transition-colors"
               aria-label="Previous sentence"
               title="Previous sentence"
               disabled={isProcessing}
             >
-              <SkipBack size={22} className="text-gray-600" />
+              <SkipBack size={14} className="text-gray-600 md:text-[18px]" />
             </button>
 
           {/* Main Play/Pause Button */}
           <button
             onClick={onReadAloud}
-            className={`p-4 rounded-full transition-all duration-200 ${
+            className={`p-1 md:p-3 rounded-full transition-all duration-200 ${
               isReadButtonActive 
                 ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg' 
                 : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
@@ -226,48 +225,48 @@ const Controls: React.FC<ControlsProps> = ({
             disabled={isProcessing && !isReading && !isPaused}
           >
             {isProcessing && !isReading && !isPaused ? (
-              <Loader2 size={26} className="animate-spin" />
+              <Loader2 size={18} className="animate-spin md:text-[22px]" />
             ) : isPaused ? (
-              <PlayCircle size={26} />
+              <PlayCircle size={18} className="md:text-[22px]" />
             ) : isReading ? (
-              <PauseCircle size={26} />
+              <PauseCircle size={18} className="md:text-[22px]" />
             ) : canResume ? (
-              <RotateCcw size={26} />
+              <RotateCcw size={18} className="md:text-[22px]" />
             ) : (
-              <PlayCircle size={26} />
+              <PlayCircle size={18} className="md:text-[22px]" />
             )}
           </button>
 
             {/* Next Button */}
             <button
               onClick={onNextSentence}
-              className="p-3 rounded-full hover:bg-gray-100 transition-colors"
+              className="p-0.5 md:p-2 rounded-full hover:bg-gray-100 transition-colors"
               aria-label="Next sentence"
               title="Next sentence"
               disabled={isProcessing}
             >
-              <SkipForward size={22} className="text-gray-600" />
+              <SkipForward size={14} className="text-gray-600 md:text-[18px]" />
             </button>
           </div>
 
           {/* Right Side - Speed Control and Stop Button */}
-          <div className="flex items-center gap-4">
-            {/* Speed Control */}
+          <div className="flex items-center gap-1 md:gap-3">
+            {/* Speed Control - Compact Design */}
             {onSpeedChange && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center">
                 <button
                   onClick={() => onSpeedChange(Math.max(0.5, ttsSpeed - 0.1))}
-                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-amber-100 border border-gray-200 hover:border-amber-300 flex items-center justify-center text-sm font-medium transition-colors text-gray-600 hover:text-amber-700"
+                  className="w-4 h-4 md:w-5 md:h-5 rounded-full bg-gray-100 hover:bg-amber-100 border border-gray-200 hover:border-amber-300 flex items-center justify-center text-xs font-medium transition-colors text-gray-600 hover:text-amber-700"
                   disabled={ttsSpeed <= 0.5}
                 >
                   -
                 </button>
-                <span className="text-sm font-medium min-w-[2rem] text-center text-amber-700">
+                <span className="text-xs font-medium mx-1 text-amber-700 min-w-[1rem] text-center">
                   {Math.round(ttsSpeed * 10) / 10}x
                 </span>
                 <button
                   onClick={() => onSpeedChange(Math.min(2.0, ttsSpeed + 0.1))}
-                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-amber-100 border border-gray-200 hover:border-amber-300 flex items-center justify-center text-sm font-medium transition-colors text-gray-600 hover:text-amber-700"
+                  className="w-4 h-4 md:w-5 md:h-5 rounded-full bg-gray-100 hover:bg-amber-100 border border-gray-200 hover:border-amber-300 flex items-center justify-center text-xs font-medium transition-colors text-gray-600 hover:text-amber-700"
                   disabled={ttsSpeed >= 2.0}
                 >
                   +
@@ -279,11 +278,11 @@ const Controls: React.FC<ControlsProps> = ({
             {showStopButton && (
               <button
                 onClick={onStopTTS}
-                className="p-3 rounded-full hover:bg-red-100 text-red-600 transition-colors"
+                className="p-0.5 md:p-2 rounded-full hover:bg-red-100 text-red-600 transition-colors"
                 aria-label="Stop TTS"
                 title="Stop TTS"
               >
-                <Square size={22} />
+                <Square size={14} className="md:text-[18px]" />
               </button>
             )}
           </div>
@@ -298,7 +297,7 @@ const Controls: React.FC<ControlsProps> = ({
       {/* Page Info */}
       <div className="flex items-center gap-x-3 flex-shrink-0">
         <span className="page-info px-4 py-2 rounded-lg text-sm font-medium">
-          {currentPage + 1} / {totalPages}
+          {readingProgress}%
         </span>
       </div>
 
@@ -312,12 +311,12 @@ const Controls: React.FC<ControlsProps> = ({
           title={readButtonTitle}
           disabled={isProcessing && !isReading && !isPaused}
         >
-          <PlayCircle size={20} />
+          <Headphones size={20} />
           <span className="button-text text-sm font-medium">Read Aloud</span>
         </button>
 
-        {/* Audiobook Button */}
-        {!isAudiobookModeActive && (
+        {/* Audiobook Button - COMMENTED OUT */}
+        {/* {!isAudiobookModeActive && (
           <button
             onClick={onAudiobook}
             className="control-button hidden md:flex items-center gap-2 px-3 py-2"
@@ -328,7 +327,7 @@ const Controls: React.FC<ControlsProps> = ({
             <Headphones size={20} />
             <span className="button-text text-sm font-medium">Offline TTS</span>
           </button>
-        )}
+        )} */}
 
         {/* Full Cast Button */}
         <button

@@ -544,6 +544,13 @@ export class VideoQuoteGenerator {
     
     console.log(`[VideoQuoteGenerator] Animation started, total: ${audioDuration}s`);
     
+    // PRE-COMPUTE wrapped lines ONCE before animation starts
+    ctx.font = `bold ${this.config.fontSize}px Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+    const maxWidth = this.config.canvasWidth - (2 * this.config.padding);
+    const wrappedLines = this.precomputeWrappedLines(ctx, timestamps, maxWidth);
+    
+    console.log(`[VideoQuoteGenerator] Pre-computed ${wrappedLines.length} wrapped lines`);
+    
     const animate = () => { // NO ASYNC - keep synchronous!
       const elapsed = (Date.now() - startTime) / 1000;
       
@@ -569,7 +576,7 @@ export class VideoQuoteGenerator {
       }
       
       // Draw text and attribution immediately (no delay needed for static image)
-      this.drawTextWithHighlighting(ctx, options, timestamps, elapsed, audioDuration);
+      this.drawTextWithHighlighting(ctx, options, wrappedLines, elapsed, audioDuration);
       
       // Draw attribution
       this.drawAttribution(ctx, options.bookTitle, options.author, options.backgroundTemplate.type);
@@ -812,12 +819,39 @@ export class VideoQuoteGenerator {
   }
 
   /**
+   * Pre-compute wrapped lines for all timestamps (call once before animation)
+   */
+  private precomputeWrappedLines(
+    ctx: CanvasRenderingContext2D,
+    timestamps: WordTimestamp[],
+    maxWidth: number
+  ): Array<{ text: string; timestamp: WordTimestamp }> {
+    const wrappedLines: Array<{
+      text: string;
+      timestamp: WordTimestamp;
+    }> = [];
+    
+    timestamps.forEach(timestamp => {
+      const lines = this.wrapTextToWidth(ctx, timestamp.word, maxWidth);
+      
+      lines.forEach(line => {
+        wrappedLines.push({
+          text: line,
+          timestamp: timestamp
+        });
+      });
+    });
+    
+    return wrappedLines;
+  }
+
+  /**
    * Draw text with precise timing highlighting and scrolling support
    */
   private drawTextWithHighlighting(
     ctx: CanvasRenderingContext2D,
     options: VideoQuoteOptions,
-    timestamps: WordTimestamp[],
+    wrappedLines: Array<{ text: string; timestamp: WordTimestamp }>,
     currentTime: number,
     totalDuration: number
   ): void {
@@ -849,23 +883,6 @@ export class VideoQuoteGenerator {
     const availableHeight = options.backgroundTemplate.type === 'torn-cover' 
       ? middleHeight - (2 * this.config.padding) - attributionHeight
       : this.config.canvasHeight - (2 * this.config.padding) - attributionHeight;
-    
-    // Wrap each timestamp's text and track which lines belong to which timestamp
-    const wrappedLines: Array<{
-      text: string;
-      timestamp: WordTimestamp;
-    }> = [];
-    
-    timestamps.forEach(timestamp => {
-      const lines = this.wrapTextToWidth(ctx, timestamp.word, maxWidth);
-      
-      lines.forEach(line => {
-        wrappedLines.push({
-          text: line,
-          timestamp: timestamp
-        });
-      });
-    });
     
     // Calculate total height and determine if scrolling is needed
     const totalHeight = wrappedLines.length * lineHeight;

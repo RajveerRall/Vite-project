@@ -169,7 +169,10 @@ export const SettingsWidget: React.FC<SettingsWidgetProps> = ({
             <select
               id="tts-voice"
               value={selectedVoice}
-              onChange={(e) => onVoiceChange(e.target.value)}
+              onChange={(e) => {
+                console.log(`[SettingsWidget] Voice select changed to: ${e.target.value}`);
+                onVoiceChange(e.target.value);
+              }}
               className="w-full appearance-none border py-2 px-3 pr-8 rounded-lg leading-tight focus:outline-none focus:border-amber-400 settings-select"
             >
               {availableVoices.map(voice => (

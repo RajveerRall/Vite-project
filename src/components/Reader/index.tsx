@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useBook } from '../../context/BookContext';
 import SimplePlayMode from './SimplePlayMode';
 import TableOfContents from '../Library/TableOfContents';
@@ -12,6 +12,7 @@ import FeatureHighlight from './FeatureHighlight';
 import { ChevronLeft, ChevronRight, Headphones } from 'lucide-react';
 import { useReaderSettings } from '../../hooks/useReaderSettings';
 import { useReaderTTS } from '../../hooks/useReaderTTS';
+import { useReadingProgress } from '../../hooks/useReadingProgress';
 import { useAutoScroll } from '../../hooks/useAutoScroll';
 import SettingsWidget from './SettingsWidget';
 import MobileTOCDrawer from './MobileTOCDrawer';
@@ -29,7 +30,6 @@ const Reader: React.FC = () => {
     bookAuthor,
     currentBook, // Add this to access coverUrl
     currentPageDisplay,
-    totalPages,
     currentContent,
     toc,
     closeBook,
@@ -53,6 +53,9 @@ const Reader: React.FC = () => {
   
   // Mobile detection hook
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Ref for reading progress tracking
+  const readerMainRef = useRef<HTMLDivElement>(null);
   
   // === Chapter Navigation Arrows ===
   const [showNavigationArrows, setShowNavigationArrows] = useState<boolean>(false);
@@ -141,12 +144,12 @@ const Reader: React.FC = () => {
     scrollContainer: document.querySelector('.reader-main') as HTMLElement | null
   });
 
+  const readingProgress = useReadingProgress(readerMainRef, currentPageDisplay);
+
 
   const handleVoiceChange = (voice: string) => {
+    console.log(`[Reader] Voice change requested: ${voice}`);
     setSelectedVoice(voice);
-    if (isSpeaking || isPaused) {
-      handleStopTTS();
-    }
   };
 
   const handleSpeedChangeWithStop = (speed: number) => {
@@ -611,7 +614,7 @@ const Reader: React.FC = () => {
         <TableOfContents items={toc} onItemClick={handleNavigateToTocItem} />
       </div>
 
-      <div className="reader-main">
+      <div className="reader-main" ref={readerMainRef}>
         <div
           className="epub-content"
           onClick={handlePageClick}
@@ -654,8 +657,7 @@ const Reader: React.FC = () => {
     <div className="reader-bottom-controls fixed bottom-0 left-0 right-0 border-t border-gray-200 shadow-lg z-30 md:hidden">
       <div className="px-4 py-3">
         <Controls
-          currentPage={currentPageDisplay}
-          totalPages={totalPages}
+          readingProgress={readingProgress}
           onReadAloud={handleTTS}
           onStopTTS={handleStopTTS}
           onPreviousSentence={handlePreviousSentence}
@@ -664,8 +666,8 @@ const Reader: React.FC = () => {
           isPaused={isPaused}
           isProcessing={isProcessing && !(isSpeaking || isPaused)}
           canResume={canTTSResume}
-          onAudiobook={togglePlayMode}
-          isPlayModeActive={isPlayModeVisible}
+          // onAudiobook={togglePlayMode}
+          // isPlayModeActive={isPlayModeVisible}
           isReadButtonActive={isSpeaking || isPaused || canTTSResume}
           // Progress tracking
           currentChunkIndex={_currentChunkIndex}
@@ -708,8 +710,7 @@ const Reader: React.FC = () => {
     <div className="reader-bottom-controls-desktop hidden md:block fixed bottom-6 left-1/2 transform -translate-x-1/2 rounded-full shadow-xl border border-gray-200 z-30">
       <div className="px-6 py-3">
         <Controls
-          currentPage={currentPageDisplay}
-          totalPages={totalPages}
+          readingProgress={readingProgress}
           onReadAloud={handleTTS}
           onStopTTS={handleStopTTS}
           onPreviousSentence={handlePreviousSentence}
@@ -718,8 +719,8 @@ const Reader: React.FC = () => {
           isPaused={isPaused}
           isProcessing={isProcessing && !(isSpeaking || isPaused)}
           canResume={canTTSResume}
-          onAudiobook={togglePlayMode}
-          isPlayModeActive={isPlayModeVisible}
+          // onAudiobook={togglePlayMode}
+          // isPlayModeActive={isPlayModeVisible}
           isReadButtonActive={isSpeaking || isPaused || canTTSResume}
           // Progress tracking
           currentChunkIndex={_currentChunkIndex}

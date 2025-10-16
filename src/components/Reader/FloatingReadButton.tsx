@@ -258,11 +258,11 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreat
           onClick={handleVideoClick}
           onTouchEnd={handleVideoClick}
           className="video-button"
-          aria-label={`Create video from: ${selectedText.substring(0, 50)}${selectedText.length > 50 ? '...' : ''}`}
-          title="Create video quote"
+          aria-label={`Share quote as video from: ${selectedText.substring(0, 50)}${selectedText.length > 50 ? '...' : ''}`}
+          title="Share quote as video"
         >
           <Video className="w-4 h-4" />
-          <span>Video</span>
+          <span>Share Quote (Video)</span>
         </button>
       </div>
     </div>

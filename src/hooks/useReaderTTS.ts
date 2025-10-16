@@ -91,6 +91,16 @@ export const useReaderTTS = ({
   const durationsBuffer = useRef<Record<number, number>>({});
   const audioCtxRef = useRef<AudioContext | null>(null);
   const playStartTimeRef = useRef<Record<number, number>>({});
+  // === Voice tracking for buffer validation ===
+  const bufferVoiceRef = useRef<string>(selectedVoice);
+  // === Ref for selectedVoice to avoid stale closures ===
+  const selectedVoiceRef = useRef<string>(selectedVoice);
+
+  // === Keep selectedVoiceRef synchronized with selectedVoice prop ===
+  useEffect(() => {
+    selectedVoiceRef.current = selectedVoice;
+    console.log(`[${readerInstanceId}][Voice Ref Sync] selectedVoiceRef updated to: ${selectedVoice}`);
+  }, [selectedVoice, readerInstanceId]);
 
   // === Usage recording helper ===
   const recordUsageSeconds = useCallback(async (seconds: number) => {
@@ -228,6 +238,31 @@ export const useReaderTTS = ({
     };
   }, []);
 
+  // === Clear audio buffer function ===
+  const clearAudioBuffer = useCallback(() => {
+    const bufferUrls = Object.values(audioBuffer.current);
+    console.log(`[${readerInstanceId}][clearAudioBuffer] Clearing ${bufferUrls.length} buffered audio URLs due to voice change`);
+    bufferUrls.forEach(url => {
+      if (url && url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    });
+    audioBuffer.current = {};
+    // Update the voice tracking ref
+    bufferVoiceRef.current = selectedVoiceRef.current;
+  }, [readerInstanceId]);
+
+  // === Handle voice changes during playback ===
+  useEffect(() => {
+    console.log(`[${readerInstanceId}][Voice Change Effect] selectedVoice changed to: ${selectedVoice}, isSpeaking: ${isSpeaking}, isPaused: ${isPaused}, isProcessing: ${isProcessing}`);
+    
+    // Only clear buffer if TTS is currently active (speaking, paused, or processing)
+    if ((isSpeaking || isPaused || isProcessing) && Object.keys(audioBuffer.current).length > 0) {
+      console.log(`[${readerInstanceId}][Voice Change] Voice changed to ${selectedVoice} during active playback - clearing buffer`);
+      clearAudioBuffer();
+    }
+  }, [selectedVoice, isSpeaking, isPaused, isProcessing, clearAudioBuffer, readerInstanceId]);
+
   // === Prefetch chunks function ===
   const prefetchChunks = useCallback(async (startIndex: number) => {
     const chunksToFetch = chunks.slice(startIndex, startIndex + 2);
@@ -250,7 +285,7 @@ export const useReaderTTS = ({
 
         const params = new URLSearchParams({
           text: textChunk,
-          voice: selectedVoice,
+          voice: selectedVoiceRef.current,
           format: 'audio-24khz-48kbitrate-mono-mp3'
         });
         
@@ -281,14 +316,16 @@ export const useReaderTTS = ({
 
         const audioUrl = URL.createObjectURL(audioBlob);
         audioBuffer.current[chunkIndex] = audioUrl;
-        console.log(`[Prefetch] Successfully buffered chunk #${chunkIndex}`);
+        // Track the voice used for this buffered chunk
+        bufferVoiceRef.current = selectedVoiceRef.current;
+        console.log(`[Prefetch] Successfully buffered chunk #${chunkIndex} with voice ${selectedVoiceRef.current}`);
 
       } catch (error) {
         console.warn(`[Prefetch] Failed to pre-fetch chunk #${chunkIndex}`, error);
         addToast(`Failed to pre-fetch audio chunk ${chunkIndex + 1}. If it does not work contact us.`, 'error');
       }
     }
-  }, [chunks, currentChunkIndex, selectedVoice, ttsSpeed, addToast]);
+  }, [chunks, currentChunkIndex, ttsSpeed, addToast]);
 
   // === Play chunk function ===
   const playChunk = useCallback(async (index: number) => {
@@ -337,11 +374,11 @@ export const useReaderTTS = ({
 
     if (audioBuffer.current[index]) {
       const bufferedUrl = audioBuffer.current[index];
-      if (bufferedUrl && bufferedUrl.startsWith('blob:')) {
-        console.log(`[playChunk] Playing chunk #${index} from BUFFER.`);
+      if (bufferedUrl && bufferedUrl.startsWith('blob:') && bufferVoiceRef.current === selectedVoiceRef.current) {
+        console.log(`[playChunk] Playing chunk #${index} from BUFFER with voice ${selectedVoiceRef.current}.`);
         playAudio(bufferedUrl);
       } else {
-        console.log(`[playChunk] Buffered URL for chunk #${index} is invalid, fetching from NETWORK.`);
+        console.log(`[playChunk] Buffered URL for chunk #${index} is invalid or voice mismatch (buffer: ${bufferVoiceRef.current}, current: ${selectedVoiceRef.current}), fetching from NETWORK.`);
         delete audioBuffer.current[index];
       }
     }
@@ -356,7 +393,7 @@ export const useReaderTTS = ({
         // Build query parameters with voice and speed
         const params = new URLSearchParams({
           text: textChunk,
-          voice: selectedVoice,
+          voice: selectedVoiceRef.current,
           format: 'audio-24khz-48kbitrate-mono-mp3'
         });
         
@@ -386,6 +423,8 @@ export const useReaderTTS = ({
 
         const audioUrl = URL.createObjectURL(audioBlob);
         audioBuffer.current[index] = audioUrl;
+        // Track the voice used for this on-demand chunk
+        bufferVoiceRef.current = selectedVoiceRef.current;
         playAudio(audioUrl);
       } catch (error) {
         if ((error as any).name !== 'AbortError') {
@@ -410,7 +449,7 @@ export const useReaderTTS = ({
         }
       }
     }
-  }, [chunks, clearResumeIndex, prefetchChunks, readerInstanceId, selectedVoice, ttsSpeed, addToast]);
+  }, [chunks, clearResumeIndex, prefetchChunks, readerInstanceId, ttsSpeed, addToast]);
 
   // === Pause playback ===
   const pausePlayback = useCallback(() => {
