@@ -16,13 +16,13 @@ export class VideoQuoteGenerator {
     this.config = {
       canvasWidth: 1080,
       canvasHeight: 1920,
-      fontSize: 48,
-      lineHeight: 1.6, // Increased line height for better spacing
-      highlightColor: '#FFB700', // Richer gold for better visibility
-      textColor: '#1a1a1a', // Dark text on light paper
-      attributionFontSize: 24,
-      maxWordsPerLine: 6, // Reduced for better readability
-      padding: 80 // Increased padding
+      fontSize: 52, // Increased for better readability
+      lineHeight: 1.5, // Tighter for more text
+      highlightColor: '#FF6B6B', // Warm coral - engaging
+      textColor: '#000000', // Pure black for maximum sharpness
+      attributionFontSize: 26,
+      maxWordsPerLine: 6,
+      padding: 80
     };
 
     this.backgroundTemplates = [
@@ -113,9 +113,9 @@ export class VideoQuoteGenerator {
         message: 'Preparing video rendering...'
       });
 
-      // PRE-LOAD cover image and video BEFORE animation starts
+      // PRE-LOAD cover image and torn paper image BEFORE animation starts
       let coverImage: HTMLImageElement | null = null;
-      let tornPaperVideo: HTMLVideoElement | null = null;
+      let tornPaperImage: HTMLImageElement | null = null;
       
       if (options.backgroundTemplate.type === 'torn-cover' && options.coverUrl) {
         try {
@@ -126,19 +126,19 @@ export class VideoQuoteGenerator {
           });
           
           // Load both in parallel
-          const [cover, video] = await Promise.all([
+          const [cover, tornImage] = await Promise.all([
             this.loadImage(options.coverUrl),
-            this.loadTornPaperVideo().catch(() => null) // Graceful fallback
+            this.loadTornPaperImage().catch(() => null) // Graceful fallback
           ]);
           
           coverImage = cover;
-          tornPaperVideo = video;
+          tornPaperImage = tornImage;
           
-          console.log('[VideoQuoteGenerator] Cover and video pre-loaded successfully');
+          console.log('[VideoQuoteGenerator] Cover and torn image pre-loaded successfully');
         } catch (err) {
           console.warn('[VideoQuoteGenerator] Cover failed to load, using fallback:', err);
           coverImage = null;
-          tornPaperVideo = null;
+          tornPaperImage = null;
         }
       }
 
@@ -157,7 +157,7 @@ export class VideoQuoteGenerator {
         audioBlob,
         audioDuration,
         coverImage, // Pass pre-loaded image
-        tornPaperVideo, // Pass pre-loaded video
+        tornPaperImage, // Pass pre-loaded torn image
         onProgress
       );
 
@@ -393,8 +393,8 @@ export class VideoQuoteGenerator {
     timestamps: WordTimestamp[],
     audioBlob: Blob,
     audioDuration: number,
-    coverImage: HTMLImageElement | null, // NEW PARAMETER
-    tornPaperVideo: HTMLVideoElement | null, // NEW PARAMETER
+    coverImage: HTMLImageElement | null,
+    tornPaperImage: HTMLImageElement | null,
     onProgress?: (progress: VideoGenerationProgress) => void
   ): Promise<Blob> {
     const ctx = canvas.getContext('2d');
@@ -404,7 +404,7 @@ export class VideoQuoteGenerator {
 
     // Set up MediaRecorder
     const stream = canvas.captureStream(30); // 30 FPS
-    const { stream: audioStream, startAudio } = await this.createAudioStream(audioBlob, tornPaperVideo);
+    const { stream: audioStream, startAudio } = await this.createAudioStream(audioBlob);
     
     // Combine video and audio streams
     const combinedStream = new MediaStream([
@@ -467,7 +467,7 @@ export class VideoQuoteGenerator {
       });
 
       // Render animation
-      this.renderAnimation(ctx, options, timestamps, audioDuration, coverImage, tornPaperVideo, () => {
+      this.renderAnimation(ctx, options, timestamps, audioDuration, coverImage, tornPaperImage, () => {
         console.log('[VideoQuoteGenerator] Animation complete, stopping recorder in 500ms');
         // Stop recording after animation completes
         setTimeout(() => {
@@ -482,51 +482,27 @@ export class VideoQuoteGenerator {
   }
 
   /**
-   * Create mixed audio stream from TTS blob and video audio
+   * Create audio stream from TTS blob
    */
-  private async createAudioStream(
-    audioBlob: Blob, 
-    videoElement: HTMLVideoElement | null
-  ): Promise<{
+  private async createAudioStream(audioBlob: Blob): Promise<{
     stream: MediaStream;
     startAudio: () => void;
   }> {
     const audioContext = new AudioContext();
+    const audioBuffer = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
+    
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    
     const destination = audioContext.createMediaStreamDestination();
-    
-    // Create TTS audio source
-    const ttsBuffer = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
-    const ttsSource = audioContext.createBufferSource();
-    ttsSource.buffer = ttsBuffer;
-    
-    // Create video audio source if video element is available
-    let videoSource: MediaElementAudioSourceNode | null = null;
-    if (videoElement) {
-      try {
-        videoSource = audioContext.createMediaElementSource(videoElement);
-        videoSource.connect(destination);
-        console.log('[VideoQuoteGenerator] Video audio connected');
-      } catch (err) {
-        console.warn('[VideoQuoteGenerator] Could not connect video audio:', err);
-      }
-    }
-    
-    // Connect TTS source
-    ttsSource.connect(destination);
+    source.connect(destination);
     
     return {
       stream: destination.stream,
       startAudio: () => {
-        // Start video audio immediately (if available)
-        if (videoSource) {
-          console.log('[VideoQuoteGenerator] Video audio started immediately');
-        }
-        
-        // Delay TTS audio start by 2 seconds to match video intro
-        setTimeout(() => {
-          ttsSource.start();
-          console.log('[VideoQuoteGenerator] TTS audio started after 2s delay');
-        }, 2000);
+        // Start TTS audio immediately (no delay needed for static image)
+        source.start();
+        console.log('[VideoQuoteGenerator] TTS audio started');
       }
     };
   }
@@ -560,23 +536,13 @@ export class VideoQuoteGenerator {
     options: VideoQuoteOptions,
     timestamps: WordTimestamp[],
     audioDuration: number,
-    coverImage: HTMLImageElement | null, // NEW PARAMETER
-    tornPaperVideo: HTMLVideoElement | null, // NEW PARAMETER
+    coverImage: HTMLImageElement | null,
+    tornPaperImage: HTMLImageElement | null,
     onComplete: () => void
   ): void {
     const startTime = Date.now();
-    const VIDEO_INTRO_DURATION = 2.0; // Duration of torn paper animation
     
-    console.log(`[VideoQuoteGenerator] Animation started, intro: ${VIDEO_INTRO_DURATION}s, total: ${audioDuration}s`);
-    
-    // Start video playback if available (plays once, then pauses on last frame)
-    if (tornPaperVideo) {
-      tornPaperVideo.currentTime = 0;
-      tornPaperVideo.loop = false; // Don't loop
-      tornPaperVideo.play().catch(err => {
-        console.warn('[VideoQuoteGenerator] Video playback failed:', err);
-      });
-    }
+    console.log(`[VideoQuoteGenerator] Animation started, total: ${audioDuration}s`);
     
     const animate = () => { // NO ASYNC - keep synchronous!
       const elapsed = (Date.now() - startTime) / 1000;
@@ -595,25 +561,18 @@ export class VideoQuoteGenerator {
       // Clear canvas
       ctx.clearRect(0, 0, this.config.canvasWidth, this.config.canvasHeight);
       
-      // Always draw with video composited over cover (if available)
+      // Always draw with torn image composited over cover (if available)
       if (options.backgroundTemplate.type === 'torn-cover') {
-        this.drawTornCoverWithVideo(ctx, coverImage, tornPaperVideo);
+        this.drawTornCoverWithImage(ctx, coverImage, tornPaperImage);
       } else {
         this.drawBackgroundSync(ctx, options.backgroundTemplate, coverImage);
       }
       
-      // Only draw text and attribution AFTER video intro (when cover is torn)
-      if (elapsed >= VIDEO_INTRO_DURATION) {
-        // Adjust elapsed time for text animation (subtract intro duration)
-        const textElapsed = elapsed - VIDEO_INTRO_DURATION;
-        const textDuration = audioDuration - VIDEO_INTRO_DURATION;
-        
-        // Draw text with highlighting (scrolls over the video effect)
-        this.drawTextWithHighlighting(ctx, options, timestamps, textElapsed, textDuration);
-        
-        // Draw attribution
-        this.drawAttribution(ctx, options.bookTitle, options.author, options.backgroundTemplate.type);
-      }
+      // Draw text and attribution immediately (no delay needed for static image)
+      this.drawTextWithHighlighting(ctx, options, timestamps, elapsed, audioDuration);
+      
+      // Draw attribution
+      this.drawAttribution(ctx, options.bookTitle, options.author, options.backgroundTemplate.type);
       
       requestAnimationFrame(animate);
     };
@@ -622,12 +581,12 @@ export class VideoQuoteGenerator {
   }
 
   /**
-   * Draw torn cover with video composited over it using pixel processing
+   * Draw torn cover with static image composited over it using pixel processing
    */
-  private drawTornCoverWithVideo(
+  private drawTornCoverWithImage(
     ctx: CanvasRenderingContext2D,
     coverImage: HTMLImageElement | null,
-    video: HTMLVideoElement | null
+    tornImage: HTMLImageElement | null
   ): void {
     const canvasWidth = this.config.canvasWidth;
     const canvasHeight = this.config.canvasHeight;
@@ -644,10 +603,10 @@ export class VideoQuoteGenerator {
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     }
     
-    // If no video, just return (cover is already drawn)
-    if (!video) return;
+    // If no torn image, just return (cover is already drawn)
+    if (!tornImage) return;
     
-    // Create temporary canvas to process video frame
+    // Create temporary canvas to process torn image frame
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvasWidth;
     tempCanvas.height = canvasHeight;
@@ -655,26 +614,8 @@ export class VideoQuoteGenerator {
     
     if (!tempCtx) return;
     
-    // Scale video to fit canvas
-    const videoAspect = video.videoWidth / video.videoHeight;
-    const canvasAspect = canvasWidth / canvasHeight;
-    
-    let drawWidth, drawHeight, drawX, drawY;
-    
-    if (videoAspect > canvasAspect) {
-      drawHeight = canvasHeight;
-      drawWidth = drawHeight * videoAspect;
-      drawX = (canvasWidth - drawWidth) / 2;
-      drawY = 0;
-    } else {
-      drawWidth = canvasWidth;
-      drawHeight = drawWidth / videoAspect;
-      drawX = 0;
-      drawY = (canvasHeight - drawHeight) / 2;
-    }
-    
-    // Draw video to temp canvas
-    tempCtx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+    // Draw torn image to temp canvas (scaled to fit)
+    tempCtx.drawImage(tornImage, 0, 0, canvasWidth, canvasHeight);
     
     // Get pixel data
     const imageData = tempCtx.getImageData(0, 0, canvasWidth, canvasHeight);
@@ -697,7 +638,7 @@ export class VideoQuoteGenerator {
     // Put processed pixels back
     tempCtx.putImageData(imageData, 0, 0);
     
-    // Draw processed video frame over the cover
+    // Draw processed torn image over the cover
     ctx.drawImage(tempCanvas, 0, 0);
   }
 
@@ -880,9 +821,12 @@ export class VideoQuoteGenerator {
     currentTime: number,
     totalDuration: number
   ): void {
-    ctx.font = `bold ${this.config.fontSize}px Arial, sans-serif`;
+    ctx.font = `bold ${this.config.fontSize}px Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
+    
+    // Enable crisp text rendering
+    ctx.imageSmoothingEnabled = false;
     
     const maxWidth = this.config.canvasWidth - (2 * this.config.padding);
     const lineHeight = this.config.fontSize * this.config.lineHeight;
@@ -963,12 +907,12 @@ export class VideoQuoteGenerator {
           
           if (isHighlighted) {
             ctx.fillStyle = this.config.highlightColor;
-            ctx.shadowColor = this.config.highlightColor;
-            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
           } else {
             ctx.fillStyle = this.config.textColor;
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-            ctx.shadowBlur = 5;
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
           }
           
           ctx.fillText(line.text, this.config.canvasWidth / 2, y, maxWidth);
@@ -994,12 +938,12 @@ export class VideoQuoteGenerator {
         
         if (isHighlighted) {
           ctx.fillStyle = this.config.highlightColor;
-          ctx.shadowColor = this.config.highlightColor;
-          ctx.shadowBlur = 10;
+          ctx.shadowColor = 'transparent';
+          ctx.shadowBlur = 0;
         } else {
           ctx.fillStyle = this.config.textColor;
-          ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-          ctx.shadowBlur = 5;
+          ctx.shadowColor = 'transparent';
+          ctx.shadowBlur = 0;
         }
         
         const y = startY + (index * lineHeight);
@@ -1007,7 +951,7 @@ export class VideoQuoteGenerator {
       });
     }
     
-    ctx.shadowBlur = 0;
+    ctx.shadowBlur = 0; // Ensure no shadow leaks to other draws
     
     // Restore clipping region if it was set
     if (options.backgroundTemplate.type === 'torn-cover') {
@@ -1046,10 +990,10 @@ export class VideoQuoteGenerator {
     ctx.fillRect(0, backgroundY, this.config.canvasWidth, backgroundHeight);
     
     ctx.font = `${this.config.attributionFontSize}px Arial, sans-serif`;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 1)'; // Full opacity for sharpness
     ctx.textAlign = 'center';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-    ctx.shadowBlur = 5;
+    ctx.shadowColor = 'transparent'; // No shadow
+    ctx.shadowBlur = 0; // No blur
     
     // Draw book title
     ctx.fillText(bookTitle, this.config.canvasWidth / 2, attributionY);
@@ -1070,11 +1014,17 @@ export class VideoQuoteGenerator {
     text: string,
     maxWidth: number
   ): string[] {
-    const words = text.split(' ');
+    // Normalize whitespace: replace multiple spaces with single space and trim
+    const normalizedText = text.replace(/\s+/g, ' ').trim();
+    
+    const words = normalizedText.split(' ');
     const lines: string[] = [];
     let currentLine = '';
     
     words.forEach(word => {
+      // Skip empty words
+      if (!word) return;
+      
       const testLine = currentLine ? `${currentLine} ${word}` : word;
       const metrics = ctx.measureText(testLine);
       
@@ -1092,7 +1042,7 @@ export class VideoQuoteGenerator {
       lines.push(currentLine);
     }
     
-    return lines.length > 0 ? lines : [text];
+    return lines.length > 0 ? lines : [normalizedText];
   }
 
   /**
@@ -1108,25 +1058,19 @@ export class VideoQuoteGenerator {
     });
   }
 
-  private async loadTornPaperVideo(): Promise<HTMLVideoElement> {
+  private async loadTornPaperImage(): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
-      const video = document.createElement('video');
-      video.crossOrigin = 'anonymous';
-      video.preload = 'auto';
-      video.muted = true;
-      
-      video.onloadeddata = () => {
-        console.log('[VideoQuoteGenerator] Torn paper video loaded');
-        resolve(video);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        console.log('[VideoQuoteGenerator] Torn paper image loaded');
+        resolve(img);
       };
-      
-      video.onerror = (err) => {
-        console.warn('[VideoQuoteGenerator] Failed to load torn paper video:', err);
+      img.onerror = (err) => {
+        console.warn('[VideoQuoteGenerator] Failed to load torn paper image:', err);
         reject(err);
       };
-      
-      // Use cover-animate.mp4 as requested
-      video.src = '/assets/cover-animate.mp4';
+      img.src = '/assets/torn-off.png';
     });
   }
 }

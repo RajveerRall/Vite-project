@@ -51,8 +51,9 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
+    // Data URLs don't need revocation, only blob URLs do
     return () => {
-      if (videoUrl) {
+      if (videoUrl && videoUrl.startsWith('blob:')) {
         URL.revokeObjectURL(videoUrl);
       }
     };
@@ -85,14 +86,20 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
       );
 
       setGeneratedVideo(result.videoBlob);
-      const url = URL.createObjectURL(result.videoBlob);
-      setVideoUrl(url);
 
-      // Auto-play the generated video
-      if (videoRef.current) {
-        videoRef.current.src = url;
-        videoRef.current.play();
-      }
+      // Convert blob to data URL for persistence across tab switches
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setVideoUrl(dataUrl);
+        
+        // Auto-play the generated video
+        if (videoRef.current) {
+          videoRef.current.src = dataUrl;
+          videoRef.current.play();
+        }
+      };
+      reader.readAsDataURL(result.videoBlob);
 
     } catch (err) {
       console.error('Video generation failed:', err);
