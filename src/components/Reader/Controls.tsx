@@ -186,36 +186,36 @@ const Controls: React.FC<ControlsProps> = ({
         </div>
 
         {/* Main Controls */}
-        <div className="flex items-center justify-between gap-1 md:gap-3">
+        <div className="flex items-center justify-between gap-3 md:gap-4">
           {/* Left Side - Settings Button */}
           {onOpenSettings && (
             <button
               onClick={onOpenSettings}
-              className="p-1 rounded-full hover:bg-amber-100 transition-colors"
+              className="p-2 md:p-3 rounded-full hover:bg-amber-100 transition-colors"
               aria-label="Open settings"
               title="Open settings"
             >
-              <Settings size={14} className="text-amber-700" />
+              <Settings size={20} className="text-amber-700 md:text-[22px]" />
             </button>
           )}
 
           {/* Center - Play Controls */}
-          <div className="flex items-center gap-1 md:gap-3">
+          <div className="flex items-center gap-3 md:gap-4">
             {/* Previous Button */}
             <button
               onClick={onPreviousSentence}
-              className="p-0.5 md:p-2 rounded-full hover:bg-gray-100 transition-colors"
+              className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 transition-colors"
               aria-label="Previous sentence"
               title="Previous sentence"
               disabled={isProcessing}
             >
-              <SkipBack size={14} className="text-gray-600 md:text-[18px]" />
+              <SkipBack size={18} className="text-gray-600 md:text-[22px]" />
             </button>
 
           {/* Main Play/Pause Button */}
           <button
             onClick={onReadAloud}
-            className={`p-1 md:p-3 rounded-full transition-all duration-200 ${
+            className={`p-3 md:p-4 rounded-full transition-all duration-200 ${
               isReadButtonActive 
                 ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg' 
                 : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
@@ -225,48 +225,48 @@ const Controls: React.FC<ControlsProps> = ({
             disabled={isProcessing && !isReading && !isPaused}
           >
             {isProcessing && !isReading && !isPaused ? (
-              <Loader2 size={18} className="animate-spin md:text-[22px]" />
+              <Loader2 size={22} className="animate-spin md:text-[26px]" />
             ) : isPaused ? (
-              <PlayCircle size={18} className="md:text-[22px]" />
+              <PlayCircle size={22} className="md:text-[26px]" />
             ) : isReading ? (
-              <PauseCircle size={18} className="md:text-[22px]" />
+              <PauseCircle size={22} className="md:text-[26px]" />
             ) : canResume ? (
-              <RotateCcw size={18} className="md:text-[22px]" />
+              <RotateCcw size={22} className="md:text-[26px]" />
             ) : (
-              <PlayCircle size={18} className="md:text-[22px]" />
+              <PlayCircle size={22} className="md:text-[26px]" />
             )}
           </button>
 
             {/* Next Button */}
             <button
               onClick={onNextSentence}
-              className="p-0.5 md:p-2 rounded-full hover:bg-gray-100 transition-colors"
+              className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 transition-colors"
               aria-label="Next sentence"
               title="Next sentence"
               disabled={isProcessing}
             >
-              <SkipForward size={14} className="text-gray-600 md:text-[18px]" />
+              <SkipForward size={18} className="text-gray-600 md:text-[22px]" />
             </button>
           </div>
 
           {/* Right Side - Speed Control and Stop Button */}
-          <div className="flex items-center gap-1 md:gap-3">
+          <div className="flex items-center gap-3 md:gap-4">
             {/* Speed Control - Compact Design */}
             {onSpeedChange && (
-              <div className="flex items-center">
+              <div className="flex items-center gap-2 md:gap-2.5">
                 <button
                   onClick={() => onSpeedChange(Math.max(0.5, ttsSpeed - 0.1))}
-                  className="w-4 h-4 md:w-5 md:h-5 rounded-full bg-gray-100 hover:bg-amber-100 border border-gray-200 hover:border-amber-300 flex items-center justify-center text-xs font-medium transition-colors text-gray-600 hover:text-amber-700"
+                  className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gray-100 hover:bg-amber-100 border border-gray-200 hover:border-amber-300 flex items-center justify-center text-sm md:text-base font-medium transition-colors text-gray-600 hover:text-amber-700"
                   disabled={ttsSpeed <= 0.5}
                 >
                   -
                 </button>
-                <span className="text-xs font-medium mx-1 text-amber-700 min-w-[1rem] text-center">
+                <span className="text-sm md:text-base font-medium mx-2 md:mx-3 text-amber-700 min-w-[1.5rem] md:min-w-[2rem] text-center">
                   {Math.round(ttsSpeed * 10) / 10}x
                 </span>
                 <button
                   onClick={() => onSpeedChange(Math.min(2.0, ttsSpeed + 0.1))}
-                  className="w-4 h-4 md:w-5 md:h-5 rounded-full bg-gray-100 hover:bg-amber-100 border border-gray-200 hover:border-amber-300 flex items-center justify-center text-xs font-medium transition-colors text-gray-600 hover:text-amber-700"
+                  className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gray-100 hover:bg-amber-100 border border-gray-200 hover:border-amber-300 flex items-center justify-center text-sm md:text-base font-medium transition-colors text-gray-600 hover:text-amber-700"
                   disabled={ttsSpeed >= 2.0}
                 >
                   +
@@ -278,11 +278,11 @@ const Controls: React.FC<ControlsProps> = ({
             {showStopButton && (
               <button
                 onClick={onStopTTS}
-                className="p-0.5 md:p-2 rounded-full hover:bg-red-100 text-red-600 transition-colors"
+                className="p-1.5 md:p-2 rounded-full hover:bg-red-100 text-red-600 transition-colors"
                 aria-label="Stop TTS"
                 title="Stop TTS"
               >
-                <Square size={14} className="md:text-[18px]" />
+                <Square size={18} className="md:text-[22px]" />
               </button>
             )}
           </div>
