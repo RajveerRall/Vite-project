@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Play, Download, Share2, Loader2 } from 'lucide-react';
 import { VideoQuoteGenerator } from '../../services/VideoQuoteGenerator';
 import { VideoQuoteOptions, VideoGenerationProgress, BackgroundTemplate } from '../../types/video';
+import { trackEvent } from '../../lib/analytics';
 import './VideoQuoteModal.css';
 
 interface VideoQuoteModalProps {
@@ -29,6 +30,12 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   
+  // Analytics tracking state
+  const [modalOpenTime, setModalOpenTime] = useState<number>(0);
+  const [videoGenerationStartTime, setVideoGenerationStartTime] = useState<number>(0);
+  const [videoWasGenerated, setVideoWasGenerated] = useState(false);
+  const [videoWasDownloaded, setVideoWasDownloaded] = useState(false);
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const generatorRef = useRef<VideoQuoteGenerator | null>(null);
 
@@ -44,11 +51,22 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      const openTime = Date.now();
+      setModalOpenTime(openTime);
+      setVideoWasGenerated(false);
+      setVideoWasDownloaded(false);
+      
+      trackEvent('video_quote_modal_opened', {
+        selected_text_length: selectedText.length,
+        book_title: bookTitle,
+        has_cover: !!coverUrl
+      });
+      
       generatorRef.current = new VideoQuoteGenerator();
       const templates = generatorRef.current.getBackgroundTemplates();
       setSelectedBackground(templates[0]); // Default to first template
     }
-  }, [isOpen]);
+  }, [isOpen, selectedText, bookTitle, coverUrl]);
 
   useEffect(() => {
     // Data URLs don't need revocation, only blob URLs do
@@ -67,6 +85,16 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
     setProgress(null);
     setGeneratedVideo(null);
     setVideoUrl(null);
+
+    const startTime = Date.now();
+    setVideoGenerationStartTime(startTime);
+    
+    trackEvent('video_quote_generation_started', {
+      text_length: selectedText.length,
+      voice_selected: selectedVoice,
+      background_template: selectedBackground?.id,
+      book_title: bookTitle
+    });
 
     try {
       const options: VideoQuoteOptions = {
@@ -87,6 +115,18 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
 
       setGeneratedVideo(result.videoBlob);
 
+      // Track success
+      const generationTime = Date.now() - startTime;
+      setVideoWasGenerated(true);
+      
+      trackEvent('video_quote_generation_completed', {
+        text_length: selectedText.length,
+        voice_used: selectedVoice,
+        background_used: selectedBackground?.id,
+        generation_time_ms: generationTime,
+        book_title: bookTitle
+      });
+
       // Convert blob to data URL for persistence across tab switches
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -104,6 +144,14 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
     } catch (err) {
       console.error('Video generation failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate video');
+      
+      // Track failure
+      trackEvent('video_quote_generation_failed', {
+        error_message: err instanceof Error ? err.message : 'Unknown error',
+        text_length: selectedText.length,
+        voice_attempted: selectedVoice,
+        background_attempted: selectedBackground?.id
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -111,6 +159,15 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
 
   const handleDownload = () => {
     if (!generatedVideo) return;
+
+    setVideoWasDownloaded(true);
+    
+    trackEvent('video_quote_downloaded', {
+      text_length: selectedText.length,
+      voice_used: selectedVoice,
+      background_used: selectedBackground?.id,
+      book_title: bookTitle
+    });
 
     const url = URL.createObjectURL(generatedVideo);
     const a = document.createElement('a');
@@ -132,8 +189,23 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
           text: selectedText,
           files: [new File([generatedVideo], 'quote.mp4', { type: 'video/mp4' })]
         });
+        
+        trackEvent('video_quote_shared', {
+          text_length: selectedText.length,
+          voice_used: selectedVoice,
+          background_used: selectedBackground?.id,
+          book_title: bookTitle,
+          share_method: 'web_share_api'
+        });
       } else {
         // Fallback to download
+        trackEvent('video_quote_shared', {
+          text_length: selectedText.length,
+          voice_used: selectedVoice,
+          background_used: selectedBackground?.id,
+          book_title: bookTitle,
+          share_method: 'fallback_download'
+        });
         handleDownload();
       }
     } catch (err) {
@@ -143,6 +215,20 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
     }
   };
 
+  const handleClose = () => {
+    if (modalOpenTime > 0) {
+      const timeInModal = Date.now() - modalOpenTime;
+      
+      trackEvent('video_quote_modal_closed', {
+        video_generated: videoWasGenerated,
+        video_downloaded: videoWasDownloaded,
+        time_in_modal_ms: timeInModal
+      });
+    }
+    
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -150,7 +236,7 @@ const VideoQuoteModal: React.FC<VideoQuoteModalProps> = ({
       <div className="video-quote-modal">
         <div className="modal-header">
           <h2>Create Video Quote</h2>
-          <button onClick={onClose} className="close-button">
+          <button onClick={handleClose} className="close-button">
             <X className="w-5 h-5" />
           </button>
         </div>
