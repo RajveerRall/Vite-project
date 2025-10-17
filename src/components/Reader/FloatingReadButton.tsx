@@ -262,7 +262,7 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreat
           title="Share quote as video"
         >
           <Video className="w-4 h-4" />
-          <span>Share Quote (Video)</span>
+          <span>Quote</span>
         </button>
       </div>
     </div>

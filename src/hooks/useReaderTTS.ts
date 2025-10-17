@@ -95,6 +95,8 @@ export const useReaderTTS = ({
   const bufferVoiceRef = useRef<string>(selectedVoice);
   // === Ref for selectedVoice to avoid stale closures ===
   const selectedVoiceRef = useRef<string>(selectedVoice);
+  // === Track previous voice to detect actual changes ===
+  const prevVoiceRef = useRef<string>(selectedVoice);
 
   // === Keep selectedVoiceRef synchronized with selectedVoice prop ===
   useEffect(() => {
@@ -256,11 +258,16 @@ export const useReaderTTS = ({
   useEffect(() => {
     console.log(`[${readerInstanceId}][Voice Change Effect] selectedVoice changed to: ${selectedVoice}, isSpeaking: ${isSpeaking}, isPaused: ${isPaused}, isProcessing: ${isProcessing}`);
     
-    // Only clear buffer if TTS is currently active (speaking, paused, or processing)
-    if ((isSpeaking || isPaused || isProcessing) && Object.keys(audioBuffer.current).length > 0) {
-      console.log(`[${readerInstanceId}][Voice Change] Voice changed to ${selectedVoice} during active playback - clearing buffer`);
+    // Only clear buffer if voice actually changed (not just effect re-running due to state changes)
+    if ((isSpeaking || isPaused || isProcessing) && 
+        Object.keys(audioBuffer.current).length > 0 &&
+        prevVoiceRef.current !== selectedVoice) {
+      console.log(`[${readerInstanceId}][Voice Change] Voice changed from ${prevVoiceRef.current} to ${selectedVoice} during active playback - clearing buffer`);
       clearAudioBuffer();
     }
+    
+    // Update previous voice ref after checking
+    prevVoiceRef.current = selectedVoice;
   }, [selectedVoice, isSpeaking, isPaused, isProcessing, clearAudioBuffer, readerInstanceId]);
 
   // === Prefetch chunks function ===
