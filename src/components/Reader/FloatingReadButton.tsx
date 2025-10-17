@@ -15,81 +15,126 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreat
   const [isNativeMenuVisible, setIsNativeMenuVisible] = useState(false);
   // Persist last valid selection range to restore it on mobile before calling TTS
   const lastSelectionRangeRef = useRef<Range | null>(null);
+  // Debounce timeout for selection changes
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Helper function to validate if selection is in reading area and meets minimum length
+  const isValidSelection = (selection: Selection): boolean => {
+    if (!selection || selection.toString().trim().length < 3) {
+      return false;
+    }
+
+    const range = selection.getRangeAt(0);
+    const container = range.commonAncestorContainer;
+    
+    // Check if selection is within reader content area
+    const epubContent = container.nodeType === Node.TEXT_NODE 
+      ? container.parentElement?.closest('.epub-content')
+      : (container as Element)?.closest('.epub-content');
+    
+    const readerMain = container.nodeType === Node.TEXT_NODE 
+      ? container.parentElement?.closest('.reader-main')
+      : (container as Element)?.closest('.reader-main');
+
+    const isValidArea = epubContent || readerMain;
+    
+    console.log('[FloatingReadButton] Selection validation:', {
+      textLength: selection.toString().trim().length,
+      isValidArea: !!isValidArea,
+      containerType: container.nodeType,
+      containerTag: container.nodeType === Node.ELEMENT_NODE ? (container as Element).tagName : 'TEXT'
+    });
+
+    return !!isValidArea;
+  };
 
   useEffect(() => {
     const handleSelectionChange = () => {
-      const selection = window.getSelection();
-      
-      if (selection && selection.toString().trim().length > 0) {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
+      // Clear any existing debounce timeout
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+
+      // Debounce the selection change with 100ms delay
+      debounceTimeoutRef.current = setTimeout(() => {
+        const selection = window.getSelection();
         
-        // Save range to restore later on mobile
-        lastSelectionRangeRef.current = range.cloneRange();
-        
-        // Position the button above the selected text
-        // On mobile, position it much higher to avoid Chrome's native selection menu
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        let topOffset, leftPosition;
-        
-        if (isMobile) {
-          // On mobile, position much higher to avoid Chrome's selection menu (which appears ~40-60px above selection)
-          topOffset = 120; // Much higher to clear the native menu
+        if (selection && selection.toString().trim().length > 0 && isValidSelection(selection)) {
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
           
-          // Also check if button would go off-screen and adjust
-          const buttonWidth = 80;
-          const screenWidth = window.innerWidth;
-          const centerX = rect.left + (rect.width / 2);
+          // Save range to restore later on mobile
+          lastSelectionRangeRef.current = range.cloneRange();
           
-          // Ensure button stays within screen bounds
-          if (centerX - (buttonWidth / 2) < 10) {
-            leftPosition = 10; // Too far left, align to left edge
-          } else if (centerX + (buttonWidth / 2) > screenWidth - 10) {
-            leftPosition = screenWidth - buttonWidth - 10; // Too far right, align to right edge
+          // Position the button above the selected text
+          // On mobile, position it much higher to avoid Chrome's native selection menu
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          
+          let topOffset, leftPosition;
+          
+          if (isMobile) {
+            // On mobile, position much higher to avoid Chrome's selection menu (which appears ~40-60px above selection)
+            topOffset = 150; // Increased from 120px to 150px for better clearance
+            
+            // Also check if button would go off-screen and adjust
+            const buttonWidth = 80;
+            const centerX = rect.left + (rect.width / 2);
+            const proposedTop = rect.top - topOffset;
+            
+            // Ensure button stays within screen bounds horizontally
+            if (centerX - (buttonWidth / 2) < 10) {
+              leftPosition = 10; // Too far left, align to left edge
+            } else if (centerX + (buttonWidth / 2) > window.innerWidth - 10) {
+              leftPosition = window.innerWidth - buttonWidth - 10; // Too far right, align to right edge
+            } else {
+              leftPosition = centerX - (buttonWidth / 2); // Center normally
+            }
+            
+            // Ensure button stays within screen bounds vertically
+            if (proposedTop < 10) {
+              topOffset = rect.top + rect.height + 20; // Position below selection if above would be off-screen
+            }
           } else {
-            leftPosition = centerX - (buttonWidth / 2); // Center normally
+            // Desktop positioning (unchanged)
+            topOffset = 60;
+            leftPosition = rect.left + (rect.width / 2) - 40;
           }
-        } else {
-          // Desktop positioning (unchanged)
-          topOffset = 60;
-          leftPosition = rect.left + (rect.width / 2) - 40;
-        }
-        
-        setPosition({
-          top: rect.top - topOffset,
-          left: leftPosition
-        });
-        
-        setSelectedText(selection.toString().trim());
-        
-        // Clear any existing hide timeout
-        if (hideTimeout) {
-          clearTimeout(hideTimeout);
-          setHideTimeout(null);
-        }
-      } else {
-        // On mobile, add a delay before hiding to allow user to tap the button
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        if (isMobile) {
-          // Clear any existing timeout
+          
+          setPosition({
+            top: rect.top - topOffset,
+            left: leftPosition
+          });
+          
+          setSelectedText(selection.toString().trim());
+          
+          // Clear any existing hide timeout
           if (hideTimeout) {
             clearTimeout(hideTimeout);
-          }
-          
-          // Set a delay before hiding on mobile
-          const timeout = setTimeout(() => {
-            setSelectedText('');
             setHideTimeout(null);
-          }, 2000); // 2 second delay on mobile
-          
-          setHideTimeout(timeout);
+          }
         } else {
-          // On desktop, hide immediately
-          setSelectedText('');
+          // On mobile, add a delay before hiding to allow user to tap the button
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          
+          if (isMobile) {
+            // Clear any existing timeout
+            if (hideTimeout) {
+              clearTimeout(hideTimeout);
+            }
+            
+            // Set a delay before hiding on mobile
+            const timeout = setTimeout(() => {
+              setSelectedText('');
+              setHideTimeout(null);
+            }, 2000); // 2 second delay on mobile
+            
+            setHideTimeout(timeout);
+          } else {
+            // On desktop, hide immediately
+            setSelectedText('');
+          }
         }
-      }
+      }, 100); // 100ms debounce delay
     };
 
     // Handle native selection menu visibility on mobile
@@ -129,9 +174,12 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreat
       document.removeEventListener('contextmenu', handleNativeMenuToggle);
       document.removeEventListener('touchstart', handleNativeMenuToggle);
       
-      // Clean up timeout on unmount
+      // Clean up timeouts on unmount
       if (hideTimeout) {
         clearTimeout(hideTimeout);
+      }
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
       }
     };
   }, [hideTimeout]);

@@ -1,6 +1,6 @@
 .floating-read-button {
   position: fixed;
-  z-index: 1000;
+  z-index: 10000;
   pointer-events: auto;
   animation: slideInFromBottom 0.2s ease-out;
 }
@@ -104,7 +104,7 @@
     /* Add a subtle pulse to indicate it's interactive */
     animation: mobilePulse 2s ease-in-out infinite;
     /* Ensure button is above Chrome's selection menu */
-    z-index: 1001;
+    z-index: 10001;
   }
   
   .read-button {
@@ -126,7 +126,7 @@
   .floating-read-button {
     animation-duration: 0.3s; /* Slightly longer animation */
     /* Higher z-index to ensure it's above native menus */
-    z-index: 1001;
+    z-index: 10001;
   }
 }
 

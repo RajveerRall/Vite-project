@@ -618,6 +618,10 @@ const Reader: React.FC = () => {
         <div
           className="epub-content"
           onClick={handlePageClick}
+          onContextMenu={(e) => {
+            // Prevent native context menu on text selection to avoid obstruction
+            e.preventDefault();
+          }}
           style={{ whiteSpace: 'pre-wrap' }}
           dangerouslySetInnerHTML={{ __html: ttsHighlightedContent || currentContent }}
         />
