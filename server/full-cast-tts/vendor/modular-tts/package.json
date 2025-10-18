@@ -1,6 +1,6 @@
 {
   "name": "@your-scope/modular-tts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A modular text-to-speech pipeline with support for multiple LLMs, parsers, and TTS providers",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -45,6 +45,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@andresaya/edge-tts": "^1.4.4",
     "@cartesia/cartesia-js": "^2.2.5",
     "@google/generative-ai": "^0.24.1",
     "axios": "^1.12.2",

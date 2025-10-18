@@ -4431,5 +4431,447 @@
     },
     "id": "1760295269346-0bsq13e4i",
     "timestamp": "2025-10-12T18:54:29.346Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Nineteen Thousand, nine hundred and twenty. That’s all of it. Can I please kill myself now?",
+    "characterCount": 91,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812141418-di3yso4ke",
+    "timestamp": "2025-10-18T18:29:01.418Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "What? I’d have thought you’d be enthusiastic about helping us tally the loot, Bug.",
+    "characterCount": 82,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812143192-8cvdjudwu",
+    "timestamp": "2025-10-18T18:29:03.192Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jean sat cross-legged in the middle of the dining area in the glass cellar beneath the House of Perelandro; the table and chairs had been moved away to make room for a vast quantity of gold coins, stacked into little glittering mounds that circled Jean and Bug, nearly walling them in completely.",
+    "characterCount": 296,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812145880-ftfhsaxqr",
+    "timestamp": "2025-10-18T18:29:05.880Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "You didn’t tell me you’d be hauling it home in tyrins.",
+    "characterCount": 54,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812147539-d9sj0pcge",
+    "timestamp": "2025-10-18T18:29:07.539Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Well, white iron is dear. Nobody’s going to hand out five thousand crowns in it, and nobody’s going to be dumb enough to carry it around like that. Meraggio’s makes all of its big payouts in tyrins.",
+    "characterCount": 198,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812150300-3u1gmay92",
+    "timestamp": "2025-10-18T18:29:10.301Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "There was a rattling noise from the entrance passage to the cellar; then Locke appeared around the corner, dressed as Lukas Fehrwight. He whipped his false optics off, loosened his cravats, and shrugged out of his wool coat, letting it fall unceremoniously to the floor. His face was flushed, and he was waving a piece of folded parchment affixed with a blue wax seal.",
+    "characterCount": 368,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812153314-siqpj391a",
+    "timestamp": "2025-10-18T18:29:13.314Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Seventy-five hundred more, my boys! I told him we’d found four likely galleons, but that we were already having cash flow problems—bribes to be paid, crews to be called back and sobered up, officers to be placated, other cargo-shippers to be chased off … And he just handed it right over, smiling all the while. Gods. I should’ve thought this scam up five years ago. We don’t even have to bother setting up fake ships and paperwork and so forth, because Salvara knows the Fehrwight part of the game is a lie. There’s nothing for us to do except relax and count the money.",
+    "characterCount": 571,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812157695-8flz6g8t1",
+    "timestamp": "2025-10-18T18:29:17.695Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "If it’s so relaxing, why don’t you count it, then?",
+    "characterCount": 50,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812158839-8qad5yhqb",
+    "timestamp": "2025-10-18T18:29:18.839Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Bug jumped to his feet and leaned backward until his back and his neck made a series of little popping noises.",
+    "characterCount": 110,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812160932-x3baypebv",
+    "timestamp": "2025-10-18T18:29:20.932Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "I’d be happy to, Bug.",
+    "characterCount": 21,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812162040-9loqtbeaf",
+    "timestamp": "2025-10-18T18:29:22.040Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Locke took a bottle of red wine out of a wooden cupboard and poured himself half a glass, then watered it from a brass pitcher of lukewarm rainwater until it was a soft pink.",
+    "characterCount": 174,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812164198-ru17l1lmk",
+    "timestamp": "2025-10-18T18:29:24.198Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "The Gentleman Bastard Series 3-Book Bundle: The Lies of Locke Lamora, Red Seas Under Red Skies, The Republic of Thieves",
+    "characterCount": 119,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812723130-0lva8cvmu",
+    "timestamp": "2025-10-18T18:38:43.131Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "am_adam",
+    "text": "“Nineteen Thousand,”",
+    "characterCount": 20,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812724723-vhfjal6a3",
+    "timestamp": "2025-10-18T18:38:44.723Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Said Bug,",
+    "characterCount": 9,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812726967-voesf0cm0",
+    "timestamp": "2025-10-18T18:38:46.967Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "am_adam",
+    "text": "“nine hundred and twenty. That’s all of it. Can I please kill myself now?”",
+    "characterCount": 74,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812729421-1bpp6s2f7",
+    "timestamp": "2025-10-18T18:38:49.421Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "am_eric",
+    "text": "“What? I’d have thought you’d be enthusiastic about helping us tally the loot, Bug.”",
+    "characterCount": 84,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812732760-vz1sj4c0y",
+    "timestamp": "2025-10-18T18:38:52.760Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jean sat cross-legged in the middle of the dining area in the glass cellar beneath the House of Perelandro; the table and chairs had been moved away to make room for a vast quantity of gold coins, stacked into little glittering mounds that circled Jean and Bug, nearly walling them in completely.",
+    "characterCount": 296,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812744132-jzopgpii8",
+    "timestamp": "2025-10-18T18:39:04.132Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "am_adam",
+    "text": "“You didn’t tell me you’d be hauling it home in tyrins.”",
+    "characterCount": 56,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812748596-8i3dhm03x",
+    "timestamp": "2025-10-18T18:39:08.596Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "am_eric",
+    "text": "“Well, white iron is dear. Nobody’s going to hand out five thousand crowns in it, and nobody’s going to be dumb enough to carry it around like that. Meraggio’s makes all of its big payouts in tyrins.”",
+    "characterCount": 200,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812755927-qxyq8hgc5",
+    "timestamp": "2025-10-18T18:39:15.927Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "There was a rattling noise from the entrance passage to the cellar; then Locke appeared around the corner, dressed as Lukas Fehrwight. He whipped his false optics off, loosened his cravats, and shrugged out of his wool coat, letting it fall unceremoniously to the floor. His face was flushed, and he was waving a piece of folded parchment affixed with a blue wax seal.",
+    "characterCount": 368,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812764792-lf7e449cq",
+    "timestamp": "2025-10-18T18:39:24.792Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-BrianMultilingualNeural",
+    "text": "“Seventy-five hundred more, my boys! I told him we’d found four likely galleons, but that we were already having cash flow problems—bribes to be paid, crews to be called back and sobered up, officers to be placated, other cargo-shippers to be chased off … And he just handed it right over, smiling all the while. Gods. I should’ve thought this scam up five years ago. We don’t even have to bother setting up fake ships and paperwork and so forth, because Salvara knows the Fehrwight part of the game is a lie. There’s nothing for us to do except relax and count the money.”",
+    "characterCount": 573,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812777485-qvg09dvvl",
+    "timestamp": "2025-10-18T18:39:37.485Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "am_adam",
+    "text": "“If it’s so relaxing, why don’t you count it, then?”",
+    "characterCount": 52,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812781388-6esp6600t",
+    "timestamp": "2025-10-18T18:39:41.388Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Bug jumped to his feet and leaned backward until his back and his neck made a series of little popping noises.",
+    "characterCount": 110,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812788798-hb9e7y31q",
+    "timestamp": "2025-10-18T18:39:48.798Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-BrianMultilingualNeural",
+    "text": "“I’d be happy to, Bug.”",
+    "characterCount": 23,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812791247-v174jq2lm",
+    "timestamp": "2025-10-18T18:39:51.247Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Locke took a bottle of red wine out of a wooden cupboard and poured himself half a glass, then watered it from a brass pitcher of lukewarm rainwater until it was a soft pink.",
+    "characterCount": 174,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812802980-qk8pzk855",
+    "timestamp": "2025-10-18T18:40:02.980Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-BrianMultilingualNeural",
+    "text": "“And tomorrow you can play Lukas Fehrwight. I’m sure Don Salvara would never notice any difference. Is it all here?”",
+    "characterCount": 116,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812869268-g9tfpznl5",
+    "timestamp": "2025-10-18T18:41:09.268Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "am_eric",
+    "text": "“Five thousand crowns delivered as twenty thousand tyrins,”",
+    "characterCount": 59,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812871626-sxswmuyzq",
+    "timestamp": "2025-10-18T18:41:11.626Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "said Jean,",
+    "characterCount": 10,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812872525-1cbvsersb",
+    "timestamp": "2025-10-18T18:41:12.525Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "am_eric",
+    "text": "“less eighty for clerking fees and guards and a rented dray to haul it from Meraggio’s.”",
+    "characterCount": 88,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812874024-kvq1vmkny",
+    "timestamp": "2025-10-18T18:41:14.024Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "The Gentlemen Bastards used a simple substitution scheme for hauling large quantities of valuables to their hideout at the House of Perelandro. At a series of quick stops, strongboxes of coins would vanish from one wagon and barrels marked as common food or drink would roll off on another. Even a decrepit little temple needed a steady infusion of basic supplies.",
+    "characterCount": 364,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812876310-kcjxlrz99",
+    "timestamp": "2025-10-18T18:41:16.310Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-BrianMultilingualNeural",
+    "text": "“Well,”",
+    "characterCount": 7,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812878811-h5lf1xtrv",
+    "timestamp": "2025-10-18T18:41:18.811Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "said Locke,",
+    "characterCount": 11,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812880232-wl1f9yx8c",
+    "timestamp": "2025-10-18T18:41:20.232Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-BrianMultilingualNeural",
+    "text": "“let me get rid of poor Master Fehrwight’s clothes and I’ll give you a hand dumping it all in the vault.”",
+    "characterCount": 105,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812882296-fq9m484fz",
+    "timestamp": "2025-10-18T18:41:22.296Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "There were actually three vaults tucked away at the rear of the cellar, behind the sleeping quarters. Two of them were wide Elderglass-coated shafts that went down about ten feet; their original purpose was unknown. With simple wooden doors mounted on hinges set atop them, they resembled nothing so much as miniature grain-storage towers sunk into the earth and filled to a substantial depth with coins of every sort. Silver and gold in large quantities went into the vaults; narrow wooden shelves around the periphery of the vault room held small bags or piles of more readily useful currency. There were cheap purses of copper barons, fine leather wallets with tight rolls of silver solons, and small bowls of clipped half-copper bits, all of them set out for the rapid taking for any scam or need one of the gang might face. There were even little stacks of foreign coinage; marks from the Kingdom of the Seven Marrows, solari from Tal Verrar, and so forth. Even back in the days of Father Chains there had been no locks on these vaults or on the room that held them. This was not merely because the Gentlemen Bastards trusted one another (and they did), nor because the existence of their luxurious cellar was a closely guarded secret (and it certainly was). The primary reason was one of practicality—not one of them, Calo or Galdo or Locke or Jean or Bug, had anything they could conceivably",
+    "characterCount": 1398,
+    "metadata": {
+      "format": "audio/mpeg",
+      "userId": "779b1ab8-c732-421b-8225-a1cfb113eeed",
+      "userEmail": "jawangana@gmail.com"
+    },
+    "id": "1760812888212-v6sja94ny",
+    "timestamp": "2025-10-18T18:41:28.212Z"
   }
 ]
