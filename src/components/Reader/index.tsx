@@ -81,11 +81,19 @@ const Reader: React.FC = () => {
     return () => window.removeEventListener('resize', checkIsMobile);
   }, []);
   
+  // Check if this is the first time opening this book (newly uploaded)
+  // Books that have been opened before will have a lastRead timestamp
+  const isFirstOpen = !currentBook?.lastRead || 
+                      (Date.now() - new Date(currentBook.lastRead).getTime() < 5000);
+  
   // Defer feature highlight to improve initial load performance
+  // Only show on first open (when book is newly uploaded)
   useEffect(() => {
-    const timer = setTimeout(() => setShowFeatureHighlight(true), 2000);
-    return () => clearTimeout(timer);
-  }, []);
+    if (isFirstOpen) {
+      const timer = setTimeout(() => setShowFeatureHighlight(true), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isFirstOpen]);
 
   // Progressive loading: show basic reader first, enhance progressively
   useEffect(() => {
@@ -531,7 +539,7 @@ const Reader: React.FC = () => {
               toc={toc} 
               onItemClick={handleNavigateToTocItem}
               theme={theme}
-               openByDefault={isMobile}
+              openByDefault={isMobile && isFirstOpen}
             />
           )}
 

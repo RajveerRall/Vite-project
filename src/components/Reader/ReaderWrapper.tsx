@@ -20,6 +20,7 @@ const ReaderWrapper: React.FC = () => {
     openBook, 
     isReading,
     isClosing,
+    isInitialLoadComplete,
     currentPageDisplay,
     navigateToTocItem,
     isLoading: bookContextLoading 
@@ -39,10 +40,18 @@ const ReaderWrapper: React.FC = () => {
         return;
       }
       
+      // CRITICAL: Wait for initial book load to complete
+      // This prevents "book not found" errors during page reload
+      if (!isInitialLoadComplete) {
+        console.log('[ReaderWrapper] Waiting for initial book load to complete...');
+        setLoading(true);
+        return;
+      }
+      
       setLoading(true);
       setError(null);
       
-      console.log('[ReaderWrapper] Starting state restoration', { bookId, booksCount: books.length, isClosing });
+      console.log('[ReaderWrapper] Starting state restoration', { bookId, booksCount: books.length, isClosing, isInitialLoadComplete });
       
       // PRIORITY 1: URL parameters (highest priority)
       if (bookId) {
@@ -167,7 +176,7 @@ const ReaderWrapper: React.FC = () => {
     if (books.length > 0 || bookContextLoading === false) {
       restoreReaderState();
     }
-  }, [bookId, books, location.search, currentBook, currentPageDisplay, navigate, openBook, isClosing]);
+  }, [bookId, books, location.search, currentBook, currentPageDisplay, navigate, openBook, isClosing, isInitialLoadComplete]);
 
   // Show loading while BookContext is loading books
   if (bookContextLoading) {

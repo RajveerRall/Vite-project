@@ -51,6 +51,7 @@ interface BookContextValue {
   isClosing: boolean; // Track when book is being closed
   isLoading: boolean;
   isPageLoading: boolean;
+  isInitialLoadComplete: boolean; // Track if initial book load from storage is complete
   bookTitle: string;
   bookAuthor: string;
   currentPageDisplay: number;
@@ -1856,7 +1857,7 @@ useEffect(() => {
 
   const value: BookContextValue = {
     books, addBook, removeBook,
-    currentBook, isReading, isClosing: isClosingRef.current, isLoading, isPageLoading, bookTitle, bookAuthor,
+    currentBook, isReading, isClosing: isClosingRef.current, isLoading, isPageLoading, isInitialLoadComplete, bookTitle, bookAuthor,
     currentPageDisplay, totalPages, currentContent, currentPageText, toc,
     openBook, closeBook, nextPage, prevPage, navigateToTocItem,
     htmlFiles, opfPath,
