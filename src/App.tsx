@@ -1,8 +1,8 @@
 // src/App.tsx
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import { BookProvider, useBook } from './context/BookContext';
+import { BookProvider } from './context/BookContext';
 import { useAuth } from './context/AuthContext';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
@@ -27,12 +27,13 @@ import './App.css';
 import { useTTSUsageRecorder } from './hooks/useTTSUsageRecorder';
 import { Capacitor } from '@capacitor/core';
 
-// Lazy load the Reader component since it's heavy and not needed initially
-const Reader = React.lazy(() => import('./components/Reader'));
+// Lazy load the ReaderWrapper component since it's heavy and not needed initially
+const ReaderWrapper = React.lazy(() => import('./components/Reader/ReaderWrapper'));
 
 const MainApp: React.FC = () => {
-  const { isReading } = useBook();
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const isReaderRoute = location.pathname.startsWith('/reader');
 
   const handleGoogleSuccess = () => {
     console.log('[App] Google One Tap login successful!');
@@ -48,17 +49,17 @@ const MainApp: React.FC = () => {
       {!isAuthenticated && !Capacitor.isNativePlatform() && (
         <GoogleOneTap onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
       )}
-      {!isReading && <Header />}
-      {isReading ? (
-        <React.Suspense fallback={<SuspenseLoader />}>
-          <Reader />
-        </React.Suspense>
-      ) : (
-        <>
-          <Library />
-          <Footer />
-        </>
-      )}
+      {!isReaderRoute && <Header />}
+      <Routes>
+        {/* Main app routes */}
+        <Route path="/" element={<Library />} />
+        <Route path="/reader/:bookId" element={
+          <React.Suspense fallback={<SuspenseLoader />}>
+            <ReaderWrapper />
+          </React.Suspense>
+        } />
+      </Routes>
+      {!isReaderRoute && <Footer />}
     </div>
   );
 };
@@ -127,8 +128,8 @@ const AppContent: React.FC = () => {
         </React.Suspense>
       } />
       
-      {/* Protected routes - auth required */}
-      <Route path="/" element={
+      {/* Main app routes - auth required - use wildcard to allow nested routes */}
+      <Route path="/*" element={
         loading ? (
           <div className="flex items-center justify-center min-h-screen">
             <div className="text-lg text-gray-600">Loading...</div>

@@ -1,6 +1,7 @@
 // src/context/BookContext.tsx
 import { trackEvent } from '../lib/analytics';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import localforage from 'localforage';
 import JSZip from 'jszip';
 // Dynamic import for xmldom to avoid blocking initial page load
@@ -19,6 +20,7 @@ import { registerAdapter, getAdapterForFile } from './book/formats';
 import { epubAdapter } from './book/formats/epubAdapter';
 import { pdfAdapter } from './book/formats/pdfAdapter';
 import { mobiAdapter } from './book/formats/mobiAdapter';
+import { saveReaderState } from '../utils/readerState';
 
 // Lightweight local type to avoid importing supabase client at startup
 interface CloudBookRecord {
@@ -46,6 +48,7 @@ interface BookContextValue {
   removeBook: (bookId: string) => Promise<void>;
   currentBook: BookData | null;
   isReading: boolean;
+  isClosing: boolean; // Track when book is being closed
   isLoading: boolean;
   isPageLoading: boolean;
   bookTitle: string;
@@ -93,9 +96,11 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   }, []);
   const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
+  const navigate = useNavigate();
   const [books, setBooks] = useState<BookData[]>([]);
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false); // New state
   const [isSyncingFromCloud, setIsSyncingFromCloud] = useState<boolean>(false); // New loading state
+  const isClosingRef = useRef<boolean>(false); // Track when book is being closed to prevent reopening
   
   // ... (all other state declarations from the previous full version remain the same)
   const [currentBook, setCurrentBook] = useState<BookData | null>(null);
@@ -1530,6 +1535,18 @@ useEffect(() => {
         }
         pageIdxToLoadInitially = Math.max(0, Math.min(pageIdxToLoadInitially, fileOrder.length - 1));
         setCurrentPageToLoad(pageIdxToLoadInitially); setCurrentPageDisplay(pageIdxToLoadInitially);
+        
+        // Navigate to reader URL
+        navigate(`/reader/${book.id}?page=${pageIdxToLoadInitially}`);
+        
+        // Track navigation event
+        trackEvent('book_navigation', {
+          method: 'open_book',
+          book_id: book.id,
+          book_title: book.title,
+          target_page: pageIdxToLoadInitially,
+          has_url_page_param: false
+        });
         setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? { ...b, lastRead: new Date().toISOString(), totalPages: fileOrder.length } : b));
         trackEvent('open_book', {
           book_title: book.title,
@@ -1643,6 +1660,19 @@ useEffect(() => {
       
       setCurrentPageToLoad(pageIdxToLoadInitially); setCurrentPageDisplay(pageIdxToLoadInitially);
       console.log(`[openBook] Successfully prepared: ${book.title}. Page to load: ${pageIdxToLoadInitially} (total pages: ${currentFileOrder.length})`);
+      
+      // Navigate to reader URL
+      navigate(`/reader/${book.id}?page=${pageIdxToLoadInitially}`);
+      
+      // Track navigation event
+      trackEvent('book_navigation', {
+        method: 'open_book',
+        book_id: book.id,
+        book_title: book.title,
+        target_page: pageIdxToLoadInitially,
+        has_url_page_param: false
+      });
+      
       setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? { ...b, lastRead: new Date().toISOString() } : b));
       // 4. TRACK THE EVENT AND START THE TIMER
       trackEvent('open_book', {
@@ -1666,7 +1696,11 @@ useEffect(() => {
   };
 
   const closeBook = (resetGlobalLoading = true): void => { /* Unchanged */
-        // 5. TRACK THE EVENT AND CALCULATE DURATION
+    // CRITICAL: Set closing flag FIRST to prevent ReaderWrapper from reopening
+    isClosingRef.current = true;
+    console.log('[closeBook] Setting isClosing flag to true');
+    
+    // 5. TRACK THE EVENT AND CALCULATE DURATION
     if (readingStartTimestamp.current && currentBook) {
       const endTime = Date.now();
       const durationInSeconds = Math.round((endTime - readingStartTimestamp.current) / 1000);
@@ -1690,6 +1724,24 @@ useEffect(() => {
     setCurrentPageToLoad(0); setCurrentPageDisplay(0);
     if (resetGlobalLoading) setIsLoading(false);
     setIsPageLoading(false);
+    
+    // Navigate back to library
+    navigate('/');
+    
+    // Reset closing flag after navigation completes
+    setTimeout(() => {
+      isClosingRef.current = false;
+      console.log('[closeBook] Reset isClosing flag to false');
+    }, 100);
+    
+    // Track navigation event
+    trackEvent('book_navigation', {
+      method: 'close_book',
+      book_id: currentBook?.id || 'unknown',
+      book_title: currentBook?.title || 'unknown',
+      target_page: 'library',
+      final_page: currentPageDisplay
+    });
   };
 
   const nextPage = (): void => { /* Unchanged */
@@ -1776,9 +1828,35 @@ useEffect(() => {
     setIsPlayModeVisible(!isPlayModeVisible);
   };
 
+  // URL synchronization: Update URL when page changes
+  useEffect(() => {
+    if (isReading && currentBook && currentPageDisplay >= 0) {
+      // Update URL without navigation (replaceState prevents history spam)
+      const newUrl = `/reader/${currentBook.id}?page=${currentPageDisplay}`;
+      window.history.replaceState({}, '', newUrl);
+      
+      // Also save to localStorage for state restoration
+      saveReaderState({
+        bookId: currentBook.id,
+        page: currentPageDisplay,
+        timestamp: Date.now(),
+        bookTitle: currentBook.title
+      });
+      
+      // Track page change for analytics
+      trackEvent('page_navigation', {
+        method: 'page_change',
+        book_id: currentBook.id,
+        book_title: currentBook.title,
+        page_number: currentPageDisplay,
+        total_pages: totalPages
+      });
+    }
+  }, [currentPageDisplay, currentBook, isReading, totalPages]);
+
   const value: BookContextValue = {
     books, addBook, removeBook,
-    currentBook, isReading, isLoading, isPageLoading, bookTitle, bookAuthor,
+    currentBook, isReading, isClosing: isClosingRef.current, isLoading, isPageLoading, bookTitle, bookAuthor,
     currentPageDisplay, totalPages, currentContent, currentPageText, toc,
     openBook, closeBook, nextPage, prevPage, navigateToTocItem,
     htmlFiles, opfPath,
