@@ -101,7 +101,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   const [books, setBooks] = useState<BookData[]>([]);
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false); // New state
   const [isSyncingFromCloud, setIsSyncingFromCloud] = useState<boolean>(false); // New loading state
-  const isClosingRef = useRef<boolean>(false); // Track when book is being closed to prevent reopening
+  const [isClosing, setIsClosing] = useState<boolean>(false); // Track when book is being closed to prevent reopening
   
   // ... (all other state declarations from the previous full version remain the same)
   const [currentBook, setCurrentBook] = useState<BookData | null>(null);
@@ -1698,7 +1698,7 @@ useEffect(() => {
 
   const closeBook = (resetGlobalLoading = true): void => { /* Unchanged */
     // CRITICAL: Set closing flag FIRST to prevent ReaderWrapper from reopening
-    isClosingRef.current = true;
+    setIsClosing(true);
     console.log('[closeBook] Setting isClosing flag to true');
     
     // 5. TRACK THE EVENT AND CALCULATE DURATION
@@ -1731,9 +1731,9 @@ useEffect(() => {
     
     // Reset closing flag after navigation completes
     setTimeout(() => {
-      isClosingRef.current = false;
+      setIsClosing(false);
       console.log('[closeBook] Reset isClosing flag to false');
-    }, 100);
+    }, 150); // Slightly longer timeout to ensure navigation completes
     
     // Track navigation event
     trackEvent('book_navigation', {
@@ -1857,7 +1857,7 @@ useEffect(() => {
 
   const value: BookContextValue = {
     books, addBook, removeBook,
-    currentBook, isReading, isClosing: isClosingRef.current, isLoading, isPageLoading, isInitialLoadComplete, bookTitle, bookAuthor,
+    currentBook, isReading, isClosing, isLoading, isPageLoading, isInitialLoadComplete, bookTitle, bookAuthor,
     currentPageDisplay, totalPages, currentContent, currentPageText, toc,
     openBook, closeBook, nextPage, prevPage, navigateToTocItem,
     htmlFiles, opfPath,

@@ -1,7 +1,7 @@
 // src/components/Reader/ReaderWrapper.tsx
 // Wrapper component to handle URL params, state restoration, and book loading
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useBook } from '../../context/BookContext';
 import { getReaderState, saveReaderState, clearReaderState } from '../../utils/readerState';
@@ -29,8 +29,12 @@ const ReaderWrapper: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [restorationMethod, setRestorationMethod] = useState<string>('');
+  const restorationAttemptedRef = useRef<string | null>(null); // Track which bookId we've attempted to restore
+  const booksLengthRef = useRef(books.length); // Track books.length to detect meaningful changes
 
   useEffect(() => {
+    // Update books length ref
+    booksLengthRef.current = books.length;
     const restoreReaderState = async () => {
       // CRITICAL: Don't restore if book is being closed
       // This prevents race conditions when closeBook() navigates away
@@ -48,10 +52,18 @@ const ReaderWrapper: React.FC = () => {
         return;
       }
       
+      // OPTIMIZATION: Prevent redundant restoration attempts
+      // Only restore if we haven't already attempted this bookId, or if the book isn't already open
+      if (restorationAttemptedRef.current === bookId && currentBook?.id === bookId && isReading) {
+        console.log('[ReaderWrapper] Restoration already completed for this book, skipping');
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
       setError(null);
       
-      console.log('[ReaderWrapper] Starting state restoration', { bookId, booksCount: books.length, isClosing, isInitialLoadComplete });
+      console.log('[ReaderWrapper] Starting state restoration', { bookId, booksCount: books.length, isClosing, isInitialLoadComplete, attemptedBookId: restorationAttemptedRef.current });
       
       // PRIORITY 1: URL parameters (highest priority)
       if (bookId) {
@@ -124,6 +136,9 @@ const ReaderWrapper: React.FC = () => {
         
         setLoading(false);
         
+        // Mark restoration as completed for this bookId
+        restorationAttemptedRef.current = bookId;
+        
         // Track successful restoration
         trackEvent('reader_state_restored', {
           method: 'url',
@@ -176,7 +191,15 @@ const ReaderWrapper: React.FC = () => {
     if (books.length > 0 || bookContextLoading === false) {
       restoreReaderState();
     }
-  }, [bookId, books, location.search, currentBook, currentPageDisplay, navigate, openBook, isClosing, isInitialLoadComplete]);
+  }, [bookId, books.length, location.search, isClosing, isInitialLoadComplete, isReading, currentBook?.id]); // Optimized dependencies
+  
+  // Reset restoration ref when navigating to a different book
+  useEffect(() => {
+    if (restorationAttemptedRef.current !== bookId) {
+      console.log('[ReaderWrapper] BookId changed, resetting restoration flag');
+      restorationAttemptedRef.current = null;
+    }
+  }, [bookId]);
 
   // Show loading while BookContext is loading books
   if (bookContextLoading) {
