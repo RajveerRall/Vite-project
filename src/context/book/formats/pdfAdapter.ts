@@ -4,12 +4,9 @@
 import type { FormatAdapter, OpenResult, ParsedBookMeta } from './types';
 import type { TOCItem } from '../../../types/books';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
-// @ts-ignore - Vite virtual imports
-import workerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url';
-// @ts-ignore - Vite virtual imports provide a Worker constructor
-import PdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?worker';
 
-GlobalWorkerOptions.workerSrc = workerSrc as unknown as string;
+// Use CDN worker for better production reliability
+GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.mjs`;
 
 const isPdf = (name: string, type: string) => name.toLowerCase().endsWith('.pdf') || type === 'application/pdf';
 
@@ -28,8 +25,9 @@ export const pdfAdapter: FormatAdapter = {
     try {
       const meta = await pdf.getMetadata();
       if (meta?.info) {
-        if (meta.info.Title) title = meta.info.Title;
-        if (meta.info.Author) author = meta.info.Author;
+        const info = meta.info as any; // Type assertion for PDF metadata
+        if (info.Title) title = info.Title;
+        if (info.Author) author = info.Author;
       }
     } catch {}
 

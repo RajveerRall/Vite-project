@@ -1132,7 +1132,7 @@ useEffect(() => {
   };
 
   // Sync book progress to Supabase (for reading progress updates)
-  const syncProgressToCloud = async (bookId: string, currentPage: number, lastChapter: any) => {
+  const syncProgressToCloud = useCallback(async (bookId: string, currentPage: number, lastChapter: any) => {
     if (!isAuthenticated || !userId) return;
     
     try {
@@ -1157,7 +1157,7 @@ useEffect(() => {
     } catch (error) {
       console.error('[SupabaseSync] Error syncing progress:', error);
     }
-  };
+  }, [isAuthenticated, userId]);
 
 
   // --- All other functions (findChapterForPageCallback, loadPageCallback, useEffect for page loading, openBook, closeBook, nextPage, prevPage, navigateToTocItem, removeBook, extractTocFromEntries, togglePlayMode)
@@ -1293,7 +1293,7 @@ useEffect(() => {
       setIsPageLoading(false);
       console.log(`[loadPageCallback EXIT] pageIdxToLoad: ${pageIdxToLoad}`);
     }
-  }, [findChapterForPageCallback]);
+  }, [findChapterForPageCallback, isAuthenticated, userId, syncProgressToCloud]);
 
   useEffect(() => { /* useEffect for Page Loading - supports adapter sessions */
     console.log('[useEffect PageLoad] Triggered. States:', {

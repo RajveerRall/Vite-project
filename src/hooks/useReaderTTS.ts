@@ -568,8 +568,40 @@ export const useReaderTTS = ({
     });
 
     if (selectedText && selection?.anchorNode?.parentElement?.closest('.epub-content')) {
-      const startIndexInPage = currentPageText.indexOf(selectedText);
+      // Helper function to normalize text for comparison
+      const normalizeText = (text: string): string => {
+        return text
+          .trim()
+          .replace(/\s+/g, ' ')
+          .replace(/\n+/g, ' ');
+      };
 
+      // Step 1: Try exact match FIRST (existing behavior)
+      let startIndexInPage = currentPageText.indexOf(selectedText);
+
+      // Step 2: ONLY if exact match fails, try normalized fallback
+      if (startIndexInPage === -1 && currentPageText && selectedText) {
+        try {
+          const normalizedPageText = normalizeText(currentPageText);
+          const normalizedSelection = normalizeText(selectedText);
+          startIndexInPage = normalizedPageText.indexOf(normalizedSelection);
+          
+          if (startIndexInPage !== -1) {
+            console.log(`[${readerInstanceId}][handleTTS] Found match using normalized text comparison`);
+          } else {
+            console.warn(`[${readerInstanceId}][handleTTS] Could not find selected text even after normalization`, {
+              pageTextLength: currentPageText.length,
+              selectedTextLength: selectedText.length,
+              pageTextPreview: currentPageText.substring(0, 100),
+              selectedTextPreview: selectedText.substring(0, 100)
+            });
+          }
+        } catch (e) {
+          console.error(`[${readerInstanceId}][handleTTS] Error in normalized text comparison:`, e);
+        }
+      }
+
+      // Step 3: Rest of existing logic remains UNCHANGED
       if (startIndexInPage !== -1) {
         console.log(`[${readerInstanceId}][handleTTS] User selected text. Index: ${startIndexInPage}.`);
         let accumulatedLength = 0;
