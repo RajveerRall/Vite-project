@@ -32,6 +32,10 @@ export interface UseReaderTTSReturn {
   handlePreviousSentence: () => void;
   handleNextSentence: () => void;
   
+  // Interactive Progress Bar handlers
+  handlePreviewScroll: (percentage: number) => void;
+  handleSeekToPercentage: (percentage: number) => void;
+  
   // Audio control
   setPlaybackRate: (rate: number) => void;
   
@@ -460,17 +464,30 @@ export const useReaderTTS = ({
 
   // === Pause playback ===
   const pausePlayback = useCallback(() => {
+    console.log(`[${readerInstanceId}][pausePlayback] PAUSE CALLED - currentChunkIndex: ${currentChunkIndex}, isSpeaking: ${isSpeaking}`);
+    
     if (audioRef.current && isSpeaking) {
       audioRef.current.pause();
       setIsPaused(true);
       setIsSpeaking(false);
       ttsIntentActiveRef.current = true;
+      
+      // Save resume index
+      if (currentChunkIndex !== null) {
+        console.log(`[${readerInstanceId}][pausePlayback] Saving resumeIndex: ${currentChunkIndex}`);
+        setResumeIndex(currentChunkIndex);
+      }
+    } else {
+      console.log(`[${readerInstanceId}][pausePlayback] No audio ref or not speaking - audioRef: ${!!audioRef.current}, isSpeaking: ${isSpeaking}`);
     }
-  }, [isSpeaking]);
+  }, [isSpeaking, currentChunkIndex, readerInstanceId]);
 
   // === Resume playback ===
   const resumePlayback = useCallback(() => {
+    console.log(`[${readerInstanceId}][resumePlayback] RESUME CALLED - resumeIndex: ${resumeIndex}, isPaused: ${isPaused}, audioRef: ${!!audioRef.current}`);
+    
     if (audioRef.current && isPaused) {
+      console.log(`[${readerInstanceId}][resumePlayback] Resuming existing audio`);
       const playPromise = audioRef.current.play();
       if (playPromise !== undefined) {
         playPromise
@@ -491,10 +508,13 @@ export const useReaderTTS = ({
         setIsSpeaking(true);
         ttsIntentActiveRef.current = true;
       }
-    } else if (!audioRef.current && currentChunkIndex !== null) {
-      playChunk(currentChunkIndex);
+    } else if (!audioRef.current && resumeIndex !== null) {
+      console.log(`[${readerInstanceId}][resumePlayback] No audio ref, playing chunk ${resumeIndex}`);
+      playChunk(resumeIndex);
+    } else {
+      console.log(`[${readerInstanceId}][resumePlayback] Cannot resume - resumeIndex: ${resumeIndex}, isPaused: ${isPaused}, audioRef: ${!!audioRef.current}`);
     }
-  }, [isPaused, currentChunkIndex, playChunk, addToast]);
+  }, [isPaused, resumeIndex, playChunk, readerInstanceId, addToast]);
 
   // === Halt playback (for navigation or stopping) ===
   const haltPlayback = useCallback(() => {
@@ -532,42 +552,81 @@ export const useReaderTTS = ({
   }, [haltPlayback, clearResumeIndex]);
 
   // === Handle main TTS button pressed ===
-  const handleTTS = useCallback(() => {
+  const handleTTS = useCallback((selectedTextOverride?: string | any) => {
+    // Type guard: Only accept string overrides
+    let textOverride: string | undefined;
+    if (selectedTextOverride !== undefined) {
+      if (typeof selectedTextOverride === 'string') {
+        textOverride = selectedTextOverride;
+      } else {
+        console.log(`[${readerInstanceId}][handleTTS] Received non-string parameter (event object?), ignoring`);
+        textOverride = undefined;
+      }
+    }
+    
     console.log(`[${readerInstanceId}][handleTTS] TTS function called`, {
       isPaused,
       isSpeaking,
       hasCurrentPageText: !!currentPageText,
-      chunksLength: chunks.length
+      chunksLength: chunks.length,
+      hasTextOverride: !!textOverride
     });
     
     ttsIntentActiveRef.current = true;
 
-    if (isPaused) {
+    // NEW: If text is provided and TTS is active, stop and restart from new position
+    if (textOverride && (isSpeaking || isPaused)) {
+      console.log(`[${readerInstanceId}][handleTTS] Stopping current playback to start from new selection`);
+      haltPlayback(); // Stop current playback
+      // Continue to start new playback below
+    }
+    // OLD: Handle pause/resume for button clicks without text
+    else if (isPaused) {
       console.log(`[${readerInstanceId}][handleTTS] Resuming paused playback`);
       resumePlayback();
       return;
     }
-    if (isSpeaking) {
+    else if (isSpeaking) {
       console.log(`[${readerInstanceId}][handleTTS] Pausing current playback`);
       pausePlayback();
+      return;
+    }
+
+    // Check if currentPageText is ready
+    if (!currentPageText || currentPageText.length === 0) {
+      console.warn(`[${readerInstanceId}][handleTTS] currentPageText is empty, cannot process selection`);
+      addToast?.('Page content not ready. Please wait a moment and try again.', 'error');
       return;
     }
 
     let startChunk = 0;
 
     // Check for user-highlighted text first
+    // Use override text if provided, otherwise check DOM selection
     const selection = window.getSelection();
-    const selectedText = selection?.toString().trim();
+    let selectedText: string | undefined;
+
+    // Use the validated textOverride from the type guard above
+    if (textOverride !== undefined) {
+      selectedText = textOverride;
+    } else {
+      selectedText = selection?.toString().trim();
+    }
     
     console.log(`[${readerInstanceId}][handleTTS] Selection check:`, {
       hasSelection: !!selection,
-      selectedText: selectedText?.substring(0, 50),
+      selectedText: selectedText ? selectedText.substring(0, 50) : 'none', // ✅ Safe
       selectionLength: selectedText?.length,
+      selectedTextType: typeof selectedText,
+      hasOverride: textOverride !== undefined,
+      overrideType: typeof textOverride,
       anchorNode: selection?.anchorNode,
       isInEpubContent: selection?.anchorNode?.parentElement?.closest('.epub-content') ? true : false
     });
 
-    if (selectedText && selection?.anchorNode?.parentElement?.closest('.epub-content')) {
+    // Type guard: ensure selectedText is a non-empty string
+    if (typeof selectedText === 'string' && selectedText.length > 0 && 
+        selection?.anchorNode?.parentElement?.closest('.epub-content')) {
       // Helper function to normalize text for comparison
       const normalizeText = (text: string): string => {
         return text
@@ -589,19 +648,32 @@ export const useReaderTTS = ({
           if (startIndexInPage !== -1) {
             console.log(`[${readerInstanceId}][handleTTS] Found match using normalized text comparison`);
           } else {
-            console.warn(`[${readerInstanceId}][handleTTS] Could not find selected text even after normalization`, {
-              pageTextLength: currentPageText.length,
-              selectedTextLength: selectedText.length,
-              pageTextPreview: currentPageText.substring(0, 100),
-              selectedTextPreview: selectedText.substring(0, 100)
-            });
+            // Step 3: Try fuzzy matching with prefix (for longer selections)
+            if (selectedText.length > 20) {
+              const searchPrefix = normalizeText(selectedText.substring(0, 15));
+              const fuzzyIndex = normalizedPageText.indexOf(searchPrefix);
+              
+              if (fuzzyIndex !== -1) {
+                startIndexInPage = fuzzyIndex;
+                console.log(`[${readerInstanceId}][handleTTS] Found match using fuzzy prefix matching (first 15 chars)`);
+              }
+            }
+            
+            if (startIndexInPage === -1) {
+              console.warn(`[${readerInstanceId}][handleTTS] Could not find selected text even after normalization and fuzzy matching`, {
+                pageTextLength: currentPageText.length,
+                selectedTextLength: selectedText.length,
+                pageTextPreview: currentPageText.substring(0, 100),
+                selectedTextPreview: selectedText.substring(0, 100)
+              });
+            }
           }
         } catch (e) {
-          console.error(`[${readerInstanceId}][handleTTS] Error in normalized text comparison:`, e);
+          console.error(`[${readerInstanceId}][handleTTS] Error in text comparison:`, e);
         }
       }
 
-      // Step 3: Rest of existing logic remains UNCHANGED
+      // Step 4: Map found index to chunk
       if (startIndexInPage !== -1) {
         console.log(`[${readerInstanceId}][handleTTS] User selected text. Index: ${startIndexInPage}.`);
         let accumulatedLength = 0;
@@ -616,11 +688,18 @@ export const useReaderTTS = ({
         }
         if (foundChunk) {
           console.log(`[${readerInstanceId}][handleTTS] Starting from selected text in chunk #${startChunk}.`);
+          // Success feedback with type safety
+          if (typeof selectedText === 'string') {
+            const preview = selectedText.substring(0, 30);
+            addToast?.(`Starting from: "${preview}${selectedText.length > 30 ? '...' : ''}"`, 'success');
+          }
         } else {
           console.warn(`[${readerInstanceId}][handleTTS] Could not map selected text to a chunk. Starting from beginning.`);
+          addToast?.('Could not locate text position. Starting from beginning.', 'info');
         }
       } else {
         console.warn(`[${readerInstanceId}][handleTTS] Could not find selected text in page content. Starting from beginning.`);
+        addToast?.('Selected text not found. Starting from beginning of page.', 'info');
       }
     }
     // If no text is selected, try to use the resumeIndex from localStorage
@@ -793,6 +872,98 @@ export const useReaderTTS = ({
   // === Computed values ===
   const canTTSResume = !!currentPageText && resumeIndex !== null && !isSpeaking && !isPaused && !isProcessing && !hasFinishedPlayback;
 
+  // === Interactive Progress Bar Functions ===
+  
+  // Preview scroll without starting TTS
+  const handlePreviewScroll = useCallback((percentage: number) => {
+    if (!chunks || chunks.length === 0) return;
+    
+    // Convert percentage to chunk index
+    const previewChunkIndex = Math.floor((percentage / 100) * chunks.length);
+    const safeChunkIndex = Math.max(0, Math.min(previewChunkIndex, chunks.length - 1));
+    
+    console.log(`[${readerInstanceId}][handlePreviewScroll] Previewing ${Math.round(percentage)}% (chunk ${safeChunkIndex})`);
+    
+    // Try to find element with chunk text
+    const chunkText = chunks[safeChunkIndex];
+    if (!chunkText) return;
+    
+    // Search for element containing this chunk text
+    const contentElement = document.querySelector('.epub-content');
+    if (!contentElement) return;
+    
+    // Get all text nodes and find the one containing our chunk
+    const walker = document.createTreeWalker(
+      contentElement,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+    
+    let node;
+    while (node = walker.nextNode()) {
+      if (node.textContent?.includes(chunkText.substring(0, 30))) {
+        // Found it! Scroll to parent element
+        const element = node.parentElement;
+        if (element) {
+          element.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+          return;
+        }
+      }
+    }
+    
+    // Fallback: estimate scroll position based on percentage
+    if (contentElement) {
+      const scrollHeight = contentElement.scrollHeight;
+      const targetScroll = (percentage / 100) * scrollHeight;
+      contentElement.scrollTo({
+        top: targetScroll,
+        behavior: 'smooth'
+      });
+    }
+  }, [chunks, readerInstanceId]);
+
+  // Seek and start TTS (called on release)
+  const handleSeekToPercentage = useCallback((percentage: number) => {
+    console.log(`[${readerInstanceId}][handleSeekToPercentage] SEEK CALLED - percentage: ${percentage}`);
+    
+    if (!chunks || chunks.length === 0) {
+      console.warn(`[${readerInstanceId}][handleSeekToPercentage] No chunks available`);
+      return;
+    }
+    
+    const clampedPercentage = Math.max(0, Math.min(100, percentage));
+    const targetChunkIndex = Math.floor((clampedPercentage / 100) * chunks.length);
+    const safeChunkIndex = Math.max(0, Math.min(targetChunkIndex, chunks.length - 1));
+    
+    console.log(`[${readerInstanceId}][handleSeekToPercentage] Seeking to ${Math.round(clampedPercentage)}% (chunk ${safeChunkIndex})`);
+    
+    // Stop current playback first
+    haltPlayback();
+    
+    // Reset all TTS state
+    setIsSpeaking(false);
+    setIsPaused(false);
+    setIsProcessing(false);
+    setHasFinishedPlayback(false);
+    
+    // Set the target chunk
+    setCurrentChunkIndex(safeChunkIndex);
+    setResumeIndex(null); // Clear resume so it starts fresh
+    
+    // Activate TTS intent and start playback
+    ttsIntentActiveRef.current = true;
+    
+    // Start playback from target chunk
+    setTimeout(() => {
+      playChunk(safeChunkIndex);
+    }, 150);
+    
+    addToast?.(`Starting from ${Math.round(clampedPercentage)}% of chapter`, 'success');
+  }, [chunks, readerInstanceId, addToast, haltPlayback, playChunk]);
+
   return {
     // States
     chunks,
@@ -815,6 +986,10 @@ export const useReaderTTS = ({
     handleTTSNavigation,
     handlePreviousSentence,
     handleNextSentence,
+    
+    // Interactive Progress Bar handlers
+    handlePreviewScroll,
+    handleSeekToPercentage,
     
     // Audio control
     setPlaybackRate,

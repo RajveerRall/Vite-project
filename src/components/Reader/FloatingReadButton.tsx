@@ -1,18 +1,29 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Play, Video } from 'lucide-react';
+import { Play, Video, Loader2 } from 'lucide-react';
 import './FloatingReadButton.css';
 
 interface FloatingReadButtonProps {
-  onRead: () => void;
+  onRead: (selectedText?: string) => void;
   onCreateVideo: () => void;
   isVisible: boolean;
 }
 
 const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreateVideo, isVisible }) => {
+  // New: Store complete selection data immediately
+  const [selectionData, setSelectionData] = useState<{
+    text: string;
+    range: Range;
+    position: { top: number; left: number };
+  } | null>(null);
+  
+  // Old state (keep for backward compatibility during migration)
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [selectedText, setSelectedText] = useState('');
+  
   const [hideTimeout, setHideTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isNativeMenuVisible, setIsNativeMenuVisible] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  
   // Persist last valid selection range to restore it on mobile before calling TTS
   const lastSelectionRangeRef = useRef<Range | null>(null);
   // Debounce timeout for selection changes
@@ -62,6 +73,7 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreat
         if (selection && selection.toString().trim().length > 0 && isValidSelection(selection)) {
           const range = selection.getRangeAt(0);
           const rect = range.getBoundingClientRect();
+          const text = selection.toString().trim();
           
           // Save range to restore later on mobile
           lastSelectionRangeRef.current = range.cloneRange();
@@ -100,12 +112,26 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreat
             leftPosition = rect.left + (rect.width / 2) - 40;
           }
           
-          setPosition({
+          const calculatedPosition = {
             top: rect.top - topOffset,
             left: leftPosition
+          };
+          
+          // NEW: Store EVERYTHING immediately - don't rely on DOM later
+          setSelectionData({
+            text,
+            range: range.cloneRange(),
+            position: calculatedPosition
           });
           
-          setSelectedText(selection.toString().trim());
+          // OLD: Keep for backward compatibility
+          setPosition(calculatedPosition);
+          setSelectedText(text);
+          
+          console.log('[FloatingReadButton] Stored selection data:', {
+            textLength: text.length,
+            textPreview: text.substring(0, 50)
+          });
           
           // Clear any existing hide timeout
           if (hideTimeout) {
@@ -125,6 +151,7 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreat
             // Set a delay before hiding on mobile
             const timeout = setTimeout(() => {
               setSelectedText('');
+              setSelectionData(null);
               setHideTimeout(null);
             }, 2000); // 2 second delay on mobile
             
@@ -132,6 +159,7 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreat
           } else {
             // On desktop, hide immediately
             setSelectedText('');
+            setSelectionData(null);
           }
         }
       }, 100); // 100ms debounce delay
@@ -236,11 +264,26 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreat
     e.preventDefault();
     e.stopPropagation();
     
+    // Use selectionData if available, fall back to old state
+    const textToUse = selectionData?.text || selectedText;
+    
     console.log('[FloatingReadButton] Button clicked:', {
-      selectedText: selectedText.substring(0, 50),
+      selectedText: textToUse ? textToUse.substring(0, 50) : 'none',
       isVisible,
-      isNativeMenuVisible
+      isNativeMenuVisible,
+      hasSelectionData: !!selectionData
     });
+    
+    // Type guard: ensure textToUse is a valid string
+    if (!textToUse || typeof textToUse !== 'string') {
+      console.warn('[FloatingReadButton] No valid selection data:', {
+        hasSelectionData: !!selectionData,
+        hasSelectedText: !!selectedText,
+        textType: typeof textToUse,
+        textValue: textToUse
+      });
+      return;
+    }
     
     // Clear any hide timeout when button is clicked
     if (hideTimeout) {
@@ -248,58 +291,100 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreat
       setHideTimeout(null);
     }
 
-    // On mobile, Chrome may clear selection when tapping the overlay button.
-    // Restore the selection range right before calling onRead so the TTS logic can detect it.
-    restoreSelectionIfNeeded();
+    // Show loading state
+    setIsStarting(true);
     
-    // Call the original onRead function
-    console.log('[FloatingReadButton] Calling onRead function...');
-    onRead();
+    console.log('[FloatingReadButton] Starting TTS with stored text:', {
+      textLength: textToUse.length,
+      textPreview: textToUse.substring(0, 50)
+    });
+
+    // On mobile, restore the selection range as backup
+    // (though we're now passing text directly)
+    if (selectionData?.range) {
+      try {
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(selectionData.range);
+      } catch (e) {
+        console.warn('[FloatingReadButton] Could not restore selection range:', e);
+      }
+    } else {
+      restoreSelectionIfNeeded();
+    }
+    
+    // Call onRead with the stored text
+    console.log('[FloatingReadButton] Calling onRead function with text parameter...');
+    try {
+      onRead(textToUse); // Pass text directly as parameter
+    } finally {
+      // Reset loading state after a short delay
+      setTimeout(() => setIsStarting(false), 500);
+    }
 
     // After starting TTS, clear selection and hide the button
     try {
       const selection = window.getSelection();
       selection?.removeAllRanges();
     } catch {}
+    
+    // Clear both old and new state
     setSelectedText('');
+    setSelectionData(null);
   };
 
+  // Use selectionData if available, fall back to old state
+  const displayText = selectionData?.text || selectedText;
+  const displayPosition = selectionData?.position || position;
+  
   // Always render when visible and there is selected text. Do not hide purely due to native menu visibility.
-  if (!isVisible || !selectedText) {
+  if (!isVisible || !displayText) {
     console.log('[FloatingReadButton] Button not rendered:', {
       isVisible,
-      hasSelectedText: !!selectedText,
+      hasSelectedText: !!displayText,
       isNativeMenuVisible,
-      selectedTextPreview: selectedText?.substring(0, 30)
+      selectedTextPreview: displayText?.substring(0, 30)
     });
     return null;
   }
 
   console.log('[FloatingReadButton] Button rendered:', {
-    position,
-    selectedTextPreview: selectedText.substring(0, 30),
+    position: displayPosition,
+    selectedTextPreview: displayText.substring(0, 30),
     isVisible,
-    isNativeMenuVisible
+    isNativeMenuVisible,
+    hasSelectionData: !!selectionData,
+    isStarting
   });
 
   return (
     <div 
       className="floating-read-button"
       style={{
-        top: `${position.top}px`,
-        left: `${position.left}px`
+        top: `${displayPosition.top}px`,
+        left: `${displayPosition.left}px`
       }}
     >
       <div className="button-group">
         <button
           onClick={handleReadClick}
           onTouchEnd={handleReadClick}
-          className="read-button"
-          aria-label={`Read selected text: ${selectedText.substring(0, 50)}${selectedText.length > 50 ? '...' : ''}`}
+          className={`read-button ${isStarting ? 'loading' : ''}`}
+          aria-label={`Read selected text: ${displayText.substring(0, 50)}${displayText.length > 50 ? '...' : ''}`}
           title="Read selected text"
+          disabled={isStarting}
         >
-          <Play className="w-4 h-4" />
-          <span>Read</span>
+          {isStarting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Starting...</span>
+            </>
+          ) : (
+            <>
+              <Play className="w-4 h-4" />
+              <span>Read</span>
+            </>
+          )}
         </button>
         
         <button

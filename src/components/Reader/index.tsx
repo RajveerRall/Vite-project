@@ -141,6 +141,8 @@ const Reader: React.FC = () => {
     handleTTSNavigation,
     handlePreviousSentence,
     handleNextSentence,
+    handlePreviewScroll,
+    handleSeekToPercentage,
     canTTSResume,
     highlightedContent: ttsHighlightedContent,
     setPlaybackRate
@@ -689,6 +691,9 @@ const Reader: React.FC = () => {
           onSpeedChange={handleSpeedChangeWithStop}
           // Settings
           onOpenSettings={toggleSettings}
+          // Interactive Progress Bar handlers
+          onPreviewScroll={handlePreviewScroll}
+          onSeekToPercentage={handleSeekToPercentage}
           fullCastActive={fullCastActive}
           fullCastStatus={fullCastStatus}
           fullCastBuffered={fullCastBuffered}
@@ -742,6 +747,9 @@ const Reader: React.FC = () => {
           onSpeedChange={handleSpeedChangeWithStop}
           // Settings
           onOpenSettings={toggleSettings}
+          // Interactive Progress Bar handlers
+          onPreviewScroll={handlePreviewScroll}
+          onSeekToPercentage={handleSeekToPercentage}
           fullCastActive={fullCastActive}
           fullCastStatus={fullCastStatus}
           fullCastBuffered={fullCastBuffered}
@@ -773,7 +781,7 @@ const Reader: React.FC = () => {
      <FloatingReadButton 
        onRead={handleTTS}
        onCreateVideo={handleCreateVideo}
-       isVisible={isEnhanced && !(isSpeaking || isProcessing || isPaused)}
+       isVisible={isEnhanced} // ✅ Always visible when enhanced, regardless of TTS state
      />
      
      <VideoQuoteModal

@@ -6,6 +6,7 @@ import {
   PlayCircle, PauseCircle, RotateCcw, 
   Loader2, Square, SkipBack, SkipForward, Settings
 } from 'lucide-react';
+import InteractiveProgressBar from './InteractiveProgressBar';
 
 // Import the stylesheet. It will now handle all the appearance styling.
 import './Controls.css'; 
@@ -31,6 +32,9 @@ interface ControlsProps {
   onSpeedChange?: (speed: number) => void;
   // Settings
   onOpenSettings?: () => void;
+  // Interactive Progress Bar handlers
+  onPreviewScroll?: (percentage: number) => void;
+  onSeekToPercentage?: (percentage: number) => void;
   // Full Cast props
   fullCastActive: boolean;
   fullCastStatus: string;
@@ -63,6 +67,9 @@ const Controls: React.FC<ControlsProps> = ({
   onSpeedChange,
   // Settings
   onOpenSettings,
+  // Interactive Progress Bar handlers
+  onPreviewScroll,
+  onSeekToPercentage,
   // Full Cast props
   fullCastActive,
   fullCastStatus,
@@ -170,19 +177,12 @@ const Controls: React.FC<ControlsProps> = ({
         {/* Progress Section */}
         <div className="mb-2">
           {/* Chapter Progress Bar */}
-          <div className="relative mb-1">
-            <div className="w-full bg-gray-200 rounded-full h-1">
-              <div 
-                className="bg-gradient-to-r from-amber-600 to-amber-800 h-1 rounded-full transition-all duration-300 ease-out"
-                style={{ width: `${chapterProgress}%` }}
-              />
-            </div>
-            {/* Progress percentage */}
-            <div className="flex justify-between text-xs text-gray-600 mt-1">
-              <span>Chapter Progress</span>
-              <span className="font-medium text-amber-700">{chapterProgress}%</span>
-            </div>
-          </div>
+          <InteractiveProgressBar
+            progress={chapterProgress}
+            onPreview={onPreviewScroll || (() => {})}
+            onSeek={onSeekToPercentage || (() => {})}
+            isActive={!!(onPreviewScroll && onSeekToPercentage) && isReadModeActive}
+          />
         </div>
 
         {/* Main Controls */}
