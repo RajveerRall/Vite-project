@@ -111,8 +111,19 @@ const ReaderWrapper: React.FC = () => {
           console.log('[ReaderWrapper] Opening book:', book.title);
           try {
             await openBook(book);
+            
+            // ✅ ONLY mark restoration as completed AFTER openBook succeeds
+            // This prevents the ref from blocking retries if opening fails
+            restorationAttemptedRef.current = bookId;
+            console.log('[ReaderWrapper] Book opened successfully, marking restoration complete');
+            
           } catch (err) {
             console.error('[ReaderWrapper] Failed to open book:', err);
+            
+            // ❌ Reset ref on failure so user can retry
+            restorationAttemptedRef.current = null;
+            console.log('[ReaderWrapper] Opening failed, reset restoration flag for retry');
+            
             setError(`Failed to open book: ${err instanceof Error ? err.message : 'Unknown error'}`);
             setLoading(false);
             return;
@@ -135,9 +146,6 @@ const ReaderWrapper: React.FC = () => {
         });
         
         setLoading(false);
-        
-        // Mark restoration as completed for this bookId
-        restorationAttemptedRef.current = bookId;
         
         // Track successful restoration
         trackEvent('reader_state_restored', {
