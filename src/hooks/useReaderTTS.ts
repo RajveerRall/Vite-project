@@ -99,14 +99,24 @@ export const useReaderTTS = ({
   const bufferVoiceRef = useRef<string>(selectedVoice);
   // === Ref for selectedVoice to avoid stale closures ===
   const selectedVoiceRef = useRef<string>(selectedVoice);
+  // === Ref for ttsSpeed to avoid stale closures ===
+  const ttsSpeedRef = useRef<number>(ttsSpeed);
   // === Track previous voice to detect actual changes ===
   const prevVoiceRef = useRef<string>(selectedVoice);
+  // === Track last pause/resume action to prevent double-calls ===
+  const lastPauseResumeActionRef = useRef<number>(0);
 
   // === Keep selectedVoiceRef synchronized with selectedVoice prop ===
   useEffect(() => {
     selectedVoiceRef.current = selectedVoice;
     console.log(`[${readerInstanceId}][Voice Ref Sync] selectedVoiceRef updated to: ${selectedVoice}`);
   }, [selectedVoice, readerInstanceId]);
+
+  // === Keep ttsSpeedRef synchronized with ttsSpeed prop ===
+  useEffect(() => {
+    ttsSpeedRef.current = ttsSpeed;
+    console.log(`[${readerInstanceId}][Speed Ref Sync] ttsSpeedRef updated to: ${ttsSpeed}x`);
+  }, [ttsSpeed, readerInstanceId]);
 
   // === Usage recording helper ===
   const recordUsageSeconds = useCallback(async (seconds: number) => {
@@ -360,6 +370,11 @@ export const useReaderTTS = ({
       else audioRef.current = new Audio();
 
       audioRef.current.src = audioUrl;
+      
+      // Apply current playback speed to ensure it persists across chunks
+      audioRef.current.playbackRate = ttsSpeedRef.current;
+      console.log(`[playChunk] Applied playback rate: ${ttsSpeedRef.current}x to chunk #${index}`);
+      
       audioRef.current.onplay = () => {
         playStartTimeRef.current[index] = Date.now();
       };
@@ -580,13 +595,29 @@ export const useReaderTTS = ({
       haltPlayback(); // Stop current playback
       // Continue to start new playback below
     }
-    // OLD: Handle pause/resume for button clicks without text
+    // Handle pause/resume for button clicks without text
     else if (isPaused) {
+      // ✅ NEW: Debounce guard - prevent double resume within 300ms
+      const now = Date.now();
+      if (now - lastPauseResumeActionRef.current < 300) {
+        console.log(`[${readerInstanceId}][handleTTS] Ignoring duplicate resume call (within 300ms)`);
+        return;
+      }
+      lastPauseResumeActionRef.current = now;
+      
       console.log(`[${readerInstanceId}][handleTTS] Resuming paused playback`);
       resumePlayback();
       return;
     }
     else if (isSpeaking) {
+      // ✅ NEW: Debounce guard - prevent double pause within 300ms
+      const now = Date.now();
+      if (now - lastPauseResumeActionRef.current < 300) {
+        console.log(`[${readerInstanceId}][handleTTS] Ignoring duplicate pause call (within 300ms)`);
+        return;
+      }
+      lastPauseResumeActionRef.current = now;
+      
       console.log(`[${readerInstanceId}][handleTTS] Pausing current playback`);
       pausePlayback();
       return;
