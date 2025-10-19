@@ -7,8 +7,8 @@ export const SEO_CONFIG = {
     title: 'Vite Reader - Digital Reading & Blog Platform',
     description: 'Discover a world of digital reading and insightful blog content. Explore books, articles, and stories in a modern, reader-friendly platform.',
     url: 'https://yoread.com', // Updated with actual domain
-    logo: '/logo.png', // Update with your actual logo path
-    favicon: '/favicon.ico',
+    logo: '/assets/yologo.webp', // Updated with actual logo path
+    favicon: '/assets/yologo.webp',
     language: 'en-US',
     author: 'Vite Reader Team',
   },
@@ -120,7 +120,7 @@ export const SEO_CONFIG = {
       organization: {
         name: 'Vite Reader',
         url: 'https://yoread.com',
-        logo: 'https://yoread.com/logo.png',
+        logo: 'https://yoread.com/assets/yologo.webp',
         sameAs: [
           'https://twitter.com/vitereader',
           'https://linkedin.com/company/vite-reader',

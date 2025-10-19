@@ -491,7 +491,7 @@ export const useReaderTTS = ({
       if (currentChunkIndex !== null) {
         console.log(`[${readerInstanceId}][pausePlayback] Saving resumeIndex: ${currentChunkIndex}`);
         setResumeIndex(currentChunkIndex);
-      }
+    }
     } else {
       console.log(`[${readerInstanceId}][pausePlayback] No audio ref or not speaking - audioRef: ${!!audioRef.current}, isSpeaking: ${isSpeaking}`);
     }

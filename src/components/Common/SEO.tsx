@@ -60,7 +60,7 @@ const SEO: React.FC<SEOProps> = ({
           name: 'Vite Reader',
           logo: {
             '@type': 'ImageObject',
-            url: '/logo.png', // Update with your actual logo URL
+            url: '/assets/yologo.webp',
           },
         },
         datePublished: publishedAt,
