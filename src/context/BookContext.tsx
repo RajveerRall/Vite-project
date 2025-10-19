@@ -95,7 +95,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       registerAdapter(mobiAdapter);
     } catch {}
   }, []);
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, hasExplicitlySignedOut } = useAuth();
   const userId = user?.id;
   const navigate = useNavigate();
   const [books, setBooks] = useState<BookData[]>([]);
@@ -122,6 +122,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   const [isPlayModeVisible, setIsPlayModeVisible] = useState<boolean>(false);
   // *** NEW: Add a ref to ensure the default book is only loaded once per session ***
   const defaultBookLoadAttempted = useRef(false);
+  const defaultBookLoadedThisSession = useRef(false); // Track if default book loaded this session
     // 2. Add a ref to track when a book reading session starts
   const readingStartTimestamp = useRef<number | null>(null);
   // Adapter session for non-EPUB formats (single active book at a time)
@@ -228,25 +229,15 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   // This effect now includes safeguards to prevent clearing books during page refresh
   // when the user is just temporarily unauthenticated
   useEffect(() => {
-    if (!userId && isInitialLoadComplete) {
+    // FIXED: Only run cleanup if user has EXPLICITLY signed out
+    if (!userId && isInitialLoadComplete && hasExplicitlySignedOut) {
       // Add a delay to prevent clearing books during page refresh
       // This gives the auth context time to restore the user's session
       const timeoutId = setTimeout(async () => {
         if (!userId) {
-          // Double-check that user is still not authenticated after the delay
-          // Additional safeguard: Check if there are any uploaded books that should be preserved
-          // If there are uploaded books, the user is likely just temporarily unauthenticated
-          // during page refresh, not actually signed out
-          const allKeys = await localforage.keys();
-          const hasUploadedBooks = allKeys.some(key => 
-            key.includes('book_metadata_') && !key.includes('1984')
-          );
-          
-          if (hasUploadedBooks) {
-            console.log('[BookContext] Found uploaded books, user may be temporarily unauthenticated - skipping cleanup');
-            return;
-          }
-          
+          // The hasExplicitlySignedOut flag is already checked in the outer useEffect condition
+          // If we're here, it means the user has explicitly signed out
+          // No need for additional "hasUploadedBooks" safeguards
           console.log('[BookContext] User confirmed signed out after delay, clearing user-specific books');
           
           const clearUserData = async () => {
@@ -296,6 +287,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
              
               // Reset flags
               defaultBookLoadAttempted.current = false;
+              defaultBookLoadedThisSession.current = false; // Reset session flag
               setIsInitialLoadComplete(false);
               
               // Clear current book state
@@ -337,7 +329,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       // Cleanup timeout if userId changes before delay completes
       return () => clearTimeout(timeoutId);
     }
-  }, [userId, isInitialLoadComplete]);
+  }, [userId, isInitialLoadComplete, hasExplicitlySignedOut]);
 
   // =================================================================
 // PASTE THIS ENTIRE BLOCK INTO YOUR BookContext.tsx FILE
@@ -836,6 +828,14 @@ useEffect(() => {
 
   // *** NEW: Function to load the default sample book ***
   const loadDefaultBook = async (): Promise<BookData | null> => {
+    // Prevent loading same default book multiple times in one session
+    if (defaultBookLoadedThisSession.current) {
+      console.log('[Default Book] Already loaded this session, skipping duplicate');
+      return null;
+    }
+    
+    defaultBookLoadedThisSession.current = true;
+    
     // Load 1984.epub from the public folder
     const defaultBookPath = '/1984.epub';
     console.log(`[Default Book] Fetching from: ${defaultBookPath}`);

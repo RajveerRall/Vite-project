@@ -3,6 +3,9 @@ import { User } from '@supabase/supabase-js';
 import { identifyUser } from '../lib/analytics';
 // import { supabase } from '../lib/supabase';
 
+// LocalStorage key for persisting sign-out flag across page reloads
+const SIGN_OUT_FLAG_KEY = 'yoread_explicit_signout';
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -13,6 +16,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   checkExistingSession: () => Promise<void>; // For session checks only
   resetSignOutState: () => void; // Reset the explicit sign out flag
+  hasExplicitlySignedOut: boolean; // Track if user explicitly signed out
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,7 +33,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [authInitialized, setAuthInitialized] = useState(false);
-  const [hasExplicitlySignedOut, setHasExplicitlySignedOut] = useState(false);
+  // Initialize from localStorage to persist across page reloads
+  const [hasExplicitlySignedOut, setHasExplicitlySignedOut] = useState(() => {
+    return localStorage.getItem(SIGN_OUT_FLAG_KEY) === 'true';
+  });
 
   // *** FIXED: Only check for existing session, don't auto-sign in ***
   const checkExistingSession = useCallback(async () => {
@@ -56,7 +63,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.user) {
         console.log('[AuthContext] Found existing session for user:', session.user.email);
         setUser(session.user);
-        setHasExplicitlySignedOut(false); // Reset the sign out flag
+        // Clear the sign-out flag from localStorage
+        localStorage.removeItem(SIGN_OUT_FLAG_KEY);
+        setHasExplicitlySignedOut(false);
         // Identify user in Amplitude if they're already signed in
         identifyUser(session.user.id, {
           user_id: session.user.id,
@@ -80,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Function to reset the explicit sign out state
   const resetSignOutState = useCallback(() => {
+    localStorage.removeItem(SIGN_OUT_FLAG_KEY);
     setHasExplicitlySignedOut(false);
     console.log('[AuthContext] Sign out state reset - session checks will now work');
   }, []);
@@ -112,7 +122,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (data.user) {
         setUser(data.user);
-        setHasExplicitlySignedOut(false); // Reset the sign out flag
+        // Clear the sign-out flag from localStorage
+        localStorage.removeItem(SIGN_OUT_FLAG_KEY);
+        setHasExplicitlySignedOut(false);
         // Identify user in Amplitude
         identifyUser(data.user.id, {
           user_id: data.user.id,
@@ -154,12 +166,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Helper function to clear books from IndexedDB before reload
+  const clearBooksOnSignOut = async () => {
+    try {
+      const localforage = (await import('localforage')).default;
+      const allKeys = await localforage.keys();
+      
+      // Remove all book keys except the default book
+      const bookKeys = allKeys.filter(key => 
+        key.includes('book_metadata_') || key.includes('book_file_')
+      );
+      
+      for (const key of bookKeys) {
+        // Preserve the default book
+        if (key.includes('default-book-1984')) {
+          continue;
+        }
+        await localforage.removeItem(key);
+      }
+      
+      console.log('[AuthContext] Books cleared before reload');
+    } catch (error) {
+      console.error('[AuthContext] Error clearing books:', error);
+      // Don't throw - we still want to reload even if cleanup fails
+    }
+  };
+
   const signOut = async () => {
     setLoading(true);
     try {
       const { supabase } = await import('../lib/supabase');
       
       console.log('[AuthContext] Starting sign out process...');
+      
+      // CRITICAL: Set flag in localStorage BEFORE page reload
+      localStorage.setItem(SIGN_OUT_FLAG_KEY, 'true');
+      setHasExplicitlySignedOut(true);
+      console.log('[AuthContext] Sign-out flag persisted to localStorage');
       
       // Try to sign out from Supabase, but don't fail if session is missing
       try {
@@ -179,19 +222,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('[AuthContext] Clearing local auth state...');
       setUser(null);
       setAuthInitialized(false);
-      setHasExplicitlySignedOut(true);
+      
+      // NEW: Clear books from IndexedDB before reload
+      console.log('[AuthContext] Clearing books before reload...');
+      await clearBooksOnSignOut();
       
       // Force a page refresh to clear any remaining Supabase session state
+      // The flag will persist through the reload and trigger cleanup
       console.log('[AuthContext] Forcing page refresh to clear session state...');
       window.location.reload();
       
       console.log('[AuthContext] Successfully signed out (local state cleared)');
     } catch (error) {
       console.error('[AuthContext] Sign out failed:', error);
-      // Even if there's an error, clear the user state to ensure logout
+      // Even if there's an error, clear the user state and set the flag
+      localStorage.setItem(SIGN_OUT_FLAG_KEY, 'true');
       setUser(null);
       setAuthInitialized(false);
       setHasExplicitlySignedOut(true);
+      
+      // NEW: Clear books even on error
+      console.log('[AuthContext] Clearing books on error...');
+      await clearBooksOnSignOut();
+      
       // Still force refresh on error
       window.location.reload();
     } finally {
@@ -215,8 +268,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(nextUser);
           setAuthInitialized(true);
           if (event === 'SIGNED_OUT') {
-            setHasExplicitlySignedOut(true);
+            // Don't set the flag here - it should only be set by explicit signOut()
+            // This event can fire for session expiry, not just user action
+            console.log('[AuthContext] SIGNED_OUT event - not setting explicit flag');
           } else if (nextUser) {
+            // User signed in - clear the flag
+            localStorage.removeItem(SIGN_OUT_FLAG_KEY);
             setHasExplicitlySignedOut(false);
           }
         });
@@ -250,6 +307,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated: !!user,
     checkExistingSession, // Expose this for manual session checks
     resetSignOutState, // Expose this for resetting sign out state
+    hasExplicitlySignedOut, // Expose this for BookContext to check
   };
 
   return (

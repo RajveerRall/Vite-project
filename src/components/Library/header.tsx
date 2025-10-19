@@ -109,6 +109,7 @@ const Header: React.FC = () => {
     // Don't check for existing session - user should manually sign in
     // This prevents auto-authentication from browser session tokens
     // Users must explicitly enter their credentials to sign in
+    console.log('[Header] Opening auth modal');
     setShowAuthModal(true);
   };
 
@@ -334,7 +335,10 @@ const Header: React.FC = () => {
                     <span className="text-2xl">&times;</span>
                   </button>
                 </div>
-                <AuthForm onSuccess={() => setShowAuthModal(false)} />
+                <AuthForm onSuccess={() => {
+                  console.log('[Header] AuthForm onSuccess called, closing modal');
+                  setShowAuthModal(false);
+                }} />
               </div>
             </div>
           </div>

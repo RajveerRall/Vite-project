@@ -21,23 +21,54 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
     setLoading(true);
     setError(null);
 
+    console.log('[AuthForm] Starting sign-in process...');
+
     try {
       if (isLogin) {
+        console.log('[AuthForm] Calling signIn...');
         await signIn(email, password);
+        console.log('[AuthForm] Sign-in successful, calling onSuccess...');
+        // Only close modal after successful sign-in
         onSuccess?.();
       } else {
         await signUp(email, password);
         setError('Check your email for verification link!');
+        // Don't close modal on sign-up, user needs to see the verification message
       }
     } catch (err: any) {
-      setError(err.message);
+      console.log('[AuthForm] Sign-in failed, setting error:', err.message);
+      // Provide user-friendly error messages
+      const errorMessage = err.message || 'An error occurred';
+      if (errorMessage.toLowerCase().includes('invalid login credentials')) {
+        setError('Invalid email or password. Please try again.');
+      } else if (errorMessage.toLowerCase().includes('email not confirmed')) {
+        setError('Please verify your email address before signing in.');
+      } else if (errorMessage.toLowerCase().includes('user not found')) {
+        setError('No account found with this email. Please sign up first.');
+      } else if (errorMessage.toLowerCase().includes('email already registered')) {
+        setError('This email is already registered. Please sign in instead.');
+      } else {
+        setError(errorMessage);
+      }
+      console.log('[AuthForm] Error set, modal should stay open');
     } finally {
+      console.log('[AuthForm] Setting loading to false');
       setLoading(false);
     }
   };
 
   const handleGoogleSuccess = () => onSuccess?.();
-  const handleGoogleError = (err: Error) => setError(err.message);
+  const handleGoogleError = (err: Error) => {
+    // Provide user-friendly error messages for Google sign-in
+    const errorMessage = err.message || 'Google sign-in failed';
+    if (errorMessage.toLowerCase().includes('popup') || errorMessage.toLowerCase().includes('closed')) {
+      setError('Sign-in was cancelled. Please try again.');
+    } else if (errorMessage.toLowerCase().includes('blocked')) {
+      setError('Pop-up was blocked. Please allow pop-ups and try again.');
+    } else {
+      setError(`Google sign-in failed: ${errorMessage}`);
+    }
+  };
 
   return (
     <div className={onSuccess ? "py-4" : "min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"}>
@@ -84,8 +115,18 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
           </div>
 
           {error && (
-            <div className={`text-sm text-center ${error.includes('Check your email') ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`rounded-md p-3 ${
+              error.includes('Check your email') || error.includes('verification') 
+                ? 'bg-green-50 border border-green-200' 
+                : 'bg-red-50 border border-red-200'
+            }`}>
+              <p className={`text-sm text-center font-medium ${
+                error.includes('Check your email') || error.includes('verification')
+                  ? 'text-green-800' 
+                  : 'text-red-800'
+              }`}>
               {error}
+              </p>
             </div>
           )}
 

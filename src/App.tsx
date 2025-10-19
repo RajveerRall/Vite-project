@@ -35,20 +35,31 @@ const MainApp: React.FC = () => {
   const location = useLocation();
   const isReaderRoute = location.pathname.startsWith('/reader');
 
-  const handleGoogleSuccess = () => {
+  // Stabilize callbacks with useCallback to prevent re-creating on each render
+  const handleGoogleSuccess = React.useCallback(() => {
     console.log('[App] Google One Tap login successful!');
     // The auth state will be updated automatically via Supabase auth state change
-  };
+  }, []);
 
-  const handleGoogleError = (error: Error) => {
+  const handleGoogleError = React.useCallback((error: Error) => {
     console.error('[App] Google One Tap login failed:', error);
-  };
+  }, []);
+
+  // Memoize GoogleOneTap to prevent re-mounts
+  // Now with stable callback dependencies, this will only re-create when auth state changes
+  const googleOneTapComponent = React.useMemo(() => {
+    if (!isAuthenticated && !Capacitor.isNativePlatform()) {
+      return <GoogleOneTap 
+        onSuccess={handleGoogleSuccess} 
+        onError={handleGoogleError} 
+      />;
+    }
+    return null;
+  }, [isAuthenticated, handleGoogleSuccess, handleGoogleError]);
 
   return (
     <div className="app">
-      {!isAuthenticated && !Capacitor.isNativePlatform() && (
-        <GoogleOneTap onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
-      )}
+      {googleOneTapComponent}
       {!isReaderRoute && <Header />}
       <Routes>
         {/* Main app routes */}
@@ -129,15 +140,7 @@ const AppContent: React.FC = () => {
       } />
       
       {/* Main app routes - auth required - use wildcard to allow nested routes */}
-      <Route path="/*" element={
-        loading ? (
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-lg text-gray-600">Loading...</div>
-          </div>
-        ) : (
-          <MainApp />
-        )
-      } />
+      <Route path="/*" element={<MainApp />} />
     </Routes>
   );
 };
