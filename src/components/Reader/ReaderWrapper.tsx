@@ -8,11 +8,13 @@ import { getReaderState, saveReaderState, clearReaderState } from '../../utils/r
 import { trackEvent } from '../../lib/analytics';
 import Reader from './index';
 import SuspenseLoader from '../Common/SuspenseLoader';
+import { useToast } from '../../context/ToastContext';
 
 const ReaderWrapper: React.FC = () => {
   const { bookId } = useParams<{ bookId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   
   const { 
     books, 
@@ -74,15 +76,20 @@ const ReaderWrapper: React.FC = () => {
         
         if (!book) {
           console.error('[ReaderWrapper] Book not found in local library:', bookId);
-          setError(`Book not found. Please sync your library or check if the book was removed.`);
-          setLoading(false);
-          
           // Track error for analytics
           trackEvent('reader_restoration_error', {
             method: 'url',
             error: 'book_not_found',
             book_id: bookId
           });
+          // Clear any stale saved state and redirect with toast
+          try { clearReaderState(); } catch {}
+          addToast({
+            type: 'error',
+            title: 'Unable to open book',
+            description: 'This book is not in your library yet. Please sync or try again.'
+          });
+          navigate('/', { replace: true });
           return;
         }
         
@@ -124,8 +131,14 @@ const ReaderWrapper: React.FC = () => {
             restorationAttemptedRef.current = null;
             console.log('[ReaderWrapper] Opening failed, reset restoration flag for retry');
             
-            setError(`Failed to open book: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            // Redirect back with toast
+            addToast({
+              type: 'error',
+              title: 'Unable to open book',
+              description: err instanceof Error ? err.message : 'An unexpected error occurred while opening the book.'
+            });
             setLoading(false);
+            navigate('/', { replace: true });
             return;
           }
         }
@@ -177,11 +190,9 @@ const ReaderWrapper: React.FC = () => {
         }
       }
       
-      // PRIORITY 3: No restoration possible, redirect to library
+      // PRIORITY 3: No restoration possible, redirect to library immediately with toast
       console.log('[ReaderWrapper] No restoration possible, redirecting to library');
-      setError('No book selected');
       setRestorationMethod('none');
-      
       // Track that no restoration was possible
       trackEvent('reader_restoration_error', {
         method: 'none',
@@ -189,10 +200,12 @@ const ReaderWrapper: React.FC = () => {
         has_url_book_id: !!bookId,
         has_recent_session: !!recentState
       });
-      
-      setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 2000);
+      addToast({
+        type: 'error',
+        title: 'No book selected',
+        description: 'We could not restore your reading session.'
+      });
+      navigate('/', { replace: true });
     };
     
     // Only attempt restoration if we have books loaded

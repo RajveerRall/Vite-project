@@ -800,3 +800,65 @@
 .toast-close-btn:hover {
   color: #1f2937; /* gray-800 */
 }
+
+/* Feathered edge mask for translucent cards */
+.edge-fade {
+  position: relative;
+  /* Feather all sides: solid center, smooth falloff, fully transparent edges */
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 68%, rgba(0, 0, 0, 0.8) 78%, transparent 100%);
+  mask-image: radial-gradient(ellipse at center, #000 68%, rgba(0, 0, 0, 0.8) 78%, transparent 100%);
+}
+
+/* Playwrite DE Grund Guides Font */
+@font-face {
+  font-family: 'Playwrite DE Grund Guides';
+  src: url('/fonts/PlaywriteDEGrundGuides-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Rye Font */
+@font-face {
+  font-family: 'Rye';
+  src: url('/fonts/Rye/Rye-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Roboto Flex Font */
+@font-face {
+  font-family: 'Roboto Flex';
+  src: url('/fonts/Roboto_Flex/RobotoFlex-VariableFont_GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Book Collage Background */
+.book-collage-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.5rem;
+  opacity: 0.3;
+}
+
+@media (min-width: 640px) {
+  .book-collage-grid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .book-collage-grid {
+    grid-template-columns: repeat(10, 1fr);
+  }
+}
+
+/* Enhanced upload area for better contrast */
+.upload-area {
+  background-color: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}

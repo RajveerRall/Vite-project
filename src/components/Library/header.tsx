@@ -87,6 +87,9 @@ const Header: React.FC = () => {
   const { usedMinutes, totalMinutes, loading: usageLoading, refresh } = useTTSUsage();
   const { usedMinutes: fcUsed, totalMinutes: fcTotal, loading: fcLoading, refresh: fcRefresh } = useFullCastUsage();
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Feature flag - set to true to re-enable Full Cast tracker
+  const SHOW_FULL_CAST = false;
 
   // Close mobile menu when clicking outside
   useEffect(() => {
@@ -185,19 +188,21 @@ const Header: React.FC = () => {
                 </div>
                 
                 {/* Full Cast Usage */}
-                <div className="flex items-center gap-x-2 text-sm text-gray-700">
-                  <span className="font-medium">
-                    {fcLoading ? 'Full Cast: …' : `Full Cast: ${fcUsed ?? 0}/${fcTotal} min`}
-                  </span>
-                  <button 
-                    onClick={() => fcRefresh()}
-                    className="text-gray-500 hover:text-gray-700 transition-colors"
-                    title="Refresh Full Cast usage"
-                    disabled={fcLoading}
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </button>
-                </div>
+                {SHOW_FULL_CAST && (
+                  <div className="flex items-center gap-x-2 text-sm text-gray-700">
+                    <span className="font-medium">
+                      {fcLoading ? 'Full Cast: …' : `Full Cast: ${fcUsed ?? 0}/${fcTotal} min`}
+                    </span>
+                    <button 
+                      onClick={() => fcRefresh()}
+                      className="text-gray-500 hover:text-gray-700 transition-colors"
+                      title="Refresh Full Cast usage"
+                      disabled={fcLoading}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
                 
                 {/* User Email */}
                 <span className="text-sm text-gray-600">
@@ -286,25 +291,27 @@ const Header: React.FC = () => {
                 </div>
                 
                 {/* Full Cast Usage */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Full Cast Usage</span>
-                  <div className="flex items-center gap-x-2">
-                    <span className="text-sm font-medium text-gray-700">
-                      {fcLoading ? '…' : `${fcUsed ?? 0}/${fcTotal} min`}
-                    </span>
-                    <button 
-                      onClick={() => {
-                        fcRefresh();
-                        setShowMobileMenu(false);
-                      }}
-                      className="text-gray-500 hover:text-gray-700 transition-colors"
-                      title="Refresh Full Cast usage"
-                      disabled={fcLoading}
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </button>
+                {SHOW_FULL_CAST && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Full Cast Usage</span>
+                    <div className="flex items-center gap-x-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        {fcLoading ? '…' : `${fcUsed ?? 0}/${fcTotal} min`}
+                      </span>
+                      <button 
+                        onClick={() => {
+                          fcRefresh();
+                          setShowMobileMenu(false);
+                        }}
+                        className="text-gray-500 hover:text-gray-700 transition-colors"
+                        title="Refresh Full Cast usage"
+                        disabled={fcLoading}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

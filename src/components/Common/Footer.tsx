@@ -1,9 +1,54 @@
 import React from 'react';
 
+const BOOK_COVERS = [
+  '/book_covers/1984.jpg',
+  '/book_covers/A Clockwork Orange.jpg',
+  '/book_covers/Circe.jpg',
+  '/book_covers/Dune.jpg',
+  '/book_covers/Dungeon Crawler Carl.jpg',
+  '/book_covers/Fahrenheit 451.jpg',
+  '/book_covers/Fourth Wing.jpg',
+  '/book_covers/Gods of Jade and Shadow.jpg',
+  '/book_covers/Jurassic Park.jpg',
+  '/book_covers/Pride and Prejudice.jpg',
+  '/book_covers/Red Mars.jpg',
+  '/book_covers/Song of Silver Flame Like Night.jpg',
+  '/book_covers/The Catcher in the Rye.jpg',
+  '/book_covers/The Godfather.jpg',
+  '/book_covers/The Left Hand of Darkness.jpg',
+  '/book_covers/The Lord of the Rings.jpg',
+  '/book_covers/The Priory of the Orange Tree.jpg',
+  '/book_covers/The Seven Husbands of Evelyn Hugo.jpg',
+];
+
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-white border-t border-gray-200 py-8">
-      <div className="max-w-4xl mx-auto px-6">
+    <footer className="relative bg-white border-t border-gray-200 py-8">
+      {/* Full-width background - breaks out of max-w-4xl container */}
+      <div className="absolute left-1/2 -translate-x-1/2 w-screen top-0 bottom-0">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Gradient overlay for readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-white/70 via-white/60 to-white/85 z-10"></div>
+          
+          {/* Book covers grid - now spans full viewport width */}
+          <div className="grid grid-cols-8 sm:grid-cols-12 md:grid-cols-16 lg:grid-cols-20 gap-2 opacity-60 px-4">
+            {[...Array(80)].map((_, index) => (
+              <div key={index} className="aspect-[2/3] overflow-hidden rounded-sm">
+                <img
+                  src={BOOK_COVERS[index % BOOK_COVERS.length]}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Content - stays within max-w-4xl */}
+      <div className="relative z-20">
+        <div className="max-w-4xl mx-auto px-6">
         <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
           {/* Company Info */}
           <div className="text-center md:text-left">
@@ -38,10 +83,11 @@ const Footer: React.FC = () => {
           </div>
         </div>
 
-        <div className="border-t border-gray-200 mt-6 pt-6 text-center">
-          <p className="text-gray-500 text-sm">
-            © 2025 YoRead. All rights reserved. · <a href="/terms" className="text-gray-600 hover:text-gray-900 underline">Terms of Service</a>
-          </p>
+          <div className="border-t border-gray-200 mt-6 pt-6 text-center">
+            <p className="text-gray-500 text-sm">
+              © 2025 YoRead. All rights reserved. · <a href="/terms" className="text-gray-600 hover:text-gray-900 underline">Terms of Service</a>
+            </p>
+          </div>
         </div>
       </div>
     </footer>

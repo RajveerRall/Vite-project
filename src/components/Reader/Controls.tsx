@@ -332,6 +332,7 @@ const Controls: React.FC<ControlsProps> = ({
         {/* Full Cast Button */}
         <button
           className="control-button flex items-center gap-2 px-3 py-2 border border-gray-300"
+          style={{ display: 'none' }}
           onClick={() => {
             if (typeof fcUsed === 'number' && typeof fcTotal === 'number' && fcUsed >= fcTotal) {
               trackEvent('full_cast_quota_exceeded', {

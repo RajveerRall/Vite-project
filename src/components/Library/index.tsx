@@ -6,6 +6,27 @@ import './Library.css';
 import { trackEvent } from '../../lib/analytics'; // Make sure to import it
 import { useAuth } from "../../context/AuthContext";
 
+const BOOK_COVERS = [
+  '/book_covers/1984.jpg',
+  '/book_covers/A Clockwork Orange.jpg',
+  '/book_covers/Circe.jpg',
+  '/book_covers/Dune.jpg',
+  '/book_covers/Dungeon Crawler Carl.jpg',
+  '/book_covers/Fahrenheit 451.jpg',
+  '/book_covers/Fourth Wing.jpg',
+  '/book_covers/Gods of Jade and Shadow.jpg',
+  '/book_covers/Jurassic Park.jpg',
+  '/book_covers/Pride and Prejudice.jpg',
+  '/book_covers/Red Mars.jpg',
+  '/book_covers/Song of Silver Flame Like Night.jpg',
+  '/book_covers/The Catcher in the Rye.jpg',
+  '/book_covers/The Godfather.jpg',
+  '/book_covers/The Left Hand of Darkness.jpg',
+  '/book_covers/The Lord of the Rings.jpg',
+  '/book_covers/The Priory of the Orange Tree.jpg',
+  '/book_covers/The Seven Husbands of Evelyn Hugo.jpg',
+];
+
 
 const Library: React.FC = () => {
   const { books, addBook, isLoading, openBook, isSyncingFromCloud } = useBook();
@@ -143,50 +164,56 @@ const Library: React.FC = () => {
           </div>
         )}
 
-        {/* Cloud Sync Loading Overlay - REMOVED for progressive loading */}
-        {/* Books now show individual loading states instead of blocking the entire page */}
-
-        {/* Simple sync status indicator */}
+        {/* Cloud Sync Toast Notification - Fixed position at top */}
         {isSyncingFromCloud && (
-          <div className="mb-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-              <div className="flex items-center justify-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <p className="text-sm text-blue-800">
-                  🚀 Smart sync in progress - only downloading new books...
-                </p>
-              </div>
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top duration-300">
+            <div className="bg-blue-600 text-white rounded-full shadow-xl px-5 py-3 flex items-center gap-3 border border-blue-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+              <p className="text-sm font-medium">
+                🚀 Syncing your library...
+              </p>
             </div>
           </div>
         )}
 
-        {/* --- START: Simplified Display Logic --- */}
-        
-                 {/* Showcase Carousel: Always visible */}
-        {/* Showcase disabled for performance */}
+        {/* --- All sections are independent --- */}
 
-        {/* Welcome Message: Only for users with NO personal books */}
-        {books.length === 0 && !isLoading && (
-          <section className="text-center mb-12">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              {isAuthenticated ? "Your Cloud Library is Empty" : "Your Personal Reading Space"}
-            </h1>
-            <p className="mt-4 text-lg leading-8 text-gray-600">
-              Upload an ePub file to start building your library.
-            </p>
-          </section>
-        )}
-        
-        {/* --- All sections below this point are independent --- */}
+        {/* Hero Section with Background Collage */}
+        <div className="relative mb-16">
+          {/* Full-width background - breaks out of max-w-5xl container */}
+          <div className="absolute left-1/2 -translate-x-1/2 w-screen -top-8 sm:-top-12 bottom-0">
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              {/* Gradient overlay for readability */}
+              <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/60 to-white/85 z-10"></div>
+              
+              {/* Book covers grid - now spans full viewport width */}
+              <div className="grid grid-cols-8 sm:grid-cols-12 md:grid-cols-16 lg:grid-cols-20 gap-2 opacity-60 px-4">
+                {[...Array(80)].map((_, index) => (
+                  <div key={index} className="aspect-[2/3] overflow-hidden rounded-sm">
+                    <img
+                      src={BOOK_COVERS[index % BOOK_COVERS.length]}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
+          {/* Content - stays within max-w-5xl */}
+          <div className="relative z-20">
         {/* Hero title */}
-        <section className="text-center mt-6">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
-            AI Narrator to read aloud your ebooks
-          </h1>
-          <p className="mt-2 sm:mt-3 text-base sm:text-lg text-gray-600 max-w-3xl mx-auto">
+            <section className="pt-6">
+              <div className="max-w-4xl mx-auto text-center bg-white/60 backdrop-blur-sm rounded-lg border border-gray-200/70 shadow-sm px-4 sm:px-5 py-4 edge-fade">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 whitespace-nowrap" style={{ fontFamily: "'Roboto Flex', sans-serif" }}>
+                  AI Narrator to read aloud your ebooks
+                </h1>
+                <p className="mt-2 sm:mt-3 text-base sm:text-lg text-gray-700 max-w-3xl mx-auto">
             Upload an EPUB to convert it to audio and follow along with synchronized text highlighting.
           </p>
+              </div>
         </section>
 
         {/* Upload Area */}
@@ -208,9 +235,10 @@ const Library: React.FC = () => {
         </div>
 
         {/* Free ebook resources */}
-        <section className="mt-12 text-center">
-          <h3 className="text-base font-semibold text-gray-700">Looking for eBooks?</h3>
-          <p className="text-sm text-gray-500 mt-1">Find free public domain books or purchase new releases to convert to audio.</p>
+            <section className="mt-12 pb-8">
+              <div className="max-w-2xl mx-auto text-center bg-white/60 backdrop-blur-sm rounded-lg border border-gray-200/70 shadow-sm px-4 sm:px-5 py-4 edge-fade">
+                <h3 className="text-base font-semibold text-gray-800">Looking for eBooks?</h3>
+                <p className="text-sm text-gray-600 mt-1">Find free public domain books or purchase new releases to convert to audio.</p>
           <div className="mt-4 flex items-center justify-center space-x-6">
             <button 
               onClick={() => handleExternalLinkClick('Project Gutenberg', 'https://www.gutenberg.org')} 
@@ -230,16 +258,22 @@ const Library: React.FC = () => {
             >
               Buy New eBooks
             </button>
+                </div>
           </div>
         </section>
+          </div>
+        </div>
 
         {/* User's Library Section: Appears here ONLY if they have books */}
         {books.length > 0 && (
-          <section className="user-library-section mt-16 border-t border-gray-200 pt-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-                {isAuthenticated ? "Your Cloud Library" : "Your Current Library"}
-            </h2>
+          <section className="user-library-section mt-16 border-t-2 border-amber-200 pt-10 pb-8 bg-gradient-to-b from-amber-50/30 to-transparent rounded-t-xl">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-900 to-amber-700 bg-clip-text text-transparent">
+                  {isAuthenticated ? "Your Cloud Library" : "Your Current Library"}
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">Your personal collection of ebooks</p>
+              </div>
               {isSyncingFromCloud && (
                 <div className="flex items-center text-amber-600">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600 mr-2"></div>
