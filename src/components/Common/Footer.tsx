@@ -1,25 +1,6 @@
 import React from 'react';
 
-const BOOK_COVERS = [
-  '/book_covers/1984.jpg',
-  '/book_covers/A Clockwork Orange.jpg',
-  '/book_covers/Circe.jpg',
-  '/book_covers/Dune.jpg',
-  '/book_covers/Dungeon Crawler Carl.jpg',
-  '/book_covers/Fahrenheit 451.jpg',
-  '/book_covers/Fourth Wing.jpg',
-  '/book_covers/Gods of Jade and Shadow.jpg',
-  '/book_covers/Jurassic Park.jpg',
-  '/book_covers/Pride and Prejudice.jpg',
-  '/book_covers/Red Mars.jpg',
-  '/book_covers/Song of Silver Flame Like Night.jpg',
-  '/book_covers/The Catcher in the Rye.jpg',
-  '/book_covers/The Godfather.jpg',
-  '/book_covers/The Left Hand of Darkness.jpg',
-  '/book_covers/The Lord of the Rings.jpg',
-  '/book_covers/The Priory of the Orange Tree.jpg',
-  '/book_covers/The Seven Husbands of Evelyn Hugo.jpg',
-];
+// Book collage now uses optimized sprite sheet instead of individual images
 
 const Footer: React.FC = () => {
   return (
@@ -30,19 +11,16 @@ const Footer: React.FC = () => {
           {/* Gradient overlay for readability */}
           <div className="absolute inset-0 bg-gradient-to-t from-white/70 via-white/60 to-white/85 z-10"></div>
           
-          {/* Book covers grid - now spans full viewport width */}
-          <div className="grid grid-cols-8 sm:grid-cols-12 md:grid-cols-16 lg:grid-cols-20 gap-2 opacity-60 px-4">
-            {[...Array(80)].map((_, index) => (
-              <div key={index} className="aspect-[2/3] overflow-hidden rounded-sm">
-                <img
-                  src={BOOK_COVERS[index % BOOK_COVERS.length]}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-            ))}
-          </div>
+          {/* Book covers sprite - optimized single image */}
+          <div 
+            className="absolute inset-0 opacity-60"
+            style={{
+              backgroundImage: 'url(/assets/book-collage-sprite.webp)',
+              backgroundSize: '800px 600px',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'repeat'
+            }}
+          />
         </div>
       </div>
 

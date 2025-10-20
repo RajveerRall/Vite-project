@@ -12,6 +12,8 @@
     "build-with-static": "npm run generate-static && npm run build",
     "test-static": "node scripts/test-static-generation.mjs",
     "test-faq": "node scripts/test-faq-system.mjs",
+    "convert-images": "node scripts/convert-images-to-webp.mjs",
+    "create-collage": "node scripts/create-book-collage-sprite.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server.cjs"
