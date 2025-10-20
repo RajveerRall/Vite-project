@@ -125,6 +125,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Clear the sign-out flag from localStorage
         localStorage.removeItem(SIGN_OUT_FLAG_KEY);
         setHasExplicitlySignedOut(false);
+        
+        // ========================================
+        // NEW: CONVERT ANONYMOUS SESSION
+        // ========================================
+        try {
+          const { getSessionStatus, markSessionAsConverted } = await import('../utils/anonymousSession');
+          const { hasSession, sessionId } = getSessionStatus();
+          
+          if (hasSession && sessionId) {
+            console.log('[Auth] Converting anonymous session to user:', sessionId);
+            
+            const { data: conversionData, error: conversionError } = await supabase.rpc(
+              'convert_anonymous_to_user',
+              {
+                p_session_id: sessionId,
+                p_user_id: data.user.id
+              }
+            );
+            
+            if (conversionError) {
+              console.warn('[Auth] Failed to convert anonymous session:', conversionError);
+            } else {
+              console.log('[Auth] Successfully converted anonymous usage:', conversionData);
+              markSessionAsConverted();
+            }
+          }
+        } catch (conversionErr) {
+          console.warn('[Auth] Error during session conversion:', conversionErr);
+        }
+        
         // Identify user in Amplitude
         identifyUser(data.user.id, {
           user_id: data.user.id,
@@ -262,7 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (async () => {
       try {
         const { supabase } = await import('../lib/supabase');
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
           console.log('[AuthContext] onAuthStateChange:', event, session);
           const nextUser = session?.user ?? null;
           setUser(nextUser);
@@ -275,6 +305,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // User signed in - clear the flag
             localStorage.removeItem(SIGN_OUT_FLAG_KEY);
             setHasExplicitlySignedOut(false);
+            
+            // ========================================
+            // NEW: CONVERT ANONYMOUS SESSION (for OAuth flows)
+            // ========================================
+            try {
+              const { getSessionStatus, markSessionAsConverted } = await import('../utils/anonymousSession');
+              const { hasSession, sessionId } = getSessionStatus();
+              
+              if (hasSession && sessionId) {
+                console.log('[Auth] Converting anonymous session to user (OAuth):', sessionId);
+                
+                const { data: conversionData, error: conversionError } = await supabase.rpc(
+                  'convert_anonymous_to_user',
+                  {
+                    p_session_id: sessionId,
+                    p_user_id: nextUser.id
+                  }
+                );
+                
+                if (conversionError) {
+                  console.warn('[Auth] Failed to convert anonymous session (OAuth):', conversionError);
+                } else {
+                  console.log('[Auth] Successfully converted anonymous usage (OAuth):', conversionData);
+                  markSessionAsConverted();
+                }
+              }
+            } catch (conversionErr) {
+              console.warn('[Auth] Error during session conversion (OAuth):', conversionErr);
+            }
           }
         });
         unsubscribe = () => subscription.unsubscribe();

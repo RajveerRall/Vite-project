@@ -121,17 +121,58 @@ export const useReaderTTS = ({
   // === Usage recording helper ===
   const recordUsageSeconds = useCallback(async (seconds: number) => {
     if (!seconds || seconds <= 0) return;
+    
     try {
       const { supabase } = await import('../lib/supabase');
-      await supabase.rpc('increment_tts_usage', {
-        p_user_id: user?.id ?? null,
-        p_seconds: seconds,
-        p_source: 'reader'
-      });
-      try {
-        // Notify UI (e.g., header) to refresh usage indicator
-        window.dispatchEvent(new CustomEvent('tts-usage-updated', { detail: { seconds, source: 'reader' } }));
-      } catch {}
+      const { getAnonymousSessionId } = await import('../utils/anonymousSession');
+      
+      if (user?.id) {
+        // ========================================
+        // AUTHENTICATED USER - EXISTING LOGIC
+        // ========================================
+        await supabase.rpc('increment_tts_usage', {
+          p_user_id: user.id,
+          p_seconds: seconds,
+          p_source: 'reader'
+        });
+        
+        console.log('[TTS Usage] Recorded for authenticated user:', {
+          userId: user.id,
+          seconds,
+          source: 'reader'
+        });
+      } else {
+        // ========================================
+        // ANONYMOUS USER - NEW LOGIC
+        // ========================================
+        const sessionId = getAnonymousSessionId();
+        const userAgent = navigator.userAgent;
+        
+        const { data, error } = await supabase.rpc('record_anonymous_tts_usage', {
+          p_session_id: sessionId,
+          p_seconds: seconds,
+          p_source: 'reader',
+          p_user_agent: userAgent
+        });
+        
+        if (error) throw error;
+        
+        console.log('[TTS Usage] Recorded for anonymous user:', {
+          sessionId,
+          seconds,
+          source: 'reader',
+          totalThisMonth: data?.total_minutes_this_month
+        });
+      }
+      
+      // Notify UI components (works for both)
+      window.dispatchEvent(new CustomEvent('tts-usage-updated', { 
+        detail: { 
+          seconds, 
+          source: 'reader',
+          isAnonymous: !user?.id
+        } 
+      }));
     } catch (e) {
       console.warn('[TTS Usage] Failed to record usage:', e);
     }

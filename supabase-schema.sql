@@ -262,3 +262,239 @@ BEGIN
   VALUES (v_user_id, p_seconds, p_source);
 END;
 $$;
+
+-- === ANONYMOUS USER TRACKING ===
+
+-- Anonymous sessions table
+CREATE TABLE IF NOT EXISTS anonymous_tts_sessions (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id text UNIQUE NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  last_active_at timestamptz DEFAULT now(),
+  user_agent text,
+  ip_address text, -- Optional, for analytics
+  converted_to_user_id uuid REFERENCES auth.users(id), -- Track conversions
+  conversion_date timestamptz,
+  total_tts_seconds integer DEFAULT 0,
+  total_full_cast_seconds integer DEFAULT 0,
+  
+  -- Index for performance
+  CONSTRAINT session_id_format CHECK (session_id ~ '^anon_[0-9]+_[a-z0-9]+$')
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_anonymous_sessions_session_id ON anonymous_tts_sessions(session_id);
+CREATE INDEX IF NOT EXISTS idx_anonymous_sessions_converted ON anonymous_tts_sessions(converted_to_user_id) WHERE converted_to_user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_anonymous_sessions_last_active ON anonymous_tts_sessions(last_active_at);
+
+-- Anonymous usage table (detailed tracking)
+CREATE TABLE IF NOT EXISTS anonymous_tts_usage (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id text NOT NULL REFERENCES anonymous_tts_sessions(session_id) ON DELETE CASCADE,
+  month_start date NOT NULL,
+  source text NOT NULL, -- 'reader' or 'full-cast'
+  used_seconds integer DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  
+  -- Unique constraint: one row per session, month, and source
+  UNIQUE(session_id, month_start, source)
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_anonymous_usage_session ON anonymous_tts_usage(session_id);
+CREATE INDEX IF NOT EXISTS idx_anonymous_usage_month ON anonymous_tts_usage(month_start);
+CREATE INDEX IF NOT EXISTS idx_anonymous_usage_source ON anonymous_tts_usage(source);
+
+-- RLS policies for anonymous tables
+ALTER TABLE anonymous_tts_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE anonymous_tts_usage ENABLE ROW LEVEL SECURITY;
+
+-- Anyone can insert (no auth required)
+CREATE POLICY "Allow anonymous session creation" 
+  ON anonymous_tts_sessions FOR INSERT 
+  WITH CHECK (true);
+
+-- Anyone can update their own session (by session_id match)
+CREATE POLICY "Allow anonymous session update" 
+  ON anonymous_tts_sessions FOR UPDATE 
+  USING (true);
+
+-- Anyone can insert usage
+CREATE POLICY "Allow anonymous usage insert" 
+  ON anonymous_tts_usage FOR INSERT 
+  WITH CHECK (true);
+
+-- Anyone can update usage
+CREATE POLICY "Allow anonymous usage update" 
+  ON anonymous_tts_usage FOR UPDATE 
+  USING (true);
+
+-- Only authenticated users can read (for privacy)
+CREATE POLICY "Allow authenticated read of anonymous sessions" 
+  ON anonymous_tts_sessions FOR SELECT 
+  USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+
+CREATE POLICY "Allow authenticated read of anonymous usage" 
+  ON anonymous_tts_usage FOR SELECT 
+  USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+
+-- Add updated_at trigger for anonymous_tts_usage
+CREATE TRIGGER trg_anonymous_tts_usage_updated_at
+  BEFORE UPDATE ON anonymous_tts_usage
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- RPC to record anonymous TTS usage
+CREATE OR REPLACE FUNCTION record_anonymous_tts_usage(
+  p_session_id text,
+  p_seconds integer,
+  p_source text DEFAULT 'reader',
+  p_user_agent text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_month_start date;
+  v_session_exists boolean;
+  v_total_seconds integer;
+BEGIN
+  -- Validate inputs
+  IF p_session_id IS NULL OR p_session_id = '' THEN
+    RAISE EXCEPTION 'session_id is required';
+  END IF;
+  
+  IF p_seconds IS NULL OR p_seconds <= 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid seconds value');
+  END IF;
+  
+  v_month_start := date_trunc('month', now())::date;
+  
+  -- Check if session exists
+  SELECT EXISTS(
+    SELECT 1 FROM anonymous_tts_sessions WHERE session_id = p_session_id
+  ) INTO v_session_exists;
+  
+  -- Create session if it doesn't exist
+  IF NOT v_session_exists THEN
+    INSERT INTO anonymous_tts_sessions (
+      session_id, 
+      user_agent,
+      total_tts_seconds,
+      total_full_cast_seconds
+    ) VALUES (
+      p_session_id,
+      p_user_agent,
+      CASE WHEN p_source = 'reader' THEN p_seconds ELSE 0 END,
+      CASE WHEN p_source = 'full-cast' THEN p_seconds ELSE 0 END
+    );
+  ELSE
+    -- Update session totals and last_active
+    UPDATE anonymous_tts_sessions
+    SET 
+      last_active_at = now(),
+      total_tts_seconds = total_tts_seconds + CASE WHEN p_source = 'reader' THEN p_seconds ELSE 0 END,
+      total_full_cast_seconds = total_full_cast_seconds + CASE WHEN p_source = 'full-cast' THEN p_seconds ELSE 0 END
+    WHERE session_id = p_session_id;
+  END IF;
+  
+  -- Upsert monthly usage by source
+  INSERT INTO anonymous_tts_usage (
+    session_id,
+    month_start,
+    source,
+    used_seconds
+  ) VALUES (
+    p_session_id,
+    v_month_start,
+    COALESCE(NULLIF(p_source, ''), 'reader'),
+    p_seconds
+  )
+  ON CONFLICT (session_id, month_start, source)
+  DO UPDATE SET 
+    used_seconds = anonymous_tts_usage.used_seconds + EXCLUDED.used_seconds,
+    updated_at = now();
+  
+  -- Get current total for this session
+  SELECT COALESCE(SUM(used_seconds), 0)
+  INTO v_total_seconds
+  FROM anonymous_tts_usage
+  WHERE session_id = p_session_id
+    AND month_start = v_month_start;
+  
+  RETURN jsonb_build_object(
+    'success', true,
+    'session_id', p_session_id,
+    'total_seconds_this_month', v_total_seconds,
+    'total_minutes_this_month', ROUND(v_total_seconds / 60.0, 2)
+  );
+END;
+$$;
+
+-- RPC to convert anonymous session to user
+CREATE OR REPLACE FUNCTION convert_anonymous_to_user(
+  p_session_id text,
+  p_user_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_tts_seconds integer;
+  v_full_cast_seconds integer;
+  v_month_start date;
+BEGIN
+  v_month_start := date_trunc('month', now())::date;
+  
+  -- Get anonymous totals
+  SELECT 
+    COALESCE(total_tts_seconds, 0),
+    COALESCE(total_full_cast_seconds, 0)
+  INTO v_tts_seconds, v_full_cast_seconds
+  FROM anonymous_tts_sessions
+  WHERE session_id = p_session_id;
+  
+  IF v_tts_seconds IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Session not found');
+  END IF;
+  
+  -- Mark session as converted
+  UPDATE anonymous_tts_sessions
+  SET 
+    converted_to_user_id = p_user_id,
+    conversion_date = now()
+  WHERE session_id = p_session_id;
+  
+  -- Transfer usage to authenticated user tables
+  -- Only transfer current month's usage
+  INSERT INTO tts_quota_monthly (user_id, month_start, used_seconds)
+  VALUES (p_user_id, v_month_start, v_tts_seconds + v_full_cast_seconds)
+  ON CONFLICT (user_id, month_start)
+  DO UPDATE SET 
+    used_seconds = tts_quota_monthly.used_seconds + EXCLUDED.used_seconds;
+  
+  -- Transfer by source
+  IF v_tts_seconds > 0 THEN
+    INSERT INTO tts_quota_monthly_by_source (user_id, month_start, source, used_seconds)
+    VALUES (p_user_id, v_month_start, 'reader', v_tts_seconds)
+    ON CONFLICT (user_id, month_start, source)
+    DO UPDATE SET 
+      used_seconds = tts_quota_monthly_by_source.used_seconds + EXCLUDED.used_seconds;
+  END IF;
+  
+  IF v_full_cast_seconds > 0 THEN
+    INSERT INTO tts_quota_monthly_by_source (user_id, month_start, source, used_seconds)
+    VALUES (p_user_id, v_month_start, 'full-cast', v_full_cast_seconds)
+    ON CONFLICT (user_id, month_start, source)
+    DO UPDATE SET 
+      used_seconds = tts_quota_monthly_by_source.used_seconds + EXCLUDED.used_seconds;
+  END IF;
+  
+  RETURN jsonb_build_object(
+    'success', true,
+    'transferred_tts_seconds', v_tts_seconds,
+    'transferred_full_cast_seconds', v_full_cast_seconds,
+    'user_id', p_user_id
+  );
+END;
+$$;
