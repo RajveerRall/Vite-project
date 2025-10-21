@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { useAnonymousUsageLimit } from './useAnonymousUsageLimit';
 
 // Helper: split text into sentence chunks
 function splitTextIntoChunks(text: string): string[] {
@@ -43,6 +44,9 @@ export interface UseReaderTTSReturn {
   
   // Computed values
   canTTSResume: boolean;
+  
+  // Anonymous usage limit
+  anonymousLimit: ReturnType<typeof useAnonymousUsageLimit>;
 }
 
 interface UseReaderTTSProps {
@@ -73,6 +77,7 @@ export const useReaderTTS = ({
 }: UseReaderTTSProps): UseReaderTTSReturn => {
   const { addToast } = useToast();
   const { user } = useAuth();
+  const anonymousLimit = useAnonymousUsageLimit();
   // === TTS Playback States ===
   const [chunks, setChunks] = useState<string[]>([]);
   const [currentChunkIndex, setCurrentChunkIndex] = useState<number | null>(null);
@@ -608,7 +613,17 @@ export const useReaderTTS = ({
   }, [haltPlayback, clearResumeIndex]);
 
   // === Handle main TTS button pressed ===
-  const handleTTS = useCallback((selectedTextOverride?: string | any) => {
+  const handleTTS = useCallback(async (selectedTextOverride?: string | any) => {
+    // Check anonymous limit BEFORE starting TTS
+    if (anonymousLimit) {
+      const canUseTTS = await anonymousLimit.checkLimit();
+      if (!canUseTTS) {
+        console.warn('[TTS] Anonymous limit reached, blocking TTS');
+        addToast('Please sign up to continue using Read Aloud', 'info');
+        return; // Block TTS
+      }
+    }
+    
     // Type guard: Only accept string overrides
     let textOverride: string | undefined;
     if (selectedTextOverride !== undefined) {
@@ -799,7 +814,7 @@ export const useReaderTTS = ({
     };
     startPlayback();
 
-  }, [isPaused, isSpeaking, resumeIndex, chunks, currentPageText, readerInstanceId, pausePlayback, resumePlayback, playChunk, prefetchChunks]);
+  }, [isPaused, isSpeaking, resumeIndex, chunks, currentPageText, readerInstanceId, pausePlayback, resumePlayback, playChunk, prefetchChunks, anonymousLimit, addToast]);
 
   // === Save progress periodically on chunk change ===
   useEffect(() => {
@@ -846,6 +861,16 @@ export const useReaderTTS = ({
       }
     }
   }, [currentChunkIndex, chunks, saveResumeIndex, currentPageText]);
+
+  // === Monitor anonymous limit and stop TTS if exceeded during playback ===
+  useEffect(() => {
+    if (anonymousLimit?.isLimitReached && isSpeaking) {
+      console.warn('[TTS] Limit exceeded during playback, stopping TTS');
+      handleStopTTS();
+      addToast('Free minutes exhausted. Please sign up to continue.', 'info');
+      anonymousLimit.setShowLimitModal(true);
+    }
+  }, [anonymousLimit?.isLimitReached, isSpeaking, handleStopTTS, addToast, anonymousLimit]);
 
   // === Load resume index and highlight content ===
   useEffect(() => {
@@ -1068,5 +1093,8 @@ export const useReaderTTS = ({
     
     // Computed
     canTTSResume,
+    
+    // Anonymous usage limit
+    anonymousLimit,
   };
 }; 

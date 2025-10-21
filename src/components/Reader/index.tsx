@@ -145,7 +145,8 @@ const Reader: React.FC = () => {
     handleSeekToPercentage,
     canTTSResume,
     highlightedContent: ttsHighlightedContent,
-    setPlaybackRate
+    setPlaybackRate,
+    anonymousLimit
   } = ttsHook;
 
   const { scrollToHighlight } = useAutoScroll({
@@ -713,13 +714,14 @@ const Reader: React.FC = () => {
               });
               try { (window as any).__fullCastPause?.(); } catch {} 
             }}
-            onFullCastResume={() => { 
-              trackEvent('full_cast_resume', { 
-                status: fullCastStatus,
-                buffered: fullCastBuffered 
-              });
-              try { (window as any).__fullCastResume?.(); } catch {} 
-            }}
+          onFullCastResume={() => { 
+            trackEvent('full_cast_resume', { 
+              status: fullCastStatus,
+              buffered: fullCastBuffered 
+            });
+            try { (window as any).__fullCastResume?.(); } catch {} 
+          }}
+          anonymousLimit={anonymousLimit}
         />
       </div>
     </div>
@@ -758,6 +760,7 @@ const Reader: React.FC = () => {
           onFullCastStop={() => { try { (window as any).__fullCastStop?.(); } catch {} }}
           onFullCastPause={() => { try { (window as any).__fullCastPause?.(); } catch {} }}
           onFullCastResume={() => { try { (window as any).__fullCastResume?.(); } catch {} }}
+          anonymousLimit={anonymousLimit}
         />
       </div>
     </div>

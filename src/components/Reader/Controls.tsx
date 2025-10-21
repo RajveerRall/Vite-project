@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFullCastUsage } from '../../hooks/useFullCastUsage';
 import { trackEvent } from '../../lib/analytics';
+import { UsageLimitModal } from '../UsageLimitModal';
+import { UsageWarningToast } from '../UsageWarningToast';
 import {
   Headphones, 
   PlayCircle, PauseCircle, RotateCcw, 
@@ -44,6 +46,8 @@ interface ControlsProps {
   onFullCastStop: () => void;
   onFullCastPause?: () => void;
   onFullCastResume?: () => void;
+  // Anonymous usage limit
+  anonymousLimit?: any;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -78,9 +82,11 @@ const Controls: React.FC<ControlsProps> = ({
   fullCastPaused,
   onFullCastStop,
   onFullCastPause,
-  onFullCastResume
+  onFullCastResume,
+  anonymousLimit
 }) => {
   const { usedMinutes: fcUsed, totalMinutes: fcTotal } = useFullCastUsage();
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Calculate chapter progress percentage
   const chapterProgress = totalChunks > 0 && currentChunkIndex !== null 
@@ -105,6 +111,12 @@ const Controls: React.FC<ControlsProps> = ({
     readButtonTitle = 'Resume reading from last TTS position';
   } else {
     readButtonTitle = 'Read aloud (select text or from start of page)';
+  }
+
+  // Check if TTS is disabled due to anonymous limit
+  const isDisabledDueToLimit = anonymousLimit?.isLimitReached || false;
+  if (isDisabledDueToLimit) {
+    readButtonTitle = 'Free limit reached. Please sign up to continue.';
   }
 
   // Show Full Cast controls when Full Cast is active
@@ -216,13 +228,15 @@ const Controls: React.FC<ControlsProps> = ({
           <button
             onClick={onReadAloud}
             className={`p-3 md:p-4 rounded-full transition-all duration-200 ${
-              isReadButtonActive 
-                ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg' 
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+              isDisabledDueToLimit
+                ? 'bg-gray-300 cursor-not-allowed text-gray-500'
+                : isReadButtonActive 
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg' 
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
             }`}
             aria-label={readButtonTitle}
             title={readButtonTitle}
-            disabled={isProcessing && !isReading && !isPaused}
+            disabled={(isProcessing && !isReading && !isPaused) || isDisabledDueToLimit}
           >
             {isProcessing && !isReading && !isPaused ? (
               <Loader2 size={22} className="animate-spin md:text-[26px]" />
@@ -306,10 +320,12 @@ const Controls: React.FC<ControlsProps> = ({
         {/* Read Aloud Button */}
         <button
           onClick={onReadAloud}
-          className="control-button flex items-center gap-2 px-3 py-2"
+          className={`control-button flex items-center gap-2 px-3 py-2 ${
+            isDisabledDueToLimit ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
           aria-label={readButtonTitle}
           title={readButtonTitle}
-          disabled={isProcessing && !isReading && !isPaused}
+          disabled={(isProcessing && !isReading && !isPaused) || isDisabledDueToLimit}
         >
           <Headphones size={20} />
           <span className="button-text text-sm font-medium">Read Aloud</span>
@@ -360,6 +376,29 @@ const Controls: React.FC<ControlsProps> = ({
           <span className="button-text text-sm font-medium">Full Cast Audiobook</span>
         </button>
       </div>
+      
+      {/* Show warning toast for anonymous users near limit */}
+      {anonymousLimit && anonymousLimit.isNearLimit && !anonymousLimit.isLimitReached && (
+        <UsageWarningToast
+          remainingMinutes={anonymousLimit.remainingMinutes}
+          percentageUsed={anonymousLimit.percentageUsed}
+          isCritical={anonymousLimit.isCritical}
+        />
+      )}
+      
+      {/* Usage limit modal */}
+      {anonymousLimit && (
+        <UsageLimitModal
+          isOpen={anonymousLimit.showLimitModal}
+          onClose={() => anonymousLimit.setShowLimitModal(false)}
+          onSignIn={() => {
+            anonymousLimit.setShowLimitModal(false);
+            setShowAuthModal(true);
+          }}
+          usedMinutes={anonymousLimit.usedMinutes}
+          limitMinutes={anonymousLimit.limitMinutes}
+        />
+      )}
     </div>
   );
 };

@@ -498,3 +498,48 @@ BEGIN
   );
 END;
 $$;
+
+-- RPC to get anonymous user's current usage
+CREATE OR REPLACE FUNCTION get_anonymous_usage(
+  p_session_id text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_month_start date;
+  v_total_seconds integer;
+  v_tts_seconds integer;
+  v_full_cast_seconds integer;
+BEGIN
+  v_month_start := date_trunc('month', now())::date;
+  
+  -- Get total usage for this session this month
+  SELECT 
+    COALESCE(SUM(used_seconds), 0)
+  INTO v_total_seconds
+  FROM anonymous_tts_usage
+  WHERE session_id = p_session_id
+    AND month_start = v_month_start;
+  
+  -- Get breakdown by source
+  SELECT 
+    COALESCE(SUM(CASE WHEN source = 'reader' THEN used_seconds ELSE 0 END), 0),
+    COALESCE(SUM(CASE WHEN source = 'full-cast' THEN used_seconds ELSE 0 END), 0)
+  INTO v_tts_seconds, v_full_cast_seconds
+  FROM anonymous_tts_usage
+  WHERE session_id = p_session_id
+    AND month_start = v_month_start;
+  
+  RETURN jsonb_build_object(
+    'session_id', p_session_id,
+    'total_seconds', v_total_seconds,
+    'total_minutes', ROUND(v_total_seconds / 60.0, 2),
+    'tts_seconds', v_tts_seconds,
+    'full_cast_seconds', v_full_cast_seconds,
+    'month_start', v_month_start
+  );
+END;
+$$;

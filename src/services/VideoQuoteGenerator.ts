@@ -77,6 +77,27 @@ export class VideoQuoteGenerator {
   }
 
   /**
+   * Pre-load fonts to ensure smooth rendering
+   */
+  private async preloadFonts(): Promise<void> {
+    try {
+      // Load the Inter font family
+      const fontFace = new FontFace(
+        'Inter',
+        'url(https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2)',
+        { style: 'normal', weight: '700' }
+      );
+      
+      await fontFace.load();
+      document.fonts.add(fontFace);
+      
+      console.log('[VideoQuoteGenerator] Fonts pre-loaded successfully');
+    } catch (error) {
+      console.warn('[VideoQuoteGenerator] Font pre-loading failed, using fallback fonts:', error);
+    }
+  }
+
+  /**
    * Generate a video quote from text selection
    */
   async generateVideoQuote(
@@ -84,6 +105,15 @@ export class VideoQuoteGenerator {
     onProgress?: (progress: VideoGenerationProgress) => void
   ): Promise<VideoQuoteResult> {
     try {
+      // Step 0: Pre-load fonts for smooth rendering
+      onProgress?.({
+        stage: 'audio',
+        progress: 5,
+        message: 'Preparing fonts...'
+      });
+      
+      await this.preloadFonts();
+      
       // Step 1: Generate audio
       onProgress?.({
         stage: 'audio',
@@ -819,6 +849,16 @@ export class VideoQuoteGenerator {
   }
 
   /**
+   * Easing function for smooth animation transitions
+   * Creates natural acceleration and deceleration
+   */
+  private easeInOutCubic(t: number): number {
+    return t < 0.5 
+      ? 4 * t * t * t 
+      : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  /**
    * Pre-compute wrapped lines for all timestamps (call once before animation)
    */
   private precomputeWrappedLines(
@@ -859,8 +899,14 @@ export class VideoQuoteGenerator {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     
-    // Enable crisp text rendering
-    ctx.imageSmoothingEnabled = false;
+    // Enable smooth text rendering with anti-aliasing
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    
+    // Optimize text rendering for smooth animation
+    if ('textRendering' in ctx) {
+      (ctx as any).textRendering = 'optimizeLegibility';
+    }
     
     const maxWidth = this.config.canvasWidth - (2 * this.config.padding);
     const lineHeight = this.config.fontSize * this.config.lineHeight;
@@ -889,8 +935,9 @@ export class VideoQuoteGenerator {
     const needsScrolling = totalHeight > availableHeight;
     
     if (needsScrolling) {
-      // Scrolling mode: calculate scroll progress and offset
-      const scrollProgress = Math.min(currentTime / totalDuration, 1);
+      // Scrolling mode: calculate scroll progress and offset with easing
+      const rawProgress = Math.min(currentTime / totalDuration, 1);
+      const scrollProgress = this.easeInOutCubic(rawProgress);
       
       // Calculate scroll range based on template type
       let startY: number;

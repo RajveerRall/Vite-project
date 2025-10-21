@@ -78,6 +78,7 @@ import { useAuth } from "../../context/AuthContext";
 import { AuthForm } from "../Auth/AuthForm";
 import { useTTSUsage } from "../../hooks/useTTSUsage";
 import { useFullCastUsage } from "../../hooks/useFullCastUsage";
+import { useAnonymousUsageLimit } from "../../hooks/useAnonymousUsageLimit";
 import { Menu, X, RefreshCw } from 'lucide-react';
 
 const Header: React.FC = () => {
@@ -86,6 +87,7 @@ const Header: React.FC = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { usedMinutes, totalMinutes, loading: usageLoading, refresh } = useTTSUsage();
   const { usedMinutes: fcUsed, totalMinutes: fcTotal, loading: fcLoading, refresh: fcRefresh } = useFullCastUsage();
+  const anonymousLimit = useAnonymousUsageLimit();
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   
   // Feature flag - set to true to re-enable Full Cast tracker
@@ -186,6 +188,27 @@ const Header: React.FC = () => {
                     <RefreshCw className="h-4 w-4" />
                   </button>
                 </div>
+                
+                {/* Anonymous Usage Badge */}
+                {!isAuthenticated && anonymousLimit && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className={`px-3 py-1 rounded-full ${
+                      anonymousLimit.isLimitReached ? 'bg-red-100 text-red-700' :
+                      anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      <span className="font-medium">
+                        {anonymousLimit.remainingMinutes}/{anonymousLimit.limitMinutes} min left
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setShowAuthModal(true)}
+                      className="text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Get more →
+                    </button>
+                  </div>
+                )}
                 
                 {/* Full Cast Usage */}
                 {SHOW_FULL_CAST && (
