@@ -162,7 +162,8 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
         let loadedBooks: BookData[] = [];
 
         // *** NEW: If no books are in storage, load the default book ***
-        if (bookMetadataKeys.length === 0 && !defaultBookLoadAttempted.current) {
+        // Only load default book for unauthenticated users (authenticated users will get books from sync)
+        if (bookMetadataKeys.length === 0 && !defaultBookLoadAttempted.current && !userId) {
           console.log("[Default Book] Library is empty. Attempting to load default book.");
           defaultBookLoadAttempted.current = true; // Prevent re-loading
 
@@ -789,7 +790,10 @@ useEffect(() => {
           console.log(`[SupabaseSync] 📊 Results: ${completedCount}/${totalBooks} new books downloaded, ${existingCloudBooks.length} already local`);
           
           // Ensure default book is always available after sync
+          // Only ensure default book for unauthenticated users
+          if (!isAuthenticated) {
           await ensureDefaultBookAvailable();
+          }
 
         } catch (error) {
           console.error('[SupabaseSync] Progressive sync failed:', error);
@@ -810,6 +814,12 @@ useEffect(() => {
 
   // *** NEW: Function to ensure default book is always available ***
   const ensureDefaultBookAvailable = async (): Promise<void> => {
+    // NEW: Don't load default book for authenticated users
+    if (isAuthenticated || userId) {
+      console.log('[Default Book] User authenticated, skipping default book');
+      return;
+    }
+    
     // Check if 1984 is already in the books array (by title or ID)
     const hasDefaultBook = books.some(book => 
       book.title === '1984' || book.id === 'default-book-1984'
@@ -1701,7 +1711,7 @@ useEffect(() => {
     setIsClosing(true);
     console.log('[closeBook] Setting isClosing flag to true');
     
-    // 5. TRACK THE EVENT AND CALCULATE DURATION
+        // 5. TRACK THE EVENT AND CALCULATE DURATION
     if (readingStartTimestamp.current && currentBook) {
       const endTime = Date.now();
       const durationInSeconds = Math.round((endTime - readingStartTimestamp.current) / 1000);

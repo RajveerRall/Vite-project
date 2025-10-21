@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Upload, Download, Play, Pause, Settings, FileText, Headphones, Zap, Clock, CheckCircle, ArrowLeft, RotateCcw } from 'lucide-react';
+import { Upload, Download, Play, Pause, Settings, FileText, Headphones, Zap, Clock, CheckCircle, ArrowLeft, RotateCcw, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/Common/SEO';
 import { useAudiobookGeneration } from '../hooks/useAudiobookGeneration';
@@ -17,6 +17,7 @@ const EpubToAudiobook: React.FC = () => {
     speed: 1.0,
     includeChapters: true,
   });
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
 
   // Format duration from seconds to readable format
   const formatDuration = (seconds: number): string => {
@@ -106,6 +107,58 @@ const EpubToAudiobook: React.FC = () => {
       console.error(`[EpubToAudiobook] Failed to regenerate chapter ${chapterIndex}:`, err);
     }
   }, [settings, regenerateChapter]);
+
+  const handleCreateVideo = useCallback(async (chapterIndex: number) => {
+    const chapter = chapters.find(c => c.index === chapterIndex);
+    const chapterAudio = chapterAudios.find(ca => ca.chapterIndex === chapterIndex);
+    
+    if (!chapter || !chapterAudio || !chapterAudio.isGenerated) {
+      console.error('[EpubToAudiobook] Chapter or audio not available for video generation');
+      return;
+    }
+
+    setIsGeneratingVideo(true);
+    
+    try {
+      // Prepare form data
+      const formData = new FormData();
+      formData.append('audio', chapterAudio.audioBlob, 'audio.mp3');
+      formData.append('text', chapter.content);
+      formData.append('book_title', uploadedFile?.name.replace('.epub', '') || 'Unknown Book');
+      formData.append('chapter_title', chapter.title);
+      formData.append('author', 'Unknown Author'); // You might want to extract this from EPUB metadata
+      
+      console.log('[EpubToAudiobook] Sending video generation request...');
+      
+      // Send to Python server
+      const response = await fetch('http://localhost:8000/generate-video', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Video generation failed: ${response.statusText}`);
+      }
+      
+      // Download video
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${chapter.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      console.log('[EpubToAudiobook] Video generated and downloaded successfully');
+    } catch (error) {
+      console.error('[EpubToAudiobook] Video generation failed:', error);
+      alert('Failed to generate video. Make sure the Python server is running on localhost:8000');
+    } finally {
+      setIsGeneratingVideo(false);
+    }
+  }, [chapters, chapterAudios, uploadedFile]);
 
   const voiceOptions = [
     { value: 'af_heart', label: 'Heart (Female, Warm)' },
@@ -340,6 +393,15 @@ const EpubToAudiobook: React.FC = () => {
                                 title="Regenerate audio for this chapter"
                               >
                                 <RotateCcw className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => handleCreateVideo(chapter.index)}
+                                disabled={isGeneratingVideo}
+                                className="flex items-center px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Create YouTube video with scrolling text"
+                              >
+                                <Video className="w-3 h-3 mr-1" />
+                                Video
                               </button>
                             </>
                           ) : (

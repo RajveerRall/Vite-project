@@ -69,6 +69,9 @@ const Reader: React.FC = () => {
   const [fullCastPaused, setFullCastPaused] = useState<boolean>(false);
   const [hasStartedPlaying, setHasStartedPlaying] = useState<boolean>(false);
   
+  // Full Cast audio capture for video generation
+  const [fullCastAudioChunks, setFullCastAudioChunks] = useState<Blob[]>([]);
+  
   // Mobile detection effect
   useEffect(() => {
     const checkIsMobile = () => {
@@ -204,6 +207,59 @@ const Reader: React.FC = () => {
       setIsVideoModalOpen(true);
     }
   }, []);
+
+  const handleFullCastCreateVideo = useCallback(async () => {
+    if (fullCastAudioChunks.length === 0) {
+      alert('No audio available. Please wait for the audiobook to buffer some content.');
+      return;
+    }
+
+    console.log('[Full Cast Video] Creating video from', fullCastAudioChunks.length, 'audio chunks');
+    
+    try {
+      // Combine all audio chunks into a single blob
+      const combinedAudio = new Blob(fullCastAudioChunks, { type: 'audio/mpeg' });
+      
+      console.log('[Full Cast Video] Combined audio size:', combinedAudio.size, 'bytes');
+      
+      // Prepare form data
+      const formData = new FormData();
+      formData.append('audio', combinedAudio, 'audiobook.mp3');
+      formData.append('text', currentPageText || currentContent || '');
+      formData.append('book_title', bookTitle);
+      formData.append('chapter_title', currentChapterTitle || `Page ${currentPageDisplay}`);
+      formData.append('author', bookAuthor);
+      
+      console.log('[Full Cast Video] Sending request to video server...');
+      
+      // Send to Python server
+      const response = await fetch('http://localhost:8000/generate-video', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Video generation failed: ${response.statusText}`);
+      }
+      
+      // Download video
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${bookTitle}_${currentChapterTitle || 'Chapter'}.mp4`.replace(/[^a-zA-Z0-9_]/g, '_');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      console.log('[Full Cast Video] Video generated and downloaded successfully');
+      alert('Video generated successfully!');
+    } catch (error) {
+      console.error('[Full Cast Video] Failed:', error);
+      alert('Failed to generate video. Make sure the Python server is running on localhost:8000');
+    }
+  }, [fullCastAudioChunks, currentPageText, currentContent, bookTitle, currentChapterTitle, currentPageDisplay, bookAuthor]);
 
   const handleChapterNavigation = useCallback((direction: 'prev' | 'next') => {
     if (direction === 'prev') {
@@ -365,6 +421,7 @@ const Reader: React.FC = () => {
       setFullCastNeedsTap(false);
       setFullCastPaused(false);
       setHasStartedPlaying(false);
+      setFullCastAudioChunks([]); // Reset audio chunks for new session
       (window as any).__fullCastAudio = audio;
 
       const produce = async () => {
@@ -400,6 +457,8 @@ const Reader: React.FC = () => {
               const blob = await ttsForLine(dialogue, provider, voiceId);
               audioQueue.push({ blob, line: { dialogue, provider, voiceId } });
               setFullCastBuffered(audioQueue.length);
+              // Capture audio blob for video generation
+              setFullCastAudioChunks(prev => [...prev, blob]);
               producedAny = true;
             } catch (e) {
               console.error('[Full Cast] TTS failed for line', e);
@@ -500,7 +559,7 @@ const Reader: React.FC = () => {
         consume();
       };
 
-      const stop = () => { try { isPlaying = false; audio.pause(); audio.src = ''; } catch {} finally { setFullCastActive(false); setFullCastNeedsTap(false); setFullCastPaused(false); setHasStartedPlaying(false); } };
+      const stop = () => { try { isPlaying = false; audio.pause(); audio.src = ''; } catch {} finally { setFullCastActive(false); setFullCastNeedsTap(false); setFullCastPaused(false); setHasStartedPlaying(false); setFullCastAudioChunks([]); } };
       (window as any).__fullCastStop = stop;
       (window as any).__fullCastPause = pause;
       (window as any).__fullCastResume = resume;
@@ -721,6 +780,7 @@ const Reader: React.FC = () => {
             });
             try { (window as any).__fullCastResume?.(); } catch {} 
           }}
+          onFullCastCreateVideo={handleFullCastCreateVideo}
           anonymousLimit={anonymousLimit}
         />
       </div>
@@ -760,6 +820,7 @@ const Reader: React.FC = () => {
           onFullCastStop={() => { try { (window as any).__fullCastStop?.(); } catch {} }}
           onFullCastPause={() => { try { (window as any).__fullCastPause?.(); } catch {} }}
           onFullCastResume={() => { try { (window as any).__fullCastResume?.(); } catch {} }}
+          onFullCastCreateVideo={handleFullCastCreateVideo}
           anonymousLimit={anonymousLimit}
         />
       </div>

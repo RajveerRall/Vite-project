@@ -48,7 +48,8 @@ const ReaderWrapper: React.FC = () => {
       
       // CRITICAL: Wait for initial book load to complete
       // This prevents "book not found" errors during page reload
-      if (!isInitialLoadComplete) {
+      // NEW: Progressive check - only block if NO books loaded AND flag not set
+      if (!isInitialLoadComplete && books.length === 0) {
         console.log('[ReaderWrapper] Waiting for initial book load to complete...');
         setLoading(true);
         return;

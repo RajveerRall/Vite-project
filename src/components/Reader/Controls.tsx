@@ -6,7 +6,7 @@ import { UsageWarningToast } from '../UsageWarningToast';
 import {
   Headphones, 
   PlayCircle, PauseCircle, RotateCcw, 
-  Loader2, Square, SkipBack, SkipForward, Settings
+  Loader2, Square, SkipBack, SkipForward, Settings, Video
 } from 'lucide-react';
 import InteractiveProgressBar from './InteractiveProgressBar';
 
@@ -46,6 +46,7 @@ interface ControlsProps {
   onFullCastStop: () => void;
   onFullCastPause?: () => void;
   onFullCastResume?: () => void;
+  onFullCastCreateVideo?: () => void;
   // Anonymous usage limit
   anonymousLimit?: any;
 }
@@ -83,6 +84,7 @@ const Controls: React.FC<ControlsProps> = ({
   onFullCastStop,
   onFullCastPause,
   onFullCastResume,
+  onFullCastCreateVideo,
   anonymousLimit
 }) => {
   const { usedMinutes: fcUsed, totalMinutes: fcTotal } = useFullCastUsage();
@@ -176,6 +178,18 @@ const Controls: React.FC<ControlsProps> = ({
             >
               <Square size={18} />
             </button>
+            
+            {onFullCastCreateVideo && fullCastStatus === 'Playing…' && (
+              <button
+                onClick={onFullCastCreateVideo}
+                className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 text-sm font-medium ml-2"
+                aria-label="Create YouTube Video"
+                title="Create YouTube video from this audiobook"
+              >
+                <Video size={16} />
+                <span>Create Video</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -348,7 +362,6 @@ const Controls: React.FC<ControlsProps> = ({
         {/* Full Cast Button */}
         <button
           className="control-button flex items-center gap-2 px-3 py-2 border border-gray-300"
-          style={{ display: 'none' }}
           onClick={() => {
             if (typeof fcUsed === 'number' && typeof fcTotal === 'number' && fcUsed >= fcTotal) {
               trackEvent('full_cast_quota_exceeded', {
