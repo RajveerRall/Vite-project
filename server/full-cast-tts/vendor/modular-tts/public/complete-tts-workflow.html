@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete TTS Workflow - Timing & SRT</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 2rem; 
+            line-height: 1.6; 
+            color: #333; 
+            background-color: #f8f9fa;
+        }
+        .container { 
+            background-color: #fff; 
+            padding: 2rem; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            margin-bottom: 2rem;
+        }
+        h1, h2 { 
+            border-bottom: 2px solid #e9ecef; 
+            padding-bottom: 10px; 
+            color: #1a1a1a; 
+        }
+        h1 {
+            color: #007bff;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .feature-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+        }
+        label { 
+            display: block; 
+            margin-top: 1rem; 
+            font-weight: 600; 
+            color: #495057;
+        }
+        select, textarea, input { 
+            width: 100%; 
+            padding: 0.75rem; 
+            margin-top: 0.5rem; 
+            border: 2px solid #e9ecef; 
+            border-radius: 8px; 
+            font-size: 1rem; 
+            transition: border-color 0.3s;
+        }
+        select:focus, textarea:focus, input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        textarea { 
+            min-height: 150px; 
+            font-family: 'Courier New', monospace; 
+            resize: vertical;
+        }
+        button { 
+            font-size: 1.1rem; 
+            padding: 1rem 2rem; 
+            cursor: pointer; 
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            margin-top: 1.5rem; 
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+        }
+        button:disabled { 
+            background: #6c757d; 
+            cursor: not-allowed; 
+            transform: none;
+            box-shadow: none;
+        }
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .config-section {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .config-section h3 {
+            margin-top: 0;
+            color: #495057;
+            font-size: 1rem;
+        }
+        #status-panel { 
+            margin-top: 1.5rem; 
+            padding: 1rem; 
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border: 1px solid #bbdefb; 
+            border-radius: 8px; 
+        }
+        #status-panel p { 
+            margin: 0; 
+            font-family: 'Courier New', monospace; 
+            font-weight: 500;
+        }
+        .highlight { 
+            color: #007bff; 
+            font-weight: bold; 
+        }
+        #script-output { 
+            margin-top: 1rem; 
+            max-height: 400px; 
+            overflow-y: auto; 
+            background: #1a1a1a; 
+            color: #00ff00; 
+            padding: 1rem; 
+            border-radius: 8px; 
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        .results-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .timing-section, .srt-section {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .timing-section h3, .srt-section h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .timing-item, .srt-item {
+            background: white;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        .download-btn {
+            background: #28a745;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        .download-btn:hover {
+            background: #218838;
+        }
+        .audio-player {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #00ff00);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .character-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0.5rem 0;
+        }
+        .character-name {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .character-stats {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        @media (max-width: 768px) {
+            .results-section {
+                grid-template-columns: 1fr;
+            }
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Complete TTS Workflow</h1>
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <span class="feature-badge">✨ Word-Level Timing</span>
+            <span class="feature-badge">📝 SRT Subtitles</span>
+            <span class="feature-badge">🎭 Multi-Character</span>
+            <span class="feature-badge">🔊 Audio Synthesis</span>
+        </div>
+
+        <h2>1. Input Text</h2>
+        <label for="raw-text-input">Enter your dialogue text:</label>
+        <textarea id="raw-text-input" placeholder="Enter your story or dialogue here...">The King entered the room. "Daughter," he said to the Princess, "we must speak." The Princess looked up, "What is it, father?" The King sighed, "The kingdom is in danger."</textarea>
+
+        <h2>2. Configuration</h2>
+        <div class="config-grid">
+            <div class="config-section">
+                <h3>🤖 AI Model</h3>
+                <label for="llm-select">LLM Provider:</label>
+                <select id="llm-select">
+                    <option value="gpt-4o">OpenAI GPT-4o</option>
+                    <option value="gpt-4o-mini">OpenAI GPT-4o Mini</option>
+                    <option value="gemini-2.0-flash">Google Gemini 2.0 Flash</option>
+                </select>
+            </div>
+
+            <div class="config-section">
+                <h3>🔊 TTS Provider</h3>
+                <label for="tts-provider">Voice Provider:</label>
+                <select id="tts-provider">
+                    <option value="kokoro">Kokoro TTS</option>
+                    <option value="msedge">MsEdge TTS</option>
+                </select>
+            </div>
+
+            <div class="config-section">
+                <h3>⏱️ Timing Features</h3>
+                <label for="include-timing">Word-Level Timing:</label>
+                <select id="include-timing">
+                    <option value="false">No timing data</option>
+                    <option value="true" selected>Include word-level timing</option>
+                </select>
+            </div>
+
+            <div class="config-section">
+                <h3>📝 Subtitle Features</h3>
+                <label for="include-srt">SRT Subtitles:</label>
+                <select id="include-srt">
+                    <option value="false">No subtitles</option>
+                    <option value="true" selected>Generate SRT subtitles</option>
+                </select>
+            </div>
+        </div>
+
+        <h2>3. Execute</h2>
+        <button id="executeButton">🚀 Generate Complete TTS Workflow</button>
+
+        <div class="progress-bar" id="progress-bar" style="display: none;">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+
+        <h2>4. Results</h2>
+        <div id="status-panel">
+            <p><strong>Status:</strong> <span id="statusText">Ready to generate...</span></p>
+        </div>
+
+        <div id="script-output" style="display:none;"></div>
+
+        <div class="results-section" id="results-section" style="display: none;">
+            <div class="timing-section">
+                <h3>⏱️ Word Timing Data</h3>
+                <div id="timing-results"></div>
+            </div>
+            <div class="srt-section">
+                <h3>📝 SRT Subtitles</h3>
+                <div id="srt-results"></div>
+            </div>
+        </div>
+
+        <div class="audio-player" id="audio-player" style="display: none;">
+            <h3>🎵 Audio Playback</h3>
+            <div id="audio-controls"></div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const executeButton = document.getElementById('executeButton');
+        const rawTextInput = document.getElementById('raw-text-input');
+        const llmSelect = document.getElementById('llm-select');
+        const ttsProviderSelect = document.getElementById('tts-provider');
+        const includeTimingSelect = document.getElementById('include-timing');
+        const includeSrtSelect = document.getElementById('include-srt');
+        const statusText = document.getElementById('statusText');
+        const scriptOutput = document.getElementById('script-output');
+        const resultsSection = document.getElementById('results-section');
+        const timingResults = document.getElementById('timing-results');
+        const srtResults = document.getElementById('srt-results');
+        const audioPlayer = document.getElementById('audio-player');
+        const audioControls = document.getElementById('audio-controls');
+        const progressBar = document.getElementById('progress-bar');
+        const progressFill = document.getElementById('progress-fill');
+
+        // State
+        let currentAudio = null;
+        let isPlaying = false;
+
+        // API Configuration
+        const API_BASE = window.location.origin;
+
+        // Main execution function
+        executeButton.addEventListener('click', async () => {
+            const text = rawTextInput.value.trim();
+            if (!text) {
+                statusText.textContent = 'Error: Please enter some text first.';
+                return;
+            }
+
+            executeButton.disabled = true;
+            executeButton.textContent = '⏳ Processing...';
+            progressBar.style.display = 'block';
+            progressFill.style.width = '10%';
+            statusText.textContent = 'Initializing workflow...';
+
+            try {
+                // Log frontend selections
+                console.log('[FRONTEND] Complete TTS Workflow initiated');
+                console.log('[FRONTEND] Configuration:', {
+                    llm: llmSelect.value,
+                    ttsProvider: ttsProviderSelect.value,
+                    includeTiming: includeTimingSelect.value,
+                    includeSrt: includeSrtSelect.value,
+                    textLength: text.length
+                });
+
+                progressFill.style.width = '30%';
+                statusText.textContent = 'Sending request to server...';
+
+                const payload = {
+                    text,
+                    llm: llmSelect.value,
+                    provider: ttsProviderSelect.value,
+                    includeTiming: includeTimingSelect.value === 'true',
+                    includeSrt: includeSrtSelect.value === 'true'
+                };
+
+                console.log('[FRONTEND] Payload:', JSON.stringify(payload, null, 2));
+
+                progressFill.style.width = '50%';
+                statusText.textContent = 'Processing with AI...';
+
+                const response = await fetch(`${API_BASE}/api/workflows/complete-tts`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-User-ID': 'complete-tts-demo'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Workflow failed');
+                }
+
+                progressFill.style.width = '80%';
+                statusText.textContent = 'Processing results...';
+
+                const result = await response.json();
+                console.log('[FRONTEND] Result received:', result);
+
+                progressFill.style.width = '100%';
+                statusText.textContent = 'Complete!';
+
+                // Display results
+                displayResults(result);
+
+            } catch (error) {
+                console.error('[FRONTEND] Error:', error);
+                statusText.textContent = `Error: ${error.message}`;
+                progressBar.style.display = 'none';
+            } finally {
+                executeButton.disabled = false;
+                executeButton.textContent = '🚀 Generate Complete TTS Workflow';
+            }
+        });
+
+        function displayResults(result) {
+            // Show main output
+            scriptOutput.style.display = 'block';
+            scriptOutput.innerHTML = formatOutput(result);
+
+            // Show timing data
+            if (result.timingData) {
+                resultsSection.style.display = 'grid';
+                displayTimingData(result.timingData);
+            }
+
+            // Show SRT data
+            if (result.srtData) {
+                resultsSection.style.display = 'grid';
+                displaySrtData(result.srtData);
+            }
+
+            // Show audio results
+            if (result.audioResults && result.audioResults.length > 0) {
+                audioPlayer.style.display = 'block';
+                displayAudioResults(result.audioResults);
+            }
+
+            statusText.textContent = `✅ Workflow completed successfully! Generated ${result.dialogue?.length || 0} dialogue lines.`;
+        }
+
+        function formatOutput(result) {
+            let output = `<span style="color: #00ff00;">Complete TTS Workflow Result:</span>\n\n`;
+            
+            output += `<span style="color: #ffff00;">Metadata:</span>\n`;
+            output += `  Provider: ${result.metadata?.provider || 'unknown'}\n`;
+            output += `  Include Timing: ${result.metadata?.includeTiming || false}\n`;
+            output += `  Include SRT: ${result.metadata?.includeSrt || false}\n`;
+            output += `  Dialogue Count: ${result.dialogue?.length || 0}\n\n`;
+
+            if (result.timingData) {
+                output += `<span style="color: #00ffff;">Timing Data Available:</span>\n`;
+                Object.keys(result.timingData).forEach(character => {
+                    output += `  ${character}: ${result.timingData[character].length} word timings\n`;
+                });
+                output += `\n`;
+            }
+
+            if (result.srtData) {
+                output += `<span style="color: #ff00ff;">SRT Data Available:</span>\n`;
+                Object.keys(result.srtData).forEach(character => {
+                    output += `  ${character}: ${result.srtData[character].content.length} chars\n`;
+                });
+                output += `\n`;
+            }
+
+            if (result.audioResults) {
+                output += `<span style="color: #ff8800;">Audio Results:</span>\n`;
+                result.audioResults.forEach(audio => {
+                    output += `  ${audio.character}: ${audio.audioSize} bytes, ${audio.estimatedDuration}s\n`;
+                });
+                output += `\n`;
+            }
+
+            output += `<span style="color: #ffffff;">Dialogue:</span>\n`;
+            output += JSON.stringify(result.dialogue, null, 2);
+
+            return output;
+        }
+
+        function displayTimingData(timingData) {
+            timingResults.innerHTML = '';
+            
+            Object.entries(timingData).forEach(([character, timings]) => {
+                const timingItem = document.createElement('div');
+                timingItem.className = 'timing-item';
+                
+                let timingHtml = `<div class="character-info">
+                    <span class="character-name">${character}</span>
+                    <span class="character-stats">${timings.length} words</span>
+                </div>`;
+                
+                timingHtml += '<div style="margin-top: 0.5rem; font-size: 0.9rem;">';
+                timings.forEach((timing, index) => {
+                    timingHtml += `<div style="margin: 0.25rem 0; padding: 0.25rem; background: white; border-radius: 4px;">
+                        <strong>${timing.text}</strong> - ${timing.offset}ms (+${timing.duration}ms)
+                    </div>`;
+                });
+                timingHtml += '</div>';
+                
+                timingItem.innerHTML = timingHtml;
+                timingResults.appendChild(timingItem);
+            });
+        }
+
+        function displaySrtData(srtData) {
+            srtResults.innerHTML = '';
+            
+            Object.entries(srtData).forEach(([character, srt]) => {
+                const srtItem = document.createElement('div');
+                srtItem.className = 'srt-item';
+                
+                let srtHtml = `<div class="character-info">
+                    <span class="character-name">${character}</span>
+                    <span class="character-stats">${srt.content.length} chars</span>
+                </div>`;
+                
+                srtHtml += `<div style="margin-top: 0.5rem; font-family: monospace; font-size: 0.9rem; background: white; padding: 0.5rem; border-radius: 4px; white-space: pre-wrap;">${srt.content}</div>`;
+                
+                if (srt.url) {
+                    srtHtml += `<button class="download-btn" onclick="downloadSrt('${character}', '${srt.content}')">📥 Download SRT</button>`;
+                }
+                
+                srtItem.innerHTML = srtHtml;
+                srtResults.appendChild(srtItem);
+            });
+        }
+
+        function displayAudioResults(audioResults) {
+            audioControls.innerHTML = '';
+            
+            audioResults.forEach((audio, index) => {
+                const audioItem = document.createElement('div');
+                audioItem.style.marginBottom = '1rem';
+                audioItem.style.padding = '1rem';
+                audioItem.style.background = 'white';
+                audioItem.style.borderRadius = '8px';
+                audioItem.style.border = '1px solid #dee2e6';
+                
+                audioItem.innerHTML = `
+                    <div class="character-info">
+                        <span class="character-name">${audio.character}</span>
+                        <span class="character-stats">${audio.audioSize} bytes, ${audio.estimatedDuration}s</span>
+                    </div>
+                    <div style="margin-top: 0.5rem;">
+                        <button onclick="playAudio(${index})" style="background: #007bff; color: white; padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer;">
+                            ▶️ Play Audio
+                        </button>
+                    </div>
+                `;
+                
+                audioControls.appendChild(audioItem);
+            });
+        }
+
+        function downloadSrt(character, content) {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${character}_subtitles.srt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function playAudio(index) {
+            // This would integrate with the actual audio playback
+            console.log(`Playing audio for index ${index}`);
+            statusText.textContent = `Playing audio for character ${index + 1}...`;
+        }
+
+        // Initialize
+        statusText.textContent = 'Ready to generate complete TTS workflow with timing and SRT features!';
+    </script>
+</body>
+</html>

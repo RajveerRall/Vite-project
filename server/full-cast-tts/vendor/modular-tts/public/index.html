@@ -22,6 +22,12 @@
 <body>
     <div class="container">
         <h1>Configurable Content Pipeline</h1>
+        
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <a href="complete-tts-workflow.html" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem 2rem; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 0.5rem;">
+                🎯 Complete TTS Workflow (Timing & SRT)
+            </a>
+        </div>
 
         <h2>1. Configure Your Pipeline</h2>
         <label for="llm-select">Choose an LLM Plugin:</label>
@@ -241,6 +247,11 @@
         <select id="workflow-select">
             <option value="casting">Intelligent Casting (With Memory)</option>
             <option value="manual">Manual Voice Assignment</option>
+            <option value="modular-intelligent">🚀 Modular Intelligent Casting (NEW!)</option>
+            <option value="complete-tts">🎯 Complete TTS Workflow (END-TO-END)</option>
+            <option value="modular-emotion">🎭 Modular Emotion Analysis</option>
+            <option value="modular-speaker">👥 Modular Speaker Identification</option>
+            <option value="modular-chat">💬 Modular Chat Thread Enhanced</option>
         </select>
         <button id="resetCastingButton" class="button-secondary">Reset Casting Memory</button>
 
@@ -258,6 +269,54 @@
 
         <label for="raw-text-input">Enter Raw Text:</label>
         <textarea id="raw-text-input">The King entered the room. "Daughter," he said to the Princess, "we must speak." The Princess looked up, "What is it, father?"</textarea>
+
+        <!-- Modular Architecture Configuration Section -->
+        <div id="modular-config-section" style="display:none;">
+            <h2>2.5 Modular Architecture Configuration</h2>
+            <div style="background-color: #f8f9fa; padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
+                <h3 style="margin-top: 0;">🚀 New Modular Features</h3>
+                <p style="margin-bottom: 0.5rem;"><strong>Intelligent Casting:</strong> Multi-agent workflow with persistent voice memory</p>
+                <p style="margin-bottom: 0.5rem;"><strong>Emotion Analysis:</strong> Analyze emotions and assign voices based on emotional profiles</p>
+                <p style="margin-bottom: 0.5rem;"><strong>Speaker Identification:</strong> Advanced speaker detection with voice assignment</p>
+                <p style="margin-bottom: 0;"><strong>Chat Thread Enhanced:</strong> Context-aware conversation processing</p>
+            </div>
+            
+            <label for="modular-llm">LLM for Modular Pipeline:</label>
+            <select id="modular-llm">
+                <option value="gpt-4o">OpenAI GPT-4o (Recommended)</option>
+                <option value="gemini-2.0-flash">Google Gemini 2.0 Flash</option>
+                <option value="gpt-4o-mini">OpenAI GPT-4o Mini</option>
+            </select>
+            
+            <label for="use-casting-memory">Use Casting Memory:</label>
+            <select id="use-casting-memory">
+                <option value="true">Yes - Remember voice assignments</option>
+                <option value="false">No - Fresh voice assignment each time</option>
+            </select>
+            
+            <label for="tts-provider">TTS Provider:</label>
+            <select id="tts-provider">
+                <option value="kokoro">Kokoro TTS</option>
+                <option value="msedge">MsEdge TTS</option>
+            </select>
+            
+        <label for="include-timing">Include Word Timing:</label>
+        <select id="include-timing">
+            <option value="false">No timing data</option>
+            <option value="true" selected>Include word-level timing</option>
+        </select>
+        
+        <label for="include-srt">Include SRT Subtitles:</label>
+        <select id="include-srt">
+            <option value="false">No subtitles</option>
+            <option value="true" selected>Generate SRT subtitles</option>
+        </select>
+            
+            <div id="modular-workflow-info" style="margin-top: 1rem; padding: 1rem; background-color: #e3f2fd; border-radius: 5px;">
+                <h4 style="margin-top: 0;">Workflow Information</h4>
+                <div id="workflow-description">Select a modular workflow to see details here.</div>
+            </div>
+        </div>
 
         <label for="ocr-images" id="ocr-images-label" style="display:none;">Upload Book Pages (Images):</label>
         <input type="file" id="ocr-images" accept="image/*" multiple style="display:none;" />
@@ -711,7 +770,7 @@
     }
 
     // --- MAIN EVENT LISTENER ---
-    executeButton.addEventListener('click', () => {
+    executeButton.addEventListener('click', async () => {
         if (audioController && audioController.isPlaying) {
             audioController.stop();
             audioController = null;
@@ -724,6 +783,15 @@
         executeButton.textContent = "⏹️ Stop Playback";
         scriptOutput.style.display = 'none';
 
+        const workflow = workflowSelect.value;
+        
+        // Handle modular workflows
+        if (workflow.startsWith('modular-')) {
+            await handleModularWorkflow(workflow);
+            return;
+        }
+
+        // Handle legacy workflows
         const callbacks = {
             onStatusUpdate: (status) => statusText.textContent = status,
             onScriptReady: (script) => {
@@ -765,6 +833,270 @@
     let availableVoices = {};
     let manualAssignmentsApplied = false;
 
+    // Update modular workflow description
+    function updateModularWorkflowDescription(workflow) {
+        const descriptions = {
+            'modular-intelligent': `
+                <strong>🚀 Modular Intelligent Casting</strong><br>
+                Multi-agent workflow that combines speaker identification and voice assignment with persistent memory.
+                <ul style="margin: 0.5rem 0;">
+                    <li>Step 1: Analyze dialogue and identify speakers</li>
+                    <li>Step 2: Assign voices based on character profiles</li>
+                    <li>Maintains voice consistency across sessions</li>
+                </ul>
+            `,
+            'modular-emotion': `
+                <strong>🎭 Modular Emotion Analysis</strong><br>
+                Advanced emotion detection workflow that analyzes emotional content and assigns voices accordingly.
+                <ul style="margin: 0.5rem 0;">
+                    <li>Step 1: Analyze emotions in dialogue</li>
+                    <li>Step 2: Assign voices based on emotional profiles</li>
+                    <li>Considers tone, word choice, and context</li>
+                </ul>
+            `,
+            'modular-speaker': `
+                <strong>👥 Modular Speaker Identification</strong><br>
+                Enhanced speaker detection with intelligent voice assignment.
+                <ul style="margin: 0.5rem 0;">
+                    <li>Step 1: Identify all speakers in dialogue</li>
+                    <li>Step 2: Assign appropriate voices</li>
+                    <li>Advanced character analysis</li>
+                </ul>
+            `,
+            'modular-chat': `
+                <strong>💬 Modular Chat Thread Enhanced</strong><br>
+                Context-aware conversation processing with session memory.
+                <ul style="margin: 0.5rem 0;">
+                    <li>Step 1: Analyze conversation context</li>
+                    <li>Step 2: Generate contextual response</li>
+                    <li>Maintains conversation history</li>
+                </ul>
+            `,
+            'complete-tts': `
+                <strong>🎯 Complete TTS Workflow (END-TO-END)</strong><br>
+                Complete pipeline: text → speaker identification → voice assignment → audio synthesis with timing/SRT.
+                <ul style="margin: 0.5rem 0;">
+                    <li>Step 1: Identify all speakers in dialogue</li>
+                    <li>Step 2: Assign optimal voices with provider and voiceId</li>
+                    <li>Step 3: Synthesize audio with optional timing/SRT data</li>
+                    <li>Step 4: Return dialogue + audio results + timing/SRT</li>
+                    <li>Supports Kokoro (word timing + SRT) and MsEdge (word/sentence timing + SRT)</li>
+                    <li>Maintains voice consistency across sessions</li>
+                </ul>
+            `
+        };
+        
+        document.getElementById('workflow-description').innerHTML = descriptions[workflow] || 'Select a modular workflow to see details here.';
+    }
+
+    // Handle modular workflow execution
+    async function handleModularWorkflow(workflow) {
+        const text = rawTextInput.value.trim();
+        if (!text) {
+            statusText.textContent = 'Error: Please enter some text first.';
+            executeButton.disabled = false;
+            executeButton.textContent = "▶️ Generate & Play Dialogue";
+            return;
+        }
+
+        const llm = document.getElementById('modular-llm').value;
+        const useCastingMemory = document.getElementById('use-casting-memory').value === 'true';
+
+        // ADD FRONTEND LOGGING
+        console.log('[FRONTEND] Workflow selected:', workflow);
+        console.log('[FRONTEND] Dropdown values:', {
+            llm: document.getElementById('modular-llm').value,
+            ttsProvider: document.getElementById('tts-provider').value,
+            includeTiming: document.getElementById('include-timing').value,
+            includeSrt: document.getElementById('include-srt').value
+        });
+
+        try {
+            let endpoint, payload;
+            
+            switch (workflow) {
+                case 'modular-intelligent':
+                    endpoint = '/api/workflows/intelligent-casting';
+                    payload = { text, llm, useCastingMemory };
+                    break;
+                case 'modular-emotion':
+                    endpoint = '/api/workflows/emotion-analysis';
+                    payload = { text };
+                    break;
+                case 'modular-speaker':
+                    endpoint = '/api/workflows/speaker-identification';
+                    payload = { text };
+                    break;
+                case 'modular-chat':
+                    endpoint = '/api/workflows/chat-thread-enhanced';
+                    payload = { text, llm };
+                    break;
+                case 'complete-tts':
+                    endpoint = '/api/workflows/complete-tts';
+                    payload = { 
+                        text, 
+                        llm,
+                        provider: document.getElementById('tts-provider').value,
+                        includeTiming: document.getElementById('include-timing').value === 'true',
+                        includeSrt: document.getElementById('include-srt').value === 'true'
+                    };
+                    break;
+                default:
+                    throw new Error('Unknown modular workflow');
+            }
+
+            // ADD PAYLOAD LOGGING
+            console.log('[FRONTEND] Sending payload:', JSON.stringify(payload, null, 2));
+
+            statusText.textContent = `Running ${workflow.replace('modular-', '').replace('-', ' ')} workflow...`;
+            
+            const response = await fetch(API_BASE + endpoint, addAuthHeaders({
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }));
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Modular workflow failed');
+            }
+
+            const result = await response.json();
+            
+            // Display the result
+            statusText.textContent = `${workflow.replace('modular-', '').replace('-', ' ')} workflow completed successfully!`;
+            scriptOutput.style.display = 'block';
+            
+            // Enhanced display for complete TTS workflow with timing/SRT
+            if (workflow === 'complete-tts') {
+                let displayText = `Complete TTS Workflow Result:\n\n`;
+                displayText += `Dialogue Count: ${result.dialogue?.length || 0}\n`;
+                displayText += `Provider: ${result.metadata?.provider || 'unknown'}\n`;
+                displayText += `Include Timing: ${result.metadata?.includeTiming || false}\n`;
+                displayText += `Include SRT: ${result.metadata?.includeSrt || false}\n\n`;
+                
+                if (result.timingData) {
+                    displayText += `TIMING DATA:\n`;
+                    Object.entries(result.timingData).forEach(([character, timings]) => {
+                        displayText += `  ${character}: ${timings.length} words\n`;
+                    });
+                    displayText += `\n`;
+                }
+                
+                if (result.srtData) {
+                    displayText += `SRT DATA:\n`;
+                    Object.entries(result.srtData).forEach(([character, srt]) => {
+                        displayText += `  ${character}: ${srt.content.length} chars`;
+                        if (srt.url) displayText += ` (URL: ${srt.url})`;
+                        displayText += `\n`;
+                    });
+                    displayText += `\n`;
+                }
+                
+                if (result.audioResults) {
+                    displayText += `AUDIO RESULTS:\n`;
+                    result.audioResults.forEach(audio => {
+                        displayText += `  ${audio.character}: ${audio.audioSize} bytes, ${audio.estimatedDuration}s\n`;
+                    });
+                    displayText += `\n`;
+                }
+                
+                displayText += `DIALOGUE:\n${JSON.stringify(result.dialogue, null, 2)}`;
+                scriptOutput.textContent = displayText;
+            } else {
+                scriptOutput.textContent = `Workflow Result:\n${JSON.stringify(result, null, 2)}`;
+            }
+
+            // If we have dialogue results, we can play them
+            if (result.dialogue && Array.isArray(result.dialogue) && result.dialogue.length > 0) {
+                const dialogueScript = result.dialogue;
+                
+                // Convert to the format expected by the audio player
+                const formattedScript = dialogueScript.map(line => ({
+                    character: line.character || 'Unknown',
+                    line: line.text || '',
+                    provider: line.provider || 'kokoro',
+                    voiceId: line.voiceId || null
+                }));
+
+                // Start audio playback
+                await playModularAudio(formattedScript);
+            } else if (result.result && Array.isArray(result.result) && result.result.length > 0) {
+                // Fallback for other workflows
+                const dialogueScript = result.result;
+                
+                // Convert to the format expected by the audio player
+                const formattedScript = dialogueScript.map(line => ({
+                    character: line.character || 'Unknown',
+                    line: line.dialogue || line.text || '',
+                    provider: line.provider || 'kokoro',
+                    voiceId: line.voiceId || null
+                }));
+
+                // Start audio playback
+                await playModularAudio(formattedScript);
+            }
+
+        } catch (error) {
+            console.error('Modular workflow error:', error);
+            statusText.textContent = `Error: ${error.message}`;
+        } finally {
+            executeButton.disabled = false;
+            executeButton.textContent = "▶️ Generate & Play Dialogue";
+        }
+    }
+
+    // Play audio for modular workflow results
+    async function playModularAudio(dialogueScript) {
+        if (!dialogueScript || dialogueScript.length === 0) {
+            statusText.textContent = 'No dialogue to play.';
+            return;
+        }
+
+        statusText.textContent = `Playing ${dialogueScript.length} dialogue lines...`;
+        
+        for (let i = 0; i < dialogueScript.length; i++) {
+            const line = dialogueScript[i];
+            const provider = line.provider || 'kokoro';
+            const voiceId = line.voiceId;
+
+            try {
+                statusText.textContent = `Playing line ${i + 1}/${dialogueScript.length}: "${line.line.substring(0, 50)}..."`;
+                
+                const ttsResponse = await fetch(API_BASE + '/api/tts', addAuthHeaders({
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider, text: line.line, voiceId })
+                }));
+
+                if (!ttsResponse.ok) {
+                    throw new Error(`TTS failed for line ${i + 1}`);
+                }
+
+                const audioBlob = await ttsResponse.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+
+                // Wait for audio to finish playing
+                await new Promise((resolve, reject) => {
+                    audio.onended = () => {
+                        URL.revokeObjectURL(audioUrl);
+                        resolve();
+                    };
+                    audio.onerror = reject;
+                    audio.play().catch(reject);
+                });
+
+            } catch (error) {
+                console.error(`Error playing line ${i + 1}:`, error);
+                statusText.textContent = `Error playing line ${i + 1}: ${error.message}`;
+                break;
+            }
+        }
+
+        statusText.textContent = 'Audio playback completed!';
+    }
+
     // Toggle workflow UI based on selection
     workflowSelect.addEventListener('change', () => {
         const workflow = workflowSelect.value;
@@ -774,13 +1106,25 @@
         ocrImagesLabel.style.display = 'none';
         rawTextInput.style.display = 'block';
         
-        // Show/hide manual voice section
+        // Show/hide sections based on workflow
         if (workflow === 'manual') {
             manualVoiceSection.style.display = 'block';
+            document.getElementById('modular-config-section').style.display = 'none';
             executeHeader.textContent = '4. Execute';
             resetCastingButton.style.display = 'none';
+        } else if (workflow.startsWith('modular-') || workflow === 'complete-tts') {
+            manualVoiceSection.style.display = 'none';
+            document.getElementById('modular-config-section').style.display = 'block';
+            executeHeader.textContent = '3. Execute';
+            resetCastingButton.style.display = 'inline-block';
+            characterAssignmentPanel.style.display = 'none';
+            manualAssignmentsApplied = false;
+            
+            // Update workflow description
+            updateModularWorkflowDescription(workflow);
         } else {
             manualVoiceSection.style.display = 'none';
+            document.getElementById('modular-config-section').style.display = 'none';
             executeHeader.textContent = '3. Execute';
             resetCastingButton.style.display = 'inline-block';
             characterAssignmentPanel.style.display = 'none';

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useFullCastUsage } from '../../hooks/useFullCastUsage';
 import { trackEvent } from '../../lib/analytics';
 import { UsageLimitModal } from '../UsageLimitModal';
@@ -47,6 +47,7 @@ interface ControlsProps {
   onFullCastPause?: () => void;
   onFullCastResume?: () => void;
   onFullCastCreateVideo?: () => void;
+  onGenerateVideo?: () => void;
   // Anonymous usage limit
   anonymousLimit?: any;
 }
@@ -85,10 +86,10 @@ const Controls: React.FC<ControlsProps> = ({
   onFullCastPause,
   onFullCastResume,
   onFullCastCreateVideo,
+  onGenerateVideo,
   anonymousLimit
 }) => {
   const { usedMinutes: fcUsed, totalMinutes: fcTotal } = useFullCastUsage();
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Calculate chapter progress percentage
   const chapterProgress = totalChunks > 0 && currentChunkIndex !== null 
@@ -388,6 +389,25 @@ const Controls: React.FC<ControlsProps> = ({
         >
           <span className="button-text text-sm font-medium">Full Cast Audiobook</span>
         </button>
+
+        {/* Generate Video Button */}
+        {onGenerateVideo && (
+          <button
+            className="control-button flex items-center gap-2 px-3 py-2 border border-purple-300"
+            onClick={() => {
+              console.log('[Controls] Generate Video button clicked');
+              console.log('[Controls] Button disabled:', isProcessing);
+              console.log('[Controls] onGenerateVideo function:', typeof onGenerateVideo);
+              onGenerateVideo();
+            }}
+            title="Generate Video from Chapter"
+            aria-label="Generate Video"
+            disabled={isProcessing}
+          >
+            <Video size={20} />
+            <span className="button-text text-sm font-medium">Generate Video</span>
+          </button>
+        )}
       </div>
       
       {/* Show warning toast for anonymous users near limit */}
@@ -406,7 +426,7 @@ const Controls: React.FC<ControlsProps> = ({
           onClose={() => anonymousLimit.setShowLimitModal(false)}
           onSignIn={() => {
             anonymousLimit.setShowLimitModal(false);
-            setShowAuthModal(true);
+            // Handle sign in - could redirect to auth page
           }}
           usedMinutes={anonymousLimit.usedMinutes}
           limitMinutes={anonymousLimit.limitMinutes}

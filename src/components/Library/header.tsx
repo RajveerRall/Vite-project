@@ -145,6 +145,12 @@ const Header: React.FC = () => {
             </Link>
             {isAuthenticated && (
               <nav className="hidden md:flex space-x-6">
+                <Link to="/epub-to-audiobook" className="text-gray-600 hover:text-amber-800 transition-colors">
+                  EPUB to Audiobook
+                </Link>
+                <Link to="/epub-to-video" className="text-gray-600 hover:text-amber-800 transition-colors">
+                  EPUB to Video
+                </Link>
                 {/* Scanner temporarily disabled */}
                 {/* <Link to="/scanner" className="text-gray-600 hover:text-amber-800 transition-colors">
                   Scan Book
@@ -335,6 +341,33 @@ const Header: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+              
+              {/* Navigation Links */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-800 bg-gradient-to-r from-gray-100 to-amber-100 px-3 py-2 rounded-lg">Tools</h3>
+                <div className="space-y-3">
+                  <Link 
+                    to="/epub-to-audiobook" 
+                    className="flex items-center gap-3 text-gray-700 hover:text-amber-800 transition-colors"
+                    onClick={() => setShowMobileMenu(false)}
+                  >
+                    <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                      <span className="text-amber-800 text-sm">📚</span>
+                    </div>
+                    <span className="font-medium">EPUB to Audiobook</span>
+                  </Link>
+                  <Link 
+                    to="/epub-to-video" 
+                    className="flex items-center gap-3 text-gray-700 hover:text-amber-800 transition-colors"
+                    onClick={() => setShowMobileMenu(false)}
+                  >
+                    <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                      <span className="text-red-800 text-sm">🎬</span>
+                    </div>
+                    <span className="font-medium">EPUB to Video</span>
+                  </Link>
+                </div>
               </div>
             </div>
           </div>

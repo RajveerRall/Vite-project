@@ -19,6 +19,7 @@ import MobileTOCDrawer from './MobileTOCDrawer';
 import EnhancedLoader from './EnhancedLoader';
 import FloatingReadButton from './FloatingReadButton';
 import VideoQuoteModal from './VideoQuoteModal';
+import VideoGenerationModal from './VideoGenerationModal';
 import { requestFullCast, ttsForLine } from '../../services/fullCastTTS';
 
 
@@ -51,6 +52,17 @@ const Reader: React.FC = () => {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [selectedTextForVideo, setSelectedTextForVideo] = useState('');
   
+  // Video Generation Modal state
+  const [isVideoGenerationModalOpen, setIsVideoGenerationModalOpen] = useState(false);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [videoGenerationProgress, setVideoGenerationProgress] = useState({
+    stage: 'idle',
+    percentage: 0,
+    message: 'Preparing...'
+  });
+  const [videoGenerationError, setVideoGenerationError] = useState<string | null>(null);
+  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
+  
   // Mobile detection hook
   const [isMobile, setIsMobile] = useState(false);
   
@@ -69,7 +81,7 @@ const Reader: React.FC = () => {
   const [fullCastPaused, setFullCastPaused] = useState<boolean>(false);
   const [hasStartedPlaying, setHasStartedPlaying] = useState<boolean>(false);
   
-  // Full Cast audio capture for video generation
+  // Full Cast audio capture for video generation (legacy - kept for Full Cast Create Video button)
   const [fullCastAudioChunks, setFullCastAudioChunks] = useState<Blob[]>([]);
   
   // Mobile detection effect
@@ -207,6 +219,314 @@ const Reader: React.FC = () => {
       setIsVideoModalOpen(true);
     }
   }, []);
+
+  const handleGenerateVideoFromChapter = useCallback(async () => {
+    console.log('[Video Generation] handleGenerateVideoFromChapter called');
+    console.log('[Video Generation] Current state - isGeneratingVideo:', isGeneratingVideo);
+    
+    try {
+      setIsGeneratingVideo(true);
+      setVideoGenerationError(null);
+      setGeneratedVideoUrl(null);
+      
+      console.log('[Video Generation] State set - starting generation...');
+      
+      // Get full chapter text
+      const fullText = (currentPageText || currentContent || '').trim();
+      if (!fullText) {
+        throw new Error('No text content available for video generation');
+      }
+
+      console.log('[Video Generation] Starting video generation for chapter:', currentChapterTitle);
+      console.log('[Video Generation] Text length:', fullText.length);
+
+      // Step 1: Chunk the text (reduced to 1500 for faster LLM processing)
+      setVideoGenerationProgress({
+        stage: 'parsing',
+        percentage: 10,
+        message: 'Chunking chapter text...'
+      });
+
+      const MAX_CHARS = 1500; // Reduced from 2400 for faster processing
+      const paras = fullText.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+      const chunks: string[] = [];
+      
+      const sources = paras.length > 0 ? paras : [fullText];
+      for (const src of sources) {
+        const t = src.trim();
+        if (!t) continue;
+        for (let i = 0; i < t.length; i += MAX_CHARS) {
+          chunks.push(t.slice(i, i + MAX_CHARS));
+        }
+      }
+
+      console.log('[Video Generation] Split text into', chunks.length, 'chunks (max', MAX_CHARS, 'chars each)');
+
+      // Step 2: Process each chunk with Full Cast TTS
+      setVideoGenerationProgress({
+        stage: 'parsing',
+        percentage: 20,
+        message: 'Processing chunks with Full Cast TTS...'
+      });
+
+      const allScripts: any[] = [];
+      const allAudioBlobs: Blob[] = [];
+      const allSrtSegments: string[] = [];
+      let cumulativeDuration = 0; // Track cumulative audio duration for SRT adjustment
+
+      for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+        const chunk = chunks[chunkIndex];
+        
+        // Update progress
+        const chunkProgress = 20 + (chunkIndex / chunks.length) * 30;
+        setVideoGenerationProgress({
+          stage: 'parsing',
+          percentage: Math.round(chunkProgress),
+          message: `Processing chunk ${chunkIndex + 1}/${chunks.length}...`
+        });
+
+        try {
+          console.log(`[Video Generation] Processing chunk ${chunkIndex + 1}/${chunks.length}, length: ${chunk.length} chars`);
+          console.log(`[Video Generation] Chunk preview: "${chunk.substring(0, 100)}..."`);
+          
+          const startTime = Date.now();
+          console.log(`[Video Generation] Chunk ${chunkIndex + 1}: Calling requestFullCast...`);
+          console.log(`[Video Generation] Chunk ${chunkIndex + 1}: Request started at ${new Date().toISOString()}`);
+
+          const response = await requestFullCast(chunk, { 
+            llm: 'gemini-2.0-flash', 
+            parser: 'chatThread', 
+            useVoiceCasting: true 
+          });
+
+          console.log(`[Video Generation] Chunk ${chunkIndex + 1}: requestFullCast returned`);
+          console.log(`[Video Generation] Chunk ${chunkIndex + 1}: Response structure:`, Object.keys(response));
+          console.log(`[Video Generation] Chunk ${chunkIndex + 1}: Script exists:`, !!response.script);
+          console.log(`[Video Generation] Chunk ${chunkIndex + 1}: Script is array:`, Array.isArray(response.script));
+
+          const { script } = response;
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+
+          if (!Array.isArray(script) || script.length === 0) {
+            console.warn(`[Video Generation] No script generated for chunk ${chunkIndex + 1} after ${elapsed}s`);
+            continue;
+          }
+
+          allScripts.push(...script);
+          console.log(`[Video Generation] Chunk ${chunkIndex + 1} completed in ${elapsed}s: ${script.length} script lines`);
+
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          console.error(`[Video Generation] Failed to process chunk ${chunkIndex + 1}:`, errorMsg);
+          console.error('[Video Generation] Full error:', error);
+          
+          // Show error in UI but continue with other chunks
+          setVideoGenerationError(`Chunk ${chunkIndex + 1} failed: ${errorMsg}. Continuing with other chunks...`);
+          
+          // Continue with other chunks instead of failing completely
+        }
+      }
+
+      if (allScripts.length === 0) {
+        throw new Error('No script generated from any chunks');
+      }
+
+      console.log('[Video Generation] Generated total script with', allScripts.length, 'lines');
+
+      // Step 3: Generate audio for each script line
+      setVideoGenerationProgress({
+        stage: 'audio',
+        percentage: 50,
+        message: 'Generating audio...'
+      });
+
+      for (let i = 0; i < allScripts.length; i++) {
+        const line = allScripts[i];
+        const dialogue = line.dialogue || '';
+        
+        if (!dialogue.trim()) continue;
+
+        // Update progress
+        const audioProgress = 50 + (i / allScripts.length) * 30;
+        setVideoGenerationProgress({
+          stage: 'audio',
+          percentage: Math.round(audioProgress),
+          message: `Generating audio ${i + 1}/${allScripts.length}...`
+        });
+
+        try {
+          const { blob: audioBlob, srtContent, duration: audioDuration } = await ttsForLine(dialogue, line.provider, line.voiceId, { 
+            includeSrt: true, 
+            includeTiming: true 
+          });
+          allAudioBlobs.push(audioBlob);
+
+          // Use actual audio duration from header (most accurate)
+          const segmentDuration = audioDuration || 2; // Fallback to 2 seconds if no duration
+
+          // Use actual SRT content if available, otherwise create basic entry
+          if (srtContent) {
+            // Adjust timestamps based on cumulative duration
+            const adjustedSrt = adjustSrtTimestamps(srtContent, cumulativeDuration, allSrtSegments.length + 1);
+            allSrtSegments.push(adjustedSrt);
+            
+            console.log(`[Video Generation] Line ${i + 1}: Got SRT (audio: ${segmentDuration.toFixed(2)}s), cumulative: ${cumulativeDuration.toFixed(2)}s`);
+          } else {
+            // Fallback to estimated timing
+            const srtEntry = `${allSrtSegments.length + 1}\n${formatTime(cumulativeDuration)} --> ${formatTime(cumulativeDuration + segmentDuration)}\n${dialogue}\n`;
+            allSrtSegments.push(srtEntry);
+            console.log(`[Video Generation] Line ${i + 1}: Using estimated timing (${segmentDuration}s), cumulative: ${cumulativeDuration.toFixed(2)}s`);
+          }
+
+          // Add actual audio duration to cumulative
+          cumulativeDuration += segmentDuration;
+
+        } catch (error) {
+          console.error('[Video Generation] TTS failed for line:', error);
+          // Continue with other lines
+        }
+      }
+
+      if (allAudioBlobs.length === 0) {
+        throw new Error('No audio generated');
+      }
+
+      console.log('[Video Generation] Generated', allAudioBlobs.length, 'audio segments');
+
+      // Step 4: Combine audio blobs
+      setVideoGenerationProgress({
+        stage: 'audio',
+        percentage: 80,
+        message: 'Combining audio...'
+      });
+
+      const combinedAudio = new Blob(allAudioBlobs, { type: 'audio/mpeg' });
+      const combinedSrt = allSrtSegments.join('\n\n');
+
+      console.log('[Video Generation] Combined audio size:', combinedAudio.size, 'bytes');
+      console.log('[Video Generation] Total audio duration:', cumulativeDuration.toFixed(2), 'seconds');
+      console.log('[Video Generation] Total SRT segments:', allSrtSegments.length);
+
+      // Step 5: Send to Python server for video generation
+      setVideoGenerationProgress({
+        stage: 'video',
+        percentage: 85,
+        message: 'Generating video frames...'
+      });
+
+      const formData = new FormData();
+      formData.append('audio', combinedAudio, 'audiobook.mp3');
+      formData.append('text', fullText);
+      formData.append('srt_data', combinedSrt);
+      formData.append('audio_duration', cumulativeDuration.toString());
+      formData.append('book_title', bookTitle);
+      formData.append('chapter_title', currentChapterTitle || `Page ${currentPageDisplay}`);
+      formData.append('author', bookAuthor);
+      formData.append('format', 'youtube'); // Default to YouTube format (1920x1080 horizontal)
+
+      console.log('[Video Generation] Sending request to Python server...');
+
+      const response = await fetch('http://localhost:8000/generate-video', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Video generation failed: ${response.statusText} - ${errorText}`);
+      }
+
+      // Step 6: Download video
+      setVideoGenerationProgress({
+        stage: 'video',
+        percentage: 95,
+        message: 'Finalizing video...'
+      });
+
+      const videoBlob = await response.blob();
+      const videoUrl = URL.createObjectURL(videoBlob);
+      setGeneratedVideoUrl(videoUrl);
+
+      // Auto-download
+      const a = document.createElement('a');
+      a.href = videoUrl;
+      a.download = `${bookTitle}_${currentChapterTitle || 'Chapter'}.mp4`.replace(/[^a-zA-Z0-9_]/g, '_');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      setVideoGenerationProgress({
+        stage: 'complete',
+        percentage: 100,
+        message: 'Video generated successfully!'
+      });
+
+      console.log('[Video Generation] Video generated and downloaded successfully');
+
+    } catch (error) {
+      console.error('[Video Generation] Failed:', error);
+      setVideoGenerationError(error instanceof Error ? error.message : 'Unknown error occurred');
+    } finally {
+      setIsGeneratingVideo(false);
+    }
+  }, [currentPageText, currentContent, bookTitle, currentChapterTitle, currentPageDisplay, bookAuthor]);
+
+  // Helper function to format time for SRT
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 1000);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+  };
+
+  // Helper function to parse SRT time to seconds
+  const parseTimeToSeconds = (timeStr: string): number => {
+    const parts = timeStr.split(':');
+    const hours = parseInt(parts[0]);
+    const minutes = parseInt(parts[1]);
+    const secParts = parts[2].split(',');
+    const seconds = parseInt(secParts[0]);
+    const milliseconds = parseInt(secParts[1]);
+    return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
+  };
+
+  // Helper function to adjust SRT timestamps by offset
+  const adjustSrtTimestamps = (srtContent: string, offsetSeconds: number, startIndex: number): string => {
+    const lines = srtContent.trim().split('\n');
+    const adjustedLines: string[] = [];
+    let currentIndex = startIndex;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      if (line === '') {
+        adjustedLines.push('');
+        continue;
+      }
+
+      // Check if this is an index line (just a number)
+      if (/^\d+$/.test(line)) {
+        adjustedLines.push(currentIndex.toString());
+        currentIndex++;
+        continue;
+      }
+
+      // Check if this is a timestamp line
+      if (line.includes('-->')) {
+        const [startStr, endStr] = line.split('-->').map(s => s.trim());
+        const startSeconds = parseTimeToSeconds(startStr) + offsetSeconds;
+        const endSeconds = parseTimeToSeconds(endStr) + offsetSeconds;
+        adjustedLines.push(`${formatTime(startSeconds)} --> ${formatTime(endSeconds)}`);
+        continue;
+      }
+
+      // Text line
+      adjustedLines.push(line);
+    }
+
+    return adjustedLines.join('\n');
+  };
 
   const handleFullCastCreateVideo = useCallback(async () => {
     if (fullCastAudioChunks.length === 0) {
@@ -454,7 +774,7 @@ const Reader: React.FC = () => {
             const provider = line?.provider as string | undefined;
             const voiceId = line?.voiceId as string | undefined;
             try {
-              const blob = await ttsForLine(dialogue, provider, voiceId);
+              const { blob } = await ttsForLine(dialogue, provider, voiceId);
               audioQueue.push({ blob, line: { dialogue, provider, voiceId } });
               setFullCastBuffered(audioQueue.length);
               // Capture audio blob for video generation
@@ -728,6 +1048,24 @@ const Reader: React.FC = () => {
       )}
     </div>
 
+    {/* Video Generation Modal */}
+    <VideoGenerationModal
+      isOpen={isVideoGenerationModalOpen}
+      onClose={() => {
+        setIsVideoGenerationModalOpen(false);
+        setVideoGenerationError(null);
+        setGeneratedVideoUrl(null);
+        if (generatedVideoUrl) {
+          URL.revokeObjectURL(generatedVideoUrl);
+        }
+      }}
+      onGenerateVideo={handleGenerateVideoFromChapter}
+      isGenerating={isGeneratingVideo}
+      progress={videoGenerationProgress}
+      error={videoGenerationError}
+      videoUrl={generatedVideoUrl}
+    />
+
     <div className="reader-bottom-controls fixed bottom-0 left-0 right-0 border-t border-gray-200 shadow-lg z-30 md:hidden">
       <div className="px-4 py-3">
         <Controls
@@ -781,6 +1119,12 @@ const Reader: React.FC = () => {
             try { (window as any).__fullCastResume?.(); } catch {} 
           }}
           onFullCastCreateVideo={handleFullCastCreateVideo}
+          onGenerateVideo={() => {
+            console.log('[Video Generation] Generate Video button clicked');
+            console.log('[Video Generation] Current state - isGeneratingVideo:', isGeneratingVideo);
+            console.log('[Video Generation] Current state - isVideoGenerationModalOpen:', isVideoGenerationModalOpen);
+            setIsVideoGenerationModalOpen(true);
+          }}
           anonymousLimit={anonymousLimit}
         />
       </div>
@@ -821,6 +1165,12 @@ const Reader: React.FC = () => {
           onFullCastPause={() => { try { (window as any).__fullCastPause?.(); } catch {} }}
           onFullCastResume={() => { try { (window as any).__fullCastResume?.(); } catch {} }}
           onFullCastCreateVideo={handleFullCastCreateVideo}
+          onGenerateVideo={() => {
+            console.log('[Video Generation] Generate Video button clicked');
+            console.log('[Video Generation] Current state - isGeneratingVideo:', isGeneratingVideo);
+            console.log('[Video Generation] Current state - isVideoGenerationModalOpen:', isVideoGenerationModalOpen);
+            setIsVideoGenerationModalOpen(true);
+          }}
           anonymousLimit={anonymousLimit}
         />
       </div>

@@ -7,6 +7,7 @@ A flexible, modular text-to-speech pipeline with support for multiple LLMs, pars
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Modular Architecture](#modular-architecture)
 - [Manual Voice Assignment](#manual-voice-assignment)
 - [API Endpoints](#api-endpoints)
 - [Environment Variables](#environment-variables)
@@ -23,6 +24,8 @@ A flexible, modular text-to-speech pipeline with support for multiple LLMs, pars
 - **Usage Tracking**: Built-in usage tracking and analytics
 - **OCR Support**: Extract text from images using Gemini OCR
 - **TypeScript Support**: Full TypeScript definitions included
+- **Timing & SRT Support**: Word-level timing data and SRT subtitle generation (Kokoro, MsEdge)
+- **Modular Architecture**: Agent-based system with chains and workflows for complex pipelines
 
 ## Installation
 
@@ -59,6 +62,201 @@ console.log(result.script);
 // ]
 ```
 
+## Modular Architecture
+
+ModularTTS now supports a flexible, extensible architecture that allows you to customize prompts, parsers, and workflows without modifying source code. This gives you the creative freedom to build sophisticated text processing pipelines.
+
+### Key Features
+
+- **Configurable Prompts**: Define custom system prompts and instructions
+- **Custom Parsers**: Create parsers with Zod schema validation
+- **Agent System**: Build multi-agent workflows with specialized roles
+- **Chainable Pipelines**: Create complex multi-step processing chains
+- **Schema Builder**: Define custom output schemas with validation
+- **Preset Components**: Use built-in agents and parsers for quick starts
+
+### Basic Agent Usage
+
+```typescript
+import { createAgent, defineParser, SchemaBuilder, z } from '@your-scope/modular-tts';
+
+// Define custom output schema
+const emotionSchema = SchemaBuilder.dialogue(
+  z.object({
+    emotion: z.enum(['happy', 'sad', 'angry', 'neutral']),
+    intensity: z.number().min(0).max(1)
+  })
+);
+
+// Create custom parser
+const emotionParser = defineParser({
+  id: 'emotion-analyzer',
+  name: 'Emotion Analyzer',
+  instruction: 'Analyze emotions in dialogue and return structured data',
+  outputSchema: emotionSchema
+});
+
+// Create agent with custom configuration
+const agent = createAgent({
+  llm: 'openai',
+  model: 'gpt-4o',
+  systemPrompt: 'You are an expert emotion analyst specializing in dialogue interpretation.',
+  outputParser: emotionParser
+});
+
+// Use the agent
+const result = await agent.run('"I can\'t believe you did that!" she shouted angrily.');
+console.log(result); // { character: "she", text: "I can't believe you did that!", emotion: "angry", intensity: 0.8 }
+```
+
+### Multi-Agent Workflows
+
+```typescript
+import { Chain, Agents, defineAgent } from '@your-scope/modular-tts';
+
+// Define specialized agents
+const speakerAgent = defineAgent({
+  role: 'Speaker Identifier',
+  objective: 'Identify all speakers in dialogue with 100% accuracy',
+  context: 'Expert in literary analysis with 10 years experience',
+  llm: 'openai',
+  model: 'gpt-4o'
+});
+
+const voiceAgent = defineAgent({
+  role: 'Voice Casting Director',
+  objective: 'Match perfect voices to character personalities',
+  context: 'Award-winning audiobook casting director',
+  llm: 'openai',
+  model: 'gpt-4o'
+});
+
+// Build processing chain
+const audioBookChain = new Chain()
+  .then('identify_speakers', speakerAgent)
+  .then('assign_voices', voiceAgent, ctx => ({
+    speakers: ctx.identify_speakers,
+    availableVoices: ['am_adam', 'af_alice', 'bm_george', 'bf_bella']
+  }));
+
+// Execute chain
+const result = await audioBookChain.run({ text: bookChapter });
+console.log('Speakers:', result.identify_speakers);
+console.log('Voice Assignment:', result.assign_voices);
+```
+
+### Quick Start with Presets
+
+```typescript
+import { Agents, Parsers, Chain } from '@your-scope/modular-tts';
+
+// Use preset agents for quick setup
+const quickChain = new Chain()
+  .pipe(Agents.speaker('gpt-4o'))
+  .pipe(Agents.voice('gpt-4o'));
+
+const result = await quickChain.run(text);
+```
+
+### Complete End-to-End Workflows
+
+```typescript
+import { Workflow, Agents } from '@your-scope/modular-tts';
+
+// Create a complete workflow that handles everything
+const completeWorkflow = new Workflow({ userId: 'user123' })
+  .addAgent('assign_voices', Agents.voiceAssigner('gpt-4o'), (ctx) => ({
+    text: ctx.input,
+    availableVoices: workflow.getAvailableVoices()
+  }))
+  .synthesize({ provider: 'kokoro' }); // Optional: generate audio
+
+const result = await completeWorkflow.execute(
+  'The King said, "Hello daughter." The Princess replied, "Hello father."'
+);
+
+// result.dialogue contains complete voice assignments
+// result.audio contains generated audio buffers (if synthesize() used)
+console.log('Dialogue:', result.dialogue);
+console.log('Audio:', result.audio);
+```
+
+### Available Preset Agents
+
+- `Agents.speaker(llm)` - Identify dialogue speakers
+- `Agents.voice(llm)` - Assign voices to characters  
+- `Agents.voiceAssigner(llm)` - Complete voice assignment with provider/voiceId
+- `Agents.emotion(llm)` - Analyze emotions in dialogue
+- `Agents.narrator(llm)` - Generate narration
+
+### Available Preset Parsers
+
+- `Parsers.dialogue()` - Basic dialogue format
+- `Parsers.emotion()` - Emotion analysis format
+- `Parsers.speaker()` - Speaker identification format
+- `Parsers.voiceAssignment()` - Complete voice assignment format
+
+### Custom Schema Validation
+
+```typescript
+import { SchemaBuilder, defineParser, z } from '@your-scope/modular-tts';
+
+// Create custom schema with additional fields
+const personalitySchema = SchemaBuilder.dialogue(
+  z.object({
+    accent: z.enum(['american', 'british', 'australian']),
+    age: z.enum(['young', 'middle', 'old']),
+    personality: z.enum(['cheerful', 'serious', 'mysterious'])
+  })
+);
+
+const personalityParser = defineParser({
+  id: 'personality-parser',
+  name: 'Personality Parser',
+  instruction: 'Analyze character personality traits from dialogue',
+  outputSchema: personalitySchema
+});
+```
+
+### Available Presets
+
+**Agents:**
+- `Agents.speaker()` - Identify dialogue speakers
+- `Agents.voice()` - Assign voices to characters
+- `Agents.narrator()` - Convert text to narration
+- `Agents.emotion()` - Analyze emotional content
+
+**Parsers:**
+- `Parsers.dialogue()` - Basic dialogue extraction
+- `Parsers.emotion()` - Emotion analysis
+- `Parsers.speaker()` - Speaker identification
+- `Parsers.json(schema)` - Custom JSON with validation
+
+### Migration from Legacy API
+
+The new modular architecture is 100% backward compatible:
+
+```typescript
+// ✅ Old way still works
+const pipeline = createPipeline({
+  llm: 'gpt-4o',
+  parser: 'intelligentCastingParser'
+});
+
+// ✅ New way adds flexibility
+const agent = createAgent({
+  llm: 'gpt-4o',
+  systemPrompt: myCustomPrompt,
+  outputParser: myCustomParser
+});
+```
+
+For more examples, see the `examples/` directory:
+- `examples/custom-agent-workflow.ts` - Complete workflow example
+- `examples/custom-parser.ts` - Parser customization
+- `examples/multi-step-chain.ts` - Chain/Pipeline examples
+```
+
 ## API Reference
 
 ### Pipeline Options
@@ -92,6 +290,136 @@ interface PipelineOptions {
 - **OpenAI TTS**: Nova, Alloy, Echo, Fable, Onyx, Shimmer voices
 - **Cartesia TTS**: Multiple high-quality voices
 - **MsEdge TTS**: Microsoft Edge TTS with multilingual neural voices
+
+## Timing & SRT Support
+
+ModularTTS v2.0.0 introduces advanced timing and subtitle generation capabilities for Kokoro and MsEdge TTS providers.
+
+### Features
+
+- **Word-level Timing**: Precise timing data for each word in the audio
+- **Sentence-level Timing**: Timing data for complete sentences
+- **SRT Subtitle Generation**: Automatic SubRip subtitle file creation
+- **Base64 Encoding**: Safe transport of SRT content in HTTP headers
+- **Download Support**: Direct download of SRT files
+
+### Supported Providers
+
+- **Kokoro TTS**: Full timing and SRT support
+- **MsEdge TTS**: Full timing and SRT support via tts.yoread.com
+- **OpenAI TTS**: Basic support (timing/SRT not available)
+- **Cartesia TTS**: Basic support (timing/SRT not available)
+
+### Usage Examples
+
+#### Basic Timing & SRT Request
+
+```typescript
+import { createPipeline } from '@your-scope/modular-tts';
+
+const pipeline = createPipeline({
+  llm: 'gpt-4o',
+  parser: 'intelligentCastingParser',
+  apiKeys: {
+    openai: 'your-openai-api-key'
+  }
+});
+
+// Process text with timing and SRT
+const result = await pipeline.processText({
+  text: "Hello world! This is a test.",
+  provider: 'kokoro', // or 'msedge'
+  includeTiming: true,
+  includeSrt: true
+});
+
+// Access timing data
+console.log('Word timings:', result.wordTimings);
+console.log('Sentence timings:', result.sentenceTimings);
+console.log('SRT content:', result.srtContent);
+```
+
+#### Complete TTS Workflow with Timing
+
+```typescript
+import { Workflow, Agents } from '@your-scope/modular-tts';
+
+const workflow = new Workflow()
+  .addAgent(Agents.voiceAssigner())
+  .synthesize({
+    provider: 'msedge',
+    includeTiming: true,
+    includeSrt: true
+  });
+
+const result = await workflow.execute("The King said, 'Hello world!'");
+
+// Each dialogue line includes timing and SRT data
+result.audioResults.forEach(audio => {
+  console.log('Character:', audio.character);
+  console.log('Word timings:', audio.wordTimings);
+  console.log('SRT:', audio.srtContent);
+});
+```
+
+#### API Endpoints
+
+**Complete TTS Workflow with Timing:**
+```bash
+POST /api/workflows/complete-tts
+{
+  "text": "Your text here",
+  "llm": "gpt-4o",
+  "provider": "kokoro",
+  "includeTiming": true,
+  "includeSrt": true
+}
+```
+
+**Direct TTS with Timing:**
+```bash
+POST /api/tts/with-timing
+{
+  "text": "Your text here",
+  "voice": "bm_george",
+  "provider": "kokoro",
+  "includeTiming": true
+}
+```
+
+**SRT Generation Only:**
+```bash
+POST /api/tts/srt
+{
+  "text": "Your text here",
+  "voice": "en-US-AndrewNeural",
+  "provider": "msedge"
+}
+```
+
+### SRT Format
+
+Generated SRT files follow the standard SubRip format:
+
+```srt
+1
+00:00:00,000 --> 00:00:01,250
+Hello world!
+
+2
+00:00:01,250 --> 00:00:03,500
+This is a test of timing.
+```
+
+### Voice Pool Updates
+
+**Available Voices (v2.0.0):**
+- **MsEdge TTS**: 4 voices (en-US-AndrewNeural, en-US-AvaMultilingualNeural, en-US-BrianMultilingualNeural, en-US-EmmaMultilingualNeural)
+- **Kokoro TTS**: 30+ voices (bm_george, af_bella, am_adam, etc.)
+- **OpenAI TTS**: 6 voices (nova, alloy, echo, fable, onyx, shimmer)
+
+**Removed from Default Pool:**
+- **MsEdge Native TTS**: 19 voices (removed to prevent confusion with timing/SRT features)
 
 ## Manual Voice Assignment
 

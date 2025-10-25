@@ -1,6 +1,6 @@
 {
   "name": "@your-scope/modular-tts",
-  "version": "0.1.1",
+  "version": "2.0.0",
   "description": "A modular text-to-speech pipeline with support for multiple LLMs, parsers, and TTS providers",
   "main": "dist/index.js",
   "module": "dist/index.js",

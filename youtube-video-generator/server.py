@@ -27,19 +27,25 @@ async def root():
 async def generate_video(
     audio: UploadFile = File(...),
     text: str = Form(...),
+    srt_data: str = Form(...),  # Combined SRT timing data
+    audio_duration: str = Form(...),  # Total audio duration in seconds
     book_title: str = Form(...),
     chapter_title: str = Form(...),
-    author: str = Form(...)
+    author: str = Form(...),
+    format: str = Form("youtube")  # "youtube" (1920x1080) or "mobile" (1080x1920)
 ):
     """
-    Generate YouTube video from audio + text using FFmpeg
+    Generate video from audio + text + SRT timing using FFmpeg
     
     Args:
         audio: Audio file (MP3/M4A) from Full-Cast TTS
         text: Chapter text to display
+        srt_data: SRT timing data for text synchronization
+        audio_duration: Total audio duration in seconds (from frontend)
         book_title: Book name
         chapter_title: Chapter name
         author: Author name
+        format: Video format - "youtube" (1920x1080 horizontal) or "mobile" (1080x1920 vertical)
     
     Returns:
         MP4 video file
@@ -57,19 +63,21 @@ async def generate_video(
         with open(audio_path, "wb") as f:
             f.write(await audio.read())
         
-        # Get audio duration using ffprobe
-        duration = get_audio_duration(audio_path)
-        print(f"Audio duration: {duration}s")
+        # Use audio duration from frontend (more accurate)
+        duration = float(audio_duration)
+        print(f"Audio duration: {duration}s (from frontend metadata)")
         
         # Generate video
-        video_path = create_video_with_ffmpeg(
+        video_path = create_video_with_srt(
             audio_path=audio_path,
             text=text,
+            srt_data=srt_data,
             book_title=book_title,
             chapter_title=chapter_title,
             author=author,
             duration=duration,
-            temp_dir=temp_dir
+            temp_dir=temp_dir,
+            video_format=format
         )
         
         # Return video file
@@ -182,10 +190,36 @@ def create_frame(
     
     # Try to load a better font, fallback to default
     try:
-        header_font = ImageFont.truetype("arial.ttf", 32)
-        text_font = ImageFont.truetype("arial.ttf", 48)
-        time_font = ImageFont.truetype("arial.ttf", 20)
-    except:
+        # Try common Windows fonts
+        font_paths = [
+            "C:/Windows/Fonts/arial.ttf",
+            "C:/Windows/Fonts/calibri.ttf", 
+            "C:/Windows/Fonts/tahoma.ttf",
+            "arial.ttf"
+        ]
+        
+        header_font = None
+        text_font = None
+        time_font = None
+        
+        for font_path in font_paths:
+            try:
+                header_font = ImageFont.truetype(font_path, 32)
+                text_font = ImageFont.truetype(font_path, 48)
+                time_font = ImageFont.truetype(font_path, 20)
+                print(f"Loaded font: {font_path}")
+                break
+            except:
+                continue
+        
+        if not header_font:
+            print("No system fonts found, using default")
+            header_font = ImageFont.load_default()
+            text_font = ImageFont.load_default()
+            time_font = ImageFont.load_default()
+            
+    except Exception as e:
+        print(f"Font loading error: {e}")
         header_font = ImageFont.load_default()
         text_font = ImageFont.load_default()
         time_font = ImageFont.load_default()
@@ -261,19 +295,44 @@ def create_video_with_ffmpeg(
     chapter_title: str,
     author: str,
     duration: float,
-    temp_dir: str
+    temp_dir: str,
+    width: int = 1920,
+    height: int = 1080,
+    fps: int = 30,
+    crf: int = 20
 ) -> str:
     """Create video using FFmpeg"""
     
-    # Settings
-    WIDTH = 1920
-    HEIGHT = 1080
-    FPS = 24
+    # Use passed parameters
+    WIDTH = width
+    HEIGHT = height
+    FPS = fps
     
     # Wrap text
     try:
-        font = ImageFont.truetype("arial.ttf", 48)
-    except:
+        # Try common Windows fonts
+        font_paths = [
+            "C:/Windows/Fonts/arial.ttf",
+            "C:/Windows/Fonts/calibri.ttf", 
+            "C:/Windows/Fonts/tahoma.ttf",
+            "arial.ttf"
+        ]
+        
+        font = None
+        for font_path in font_paths:
+            try:
+                font = ImageFont.truetype(font_path, 48)
+                print(f"Loaded font for text wrapping: {font_path}")
+                break
+            except:
+                continue
+        
+        if not font:
+            print("No system fonts found for text wrapping, using default")
+            font = ImageFont.load_default()
+            
+    except Exception as e:
+        print(f"Font loading error for text wrapping: {e}")
         font = ImageFont.load_default()
     
     lines = wrap_text(text, font, WIDTH - 200)
@@ -285,26 +344,49 @@ def create_video_with_ffmpeg(
     # Create frames directory
     frames_dir = os.path.join(temp_dir, "frames")
     os.makedirs(frames_dir, exist_ok=True)
+    print(f"Frames directory created: {frames_dir}")
+    
+    # Check if directory exists
+    if not os.path.exists(frames_dir):
+        raise Exception(f"Failed to create frames directory: {frames_dir}")
     
     # Generate frames
     print(f"Generating {total_frames} frames at {FPS} FPS...")
+    frames_generated = 0
     for i in range(total_frames):
         if i % 100 == 0:
             print(f"  Frame {i}/{total_frames} ({(i/total_frames)*100:.1f}%)")
         
-        frame = create_frame(
-            frame_number=i,
-            total_frames=total_frames,
-            lines=lines,
-            book_title=book_title,
-            chapter_title=chapter_title,
-            duration=duration,
-            width=WIDTH,
-            height=HEIGHT
-        )
-        
-        frame_path = os.path.join(frames_dir, f"frame_{i:06d}.png")
-        frame.save(frame_path, 'PNG')
+        try:
+            frame = create_frame(
+                frame_number=i,
+                total_frames=total_frames,
+                lines=lines,
+                book_title=book_title,
+                chapter_title=chapter_title,
+                duration=duration,
+                width=WIDTH,
+                height=HEIGHT
+            )
+            
+            frame_path = os.path.join(frames_dir, f"frame_{i:06d}.png")
+            frame.save(frame_path, 'PNG')
+            frames_generated += 1
+        except Exception as e:
+            print(f"Error generating frame {i}: {e}")
+            continue
+    
+    print(f"Frames generated: {frames_generated}/{total_frames}")
+    
+    if frames_generated == 0:
+        raise Exception("No frames were generated successfully")
+    
+    # Verify frames were actually saved
+    frame_files = [f for f in os.listdir(frames_dir) if f.startswith('frame_') and f.endswith('.png')]
+    print(f"Frame files found in directory: {len(frame_files)}")
+    
+    if len(frame_files) == 0:
+        raise Exception("No frame files were saved to disk")
     
     print("Frames generated, encoding video with FFmpeg...")
     
@@ -316,12 +398,12 @@ def create_video_with_ffmpeg(
     ffmpeg_cmd = [
         ffmpeg,
         '-y',  # Overwrite output file
-        '-framerate', str(FPS),
+        '-framerate', str(fps),
         '-i', os.path.join(frames_dir, 'frame_%06d.png'),
         '-i', audio_path,
         '-c:v', 'libx264',
         '-preset', 'medium',
-        '-crf', '23',
+        '-crf', str(crf),
         '-pix_fmt', 'yuv420p',
         '-c:a', 'aac',
         '-b:a', '192k',
@@ -334,6 +416,291 @@ def create_video_with_ffmpeg(
     if result.returncode != 0:
         print(f"FFmpeg error: {result.stderr}")
         raise Exception(f"FFmpeg failed: {result.stderr}")
+    
+    print(f"Video created successfully: {output_path}")
+    return output_path
+
+def parse_srt(srt_content: str):
+    """Parse SRT content into timing segments"""
+    segments = []
+    lines = srt_content.strip().split('\n')
+    
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        
+        # Skip empty lines
+        if not line:
+            i += 1
+            continue
+            
+        # Check if this is a sequence number
+        try:
+            seq_num = int(line)
+            i += 1
+            
+            # Next line should be timing
+            if i < len(lines):
+                timing_line = lines[i].strip()
+                if '-->' in timing_line:
+                    start_time, end_time = timing_line.split(' --> ')
+                    start_seconds = time_to_seconds(start_time.strip())
+                    end_seconds = time_to_seconds(end_time.strip())
+                    
+                    i += 1
+                    # Next lines should be text content
+                    text_lines = []
+                    while i < len(lines) and lines[i].strip():
+                        text_lines.append(lines[i].strip())
+                        i += 1
+                    
+                    if text_lines:
+                        text = ' '.join(text_lines)
+                        segments.append({
+                            'index': seq_num,
+                            'start': start_seconds,
+                            'end': end_seconds,
+                            'text': text
+                        })
+                else:
+                    i += 1
+            else:
+                i += 1
+        except ValueError:
+            # Not a sequence number, skip
+            i += 1
+    
+    return segments
+
+def time_to_seconds(time_str: str) -> float:
+    """Convert SRT time format (HH:MM:SS,mmm) to seconds"""
+    try:
+        # Remove milliseconds separator and split
+        time_part, ms_part = time_str.split(',')
+        hours, minutes, seconds = map(int, time_part.split(':'))
+        milliseconds = int(ms_part)
+        
+        total_seconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000.0
+        return total_seconds
+    except (ValueError, IndexError):
+        return 0.0
+
+def wrap_text(text, font, max_width, draw):
+    """Wrap text to fit within max_width"""
+    words = text.split(' ')
+    lines = []
+    current_line = []
+    
+    for word in words:
+        test_line = ' '.join(current_line + [word])
+        bbox = draw.textbbox((0, 0), test_line, font=font)
+        text_width = bbox[2] - bbox[0]
+        
+        if text_width <= max_width:
+            current_line.append(word)
+        else:
+            if current_line:
+                lines.append(' '.join(current_line))
+                current_line = [word]
+            else:
+                # Single word is too long, add it anyway
+                lines.append(word)
+    
+    if current_line:
+        lines.append(' '.join(current_line))
+    
+    return lines
+
+def group_sentences_into_pages(sentences, max_chars=400):
+    """Group sentences into pages based on character count"""
+    pages = []
+    current_page = []
+    current_chars = 0
+    
+    for sentence in sentences:
+        sentence_len = len(sentence['text'])
+        if current_chars + sentence_len > max_chars and current_page:
+            pages.append(current_page)
+            current_page = [sentence]
+            current_chars = sentence_len
+        else:
+            current_page.append(sentence)
+            current_chars += sentence_len
+    
+    if current_page:
+        pages.append(current_page)
+    
+    return pages
+
+def generate_frame_with_highlight(page_sentences, current_time, width=1080, height=1920):
+    """Generate frame with sentence-level highlighting"""
+    img = Image.new('RGB', (width, height), color=(20, 20, 30))
+    draw = ImageDraw.Draw(img)
+    
+    # Format-specific settings
+    is_youtube = (width > height)  # Horizontal = YouTube
+    if is_youtube:
+        font_size = 64
+        max_text_width = int(width * 0.80)  # 80% of screen width
+        y_start = height // 4  # Start higher for better centering
+        line_spacing = 100
+    else:
+        font_size = 48
+        max_text_width = int(width * 0.85)
+        y_start = height // 3
+        line_spacing = 80
+    
+    # Load font with format-specific size
+    try:
+        font = ImageFont.truetype("arial.ttf", font_size)
+    except:
+        try:
+            font = ImageFont.truetype("C:\\Windows\\Fonts\\arial.ttf", font_size)
+        except:
+            try:
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
+            except:
+                font = ImageFont.load_default()
+    
+    y_offset = y_start
+    
+    for sentence in page_sentences:
+        # Determine if this sentence should be highlighted
+        is_active = sentence['start'] <= current_time < sentence['end']
+        color = (255, 223, 0) if is_active else (200, 200, 200)
+        
+        # Wrap text to fit screen width
+        wrapped_lines = wrap_text(sentence['text'], font, max_text_width, draw)
+        
+        # Draw each wrapped line
+        for line in wrapped_lines:
+            bbox = draw.textbbox((0, 0), line, font=font)
+            text_width = bbox[2] - bbox[0]
+            x = (width - text_width) // 2  # Center horizontally
+            
+            draw.text((x, y_offset), line, fill=color, font=font)
+            y_offset += line_spacing
+        
+        # Add extra spacing between sentences (half a line)
+        y_offset += line_spacing // 2
+    
+    return img
+
+def create_video_with_srt(
+    audio_path: str,
+    text: str,
+    srt_data: str,
+    book_title: str,
+    chapter_title: str,
+    author: str,
+    duration: float,
+    temp_dir: str,
+    video_format: str = "youtube"
+) -> str:
+    """Create video with SRT-based timing and sentence highlighting"""
+    
+    # Video specifications based on format
+    if video_format == "mobile":
+        width, height = 1080, 1920  # Vertical format for mobile/social media
+        fps = 30
+        crf = 23  # Standard quality for mobile
+        print(f"Using mobile format: {width}x{height} (vertical)")
+    else:  # youtube format (default)
+        width, height = 1920, 1080  # Horizontal format for YouTube
+        fps = 10  # Reduced from 30 to 10 for faster generation
+        crf = 20  # Higher quality for YouTube
+        print(f"Using YouTube format: {width}x{height} (horizontal)")
+    
+    print(f"Parsing SRT data...")
+    segments = parse_srt(srt_data)
+    print(f"Parsed {len(segments)} SRT segments")
+    
+    if not segments:
+        print("No SRT segments found, falling back to basic video generation")
+        return create_video_with_ffmpeg(audio_path, text, book_title, chapter_title, author, duration, temp_dir, width, height, fps, crf)
+    
+    print(f"Grouping sentences into pages...")
+    pages = group_sentences_into_pages(segments)
+    print(f"Created {len(pages)} pages")
+    
+    # Debug: Print first few pages with their timing
+    for i, page in enumerate(pages[:3]):
+        page_start = page[0]['start']
+        page_end = page[-1]['end']
+        print(f"  Page {i+1}: {page_start:.2f}s - {page_end:.2f}s ({len(page)} sentences)")
+    
+    # Calculate total frames needed
+    total_frames = int(duration * fps)
+    print(f"Generating {total_frames} frames at {fps} FPS...")
+    
+    frames_dir = os.path.join(temp_dir, "frames")
+    os.makedirs(frames_dir, exist_ok=True)
+    
+    # Generate frames
+    for frame_num in range(total_frames):
+        current_time = frame_num / fps
+        
+        # Find current page based on which page contains the current time
+        current_page = None
+        current_page_index = 0
+        
+        for page_idx, page in enumerate(pages):
+            page_start = page[0]['start']
+            page_end = page[-1]['end']
+            
+            if page_start <= current_time <= page_end:
+                current_page = page
+                current_page_index = page_idx
+                break
+        
+        # If no page found, find the closest page
+        if not current_page:
+            # Find the page whose start is closest to current_time
+            closest_page_idx = 0
+            min_distance = abs(pages[0][0]['start'] - current_time)
+            
+            for page_idx, page in enumerate(pages):
+                distance = abs(page[0]['start'] - current_time)
+                if distance < min_distance:
+                    min_distance = distance
+                    closest_page_idx = page_idx
+            
+            current_page = pages[closest_page_idx]
+            current_page_index = closest_page_idx
+        
+        # Generate frame
+        frame = generate_frame_with_highlight(current_page, current_time, width, height)
+        frame_path = os.path.join(frames_dir, f"frame_{frame_num:06d}.png")
+        frame.save(frame_path)
+        
+        if frame_num % 100 == 0:
+            print(f"Frame {frame_num}/{total_frames} ({frame_num/total_frames*100:.1f}%) - Page {current_page_index + 1}/{len(pages)} - Time: {current_time:.2f}s")
+    
+    print("Frames generated, encoding video with FFmpeg...")
+    
+    # Encode video with FFmpeg
+    output_path = os.path.join(temp_dir, "output.mp4")
+    ffmpeg_path = get_ffmpeg_path()
+    
+    cmd = [
+        ffmpeg_path,
+        '-y',  # Overwrite output file
+        '-framerate', str(fps),
+        '-i', os.path.join(frames_dir, 'frame_%06d.png'),
+        '-i', audio_path,
+        '-c:v', 'libx264',
+        '-c:a', 'aac',
+        '-pix_fmt', 'yuv420p',
+        '-shortest',  # End when shortest input ends
+        output_path
+    ]
+    
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        print(f"FFmpeg error: {e}")
+        print(f"FFmpeg stderr: {e.stderr.decode()}")
+        raise
     
     print(f"Video created successfully: {output_path}")
     return output_path

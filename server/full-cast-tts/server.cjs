@@ -4,18 +4,41 @@ const path = require('path');
 // Load .env from this server directory regardless of process.cwd()
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
-// Switch to installed package
+// Prioritize vendor package (contains our JSON format updates)
 let Modular;
+let packageSource = 'unknown';
 try {
-  Modular = require('@your-scope/modular-tts');
-} catch (e) {
-  // Fallback to vendored copy if package missing
+  // Try vendor first (our updated version with JSON support)
   Modular = {
     ...require('./vendor/modular-tts/dist/api.js'),
     ModularAIFactory: require('./vendor/modular-tts/dist/core/ModularAIFactory.js').ModularAIFactory,
     CastingManager: require('./vendor/modular-tts/dist/core/casting-manager.js').CastingManager,
   };
+  packageSource = 'vendor';
+  console.log('[Server] ✅ Loaded @your-scope/modular-tts from vendor (with JSON format support)');
+} catch (e) {
+  // Fallback to node_modules if vendor is missing
+  Modular = require('@your-scope/modular-tts');
+  packageSource = 'node_modules';
+  console.log('[Server] ⚠️  Loaded @your-scope/modular-tts from node_modules fallback');
 }
+
+// Log package versions
+try {
+  const vendorPackageJson = require('./vendor/modular-tts/package.json');
+  console.log(`[Server] 📦 Vendor package version: ${vendorPackageJson.version}`);
+} catch (e) {
+  console.log('[Server] ❌ Could not read vendor package version');
+}
+
+try {
+  const nodeModulesPackage = require('@your-scope/modular-tts/package.json');
+  console.log(`[Server] 📦 node_modules package version: ${nodeModulesPackage.version}`);
+} catch (e) {
+  console.log('[Server] ⚠️  @your-scope/modular-tts not found in node_modules');
+}
+
+console.log(`[Server] 🎯 Using package from: ${packageSource}`);
 
 const app = express();
 // CORS configuration to handle preflight with custom headers
@@ -25,6 +48,13 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'X-User-Id', 'X-User-Email'],
 };
 app.use(cors(corsOptions));
+
+// Expose custom headers on ALL responses (not just OPTIONS)
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Expose-Headers', 'X-SRT-Content, X-Word-Timings, X-Audio-Duration, X-Sentence-Timings');
+  next();
+});
+
 // Express 5 no longer accepts '*' path patterns; handle preflight generically
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') {
@@ -33,6 +63,7 @@ app.use((req, res, next) => {
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-User-Id, X-User-Email');
+    res.setHeader('Access-Control-Expose-Headers', 'X-SRT-Content, X-Word-Timings, X-Audio-Duration');
     return res.sendStatus(204);
   }
   next();
@@ -111,19 +142,21 @@ const sharedFactory = new ModularAIFactory({
   kokoro: ENV_KEYS.kokoroApiUrl ? { apiUrl: ENV_KEYS.kokoroApiUrl, apiKey: ENV_KEYS.kokoroApiKey } : undefined,
 });
 
-// Voice pool limited to enabled providers (Kokoro, MsEdge)
+// Voice pool with balanced provider distribution
 const ALL_VOICES = [
-  // Kokoro
+  // Kokoro voices
   { voiceId: 'bm_george', gender: 'male', provider: 'kokoro', description: 'British Male - Narrator' },
   { voiceId: 'am_adam', gender: 'male', provider: 'kokoro', description: 'American Male - Confident' },
   { voiceId: 'am_eric', gender: 'male', provider: 'kokoro', description: 'American Male - Young' },
   { voiceId: 'bf_emma', gender: 'female', provider: 'kokoro', description: 'British Female - Mature' },
   { voiceId: 'af_heart', gender: 'female', provider: 'kokoro', description: 'American Female - Warm' },
   { voiceId: 'af_sarah', gender: 'female', provider: 'kokoro', description: 'American Female - Clear' },
-  // MsEdge examples (if configured)
-  { voiceId: 'en-US-BrianMultilingualNeural', gender: 'male', provider: 'msedge', description: 'Brian - Multilingual' },
-  { voiceId: 'en-US-JennyMultilingualNeural', gender: 'female', provider: 'msedge', description: 'Jenny - Multilingual' },
-  { voiceId: 'en-US-AriaNeural', gender: 'female', provider: 'msedge', description: 'Aria - Friendly' },
+  
+  // MS Edge voices (only the 4 available on your MS Edge TTS server)
+  { voiceId: 'en-US-BrianMultilingualNeural', gender: 'male', provider: 'msedge', description: 'Brian - Multilingual Male' },
+  { voiceId: 'en-US-AndrewNeural', gender: 'male', provider: 'msedge', description: 'Andrew - Clear Male' },
+  { voiceId: 'en-US-AvaMultilingualNeural', gender: 'female', provider: 'msedge', description: 'Ava - Multilingual Female' },
+  { voiceId: 'en-US-EmmaMultilingualNeural', gender: 'female', provider: 'msedge', description: 'Emma - Multilingual Female' },
 ];
 
 // Filter to only enabled providers
@@ -472,10 +505,14 @@ app.post('/api/chat-thread', async (req, res) => {
   }
 });
 
-// --- TTS endpoint (per-line synthesis) ---
+// --- TTS endpoint (per-line synthesis with SRT/timing support) ---
+// Supports includeTiming and includeSrt parameters for subtitle generation
+// Returns SRT content in X-SRT-Content header (base64 encoded)
+// Returns word timings in X-Word-Timings header (base64 encoded JSON)
+// Returns sentence timings in X-Sentence-Timings header (base64 encoded JSON)
 
 app.post('/api/tts', async (req, res) => {
-  const { provider, text, voiceId } = req.body || {};
+  const { provider, text, voiceId, includeTiming, includeSrt } = req.body || {};
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ error: 'text is required' });
   }
@@ -577,18 +614,63 @@ app.post('/api/tts', async (req, res) => {
     }
   }
   try {
-    console.log(`[tts] [req ${req.reqId}] provider=${selected} voiceId=${validatedVoiceId || '-'} len=${cleanText.length} preview="${previewStr(cleanText, 120)}"`);
+    console.log(`[tts] [req ${req.reqId}] provider=${selected} voiceId=${validatedVoiceId || '-'} len=${cleanText.length} timing=${includeTiming || false} srt=${includeSrt || false} preview="${previewStr(cleanText, 120)}"`);
     const tts = sharedFactory.getTTS(selected);
     if (!tts) return res.status(400).json({ error: `TTS provider not configured: ${selected}` });
-    const result = await tts.synthesizeWithMetadata(cleanText, { voiceId: validatedVoiceId });
+    const result = await tts.synthesizeWithMetadata(cleanText, { 
+      voiceId: validatedVoiceId,
+      includeTiming: includeTiming || false,
+      includeSrt: includeSrt || false
+    });
+    
+    // Add debugging after TTS call
+    console.log(`[tts] [req ${req.reqId}] TTS result received:`, {
+      provider: selected,
+      hasSrtContent: !!result.srtContent,
+      srtLength: result.srtContent?.length || 0,
+      hasDuration: !!(result.actualDurationSeconds || result.estimatedDurationSeconds || result.durationSeconds),
+      duration: result.actualDurationSeconds || result.estimatedDurationSeconds || result.durationSeconds,
+      resultKeys: Object.keys(result || {})
+    });
+    
     res.setHeader('Content-Type', 'audio/mpeg');
     // If provider returns duration metadata, expose it to clients
     try {
-      if (result && (result.durationSeconds || result.duration_ms)) {
-        const secs = result.durationSeconds || Math.round((result.duration_ms || 0) / 1000);
-        if (secs && secs > 0) res.setHeader('X-Audio-Duration', String(secs));
+      const duration = result.actualDurationSeconds 
+        || result.estimatedDurationSeconds 
+        || result.durationSeconds 
+        || (result.duration_ms ? result.duration_ms / 1000 : null);
+        
+      if (duration && duration > 0) {
+        res.setHeader('X-Audio-Duration', String(duration));
+        console.log(`[tts] [req ${req.reqId}] Set X-Audio-Duration: ${duration}s`);
+      } else {
+        console.warn(`[tts] [req ${req.reqId}] No duration found in result:`, Object.keys(result || {}));
       }
-    } catch {}
+    } catch (err) {
+      console.error(`[tts] [req ${req.reqId}] Error extracting duration:`, err);
+    }
+    
+    // Add SRT content header if available
+    if (result.srtContent) {
+      const srtBase64 = Buffer.from(result.srtContent, 'utf-8').toString('base64');
+      res.setHeader('X-SRT-Content', srtBase64);
+      console.log(`[tts] [req ${req.reqId}] Set X-SRT-Content: ${result.srtContent.length} chars (${srtBase64.length} base64)`);
+    } else {
+      console.warn(`[tts] [req ${req.reqId}] No SRT content in result`);
+    }
+    
+    // Add word timing header if available
+    if (result.wordTimings) {
+      const timingsJson = JSON.stringify(result.wordTimings);
+      res.setHeader('X-Word-Timings', Buffer.from(timingsJson).toString('base64'));
+    }
+    
+    // Add sentence timing header if available
+    if (result.sentenceTimings) {
+      const sentenceTimingsJson = JSON.stringify(result.sentenceTimings);
+      res.setHeader('X-Sentence-Timings', Buffer.from(sentenceTimingsJson).toString('base64'));
+    }
     // Track usage via package tracker if available
     try {
       if (usageTracker) {

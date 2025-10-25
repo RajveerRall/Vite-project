@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { Upload, Download, Play, Pause, Settings, FileText, Headphones, Zap, Clock, CheckCircle, ArrowLeft, RotateCcw, Video } from 'lucide-react';
+import { Upload, Download, Play, Settings, FileText, Headphones, Zap, CheckCircle, ArrowLeft, RotateCcw, Video, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/Common/SEO';
 import { useAudiobookGeneration } from '../hooks/useAudiobookGeneration';
+import { requestFullCast, ttsForLine } from '../services/fullCastTTS';
 
 interface AudiobookSettings {
   voice: string;
@@ -18,6 +19,12 @@ const EpubToAudiobook: React.FC = () => {
     includeChapters: true,
   });
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [videoGenerationProgress, setVideoGenerationProgress] = useState({
+    stage: 'idle',
+    percentage: 0,
+    message: ''
+  });
+  const [videoGenerationError, setVideoGenerationError] = useState<string | null>(null);
 
   // Format duration from seconds to readable format
   const formatDuration = (seconds: number): string => {
@@ -32,6 +39,47 @@ const EpubToAudiobook: React.FC = () => {
         return `${minutes}m ${remainingSeconds}s`;
       }
     }
+  };
+
+  // Helper functions for video generation
+
+  const parseTimeToSeconds = (timeStr: string): number => {
+    const match = timeStr.match(/(\d{2}):(\d{2}):(\d{2}),(\d{3})/);
+    if (!match) return 0;
+    const [, hours, minutes, seconds, ms] = match;
+    return parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds) + parseInt(ms) / 1000;
+  };
+
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 1000);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+  };
+
+  const adjustSrtTimestamps = (srtContent: string, offsetSeconds: number, startIndex: number): string => {
+    const lines = srtContent.split('\n');
+    let adjustedLines = [];
+    let currentIndex = startIndex;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      if (/^\d+$/.test(line)) {
+        adjustedLines.push(currentIndex.toString());
+        currentIndex++;
+      } else if (line.includes('-->')) {
+        const [startTime, endTime] = line.split('-->').map(t => t.trim());
+        const newStartSeconds = parseTimeToSeconds(startTime) + offsetSeconds;
+        const newEndSeconds = parseTimeToSeconds(endTime) + offsetSeconds;
+        adjustedLines.push(`${formatTime(newStartSeconds)} --> ${formatTime(newEndSeconds)}`);
+      } else {
+        adjustedLines.push(line);
+      }
+    }
+    
+    return adjustedLines.join('\n');
   };
   
   // Use the new audiobook generation hook
@@ -110,55 +158,141 @@ const EpubToAudiobook: React.FC = () => {
 
   const handleCreateVideo = useCallback(async (chapterIndex: number) => {
     const chapter = chapters.find(c => c.index === chapterIndex);
-    const chapterAudio = chapterAudios.find(ca => ca.chapterIndex === chapterIndex);
     
-    if (!chapter || !chapterAudio || !chapterAudio.isGenerated) {
-      console.error('[EpubToAudiobook] Chapter or audio not available for video generation');
+    if (!chapter || !chapter.content) {
+      alert('Chapter content not available');
       return;
     }
 
     setIsGeneratingVideo(true);
+    setVideoGenerationError(null);
+    setVideoGenerationProgress({ stage: 'idle', percentage: 0, message: '' });
     
     try {
-      // Prepare form data
+      // Step 1: Generate script with Full Cast TTS (no chunking)
+      setVideoGenerationProgress({
+        stage: 'parsing',
+        percentage: 20,
+        message: 'Analyzing text with Full Cast...'
+      });
+
+      console.log(`[Video Generation] Sending full chapter text to Full Cast (${chapter.content.length} characters)`);
+      console.log(`[Video Generation] About to call requestFullCast...`);
+      console.log(`[Video Generation] Full Cast URL: ${import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001'}`);
+
+      let script;
+      try {
+        const result = await requestFullCast(chapter.content, { 
+          llm: 'gemini-2.0-flash', 
+          parser: 'chatThread', 
+          useVoiceCasting: true 
+        });
+        script = result.script;
+        console.log(`[Video Generation] requestFullCast completed successfully`);
+      } catch (error) {
+        console.error(`[Video Generation] requestFullCast failed:`, error);
+        throw new Error(`Full Cast API call failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+
+      if (!script || script.length === 0) {
+        throw new Error('No script generated');
+      }
+
+      console.log(`[Video Generation] Received ${script.length} script lines from Full Cast`);
+
+      // Step 2: Generate audio for each script line with SRT
+      setVideoGenerationProgress({
+        stage: 'audio',
+        percentage: 50,
+        message: 'Generating audio...'
+      });
+
+      const audioBlobs = [];
+      let combinedSrt = '';
+      let srtIndex = 1;
+      let cumulativeDuration = 0;
+
+      for (let i = 0; i < script.length; i++) {
+        const line = script[i];
+        const audioProgress = 50 + (i / script.length) * 30;
+        
+        setVideoGenerationProgress({
+          stage: 'audio',
+          percentage: Math.round(audioProgress),
+          message: `Generating audio ${i + 1}/${script.length}...`
+        });
+
+        const { blob, srtContent, duration, wordTimings } = await ttsForLine(
+          line.dialogue, 
+          line.provider, 
+          line.voiceId, 
+          { includeSrt: true, includeTiming: true }
+        );
+
+        audioBlobs.push(blob);
+
+        if (srtContent && duration) {
+          const adjustedSrt = adjustSrtTimestamps(srtContent, cumulativeDuration, srtIndex);
+          combinedSrt += adjustedSrt + '\n\n';
+          srtIndex += srtContent.split('\n\n').length;
+          cumulativeDuration += duration;
+        }
+      }
+
+      // Step 3: Combine audio blobs
+      const combinedAudio = new Blob(audioBlobs, { type: 'audio/mpeg' });
+
+      // Step 4: Send to Python server for video generation
+      setVideoGenerationProgress({
+        stage: 'video',
+        percentage: 80,
+        message: 'Generating video...'
+      });
+
       const formData = new FormData();
-      formData.append('audio', chapterAudio.audioBlob, 'audio.mp3');
+      formData.append('audio', combinedAudio, 'audio.mp3');
       formData.append('text', chapter.content);
-      formData.append('book_title', uploadedFile?.name.replace('.epub', '') || 'Unknown Book');
+      formData.append('srt_data', combinedSrt);
+      formData.append('book_title', uploadedFile?.name || 'Unknown');
       formData.append('chapter_title', chapter.title);
-      formData.append('author', 'Unknown Author'); // You might want to extract this from EPUB metadata
-      
-      console.log('[EpubToAudiobook] Sending video generation request...');
-      
-      // Send to Python server
+      formData.append('author', 'Unknown Author');
+      formData.append('audio_duration', cumulativeDuration.toString());
+      formData.append('format', 'youtube'); // Default to YouTube format
+
       const response = await fetch('http://localhost:8000/generate-video', {
         method: 'POST',
         body: formData
       });
-      
+
       if (!response.ok) {
         throw new Error(`Video generation failed: ${response.statusText}`);
       }
-      
-      // Download video
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+
+      // Step 5: Download the generated video
+      setVideoGenerationProgress({
+        stage: 'complete',
+        percentage: 100,
+        message: 'Video generated successfully!'
+      });
+
+      const videoBlob = await response.blob();
+      const videoUrl = URL.createObjectURL(videoBlob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `${chapter.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`;
+      a.href = videoUrl;
+      a.download = `${chapter.title}.mp4`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      console.log('[EpubToAudiobook] Video generated and downloaded successfully');
+      URL.revokeObjectURL(videoUrl);
+
+      console.log('[Video Generation] Video generated and downloaded successfully');
     } catch (error) {
-      console.error('[EpubToAudiobook] Video generation failed:', error);
-      alert('Failed to generate video. Make sure the Python server is running on localhost:8000');
+      console.error('[Video Generation] Failed:', error);
+      setVideoGenerationError(error instanceof Error ? error.message : String(error));
     } finally {
       setIsGeneratingVideo(false);
     }
-  }, [chapters, chapterAudios, uploadedFile]);
+  }, [chapters, uploadedFile]);
 
   const voiceOptions = [
     { value: 'af_heart', label: 'Heart (Female, Warm)' },
@@ -346,7 +480,7 @@ const EpubToAudiobook: React.FC = () => {
                 </h3>
                 
                 <div className="space-y-3">
-                  {chapters.map((chapter, index) => {
+                  {chapters.map((chapter) => {
                     const chapterAudio = chapterAudios.find(ca => ca.chapterIndex === chapter.index);
                     const isGenerated = chapterAudio?.isGenerated || false;
                     const isGenerating = chapterAudio?.isGenerating || false;
@@ -394,15 +528,6 @@ const EpubToAudiobook: React.FC = () => {
                               >
                                 <RotateCcw className="w-3 h-3" />
                               </button>
-                              <button
-                                onClick={() => handleCreateVideo(chapter.index)}
-                                disabled={isGeneratingVideo}
-                                className="flex items-center px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Create YouTube video with scrolling text"
-                              >
-                                <Video className="w-3 h-3 mr-1" />
-                                Video
-                              </button>
                             </>
                           ) : (
                             <>
@@ -431,9 +556,49 @@ const EpubToAudiobook: React.FC = () => {
                                 <Play className="w-3 h-3 mr-1" />
                                 Stream
                               </button>
+                              <button
+                                onClick={() => handleCreateVideo(chapter.index)}
+                                disabled={isGeneratingVideo}
+                                className="flex items-center px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Generate video from chapter"
+                              >
+                                {isGeneratingVideo ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                    {videoGenerationProgress.message || 'Generating...'}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Video className="w-3 h-3 mr-1" />
+                                    Video
+                                  </>
+                                )}
+                              </button>
                             </>
                           )}
                         </div>
+                        
+                        {/* Video Generation Progress */}
+                        {isGeneratingVideo && videoGenerationProgress.percentage > 0 && (
+                          <div className="mt-3 w-full">
+                            <div className="w-full bg-gray-200 rounded-full h-1.5">
+                              <div 
+                                className="bg-red-600 h-1.5 rounded-full transition-all duration-300"
+                                style={{ width: `${videoGenerationProgress.percentage}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-gray-600 mt-1">
+                              {videoGenerationProgress.message}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Video Generation Error */}
+                        {videoGenerationError && (
+                          <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                            {videoGenerationError}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -592,7 +757,7 @@ const EpubToAudiobook: React.FC = () => {
                     <button
                       onClick={() => {
                         // Generate all chapters that haven't been generated yet
-                        chapters.forEach((chapter, index) => {
+                        chapters.forEach((chapter) => {
                           const chapterAudio = chapterAudios.find(ca => ca.chapterIndex === chapter.index);
                           if (!chapterAudio?.isGenerated && !chapterAudio?.isGenerating) {
                             handleGenerateChapter(chapter.index);

@@ -11,7 +11,7 @@
   "dependencies": {
     "@cartesia/cartesia-js": "^2.2.5",
     "@google/generative-ai": "^0.24.1",
-    "@your-scope/modular-tts": "file:your-scope-modular-tts-0.1.1.tgz",
+    "@your-scope/modular-tts": "file:your-scope-modular-tts-2.0.0.tgz",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",

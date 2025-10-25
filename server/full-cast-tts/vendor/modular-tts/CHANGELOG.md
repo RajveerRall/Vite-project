@@ -2,6 +2,72 @@
 
 All notable changes to the ModularTTS project will be documented in this file.
 
+## [2.0.0] - 2025-10-23
+
+### Major Features Added
+
+#### Modular Architecture System
+- **Agent System**: New `Agent` class for encapsulating LLM calls with specific roles and objectives
+- **Chain Execution**: `Chain` and `Pipeline` classes for sequential agent workflows
+- **Workflow Class**: Complete end-to-end pipelines with TTS integration
+- **Schema Builders**: `SchemaBuilder` utility for creating Zod schemas for output validation
+- **Custom Parsers**: `defineParser` helper for creating custom output parsers
+- **Agent Presets**: Pre-configured agents (`Agents.speaker()`, `Agents.voice()`, `Agents.narrator()`, `Agents.emotion()`)
+- **Parser Presets**: Pre-configured parsers (`Parsers.dialogue()`, `Parsers.emotion()`, `Parsers.speaker()`)
+
+#### Timing & SRT Support
+- **Word-level Timing**: Precise timing data for each word in audio (Kokoro, MsEdge)
+- **Sentence-level Timing**: Timing data for complete sentences
+- **SRT Subtitle Generation**: Automatic SubRip subtitle file creation
+- **Base64 Encoding**: Safe transport of SRT content in HTTP headers
+- **Download Support**: Direct download of SRT files
+
+#### New API Endpoints
+- `POST /api/workflows/complete-tts` - Complete end-to-end TTS workflow with timing/SRT
+- `POST /api/tts/with-timing` - TTS with timing data in headers
+- `POST /api/tts/srt` - SRT generation only
+- `POST /api/tts/with-srt` - TTS with SRT content in response
+- `POST /api/workflows/emotion-analysis` - Emotion analysis workflow
+- `POST /api/workflows/speaker-identification` - Speaker identification workflow
+- `POST /api/workflows/intelligent-casting` - Intelligent casting workflow
+- `POST /api/workflows/chat-thread-enhanced` - Enhanced chat thread workflow
+
+#### TTS Provider Enhancements
+- **Kokoro TTS**: Added timing and SRT support with Base64 encoding
+- **MsEdge TTS**: Added timing and SRT support via tts.yoread.com
+- **MsEdge Native TTS**: Graceful handling of timing/SRT parameters (not supported)
+- **Provider Routing Fix**: Corrected TTS service selection based on dialogue provider
+
+#### Voice Pool Updates
+- **MsEdge TTS**: 4 voices (en-US-AndrewNeural, en-US-AvaMultilingualNeural, en-US-BrianMultilingualNeural, en-US-EmmaMultilingualNeural)
+- **Kokoro TTS**: 30+ voices (bm_george, af_bella, am_adam, etc.)
+- **OpenAI TTS**: 6 voices (nova, alloy, echo, fable, onyx, shimmer)
+- **Removed**: MsEdge Native TTS voices (19 voices) from default pool to prevent confusion
+
+#### Bug Fixes
+- **Provider/Voice Mismatch**: Fixed issue where LLM was setting provider field to voiceId instead of provider name
+- **Dialogue Extraction**: Fixed workflow result extraction from nested agent outputs
+- **SRT Header Encoding**: Implemented Base64 encoding for SRT content to avoid newline issues
+- **Text Sanitization**: Added sanitization for TTS to prevent vocalization of special characters
+- **Comprehensive Logging**: Added detailed debugging logs throughout the system
+
+#### Documentation Updates
+- **README.md**: Added Timing & SRT Support section with examples
+- **SDK_DOCUMENTATION.md**: Updated with modular architecture and new API changes
+- **TIMING_SRT_IMPLEMENTATION.md**: Created comprehensive timing/SRT implementation guide
+- **Examples**: Added custom agent workflows, parser examples, and multi-step chains
+
+#### Breaking Changes
+- **MsEdge Native Voices**: Removed from default voice pool (can still be used if specifically requested)
+- **API Response Format**: Some endpoints now return additional timing/SRT fields
+
+#### Migration Guide
+- Existing code continues to work without changes
+- New modular features are opt-in
+- Voice assignments may need updating if using specific MsEdge Native voices
+
+---
+
 ## [Unreleased]
 
 ### Added - Manual Voice Assignment Feature (2025-10-09)

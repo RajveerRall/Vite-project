@@ -21,6 +21,7 @@ import BlogExample from './components/Blog/BlogExample';
 import AuthCallback from './pages/auth/callback';
 import TermsOfService from './pages/TermsOfService';
 import EpubToAudiobook from './pages/EpubToAudiobook';
+import EpubToVideo from './pages/EpubToVideo';
 import GoogleOneTap from './components/Auth/GoogleOneTap';
 // import ScannerPage from './pages/ScannerPage'; // Temporarily disabled
 import './App.css';
@@ -76,7 +77,6 @@ const MainApp: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
-  const { loading } = useAuth();
   // Globally listen for TTS usage events and persist to Supabase when needed
   useTTSUsageRecorder();
   React.useEffect(() => {
@@ -121,6 +121,7 @@ const AppContent: React.FC = () => {
       <Route path="/blog-test" element={<BlogExample />} />
       <Route path="/terms" element={<TermsOfService />} />
       <Route path="/epub-to-audiobook" element={<EpubToAudiobook />} />
+      <Route path="/epub-to-video" element={<EpubToVideo />} />
       
       {/* New topic-based blog routes */}
       <Route path="/topics" element={<TopicListPage />} />
