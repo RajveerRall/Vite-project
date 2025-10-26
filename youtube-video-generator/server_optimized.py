@@ -9,6 +9,7 @@ import tempfile
 import shutil
 import json
 import re
+import difflib
 from typing import List
 
 app = FastAPI()
@@ -184,21 +185,130 @@ def get_ffprobe_path():
     
     raise Exception("FFprobe not found. Please install FFmpeg and add it to your PATH.")
 
+def detect_gpu_encoder():
+    """
+    Detect available hardware encoder.
+    Returns: 'nvenc' (NVIDIA), 'qsv' (Intel), or 'cpu' (fallback)
+    """
+    ffmpeg = get_ffmpeg_path()
+    
+    # Check for NVIDIA NVENC
+    try:
+        result = subprocess.run(
+            [ffmpeg, '-hide_banner', '-encoders'],
+            capture_output=True, text=True, timeout=5
+        )
+        encoders = result.stdout
+        
+        if 'h264_nvenc' in encoders:
+            # Verify NVENC actually works
+            test = subprocess.run(
+                [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
+                 '-c:v', 'h264_nvenc', '-f', 'null', '-'],
+                capture_output=True, timeout=10
+            )
+            if test.returncode == 0:
+                print("✓ NVIDIA NVENC hardware encoder detected")
+                return 'nvenc'
+        
+        if 'h264_qsv' in encoders:
+            # Verify QuickSync works
+            test = subprocess.run(
+                [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
+                 '-c:v', 'h264_qsv', '-f', 'null', '-'],
+                capture_output=True, timeout=10
+            )
+            if test.returncode == 0:
+                print("✓ Intel QuickSync hardware encoder detected")
+                return 'qsv'
+    except Exception as e:
+        print(f"GPU detection failed: {e}")
+    
+    print("⚠ No hardware encoder detected, using CPU (slower)")
+    return 'cpu'
+
+# Cache the result
+GPU_ENCODER = detect_gpu_encoder()
+
 def create_video_with_ffmpeg_direct(frames_dir, audio_path, width, height, fps, num_frames, total_duration, crf):
     """
-    Create video from pre-rendered frames at target FPS (no interpolation needed).
-    Used when all frames are already generated at the target frame rate.
+    Create video with hardware acceleration if available.
     """
     output_path = os.path.join(tempfile.gettempdir(), f"output_{uuid.uuid4().hex}.mp4")
     
-    print(f"Encoding video with FFmpeg (direct, no interpolation):")
+    print(f"Encoding video with FFmpeg ({GPU_ENCODER} encoder):")
+    print(f"  Input: {num_frames} frames at {fps} fps")
+    print(f"  Duration: {total_duration:.2f}s")
+    
+    # Build FFmpeg command based on available encoder
+    cmd = [
+        get_ffmpeg_path(),
+        '-y',
+        '-framerate', str(fps),
+        '-i', os.path.join(frames_dir, 'frame_%06d.png'),
+        '-i', audio_path,
+    ]
+    
+    # Add encoder-specific options
+    if GPU_ENCODER == 'nvenc':
+        cmd.extend([
+            '-c:v', 'h264_nvenc',
+            '-preset', 'p4',  # NVENC preset (p1=fastest, p7=slowest)
+            '-cq', str(crf),  # Constant quality (similar to CRF)
+            '-b:v', '0',      # Use CQ mode
+        ])
+    elif GPU_ENCODER == 'qsv':
+        cmd.extend([
+            '-c:v', 'h264_qsv',
+            '-preset', 'fast',
+            '-global_quality', str(crf),
+        ])
+    else:  # CPU fallback
+        cmd.extend([
+            '-c:v', 'libx264',
+            '-preset', 'fast',
+            '-crf', str(crf),
+        ])
+    
+    # Common options
+    cmd.extend([
+        '-c:a', 'aac',
+        '-pix_fmt', 'yuv420p',
+        '-t', str(total_duration),
+        output_path
+    ])
+    
+    print(f"Running FFmpeg: {' '.join(cmd[:10])}...")
+    
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, timeout=300)
+        print(f"✓ Video encoded successfully with {GPU_ENCODER}")
+        return output_path
+    except subprocess.CalledProcessError as e:
+        # If hardware encoding fails, fallback to CPU
+        if GPU_ENCODER != 'cpu':
+            print(f"⚠ Hardware encoding failed, falling back to CPU")
+            return create_video_with_ffmpeg_direct_cpu_fallback(
+                frames_dir, audio_path, width, height, fps, num_frames, total_duration, crf
+            )
+        raise Exception(f"FFmpeg encoding failed: {e.stderr.decode()}")
+    except subprocess.TimeoutExpired:
+        raise Exception("FFmpeg encoding timed out after 5 minutes")
+
+def create_video_with_ffmpeg_direct_cpu_fallback(frames_dir, audio_path, width, height, fps, num_frames, total_duration, crf):
+    """
+    CPU fallback for video encoding when hardware acceleration fails.
+    """
+    output_path = os.path.join(tempfile.gettempdir(), f"output_{uuid.uuid4().hex}.mp4")
+    
+    print(f"Encoding video with FFmpeg (CPU fallback):")
     print(f"  Input: {num_frames} frames at {fps} fps")
     print(f"  Duration: {total_duration:.2f}s")
     
     cmd = [
         get_ffmpeg_path(),
         '-y',
-        '-framerate', str(fps),  # Input framerate matches target
+        '-framerate', str(fps),
         '-i', os.path.join(frames_dir, 'frame_%06d.png'),
         '-i', audio_path,
         '-c:v', 'libx264',
@@ -206,15 +316,15 @@ def create_video_with_ffmpeg_direct(frames_dir, audio_path, width, height, fps, 
         '-pix_fmt', 'yuv420p',
         '-crf', str(crf),
         '-preset', 'fast',
-        '-t', str(total_duration),  # Set explicit duration to match audio
+        '-t', str(total_duration),
         output_path
     ]
     
-    print(f"Running FFmpeg: {' '.join(cmd)}")
+    print(f"Running FFmpeg (CPU): {' '.join(cmd[:10])}...")
     
     try:
         subprocess.run(cmd, check=True, capture_output=True, timeout=300)
-        print("FFmpeg completed successfully")
+        print("✓ Video encoded successfully with CPU")
         return output_path
     except subprocess.CalledProcessError as e:
         print(f"FFmpeg error: {e.stderr.decode()}")
@@ -962,10 +1072,27 @@ def validate_audio_file(audio_path):
         print(f"Audio validation error: {e}")
         return None
 
+def normalize_audio_chunk(chunk_index, input_path, output_path):
+    """Normalize a single audio chunk (for parallel processing)."""
+    cmd = [
+        get_ffmpeg_path(), '-y',
+        '-i', input_path,
+        '-acodec', 'pcm_s16le',
+        '-ar', '44100',
+        '-ac', '1',
+        '-af', 'volume=0.8',
+        output_path
+    ]
+    result = subprocess.run(cmd, capture_output=True, timeout=30)
+    if result.returncode != 0:
+        raise Exception(f"Normalization failed for chunk {chunk_index}")
+    return chunk_index, output_path
+
 def combine_audio_files(audio_files, temp_dir):
     """
     Combine multiple audio files with proper smoothing and normalization.
     Fixes static noise by normalizing formats and adding crossfade smoothing.
+    Uses parallel processing for faster normalization.
     """
     if not audio_files:
         raise Exception("No audio files to combine")
@@ -986,35 +1113,33 @@ def combine_audio_files(audio_files, temp_dir):
         else:
             print(f"WARNING: Audio chunk {i} may be invalid")
     
-    ffmpeg_path = get_ffmpeg_path()
-    
-    # Step 1: Normalize all audio files to consistent format
-    print("Step 1: Normalizing audio files...")
+    # Step 1: Normalize all audio files to consistent format (PARALLEL)
+    print("Step 1: Normalizing audio files in parallel...")
     normalized_files = []
-    for i, audio_file in enumerate(audio_files):
-        normalized_path = os.path.join(temp_dir, f"normalized_{i}.wav")
+    
+    # Use 4 worker threads for parallel processing
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {}
+        for i, audio_file in enumerate(audio_files):
+            normalized_path = os.path.join(temp_dir, f"normalized_{i}.wav")
+            future = executor.submit(normalize_audio_chunk, i, audio_file, normalized_path)
+            futures[future] = i
         
-        # Normalize each file to consistent format
-        normalize_cmd = [
-            ffmpeg_path,
-            '-y',
-            '-i', audio_file,
-            '-acodec', 'pcm_s16le',  # 16-bit PCM
-            '-ar', '44100',  # 44.1kHz sample rate
-            '-ac', '1',  # Mono to avoid phase issues
-            '-af', 'volume=0.8',  # Slightly reduce volume to prevent clipping
-            normalized_path
-        ]
-        
-        print(f"Normalizing chunk {i}: {' '.join(normalize_cmd)}")
-        result = subprocess.run(normalize_cmd, capture_output=True, text=True)
-        
-        if result.returncode == 0:
-            normalized_files.append(normalized_path)
-            print(f"✓ Chunk {i} normalized successfully")
-        else:
-            print(f"⚠ Warning: Failed to normalize audio chunk {i}: {result.stderr}")
-            normalized_files.append(audio_file)  # Use original as fallback
+        # Collect results as they complete
+        results = [None] * len(audio_files)
+        for future in as_completed(futures):
+            try:
+                idx, path = future.result()
+                results[idx] = path
+                print(f"✓ Chunk {idx} normalized successfully")
+            except Exception as e:
+                idx = futures[future]
+                print(f"⚠ Warning: Failed to normalize audio chunk {idx}: {e}")
+                results[idx] = audio_files[idx]  # Use original as fallback
+    
+    normalized_files = results
     
     # Step 2: Create concat list with normalized files
     print("Step 2: Creating concat list...")
@@ -1236,7 +1361,7 @@ def precompute_text_layout(text, width, height):
     Returns a list of lines with their Y positions.
     """
     fonts = load_ereader_fonts(width, height)
-    padding = 120
+    padding = 160  # Balanced padding for optimal layout
     max_width = width - (2 * padding)
     
     # Split into sentences
@@ -1399,46 +1524,219 @@ def parse_time_to_seconds(time_str):
     return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000
 
 def normalize_text_for_matching(text):
-    """Normalize text for flexible matching by removing punctuation spacing differences."""
+    """
+    Aggressively normalize text for matching TTS-generated SRTs against EPUB text.
+    """
     import re
-    # Remove extra spaces around punctuation
-    text = re.sub(r'\s*([.,!?;:])\s*', r'\1', text)
-    # Normalize multiple spaces to single space
+    
+    # Convert to lowercase
+    text = text.lower()
+    
+    # Remove all common punctuation characters
+    text = re.sub(r'[.,!?;:()\'"''""`]', '', text)
+    
+    # Normalize different types of hyphens or dashes to a space
+    text = re.sub(r'[\-—]', ' ', text)
+    
+    # Normalize multiple spaces to a single space
     text = re.sub(r'\s+', ' ', text)
-    # Remove common punctuation that might differ
-    text = re.sub(r'[.,!?;:]', '', text)
-    # Convert to lowercase and strip
-    return text.strip().lower()
+    
+    # Strip leading/trailing whitespace
+    return text.strip()
 
-def check_if_current_sentence(line_data, current_time, srt_entries):
+def create_srt_to_sentence_map(srt_entries, all_lines_data):
     """
-    Check if line is the CURRENTLY ACTIVE sentence at current time.
-    Returns True ONLY if this exact sentence is being spoken right now.
+    Creates a mapping from SRT entry index to the best matching sentence index.
+    Uses difflib SequenceMatcher with a lookahead concatenation strategy to handle
+    fragmented SRT entries from a TTS server.
+    
+    Args:
+        srt_entries: List of parsed SRT entries.
+        all_lines_data: List of pre-computed line data from text layout.
+        
+    Returns:
+        dict: Maps SRT entry index -> line index in layout.
     """
-    # If no SRT entries, use simple time-based highlighting
+    if not srt_entries or not all_lines_data:
+        return {}
+    
+    mapping = {}
+    # Keep track of SRTs that have already been part of a successful combined match
+    mapped_srts = set()
+    
+    for srt_index, srt_entry in enumerate(srt_entries):
+        # Skip if this SRT has already been mapped as part of a lookahead
+        if srt_index in mapped_srts:
+            continue
+            
+        best_match_score = 0.0
+        best_line_index = -1
+        best_concatenation_count = 0  # How many SRTs we combined for the best match
+        
+        # Look ahead up to 3 SRT entries (current + next 2) to form a phrase
+        concatenated_text = ""
+        for i in range(3):
+            lookahead_index = srt_index + i
+            if lookahead_index >= len(srt_entries):
+                break  # Reached the end of SRTs
+            
+            # Add the next SRT piece to our test string
+            next_text = srt_entries[lookahead_index]['text']
+            concatenated_text = (concatenated_text + " " + next_text).strip()
+            
+            normalized_concatenated_text = normalize_text_for_matching(concatenated_text)
+            if len(normalized_concatenated_text) < 3:
+                continue
+            
+            # Now, compare this combined text against all lines
+            for line_index, line_data in enumerate(all_lines_data):
+                line_text_norm = normalize_text_for_matching(line_data['text'])
+                sentence_norm = normalize_text_for_matching(line_data['sentence'])
+                
+                # Use the higher similarity score between the line and the full sentence
+                similarity = max(
+                    difflib.SequenceMatcher(None, normalized_concatenated_text, line_text_norm).ratio(),
+                    difflib.SequenceMatcher(None, normalized_concatenated_text, sentence_norm).ratio()
+                )
+                
+                if similarity > best_match_score:
+                    best_match_score = similarity
+                    best_line_index = line_index
+                    best_concatenation_count = i + 1  # Record how many SRTs we used (1, 2, or 3)
+
+        # If we found a good match (above the threshold)
+        if best_match_score > 0.6:
+            # Map all the SRTs that were part of our successful concatenation
+            for i in range(best_concatenation_count):
+                mapped_srt_index = srt_index + i
+                mapping[mapped_srt_index] = best_line_index
+                mapped_srts.add(mapped_srt_index)
+            
+            # Improved logging to show what was matched
+            final_matched_text = " ".join([srt_entries[srt_index + i]['text'] for i in range(best_concatenation_count)])
+            print(f"  SRT {srt_index}..{srt_index + best_concatenation_count - 1} ('{final_matched_text[:50]}...') -> Line {best_line_index} (score: {best_match_score:.2f})")
+
+    print(f"DEBUG: Similarity mapping created: {len(mapping)} of {len(srt_entries)} SRT entries mapped (threshold: 0.6)")
+    return mapping
+
+def check_if_current_sentence_fallback(line_data, current_time, srt_entries):
+    """
+    Fallback method for checking if line should be highlighted.
+    Uses substring matching (original logic).
+    """
     if not srt_entries:
         return current_time < 2.0  # Highlight first 2 seconds as fallback
     
+    # Find the most recent SRT entry that started before or at current_time
+    # and is still active (hasn't ended yet) - this prevents duplicates
+    current_entry = None
+    latest_start = -1
+    
     for entry in srt_entries:
-        # Check if current time is within this SRT entry's time range
+        # Check if this entry is active at current_time
         if entry['start'] <= current_time < entry['end']:
-            # Normalize texts for comparison
-            srt_text_norm = normalize_text_for_matching(entry['text'])
-            line_text_norm = normalize_text_for_matching(line_data['text'])
-            sentence_norm = normalize_text_for_matching(line_data['sentence'])
-            
-            # Skip empty or very short SRT entries (like single punctuation)
-            # This prevents matching empty strings which would highlight everything
-            if len(srt_text_norm) < 3:
-                continue
-            
-            # STRICT matching: require substantial overlap
-            # Check if SRT text is contained in the sentence or vice versa
-            if (srt_text_norm in sentence_norm or 
-                sentence_norm in srt_text_norm or
-                srt_text_norm in line_text_norm or
-                line_text_norm in srt_text_norm):
-                return True
+            # If this entry started more recently than our current match, use it
+            if entry['start'] > latest_start:
+                current_entry = entry
+                latest_start = entry['start']
+    
+    # No active entry found
+    if not current_entry:
+        return False
+    
+    # Use ORIGINAL matching logic (simple substring matching)
+    srt_text_norm = normalize_text_for_matching(current_entry['text'])
+    line_text_norm = normalize_text_for_matching(line_data['text'])
+    sentence_norm = normalize_text_for_matching(line_data['sentence'])
+    
+    # Skip empty or very short SRT entries (like single punctuation)
+    if len(srt_text_norm) < 3:
+        return False
+    
+    # ORIGINAL MATCHING: Simple substring matching
+    # Check if SRT text is contained in the sentence or vice versa
+    if (srt_text_norm in sentence_norm or 
+        sentence_norm in srt_text_norm or
+        srt_text_norm in line_text_norm or
+        line_text_norm in srt_text_norm):
+        return True
+    
+    return False
+
+def check_if_current_sentence_with_mapping(line_index, current_time, srt_entries, srt_map):
+    """
+    Check if this line should be highlighted using pre-computed similarity mapping.
+    This is extremely fast since it's just a lookup.
+    
+    Args:
+        line_index: Index of the current line in layout
+        current_time: Current video timestamp
+        srt_entries: List of all SRT entries
+        srt_map: Pre-computed mapping of SRT index -> line index
+    
+    Returns:
+        bool: True if this line should be highlighted now
+    """
+    if not srt_entries or not srt_map:
+        return False
+    
+    # Find the currently active SRT entry
+    active_srt_index = -1
+    for i, entry in enumerate(srt_entries):
+        if entry['start'] <= current_time < entry['end']:
+            active_srt_index = i
+            break  # Use first match (should only be one active at a time)
+    
+    # No active SRT entry
+    if active_srt_index == -1:
+        return False
+    
+    # Look up the corresponding line index from pre-computed map
+    line_index_to_highlight = srt_map.get(active_srt_index)
+    
+    # Check if this line matches the mapped line
+    return line_index == line_index_to_highlight
+
+def check_if_current_sentence_sequential(line_data, line_idx, current_time, srt_entries, srt_to_sentence_map):
+    """
+    Check if this line should be highlighted using sequential mapping.
+    Only ONE sentence can be highlighted at any given time.
+    
+    Args:
+        line_data: The line/sentence data
+        line_idx: Index of this line in the layout
+        current_time: Current video timestamp
+        srt_entries: List of all SRT entries
+        srt_to_sentence_map: Pre-computed mapping of SRT index -> sentence index
+    
+    Returns:
+        bool: True if this line should be highlighted now
+    """
+    if not srt_entries or not srt_to_sentence_map:
+        return current_time < 2.0  # Fallback: highlight first 2 seconds
+    
+    # Find the currently active SRT entry (most recent one that's still playing)
+    active_srt_idx = None
+    latest_start = -1
+    
+    for srt_idx, entry in enumerate(srt_entries):
+        # Check if this SRT entry is active at current_time
+        if entry['start'] <= current_time < entry['end']:
+            # Use the most recently started one
+            if entry['start'] > latest_start:
+                active_srt_idx = srt_idx
+                latest_start = entry['start']
+    
+    # No active SRT entry
+    if active_srt_idx is None:
+        return False
+    
+    # Check if this line is mapped to the active SRT entry
+    mapped_sentence_idx = srt_to_sentence_map.get(active_srt_idx)
+    
+    if mapped_sentence_idx is not None and mapped_sentence_idx == line_idx:
+        return True
+    
     return False
 
 def draw_highlight_box(draw, text, font, x, y):
@@ -1457,62 +1755,98 @@ def draw_highlight_box(draw, text, font, x, y):
     draw.rectangle(highlight_box, fill='#FFE066', outline=None)
 
 def draw_chapter_info(draw, fonts, book_title, chapter_title, author, width, height, padding):
-    """Draw chapter information with chapter title on right side."""
-    # Draw chapter title on the right side (top)
+    """Draw chapter information with centered chapter title."""
+    # Draw chapter title centered at top of frame
     chapter_bbox = fonts['title'].getbbox(chapter_title)
     chapter_width = chapter_bbox[2] - chapter_bbox[0]
-    chapter_x = width - padding - chapter_width
+    chapter_height = chapter_bbox[3] - chapter_bbox[1]
+    chapter_x = (width - chapter_width) // 2  # Center horizontally
+    chapter_y = 50  # Fixed position at top of frame (50px from top)
     draw.text(
-        (chapter_x, padding),
+        (chapter_x, chapter_y),
         chapter_title,
         font=fonts['title'],
         fill='#333'
     )
     
-    # Draw book title and author on the right side (bottom)
-    bottom_y = height - padding - 20
-    footer_text = f"{book_title} by {author}"
-    footer_bbox = fonts['page_num'].getbbox(footer_text)
-    footer_width = footer_bbox[2] - footer_bbox[0]
-    footer_x = width - padding - footer_width
-    draw.text(
-        (footer_x, bottom_y),
-        footer_text,
-        font=fonts['page_num'],
-        fill='#666'
-    )
+    # REMOVED: Book title and author footer text (per user request)
+    # No longer displaying book title and author in the video
 
 def create_scroll_frame(
     layout, scroll_y, current_time, srt_entries,
     book_title, chapter_title, author,
-    width, height, highlight_mode  # Changed from enable_highlight
+    width, height, highlight_mode,  # Changed from enable_highlight
+    srt_to_sentence_map=None  # Sequential mapping to prevent duplicate highlights
 ):
     """
     Create a single frame with scrolled text.
     """
-    # Create image
-    img = Image.new('RGB', (width, height), color='#f8f9fa')
-    draw = ImageDraw.Draw(img)
+    # Create image with background from file
+    background_path = r"C:\Users\Rajveer\Vite-reader\youtube-video-generator\image.png"
+    try:
+        # Load and resize background image to fill entire video
+        bg_img = Image.open(background_path)
+        # Resize to fill the video dimensions (stretch to fit)
+        img = bg_img.resize((width, height), Image.Resampling.LANCZOS)
+        # Convert to RGB if needed (in case it has alpha channel)
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+    except Exception as e:
+        print(f"Warning: Could not load background image: {e}")
+        # Fallback to solid color
+        img = Image.new('RGB', (width, height), color='#f8f9fa')
     
-    # Draw gradient background (optional)
-    gradient = Image.new('RGB', (width, height), '#f8f9fa')
-    img.paste(gradient)
+    draw = ImageDraw.Draw(img)
     
     # Calculate header offset
     header_height = int(layout['fonts']['title_size'] * 0.8) + 20
     text_start_y = layout['padding'] + header_height
     
+    # Add semi-transparent mask behind text area (#FAF3E0 at 65% opacity with rounded corners)
+    # Calculate text area dimensions with inner padding for breathing room
+    inner_padding = 60  # Extra padding inside the mask for text to breathe
+    text_area_left = layout['padding'] - inner_padding
+    text_area_top = layout['padding'] + header_height - inner_padding
+    text_area_right = width - layout['padding'] + inner_padding
+    text_area_bottom = height - layout['padding'] + inner_padding
+
+    # Ensure mask doesn't go outside video bounds
+    text_area_left = max(0, text_area_left)
+    text_area_top = max(layout['padding'] + header_height - 20, text_area_top)  # Keep below chapter title
+    text_area_right = min(width, text_area_right)
+    text_area_bottom = min(height, text_area_bottom)
+
+    # Create a transparent overlay for the rounded rectangle
+    mask_overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))  # Fully transparent
+    mask_draw = ImageDraw.Draw(mask_overlay)
+
+    # Draw rounded rectangle behind text area
+    corner_radius = 30  # Rounded corner radius
+    mask_draw.rounded_rectangle(
+        [(text_area_left, text_area_top), (text_area_right, text_area_bottom)],
+        radius=corner_radius,
+        fill=(250, 243, 224, 166)  # #FAF3E0 with 65% opacity (166/255)
+    )
+
+    # Paste the mask onto the main image
+    img.paste(mask_overlay, (0, 0), mask_overlay)
+    
     # Draw visible text lines
-    for line_data in layout['lines']:
+    for line_idx, line_data in enumerate(layout['lines']):
         line_y = line_data['y'] - scroll_y + text_start_y
         
         # Only draw lines in viewport
         if -50 < line_y < height + 50:
             # Draw highlight based on mode
             if highlight_mode == 'sentence':
-                is_current = check_if_current_sentence(
-                    line_data, current_time, srt_entries
-                )
+                # Use pre-computed mapping if available, otherwise fallback
+                if srt_to_sentence_map is not None:
+                    is_current = check_if_current_sentence_with_mapping(
+                        line_idx, current_time, srt_entries, srt_to_sentence_map
+                    )
+                else:
+                    is_current = check_if_current_sentence_fallback(line_data, current_time, srt_entries)
+                
                 if is_current:
                     draw_highlight_box(draw, line_data['text'], 
                                      layout['fonts']['body'], 
@@ -1529,7 +1863,7 @@ def create_scroll_frame(
                 fill='#1a1a1a'
             )
     
-    # Draw chapter info (header/footer)
+    # Draw chapter title LAST (after mask and text) to ensure it's always visible on top
     draw_chapter_info(draw, layout['fonts'], book_title, chapter_title, 
                      author, width, height, layout['padding'])
     
@@ -1538,10 +1872,11 @@ def create_scroll_frame(
 def generate_smart_scroll_frames(
     layout, srt_entries, total_duration,
     book_title, chapter_title, author,
-    width, height, highlight_mode, fps=30
+    width, height, highlight_mode, fps=30,
+    srt_to_sentence_map=None  # Sequential mapping to prevent duplicate highlights
 ):
     """
-    Generate key frames at SRT boundaries + regular intervals for balanced performance and accuracy.
+    Generate key frames at SRT boundaries + regular intervals for accurate highlighting.
     """
     frames_dir = tempfile.mkdtemp()
     
@@ -1554,14 +1889,14 @@ def generate_smart_scroll_frames(
             key_frame_times.add(entry['start'])
             key_frame_times.add(entry['end'])
         
-        # Add frames every 0.2s for smoother scrolling (5 fps intervals)
-        interval = 0.2
+        # Add frames every 0.1s for smoother scrolling (10 fps intervals)
+        interval = 0.1
         current_time = 0.0
         while current_time <= total_duration:
             key_frame_times.add(current_time)
             current_time += interval
         
-        print(f"Generating {len(key_frame_times)} key frames (SRT boundaries + 0.2s intervals) for {total_duration:.2f}s video")
+        print(f"Generating {len(key_frame_times)} key frames (SRT boundaries + 0.1s intervals) for {total_duration:.2f}s video")
     else:
         # Fallback to fixed intervals if no SRT or highlighting disabled
         interval_seconds = 2.5
@@ -1595,7 +1930,8 @@ def generate_smart_scroll_frames(
         frame = create_scroll_frame(
             layout, scroll_y, current_time, srt_entries,
             book_title, chapter_title, author,
-            width, height, highlight_mode
+            width, height, highlight_mode,
+            srt_to_sentence_map  # Pass the mapping
         )
         
         # Save frame with sequential numbering
@@ -1905,11 +2241,19 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
         srt_entries = parse_srt_entries(srt_data)
         print(f"Parsed {len(srt_entries)} SRT entries")
     
-    # Generate frames
+    # Create similarity-based SRT-to-sentence mapping for accurate highlighting
+    srt_to_sentence_map = None
+    if highlight_mode == 'sentence' and srt_entries and layout['lines']:
+        print("Creating similarity-based SRT-to-sentence mapping (difflib)...")
+        srt_to_sentence_map = create_srt_to_sentence_map(srt_entries, layout['lines'])
+    
+    # Generate frames with pre-computed mapping
     frames_dir, num_keyframes = generate_smart_scroll_frames(
         layout, srt_entries, duration,
         book_title, chapter_title, author,
-        width, height, highlight_mode  # Pass mode
+        width, height, highlight_mode,  # Pass mode
+        fps,  # Pass fps
+        srt_to_sentence_map  # Pass the mapping
     )
     
     # Encode with FFmpeg interpolation

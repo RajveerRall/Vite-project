@@ -57,36 +57,53 @@ export class EpubExtractor {
         }
       }
       
-      // Extract TOC from toc.ncx file
-      const tocContent = await loadedZip.file('OEBPS/toc.ncx')?.async('text');
+      // Extract TOC - try multiple locations
       const tocMap = new Map<string, string>(); // file path -> title mapping
+      let tocFound = false;
       
-      if (tocContent) {
-        try {
-          const tocDoc = parser.parseFromString(tocContent, 'application/xml');
-          const navPoints = tocDoc.getElementsByTagName('navPoint');
-          
-          for (let i = 0; i < navPoints.length; i++) {
-            const navPoint = navPoints[i];
-            const navLabel = navPoint.getElementsByTagName('navLabel')[0];
-            const content = navPoint.getElementsByTagName('content')[0];
+      // Try common TOC locations
+      const tocPaths = ['OEBPS/toc.ncx', 'toc.ncx', 'OEBPS/content.opf.ncx'];
+      
+      for (const tocPath of tocPaths) {
+        const tocContent = await loadedZip.file(tocPath)?.async('text');
+        if (tocContent) {
+          try {
+            const tocDoc = parser.parseFromString(tocContent, 'application/xml');
+            const navPoints = tocDoc.getElementsByTagName('navPoint');
+            const tocDir = getDirectoryPath(tocPath);
             
-            if (navLabel && content) {
-              const title = navLabel.getElementsByTagName('text')[0]?.textContent?.trim();
-              const src = content.getAttribute('src');
+            for (let i = 0; i < navPoints.length; i++) {
+              const navPoint = navPoints[i];
+              const navLabel = navPoint.getElementsByTagName('navLabel')[0];
+              const content = navPoint.getElementsByTagName('content')[0];
               
-              if (title && src) {
-                // Convert src path to match our file paths
-                const filePath = src.startsWith('html/') ? `OEBPS/${src}` : `OEBPS/html/${src}`;
-                tocMap.set(filePath, title);
+              if (navLabel && content) {
+                const title = navLabel.getElementsByTagName('text')[0]?.textContent?.trim();
+                const src = content.getAttribute('src');
+                
+                if (title && src) {
+                  // Resolve path relative to TOC file location (same as BookContext)
+                  const resolvedPath = resolveRelativePath(tocDir, src);
+                  // Strip fragment identifiers (#anchor)
+                  const cleanPath = resolvedPath.split('#')[0];
+                  tocMap.set(cleanPath, title);
+                  
+                  console.log(`[EpubExtractor] TOC entry: "${title}" -> "${cleanPath}"`);
+                }
               }
             }
+            
+            tocFound = true;
+            console.log(`[EpubExtractor] Loaded ${tocMap.size} chapter titles from TOC at ${tocPath}`);
+            break;
+          } catch (error) {
+            console.warn(`[EpubExtractor] Could not parse TOC file at ${tocPath}:`, error);
           }
-          
-          console.log(`[EpubExtractor] Loaded ${tocMap.size} chapter titles from TOC`);
-        } catch (error) {
-          console.warn('[EpubExtractor] Could not parse TOC file:', error);
         }
+      }
+      
+      if (!tocFound) {
+        console.warn('[EpubExtractor] No TOC file found, will use generic chapter names');
       }
       
       // Extract chapters
@@ -102,11 +119,27 @@ export class EpubExtractor {
           const cleanedHtml = cleanEpubContent(processedHtml);
           const textContent = extractTextFromHtml(cleanedHtml);
           
-          // Skip empty chapters
-          if (!textContent || textContent.trim().length < 10) continue;
+          // Skip empty chapters (but be more lenient - 10 chars is very short)
+          if (!textContent || textContent.trim().length < 10) {
+            console.log(`[EpubExtractor] Skipping empty file: ${filePath} (length: ${textContent?.trim().length || 0})`);
+            continue;
+          }
           
           // Get chapter title from TOC, fallback to generic name
-          let title = tocMap.get(filePath) || `Chapter ${i + 1}`;
+          // Try exact match first, then try without fragment
+          let title = tocMap.get(filePath);
+          
+          if (!title) {
+            // Try matching without fragment identifier
+            const filePathNoFragment = filePath.split('#')[0];
+            title = tocMap.get(filePathNoFragment);
+          }
+          
+          if (!title) {
+            // Fallback: use the actual chapter index (chapters.length + 1) not file index
+            title = `Chapter ${chapters.length + 1}`;
+            console.log(`[EpubExtractor] No TOC title found for ${filePath}, using fallback: "${title}"`);
+          }
           
           // Clean up the title (remove extra whitespace, etc.)
           title = title.replace(/\s+/g, ' ').trim();
