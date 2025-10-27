@@ -9,6 +9,7 @@ interface VideoSettings {
   format: 'youtube' | 'mobile';
   style: 'ereader' | 'subtitle' | 'minimal';
   highlightMode: 'none' | 'sentence' | 'word';  // Changed from enableHighlight boolean
+  enableSceneImages: boolean;  // NEW: Toggle for AI-generated scene images
 }
 
 interface VideoProgress {
@@ -22,7 +23,8 @@ const EpubToVideo: React.FC = () => {
   const [settings, setSettings] = useState<VideoSettings>({
     format: 'youtube',
     style: 'ereader',
-    highlightMode: 'sentence'  // Default to sentence-level
+    highlightMode: 'sentence',  // Default to sentence-level
+    enableSceneImages: false  // NEW: Scene images disabled by default
   });
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState<VideoProgress>({
@@ -183,6 +185,37 @@ const EpubToVideo: React.FC = () => {
 
       console.log(`[Video Generation] Received ${script.length} script lines from Full Cast`);
 
+      // Step 1.5: Start scene analysis in parallel (if enabled)
+      const FULL_CAST_TTS_URL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
+      let sceneAnalysisPromise: Promise<any> | null = null;
+
+      console.log('[Video Generation] Checking scene images setting:', {
+        enableSceneImages: settings.enableSceneImages,
+        fullSettings: settings
+      });
+
+      if (settings.enableSceneImages) {
+        console.log('[Video Generation] Starting parallel scene analysis...');
+        sceneAnalysisPromise = fetch(`${FULL_CAST_TTS_URL}/api/analyze-scenes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: chapter.content,
+            bookTitle: uploadedFile?.name || 'Unknown',
+            chapter: chapter.title,
+            maxScenes: Math.min(10, Math.ceil(chapter.content.length / 2000)),
+            bookTheme: 'atmospheric narrative',
+            colorPalette: 'muted tones with dramatic contrasts',
+            videoFormat: settings.format
+          })
+        })
+          .then(res => res.json())
+          .catch(err => {
+            console.warn('[Video Generation] Scene analysis failed:', err);
+            return { scenes: [] };
+          });
+      }
+
       // Step 2: Generate audio for each script line with SRT
       setVideoProgress({
         stage: 'audio',
@@ -281,11 +314,65 @@ const EpubToVideo: React.FC = () => {
         console.warn('No SRT data generated - video will use basic timing');
       }
 
+      // Step 2.5: Generate scene images (if enabled)
+      let sceneImages: any[] = [];
+      let sceneImageFiles: File[] = [];
+
+      if (settings.enableSceneImages && sceneAnalysisPromise) {
+        setVideoProgress({
+          stage: 'audio',
+          percentage: 75,
+          message: 'Generating scene images...'
+        });
+
+        try {
+          const { scenes } = await sceneAnalysisPromise;
+          console.log('[Video Generation] Scene analysis complete:', scenes.length, 'scenes');
+
+          if (scenes.length > 0) {
+            // Generate images for scenes
+            const imageResponse = await fetch(`${FULL_CAST_TTS_URL}/api/generate-scene-images`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                scenes,
+                videoFormat: settings.format
+              })
+            });
+
+            if (imageResponse.ok) {
+              const imageResult = await imageResponse.json();
+              sceneImages = imageResult.images || [];
+              console.log('[Video Generation] Generated images:', sceneImages.length);
+
+              // Download images from Full Cast TTS server
+              for (const img of sceneImages) {
+                try {
+                  const imgUrl = `${FULL_CAST_TTS_URL}/${img.filename}`;
+                  const imgResponse = await fetch(imgUrl);
+                  if (imgResponse.ok) {
+                    const blob = await imgResponse.blob();
+                    const file = new File([blob], img.filename, { type: img.mimeType || 'image/png' });
+                    sceneImageFiles.push(file);
+                  }
+                } catch (err) {
+                  console.warn(`Failed to download image ${img.filename}:`, err);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('[Video Generation] Image generation error:', error);
+          // Continue without images
+        }
+      }
+
       console.log(`[Video Generation] Sending to Python server:`);
       console.log(`  - Audio chunks: ${audioBlobs.length}`);
       console.log(`  - Total duration: ${cumulativeDuration.toFixed(2)}s`);
       console.log(`  - SRT data length: ${combinedSrt.length} characters`);
       console.log(`  - SRT segments: ${combinedSrt.split('\n\n').length}`);
+      console.log(`  - Scene images: ${sceneImages.length}`);
 
       // Step 3: Send to Python server for video generation
       setVideoProgress({
@@ -324,6 +411,24 @@ const EpubToVideo: React.FC = () => {
       formData.append('format', settings.format);
       formData.append('highlight_mode', settings.highlightMode);
 
+      // Add scene images if available
+      if (sceneImages.length > 0) {
+        // Add metadata
+        formData.append('scene_images_metadata', JSON.stringify(sceneImages.map(img => ({
+          sceneIndex: img.sceneIndex,
+          filename: img.filename,
+          mimeType: img.mimeType,
+          anchor_text: img.anchor_text
+        }))));
+
+        // Add image files
+        sceneImageFiles.forEach(file => {
+          formData.append('scene_image_files', file);
+        });
+
+        console.log(`[Video Generation] Added ${sceneImages.length} scene images to FormData`);
+      }
+
       const response = await fetch('http://localhost:8000/generate-video', {
         method: 'POST',
         body: formData
@@ -357,7 +462,7 @@ const EpubToVideo: React.FC = () => {
     } finally {
       setIsGeneratingVideo(false);
     }
-  }, [chapters, uploadedFile, settings.format]);
+  }, [chapters, uploadedFile, settings]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -626,6 +731,30 @@ const EpubToVideo: React.FC = () => {
                     {settings.highlightMode === 'sentence' && 'Highlights the current sentence being spoken'}
                     {settings.highlightMode === 'word' && 'Highlights each word as it is spoken'}
                     {settings.highlightMode === 'none' && 'No text highlighting'}
+                  </p>
+                </div>
+
+                {/* Scene Images Toggle */}
+                <div>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={settings.enableSceneImages}
+                      onChange={(e) => {
+                        console.log('[Settings] enableSceneImages checkbox changed to:', e.target.checked);
+                        setSettings(prev => ({
+                          ...prev,
+                          enableSceneImages: e.target.checked
+                        }));
+                      }}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm text-gray-700">
+                      Add AI-generated scene images
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Automatically adds atmospheric background images to your video
                   </p>
                 </div>
               </div>

@@ -1,0 +1,24 @@
+{
+  "bookTitle": "1984",
+  "chapter": "Chapter 1",
+  "bookTheme": "dystopian future",
+  "colorPalette": "muted tones",
+  "maxScenes": 2,
+  "textLength": 148,
+  "processingTime": 4453,
+  "timestamp": "2025-10-27T17:45:13.393Z",
+  "scenes": [
+    {
+      "anchor_text": "It was a bright cold day in April, and the clocks were striking thirteen. Winston Smith slipped quickly through the glass doors of Victory Mansions.",
+      "scene_description": "Winston Smith enters Victory Mansions on a cold April day, the building's architecture reflecting the oppressive atmosphere.",
+      "image_prompt": "Cinematic digital painting, A man hurrying through glass doors, Victory Mansions - a massive, decaying apartment block with a towering, brutalist design, located in a bleak, windswept city square, dystopian future aesthetic, Soviet realism, overcast diffused lighting with hints of cold sunlight, wide shot emphasizing the scale of the building and the insignificance of the individual, muted grays and browns with hints of faded propaganda posters, Winston: middle-aged man in worn blue overalls, face partially obscured by shadows, hunched posture",
+      "mood": "desolate"
+    },
+    {
+      "anchor_text": "The hallway smelt of boiled cabbage and old rag mats. On one of the landings the telescreen, a rectangular metal plaque like a dulled mirror, could be seen.",
+      "scene_description": "A dimly lit hallway within Victory Mansions, dominated by the presence of a telescreen, a symbol of constant surveillance.",
+      "image_prompt": "Cinematic digital painting, A long, narrow hallway featuring a telescreen on the wall, hallway interior of a dilapidated apartment building, walls stained and peeling, floor covered in worn rag mats, dystopian future aesthetic, Soviet brutalism, dim, flickering fluorescent lighting casting harsh shadows, claustrophobic perspective emphasizing the length of the hallway, muted browns and grays, focus on the textures of decay and the imposing presence of the telescreen, no character visible",
+      "mood": "claustrophobic"
+    }
+  ]
+}

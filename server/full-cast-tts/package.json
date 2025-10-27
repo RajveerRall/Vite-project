@@ -10,11 +10,13 @@
   },
   "dependencies": {
     "@cartesia/cartesia-js": "^2.2.5",
+    "@google/genai": "^1.27.0",
     "@google/generative-ai": "^0.24.1",
     "@your-scope/modular-tts": "file:your-scope-modular-tts-2.0.0.tgz",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
+    "mime": "^4.1.0",
     "openai": "^5.11.0",
     "pino": "^9.7.0",
     "pino-pretty": "^13.1.1",

@@ -76,6 +76,16 @@ try {
 const usageTracker = typeof getUsageTracker === 'function' ? getUsageTracker() : null;
 app.use(express.json({ limit: '2mb' }));
 
+// Serve generated scene images as static files
+app.use(express.static(__dirname, {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+    }
+  }
+}));
+
 // User authentication middleware - extract user ID from headers
 app.use((req, res, next) => {
   // Priority: X-User-Id header > Authorization Bearer token > anonymous
@@ -755,6 +765,325 @@ app.get('/api/user-session', (req, res) => {
     availableVoices: VOICE_POOL.length,
     sessionActive: true
   });
+});
+
+// === Scene Analysis for Video Generation ===
+
+// Helper: Build Visual Director prompt
+function buildSceneAnalysisPrompt(text, bookTitle, bookTheme, colorPalette, maxScenes) {
+  return `You are an expert AI "Visual Director" for book illustrations. Your core mission is to analyze provided text (a chapter or passage) and generate a list of highly detailed, professional-grade image prompts. These prompts must consistently capture the atmosphere, environment, and pivotal visual moments of the narrative.
+
+CORE DIRECTIVES:
+- Analysis Focus: Prioritize visually rich scenes, evocative environments, key actions, and unique world-building elements
+- Environmental Emphasis: The environment (landscape, cityscape, interior) is paramount
+- Characters, if present, should establish scale, perspective, or interact with the setting, not be close-up portraits
+- Generate ${maxScenes} distinct scenes spread throughout the chapter
+
+STRICT PROMPT STRUCTURE (for each scene's image_prompt):
+[Medium], [Subject & Action], [Setting Description], [STYLE_THEME_KEYWORDS], [LIGHTING_ATMOSPHERE], [COMPOSITION], [CHARACTER_REFERENCE]
+
+PROJECT BIBLE (Apply to all prompts):
+
+A. Global Art Style:
+   - Medium Keywords: Cinematic digital painting, Illustrative concept art, Epic illustration
+   - Technique Keywords: Painterly brushwork, stylized realism, highly detailed, evocative, visible brushstrokes
+   - Avoid Keywords: Photorealistic, 3D render, cartoon, comic book, anime, low poly
+
+B. Thematic & Color Palette:
+   - Theme: ${bookTheme || "atmospheric narrative"}
+   - Color Palette: ${colorPalette || "muted tones with dramatic contrasts"}
+
+C. Character Consistency:
+   - If recurring characters appear across scenes, maintain consistent physical descriptions
+   - Include character details in [CHARACTER_REFERENCE] section
+
+BOOK CONTEXT:
+- Title: ${bookTitle}
+- Theme: ${bookTheme || "dramatic narrative"}
+- Palette: ${colorPalette || "atmospheric tones"}
+
+CHAPTER TEXT:
+${text}
+
+OUTPUT FORMAT (JSON):
+{
+  "scenes": [
+    {
+      "anchor_text": "[EXACT 20-100 word snippet from chapter where this scene occurs]",
+      "scene_description": "[Brief summary of visual moment]",
+      "image_prompt": "[Medium], [Subject & Action], [Setting Description], [STYLE_THEME_KEYWORDS], [LIGHTING_ATMOSPHERE], [COMPOSITION], [CHARACTER_REFERENCE if applicable]",
+      "mood": "[one-word emotional tone]"
+    }
+  ]
+}
+
+CRITICAL REQUIREMENTS:
+1. **anchor_text** MUST be EXACT text from chapter (copy-paste verbatim) - used for audio sync
+2. **image_prompt** MUST follow the comma-separated structure above
+3. **scene_description** should be concise (1-2 sentences)
+4. Focus on ENVIRONMENTAL and ATMOSPHERIC moments, not character close-ups
+5. Spread scenes evenly: beginning (0-30%), middle (30-70%), end (70-100%)
+6. Each prompt should paint a complete cinematic frame
+7. Maintain visual consistency if same locations/characters appear
+
+EXAMPLE OUTPUT:
+{
+  "scenes": [
+    {
+      "anchor_text": "Winston sat at his small wooden desk, the telescreen's voice droning in the background. The room was sparse, gray walls closing in around him as he opened the diary with trembling hands.",
+      "scene_description": "Winston alone at his desk in Victory Mansions opening his forbidden diary",
+      "image_prompt": "Cinematic digital painting, a lone gaunt man in his 30s writing in a hidden diary at a small wooden desk, sparse gray apartment with cracked walls and a large telescreen mounted on the wall, dystopian future aesthetic, gritty realism, dramatic side lighting from a grimy window creating long shadows, painterly brushwork, highly detailed, low-angle composition emphasizing oppression, muted earth tones with stark grays, Winston: gaunt man in his 30s, pale complexion, dark hair, wearing a faded blue Party uniform",
+      "mood": "oppressive"
+    }
+  ]
+}`;
+}
+
+// POST /api/analyze-scenes
+app.post('/api/analyze-scenes', async (req, res) => {
+  const { 
+    text, 
+    bookTitle, 
+    chapter, 
+    maxScenes = 5,
+    bookTheme = "atmospheric narrative",
+    colorPalette = "muted tones with dramatic contrasts",
+    videoFormat = "youtube",
+    sessionId 
+  } = req.body;
+  
+  if (!text || !bookTitle) {
+    return res.status(400).json({ error: 'text and bookTitle are required' });
+  }
+  
+  try {
+    console.log(`[analyze-scenes] Processing "${chapter}" from "${bookTitle}"`);
+    console.log(`[analyze-scenes] Text length: ${text.length} chars, max scenes: ${maxScenes}`);
+    console.log(`[analyze-scenes] Theme: ${bookTheme}, Palette: ${colorPalette}`);
+    
+    // Build Visual Director prompt
+    const prompt = buildSceneAnalysisPrompt(text, bookTitle, bookTheme, colorPalette, maxScenes);
+    
+    // Use Gemini 2.0 Flash
+    const llm = sharedFactory.getLLM('gemini-2.0-flash');
+    if (!llm) {
+      throw new Error('Gemini LLM not available');
+    }
+    
+    const startTime = Date.now();
+    const response = await llm.execute(prompt);
+    
+    console.log(`[analyze-scenes] LLM response received (${response.length} chars)`);
+    
+    // Parse JSON response (handle markdown code blocks)
+    let cleanedResponse = response.trim();
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/```\s*$/, '');
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/```\s*$/, '');
+    }
+    
+    const scenesData = JSON.parse(cleanedResponse);
+    
+    console.log(`[analyze-scenes] Generated ${scenesData.scenes.length} scenes in ${Date.now() - startTime}ms`);
+    
+    // Validate scene structure
+    scenesData.scenes.forEach((scene, i) => {
+      console.log(`[analyze-scenes] Scene ${i + 1}:`);
+      console.log(`  Anchor text length: ${scene.anchor_text?.length} chars`);
+      console.log(`  Image prompt length: ${scene.image_prompt?.length} chars`);
+      console.log(`  Mood: ${scene.mood}`);
+      
+      if (!scene.anchor_text || scene.anchor_text.length < 20) {
+        console.warn(`  WARNING: anchor_text too short (${scene.anchor_text?.length} chars)`);
+      }
+      if (!scene.image_prompt || scene.image_prompt.length < 50) {
+        console.warn(`  WARNING: image_prompt too short`);
+      }
+    });
+    
+    // Save to file for review
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Strip duration_seconds from scenes if present (removed from spec)
+    const cleanScenes = scenesData.scenes.map(scene => {
+      const { duration_seconds, ...rest } = scene;
+      return rest;
+    });
+    
+    const outputData = {
+      bookTitle,
+      chapter,
+      bookTheme,
+      colorPalette,
+      maxScenes,
+      textLength: text.length,
+      processingTime: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+      scenes: cleanScenes
+    };
+    
+    const filename = path.join(__dirname, `scene-analysis-${Date.now()}.json`);
+    fs.writeFileSync(filename, JSON.stringify(outputData, null, 2));
+    console.log(`[analyze-scenes] Saved analysis to ${filename}`);
+    
+    res.json({
+      scenes: cleanScenes,
+      analysisMetadata: {
+        totalScenes: cleanScenes.length,
+        chapterLength: text.length,
+        processingTime: Date.now() - startTime,
+        bookTitle,
+        chapter,
+        theme: bookTheme,
+        palette: colorPalette,
+        videoFormat: videoFormat,
+        savedToFile: path.basename(filename)
+      }
+    });
+    
+  } catch (error) {
+    console.error('[analyze-scenes] Error:', error);
+    res.status(500).json({ 
+      error: 'Scene analysis failed', 
+      details: error.message 
+    });
+  }
+});
+
+// === Image Generation for Scenes ===
+// POST /api/generate-scene-images
+// Generates images from scene analysis prompts using Gemini Imagen
+app.post('/api/generate-scene-images', async (req, res) => {
+  const { scenes, videoFormat = 'youtube' } = req.body;
+  
+  if (!Array.isArray(scenes) || scenes.length === 0) {
+    return res.status(400).json({ error: 'scenes array is required' });
+  }
+  
+  try {
+    console.log(`[generate-scene-images] Processing ${scenes.length} scenes for ${videoFormat} format`);
+    
+    const { GoogleGenAI } = require('@google/genai');
+    const fs = require('fs');
+    const path = require('path');
+    
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+    });
+    
+    // Determine aspect ratio based on video format
+    const aspectRatio = videoFormat === 'mobile' ? '9:16' : '16:9';
+    console.log(`[generate-scene-images] Using aspect ratio: ${aspectRatio}`);
+    
+    const config = {
+      responseModalities: ['IMAGE', 'TEXT'],
+      imageConfig: {
+        aspectRatio: aspectRatio
+      }
+    };
+    
+    const model = 'gemini-2.5-flash-image';
+    const generatedImages = [];
+    const timestamp = Date.now();
+    
+    for (let i = 0; i < scenes.length; i++) {
+      const scene = scenes[i];
+      if (!scene.image_prompt) {
+        console.warn(`[generate-scene-images] Scene ${i + 1} missing image_prompt, skipping`);
+        continue;
+      }
+      
+      try {
+        console.log(`[generate-scene-images] Generating image ${i + 1}/${scenes.length}...`);
+        console.log(`[generate-scene-images] Prompt: ${scene.image_prompt.substring(0, 100)}...`);
+        
+        const contents = [
+          {
+            role: 'user',
+            parts: [{ text: scene.image_prompt }]
+          }
+        ];
+        
+        const response = await ai.models.generateContentStream({
+          model,
+          config,
+          contents,
+        });
+        
+        let imageBuffer = null;
+        let mimeType = null;
+        let fileIndex = 0;
+        
+        for await (const chunk of response) {
+          if (!chunk.candidates || !chunk.candidates[0]?.content || !chunk.candidates[0]?.content.parts) {
+            continue;
+          }
+          
+          if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+            const inlineData = chunk.candidates[0].content.parts[0].inlineData;
+            mimeType = inlineData.mimeType || 'image/png';
+            const buffer = Buffer.from(inlineData.data || '', 'base64');
+            
+            // Append to imageBuffer
+            imageBuffer = imageBuffer ? Buffer.concat([imageBuffer, buffer]) : buffer;
+            fileIndex++;
+          } else if (chunk.text) {
+            console.log(`[generate-scene-images] Text response: ${chunk.text}`);
+          }
+        }
+        
+        if (!imageBuffer) {
+          console.warn(`[generate-scene-images] No image data received for scene ${i + 1}`);
+          continue;
+        }
+        
+        // Save image to file
+        // Extract file extension from mimeType
+        let fileExtension = 'png';
+        if (mimeType === 'image/png') fileExtension = 'png';
+        else if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') fileExtension = 'jpg';
+        else if (mimeType === 'image/webp') fileExtension = 'webp';
+        const filename = `scene-image-${timestamp}-${i}.${fileExtension}`;
+        const filepath = path.join(__dirname, filename);
+        fs.writeFileSync(filepath, imageBuffer);
+        
+        console.log(`[generate-scene-images] Saved image ${i + 1}: ${filename} (${imageBuffer.length} bytes)`);
+        
+        generatedImages.push({
+          sceneIndex: i,
+          anchor_text: scene.anchor_text,
+          scene_description: scene.scene_description,
+          image_prompt: scene.image_prompt,
+          mood: scene.mood,
+          filename: filename,
+          filepath: filepath,
+          mimeType: mimeType
+        });
+        
+      } catch (error) {
+        console.error(`[generate-scene-images] Failed to generate image for scene ${i + 1}:`, error);
+        // Continue with other scenes
+      }
+    }
+    
+    console.log(`[generate-scene-images] Generated ${generatedImages.length}/${scenes.length} images`);
+    
+    res.json({
+      success: true,
+      generatedCount: generatedImages.length,
+      totalScenes: scenes.length,
+      images: generatedImages
+    });
+    
+  } catch (error) {
+    console.error('[generate-scene-images] Error:', error);
+    res.status(500).json({ 
+      error: 'Image generation failed', 
+      details: error.message 
+    });
+  }
 });
 
 app.listen(PORT, () => {

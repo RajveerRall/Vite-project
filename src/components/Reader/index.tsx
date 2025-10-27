@@ -262,6 +262,26 @@ const Reader: React.FC = () => {
 
       console.log('[Video Generation] Split text into', chunks.length, 'chunks (max', MAX_CHARS, 'chars each)');
 
+      // Step 1.5: Start scene analysis in parallel (don't wait for it)
+      const FULL_CAST_TTS_URL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
+      const videoFormat = 'youtube'; // Default to YouTube format
+      const sceneAnalysisPromise = fetch(`${FULL_CAST_TTS_URL}/api/analyze-scenes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: fullText,
+          bookTitle: bookTitle || 'Untitled',
+          chapter: currentChapterTitle || 'Chapter',
+          maxScenes: Math.min(10, Math.ceil(fullText.length / 2000)), // 1 scene per 2000 chars, max 10
+          bookTheme: 'atmospheric narrative',
+          colorPalette: 'muted tones with dramatic contrasts',
+          videoFormat: videoFormat
+        })
+      }).then(res => res.json()).catch(err => {
+        console.warn('[Video Generation] Scene analysis failed:', err);
+        return { scenes: [] }; // Fail gracefully
+      });
+
       // Step 2: Process each chunk with Full Cast TTS
       setVideoGenerationProgress({
         stage: 'parsing',
@@ -407,6 +427,42 @@ const Reader: React.FC = () => {
       console.log('[Video Generation] Total audio duration:', cumulativeDuration.toFixed(2), 'seconds');
       console.log('[Video Generation] Total SRT segments:', allSrtSegments.length);
 
+      // Await scene analysis (should be ready by now since it ran in parallel)
+      const { scenes = [] } = await sceneAnalysisPromise;
+      console.log('[Video Generation] Scene analysis complete:', scenes.length, 'scenes');
+
+      // Step 4.5: Generate images for scenes (if any)
+      let sceneImages: any[] = [];
+      if (scenes.length > 0) {
+        setVideoGenerationProgress({
+          stage: 'audio',
+          percentage: 75,
+          message: 'Generating scene images...'
+        });
+
+        try {
+          const imageResponse = await fetch(`${FULL_CAST_TTS_URL}/api/generate-scene-images`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              scenes,
+              videoFormat: videoFormat
+            })
+          });
+
+          if (imageResponse.ok) {
+            const imageResult = await imageResponse.json();
+            sceneImages = imageResult.images || [];
+            console.log('[Video Generation] Generated images:', sceneImages.length);
+          } else {
+            console.warn('[Video Generation] Image generation failed, continuing without images');
+          }
+        } catch (error) {
+          console.warn('[Video Generation] Image generation error:', error);
+          // Continue without images
+        }
+      }
+
       // Step 5: Send to Python server for video generation
       setVideoGenerationProgress({
         stage: 'video',
@@ -423,6 +479,29 @@ const Reader: React.FC = () => {
       formData.append('chapter_title', currentChapterTitle || `Page ${currentPageDisplay}`);
       formData.append('author', bookAuthor);
       formData.append('format', 'youtube'); // Default to YouTube format (1920x1080 horizontal)
+      
+      // Add scene analysis metadata for future image overlay
+      if (scenes.length > 0) {
+        const sceneMetadata = scenes.map((s: any) => ({
+          anchor_text: s.anchor_text,
+          scene_description: s.scene_description,
+          image_prompt: s.image_prompt,
+          mood: s.mood
+        }));
+        formData.append('scene_images_metadata', JSON.stringify(sceneMetadata));
+        console.log('[Video Generation] Added scene metadata to FormData:', sceneMetadata.length, 'scenes');
+      }
+
+      // Add generated images (filenames) for Python server to load
+      if (sceneImages.length > 0) {
+        formData.append('scene_images', JSON.stringify(sceneImages.map(img => ({
+          sceneIndex: img.sceneIndex,
+          filename: img.filename,
+          mimeType: img.mimeType,
+          anchor_text: img.anchor_text
+        }))));
+        console.log('[Video Generation] Added generated image metadata to FormData:', sceneImages.length, 'images');
+      }
 
       console.log('[Video Generation] Sending request to Python server...');
 

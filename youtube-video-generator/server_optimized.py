@@ -39,7 +39,9 @@ async def generate_video(
     author: str = Form(...),
     format: str = Form("youtube"),  # "youtube" (1920x1080) or "mobile" (1080x1920)
     style: str = Form("ereader"),  # "ereader", "subtitle", or "minimal"
-    highlight_mode: str = Form("sentence")  # Changed from enable_highlight
+    highlight_mode: str = Form("sentence"),  # Changed from enable_highlight
+    scene_images_metadata: str = Form("[]"),  # NEW: JSON array of scene prompts
+    scene_image_files: List[UploadFile] = File([])  # NEW: Actual image files from frontend
 ):
     """
     Generate video with smart frame generation using multiple audio chunks
@@ -81,6 +83,15 @@ async def generate_video(
     except json.JSONDecodeError as e:
         return {"error": f"Invalid audio metadata JSON: {e}"}
     
+    # Parse scene images metadata
+    scene_images = []
+    if scene_images_metadata and scene_images_metadata != "[]":
+        try:
+            scene_images = json.loads(scene_images_metadata)
+            print(f"[Video Generation] Received {len(scene_images)} scene image metadata entries")
+        except json.JSONDecodeError as e:
+            print(f"Warning: Invalid scene_images_metadata JSON: {e}")
+    
     # Create temporary directory
     temp_dir = tempfile.mkdtemp()
     try:
@@ -99,6 +110,17 @@ async def generate_video(
                 print(f"Saved audio chunk {i}: {os.path.getsize(audio_path)} bytes")
             
             audio_files.append(audio_path)
+        
+        # Save scene image files
+        scene_image_paths = {}
+        for i, img_file in enumerate(scene_image_files):
+            if img_file.filename:
+                img_path = os.path.join(temp_dir, f"scene_{i}_{img_file.filename}")
+                with open(img_path, "wb") as f:
+                    content = await img_file.read()
+                    f.write(content)
+                scene_image_paths[img_file.filename] = img_path
+                print(f"Saved scene image: {img_file.filename} ({os.path.getsize(img_path)} bytes)")
         
         # Combine audio files using FFmpeg
         combined_audio_path = combine_audio_files(audio_files, temp_dir)
@@ -119,7 +141,9 @@ async def generate_video(
         video_path = create_video_with_srt_optimized(
             combined_audio_path, text, book_title, chapter_title,
             author, actual_duration, srt_data, temp_dir, format, style,
-            highlight_mode_value  # Pass mode instead of boolean
+            highlight_mode_value,  # Pass mode instead of boolean
+            scene_images,  # NEW: Scene image metadata
+            scene_image_paths  # NEW: Scene image file paths
         )
         
         # Read the video file content before cleanup
@@ -1575,6 +1599,174 @@ def split_srt_into_sentences(srt_text):
     
     return sentences if sentences else [srt_text]  # Return original if splitting fails
 
+def find_anchor_text_in_srt(anchor_text: str, srt_entries: list, threshold: float = 0.65) -> dict:
+    """
+    Find best SRT match for anchor_text using the same fuzzy matching as sentence highlighting.
+    Reuses normalize_text_for_matching() for consistency.
+    
+    Args:
+        anchor_text: Text snippet from scene analysis (20-100 words)
+        srt_entries: Parsed SRT entries from parse_srt_entries()
+        threshold: Minimum similarity ratio (default 0.65, lower than 0.7 for longer anchor texts)
+    
+    Returns:
+        dict: {'start_time': float, 'end_time': float, 'match_ratio': float, 'srt_index': int}
+              Returns {'start_time': 0, 'end_time': 0, 'match_ratio': 0, 'srt_index': -1} if no match
+    """
+    best_match = {'start_time': 0, 'end_time': 0, 'match_ratio': 0.0, 'srt_index': -1}
+    
+    # Normalize anchor text using existing function
+    anchor_norm = normalize_text_for_matching(anchor_text)
+    
+    if len(anchor_norm) < 5:
+        return best_match  # Too short to match reliably
+    
+    # Strategy 1: Try matching against individual SRT entries
+    for i, entry in enumerate(srt_entries):
+        entry_norm = normalize_text_for_matching(entry['text'])
+        ratio = difflib.SequenceMatcher(None, anchor_norm, entry_norm).ratio()
+        
+        if ratio > best_match['match_ratio']:
+            best_match = {
+                'start_time': entry['start'],
+                'end_time': entry['end'],
+                'match_ratio': ratio,
+                'srt_index': i
+            }
+    
+    # Strategy 2: Try concatenating 2-5 consecutive SRT entries (anchor_text is 20-100 words)
+    if best_match['match_ratio'] < threshold:
+        for window_size in [2, 3, 4, 5]:
+            for i in range(len(srt_entries) - window_size + 1):
+                combined_text = ' '.join([srt_entries[j]['text'] for j in range(i, i + window_size)])
+                combined_norm = normalize_text_for_matching(combined_text)
+                ratio = difflib.SequenceMatcher(None, anchor_norm, combined_norm).ratio()
+                
+                if ratio > best_match['match_ratio']:
+                    best_match = {
+                        'start_time': srt_entries[i]['start'],
+                        'end_time': srt_entries[i + window_size - 1]['end'],
+                        'match_ratio': ratio,
+                        'srt_index': i
+                    }
+    
+    return best_match
+
+def calculate_scene_timings(scene_images: list, srt_entries: list, 
+                           scene_image_paths: dict, total_duration: float) -> list:
+    """
+    Map scene images to video timestamps using anchor_text fuzzy matching.
+    Images display from their start time until the next scene starts (or video ends).
+    
+    Args:
+        scene_images: List of scene metadata from frontend (sceneIndex, anchor_text, filename)
+        srt_entries: Parsed SRT entries from parse_srt_entries()
+        scene_image_paths: Dict mapping filename -> local file path
+        total_duration: Total video duration in seconds
+    
+    Returns:
+        List of dicts: {'scene_index', 'start_time', 'end_time', 'image_path', 'match_ratio'}
+    """
+    scene_timings = []
+    
+    for scene in scene_images:
+        anchor_text = scene.get('anchor_text', '')
+        filename = scene.get('filename', '')
+        scene_index = scene.get('sceneIndex', -1)
+        
+        if not anchor_text or not filename:
+            print(f"⚠️  Scene {scene_index}: Missing anchor_text or filename, skipping")
+            continue
+        
+        # Check if image file exists
+        image_path = scene_image_paths.get(filename)
+        if not image_path or not os.path.exists(image_path):
+            print(f"⚠️  Scene {scene_index}: Image file not found ({filename}), skipping")
+            continue
+        
+        # Find matching timestamp in SRT using fuzzy matching
+        match = find_anchor_text_in_srt(anchor_text, srt_entries)
+        
+        if match['match_ratio'] < 0.5:
+            print(f"⚠️  Scene {scene_index}: Low match ratio ({match['match_ratio']:.2f}), skipping")
+            print(f"    Anchor text: {anchor_text[:50]}...")
+            continue
+        
+        scene_timings.append({
+            'scene_index': scene_index,
+            'start_time': match['start_time'],
+            'end_time': None,  # Will be calculated below
+            'image_path': image_path,
+            'match_ratio': match['match_ratio'],
+            'anchor_text_preview': anchor_text[:50]
+        })
+        
+        print(f"✓ Scene {scene_index}: Matched at {match['start_time']:.2f}s (ratio: {match['match_ratio']:.2f})")
+    
+    # Sort by start_time
+    scene_timings.sort(key=lambda x: x['start_time'])
+    
+    # Calculate end_time (display until next scene starts, or video ends)
+    for i, scene_timing in enumerate(scene_timings):
+        if i < len(scene_timings) - 1:
+            scene_timing['end_time'] = scene_timings[i + 1]['start_time']
+        else:
+            scene_timing['end_time'] = total_duration
+        
+        duration = scene_timing['end_time'] - scene_timing['start_time']
+        print(f"  Scene {scene_timing['scene_index']}: {scene_timing['start_time']:.1f}s - {scene_timing['end_time']:.1f}s (duration: {duration:.1f}s)")
+    
+    return scene_timings
+
+def create_frame_with_scene_background(scene_image_path: str, text_frame: Image.Image, 
+                                      opacity: float = 0.35) -> Image.Image:
+    """
+    Create a composite frame with scene image as full background and text overlay.
+    Darkens/blurs the background slightly to maintain text readability.
+    
+    Args:
+        scene_image_path: Path to scene image file
+        text_frame: Generated text frame (from existing frame generation)
+        opacity: Text overlay opacity (0-1), default 0.35 for readability
+    
+    Returns:
+        PIL Image with scene background and text overlay
+    """
+    try:
+        # Load scene image
+        scene_img = Image.open(scene_image_path).convert('RGB')
+        frame_width, frame_height = text_frame.size
+        
+        # Resize scene image to match frame dimensions (stretch to fill)
+        scene_resized = scene_img.resize((frame_width, frame_height), Image.Resampling.LANCZOS)
+        
+        # Apply subtle darkening (multiply by 0.7 to darken)
+        from PIL import ImageEnhance
+        enhancer = ImageEnhance.Brightness(scene_resized)
+        scene_darkened = enhancer.enhance(0.7)
+        
+        # Optional: Apply slight blur for depth-of-field effect
+        from PIL import ImageFilter
+        scene_blurred = scene_darkened.filter(ImageFilter.GaussianBlur(radius=2))
+        
+        # Create semi-transparent text overlay
+        # Convert text frame to RGBA to apply opacity
+        text_rgba = text_frame.convert('RGBA')
+        
+        # Create an alpha mask for the text frame
+        alpha = Image.new('L', text_rgba.size, int(255 * opacity))
+        text_rgba.putalpha(alpha)
+        
+        # Composite: scene background + semi-transparent text
+        result = scene_blurred.copy()
+        result.paste(text_rgba, (0, 0), text_rgba)
+        
+        return result.convert('RGB')
+        
+    except Exception as e:
+        print(f"Error creating scene background frame: {e}")
+        return text_frame  # Fallback to text-only frame
+
 def create_srt_to_sentence_map(srt_entries, all_lines_data):
     """
     Creates a mapping from SRT entry index to the best matching sentence index.
@@ -1855,7 +2047,8 @@ def create_scroll_frame(
     book_title, chapter_title, author,
     width, height, highlight_mode,  # Changed from enable_highlight
     srt_to_sentence_map=None,  # Sequential mapping to prevent duplicate highlights
-    last_highlighted_sentence_id=None  # NEW: Track previous highlight to prevent flickering
+    last_highlighted_sentence_id=None,  # NEW: Track previous highlight to prevent flickering
+    scene_timings=None  # NEW: Scene image timings for overlay
 ):
     """
     Create a single frame with scrolled text.
@@ -1920,6 +2113,14 @@ def create_scroll_frame(
     draw_chapter_info(draw, layout['fonts'], book_title, chapter_title, 
                      author, width, height, layout['padding'])
     
+    # NEW: Check if any scene should be displayed at current_time
+    if scene_timings:
+        for scene in scene_timings:
+            if scene['start_time'] <= current_time < scene['end_time']:
+                # Apply scene background
+                img = create_frame_with_scene_background(scene['image_path'], img)
+                break  # Only one scene at a time
+    
     # NEW: Return both frame and current highlight state
     return img, current_highlighted_sentence_id
 
@@ -1927,7 +2128,8 @@ def generate_smart_scroll_frames(
     layout, srt_entries, total_duration,
     book_title, chapter_title, author,
     width, height, highlight_mode, fps=30,
-    srt_to_sentence_map=None  # Sequential mapping to prevent duplicate highlights
+    srt_to_sentence_map=None,  # Sequential mapping to prevent duplicate highlights
+    scene_timings=None  # NEW: Scene image timings for overlay
 ):
     """
     Generate key frames at SRT boundaries + regular intervals for accurate highlighting.
@@ -1989,7 +2191,8 @@ def generate_smart_scroll_frames(
             book_title, chapter_title, author,
             width, height, highlight_mode,
             srt_to_sentence_map,  # Pass the mapping
-            last_highlighted_sentence_id  # NEW: Pass previous highlight
+            last_highlighted_sentence_id,  # NEW: Pass previous highlight
+            scene_timings  # NEW: Pass scene timings
         )
         
         # Save frame with sequential numbering
@@ -2270,7 +2473,7 @@ def generate_ereader_key_frames(pages, duration, width, height, fps, temp_dir, c
     
     return frames_dir, len(unique_moments), unique_moments
 
-def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title, author, duration, srt_data, temp_dir, video_format="youtube", style="ereader", highlight_mode="sentence"):
+def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title, author, duration, srt_data, temp_dir, video_format="youtube", style="ereader", highlight_mode="sentence", scene_images=None, scene_image_paths=None):
     """
     Create video with smooth scrolling instead of page transitions
     """
@@ -2305,13 +2508,23 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
         print("Creating similarity-based SRT-to-sentence mapping (difflib)...")
         srt_to_sentence_map = create_srt_to_sentence_map(srt_entries, layout['lines'])
     
+    # Calculate scene timings (NEW)
+    scene_timings = []
+    if scene_images and srt_entries:
+        print("Calculating scene image timings using anchor_text matching...")
+        scene_timings = calculate_scene_timings(
+            scene_images, srt_entries, scene_image_paths or {}, duration
+        )
+        print(f"✓ Prepared {len(scene_timings)} scene images for video overlay")
+    
     # Generate frames with pre-computed mapping
     frames_dir, num_keyframes = generate_smart_scroll_frames(
         layout, srt_entries, duration,
         book_title, chapter_title, author,
         width, height, highlight_mode,  # Pass mode
         fps,  # Pass fps
-        srt_to_sentence_map  # Pass the mapping
+        srt_to_sentence_map,  # Pass the mapping
+        scene_timings  # NEW: Pass scene timings
     )
     
     # Encode with FFmpeg interpolation

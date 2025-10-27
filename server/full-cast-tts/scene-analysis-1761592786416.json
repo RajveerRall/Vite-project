@@ -1,0 +1,30 @@
+{
+  "bookTitle": "The Way of Kings.epub",
+  "chapter": "Endnote",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 1,
+  "textLength": 1257,
+  "processingTime": 4793,
+  "timestamp": "2025-10-27T19:19:46.416Z",
+  "scenes": [
+    {
+      "anchor_text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.”",
+      "scene_description": "An abstract visualization of the ketek 'Above silence, the illuminating storms—dying storms— illuminate the silence above,' focusing on the interplay of light and darkness within a storm system.",
+      "image_prompt": "Cinematic digital painting, swirling storm clouds illuminated by vibrant yet fading lightning strikes, a vast expanse of dark sky above and below the storm, suggesting infinite silence, ethereal and otherworldly, dramatic lighting with stark contrasts, high-angle composition capturing the scale of the storm, painterly brushwork, stylized realism, muted blues, purples, and grays with bursts of white and yellow, no characters present",
+      "mood": "mysterious"
+    },
+    {
+      "anchor_text": "The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note.",
+      "scene_description": "A dying Herdazian man lying in a sparsely furnished room, the ambient light creating dramatic shadows and emphasizing his weakened state. The focus is on the environment reflecting his poverty and imminent demise.",
+      "image_prompt": "Cinematic digital painting, a dying Herdazian man lying on a simple cot, a dimly lit, stone room with cracked walls and minimal furnishings, humble and desolate, dramatic lighting with a single light source casting long shadows, low-angle composition emphasizing vulnerability, painterly brushwork, stylized realism, muted browns, grays, and earthy tones, Herdazian: emaciated man with weathered skin, dark hair, wearing ragged clothing",
+      "mood": "melancholy"
+    },
+    {
+      "anchor_text": "We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms.",
+      "scene_description": "A vast library chamber dominated by high arched ceilings, bathed in soft, filtered light. An elaborate stone desk sits in the center of the room, awaiting the King's presence.",
+      "image_prompt": "Cinematic digital painting, a grand library chamber with towering shelves filled with ancient texts, sunlight streaming through arched windows, creating dust motes in the air, scholarly and majestic, soft, diffused lighting creating a peaceful atmosphere, wide-angle composition emphasizing the scale of the library, painterly brushwork, stylized realism, muted browns, golds, and greens, no characters present",
+      "mood": "contemplative"
+    }
+  ]
+}
