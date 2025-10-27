@@ -32,7 +32,7 @@ async def generate_video(
     audio_chunks: List[UploadFile] = File(...),  # Multiple audio files
     audio_metadata: str = Form(...),  # JSON metadata
     text: str = Form(...),
-    srt_data: str = Form(...),
+    srt_data: str = Form(""),  # Make SRT optional - empty string if not provided
     total_duration: str = Form(...),
     book_title: str = Form(...),
     chapter_title: str = Form(...),
@@ -621,7 +621,8 @@ def split_text_into_sentences(text):
     sentences = re.split(r'(?<=[.!?])\s+', text)
     
     # Clean up and filter empty sentences and very short fragments
-    sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 5]
+    # Reduced threshold from >5 to >2 to preserve short sentences like "Good.", "No!", "I."
+    sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 2]
     
     print(f"Split text into {len(sentences)} sentences")
     return sentences
@@ -1103,6 +1104,9 @@ def combine_audio_files(audio_files, temp_dir):
     
     print(f"Combining {len(audio_files)} audio files with smoothing...")
     
+    # Get FFmpeg path once for this function
+    ffmpeg_path_local = get_ffmpeg_path()
+
     # Validate each audio file first
     for i, audio_file in enumerate(audio_files):
         info = validate_audio_file(audio_file)
@@ -1115,7 +1119,6 @@ def combine_audio_files(audio_files, temp_dir):
     
     # Step 1: Normalize all audio files to consistent format (PARALLEL)
     print("Step 1: Normalizing audio files in parallel...")
-    normalized_files = []
     
     # Use 4 worker threads for parallel processing
     from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -1124,6 +1127,8 @@ def combine_audio_files(audio_files, temp_dir):
         futures = {}
         for i, audio_file in enumerate(audio_files):
             normalized_path = os.path.join(temp_dir, f"normalized_{i}.wav")
+            # IMPORTANT: We need to make sure normalize_audio_chunk also has access to ffmpeg
+            # It currently calls get_ffmpeg_path() internally, which is good.
             future = executor.submit(normalize_audio_chunk, i, audio_file, normalized_path)
             futures[future] = i
         
@@ -1155,7 +1160,7 @@ def combine_audio_files(audio_files, temp_dir):
     
     # Use FFmpeg with audio filters for smooth combination
     combine_cmd = [
-        ffmpeg_path,
+        ffmpeg_path_local,  # Use the local variable we defined at the start of the function
         '-y',
         '-f', 'concat',
         '-safe', '0',
@@ -1170,15 +1175,12 @@ def combine_audio_files(audio_files, temp_dir):
     print(f"Combining command: {' '.join(combine_cmd)}")
     
     try:
-        result = subprocess.run(combine_cmd, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(combine_cmd, capture_output=True, text=True, timeout=300)  # Increased timeout for large files
         
-        # Print FFmpeg output for debugging
-        if result.stdout:
-            print(f"FFmpeg stdout: {result.stdout}")
-        if result.stderr:
-            print(f"FFmpeg stderr: {result.stderr}")
-        
+        # Print FFmpeg output for debugging if it fails
         if result.returncode != 0:
+            print(f"FFmpeg stdout: {result.stdout}")
+            print(f"FFmpeg stderr: {result.stderr}")
             raise Exception(f"FFmpeg audio combination failed: {result.stderr}")
         
         # Verify output file exists and has content
@@ -1196,7 +1198,7 @@ def combine_audio_files(audio_files, temp_dir):
         return output_path
         
     except subprocess.TimeoutExpired:
-        raise Exception("FFmpeg audio combination timed out after 2 minutes")
+        raise Exception("FFmpeg audio combination timed out after 5 minutes")
 
 def generate_ereader_frame(page_sentences, current_time, chapter_title, page_number, width, height, highlight_mode="sentence"):
     """
@@ -1329,8 +1331,8 @@ def split_into_sentences(text):
     normalized = re.sub(r'\s+', ' ', text).strip()
     # Split on sentence boundaries
     sentences = re.split(r'(?<=[.!?])\s+', normalized)
-    # Filter short fragments
-    return [s.strip() for s in sentences if len(s.strip()) > 5]
+    # Filter short fragments - reduced from >5 to >2 to preserve short sentences
+    return [s.strip() for s in sentences if len(s.strip()) > 2]
 
 def wrap_text_pillow(text, font, max_width):
     """Wrap text using Pillow's font metrics."""
@@ -1361,7 +1363,7 @@ def precompute_text_layout(text, width, height):
     Returns a list of lines with their Y positions.
     """
     fonts = load_ereader_fonts(width, height)
-    padding = 160  # Balanced padding for optimal layout
+    padding = 120
     max_width = width - (2 * padding)
     
     # Split into sentences
@@ -1372,13 +1374,14 @@ def precompute_text_layout(text, width, height):
     current_y = 0
     line_height = int(fonts['body_size'] * 1.6)
     
-    for sentence in sentences:
+    for sentence_idx, sentence in enumerate(sentences):  # Track sentence index
         lines = wrap_text_pillow(sentence, fonts['body'], max_width)
         for line in lines:
             wrapped_lines.append({
                 'text': line,
                 'y': current_y,
-                'sentence': sentence
+                'sentence': sentence,
+                'sentence_id': sentence_idx  # NEW: Track which sentence this line belongs to
             })
             current_y += line_height
     
@@ -1392,60 +1395,64 @@ def precompute_text_layout(text, width, height):
         'line_height': line_height
     }
 
-def calculate_static_page_scroll(current_time, srt_entries, layout, viewport_height, previous_scroll=None):
+def calculate_static_page_scroll(current_time, srt_entries, srt_map, layout, viewport_height, previous_scroll=None):
     """
-    Calculate scroll position based on which sentence is currently being spoken.
-    Page stays static until highlighted sentence approaches bottom, then smoothly scrolls.
+    Calculate scroll position based on which sentence is currently being spoken,
+    using the highly accurate pre-computed SRT-to-sentence map.
     """
-    if not srt_entries:
-        return 0
-    
-    # Find the currently active SRT entry
-    current_entry = None
-    for entry in srt_entries:
+    if not srt_entries or not srt_map:
+        return previous_scroll if previous_scroll is not None else 0
+
+    # 1. Find the currently active SRT entry index
+    active_srt_index = -1
+    for i, entry in enumerate(srt_entries):
         if entry['start'] <= current_time < entry['end']:
-            current_entry = entry
+            active_srt_index = i
             break
     
-    if not current_entry:
+    if active_srt_index == -1:
+        return previous_scroll if previous_scroll is not None else 0
+
+    # 2. Use the accurate map to find the line index to scroll to
+    line_indices_to_focus = srt_map.get(active_srt_index)
+    
+    if line_indices_to_focus is None:
         return previous_scroll if previous_scroll is not None else 0
     
-    # Find the line that matches this SRT entry
-    current_line_y = None
-    for line_data in layout['lines']:
-        srt_text_norm = normalize_text_for_matching(current_entry['text'])
-        sentence_norm = normalize_text_for_matching(line_data['sentence'])
+    # NEW: Handle list-based mapping (multi-sentence SRTs)
+    if isinstance(line_indices_to_focus, list):
+        # Focus on the first line of the group for scrolling
+        line_index_to_focus = line_indices_to_focus[0] if line_indices_to_focus else None
+        if line_index_to_focus is None:
+            return previous_scroll if previous_scroll is not None else 0
+    else:
+        # Backwards compatibility
+        line_index_to_focus = line_indices_to_focus
         
-        if len(srt_text_norm) >= 3 and (srt_text_norm in sentence_norm or sentence_norm in srt_text_norm):
-            current_line_y = line_data['y']
-            break
-    
-    if current_line_y is None:
+    # 3. Get the Y position of the target line from the pre-computed layout
+    # Safety check to ensure the index is valid
+    if line_index_to_focus >= len(layout['lines']):
         return previous_scroll if previous_scroll is not None else 0
+        
+    current_line_y = layout['lines'][line_index_to_focus]['y']
     
-    # Calculate scroll to keep current line in comfortable reading position
-    # Keep line in the upper-middle portion of screen (30% from top)
-    # This leaves room for text below while keeping it visible
-    target_position = viewport_height * 0.3
-    target_scroll = max(0, current_line_y - target_position)
+    # 4. Calculate scroll position to keep the current line comfortably in view
+    # Target position: 30% from the top of the screen
+    target_position_on_screen = viewport_height * 0.3
+    target_scroll = max(0, current_line_y - target_position_on_screen)
     
-    # Ensure we don't scroll past the end
-    max_scroll = max(0, layout['total_height'] - viewport_height + 240)  # +240 for header/footer
+    # 5. Ensure we don't scroll past the end of the content
+    # Add padding for header/footer visibility
+    max_scroll = max(0, layout['total_height'] - viewport_height + layout['padding'] * 2)
     target_scroll = min(target_scroll, max_scroll)
     
-    # Apply smooth transition if we have a previous scroll position
+    # 6. Apply smoothing to the scroll transition
     if previous_scroll is not None:
-        # Only scroll if the difference is significant (more than 50px)
-        scroll_diff = abs(target_scroll - previous_scroll)
-        if scroll_diff < 50:
-            return previous_scroll  # Keep page static
-        
-        # Smooth transition: ease towards target
-        # This creates a gradual scroll effect
-        ease_factor = 0.15  # 15% movement per frame
+        # Ease towards the target scroll position for a smooth effect
+        ease_factor = 0.1  # Slower, smoother ease
         scroll_y = previous_scroll + (target_scroll - previous_scroll) * ease_factor
     else:
-        scroll_y = target_scroll
+        scroll_y = target_scroll  # No smoothing for the very first frame
     
     return scroll_y
 
@@ -1544,6 +1551,30 @@ def normalize_text_for_matching(text):
     # Strip leading/trailing whitespace
     return text.strip()
 
+def split_srt_into_sentences(srt_text):
+    """
+    Split an SRT text entry into individual sentences.
+    Uses the same sentence boundary logic as the main text splitting.
+    
+    Args:
+        srt_text: The text content from an SRT entry
+        
+    Returns:
+        list: Individual sentences from the SRT entry
+    """
+    import re
+    
+    # Normalize whitespace
+    text = re.sub(r'\s+', ' ', srt_text).strip()
+    
+    # Split on sentence boundaries
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    
+    # Filter and clean
+    sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 2]
+    
+    return sentences if sentences else [srt_text]  # Return original if splitting fails
+
 def create_srt_to_sentence_map(srt_entries, all_lines_data):
     """
     Creates a mapping from SRT entry index to the best matching sentence index.
@@ -1561,62 +1592,58 @@ def create_srt_to_sentence_map(srt_entries, all_lines_data):
         return {}
     
     mapping = {}
-    # Keep track of SRTs that have already been part of a successful combined match
-    mapped_srts = set()
+    # REMOVED: mapped_srts - no longer needed with strict sequential mapping
+    # REMOVED: mapped_lines - no longer blocking duplicate mapping to allow repeated text highlighting
+    last_mapped_line = -1  # Track last mapped line for sequential enforcement
     
     for srt_index, srt_entry in enumerate(srt_entries):
-        # Skip if this SRT has already been mapped as part of a lookahead
-        if srt_index in mapped_srts:
-            continue
-            
+        # No need to check if already mapped - strict sequential means each SRT processed once
+        
+        # NEW: Strict sequential matching with small sliding window
+        # Removes lookahead concatenation and multi-sentence splitting to prevent skipping
+        
         best_match_score = 0.0
         best_line_index = -1
-        best_concatenation_count = 0  # How many SRTs we combined for the best match
         
-        # Look ahead up to 3 SRT entries (current + next 2) to form a phrase
-        concatenated_text = ""
-        for i in range(3):
-            lookahead_index = srt_index + i
-            if lookahead_index >= len(srt_entries):
-                break  # Reached the end of SRTs
+        # Define search window: next 5 lines only (prevents skipping)
+        window_size = 5
+        start_line = max(0, last_mapped_line)
+        end_line = min(start_line + window_size, len(all_lines_data))
+        
+        # Normalize SRT text
+        srt_text_norm = normalize_text_for_matching(srt_entry['text'])
+        
+        if len(srt_text_norm) < 3:
+            continue  # Skip very short SRT entries
+        
+        # Search within the window
+        for line_index in range(start_line, end_line):
+            line_data = all_lines_data[line_index]
+            line_text_norm = normalize_text_for_matching(line_data['text'])
+            sentence_norm = normalize_text_for_matching(line_data['sentence'])
             
-            # Add the next SRT piece to our test string
-            next_text = srt_entries[lookahead_index]['text']
-            concatenated_text = (concatenated_text + " " + next_text).strip()
+            # Calculate similarity
+            similarity = max(
+                difflib.SequenceMatcher(None, srt_text_norm, line_text_norm).ratio(),
+                difflib.SequenceMatcher(None, srt_text_norm, sentence_norm).ratio()
+            )
             
-            normalized_concatenated_text = normalize_text_for_matching(concatenated_text)
-            if len(normalized_concatenated_text) < 3:
-                continue
+            if similarity > best_match_score:
+                best_match_score = similarity
+                best_line_index = line_index
+        
+        # Map if we found a good match
+        if best_match_score > 0.6 and best_line_index >= last_mapped_line:
+            mapping[srt_index] = [best_line_index]
+            last_mapped_line = best_line_index
             
-            # Now, compare this combined text against all lines
-            for line_index, line_data in enumerate(all_lines_data):
-                line_text_norm = normalize_text_for_matching(line_data['text'])
-                sentence_norm = normalize_text_for_matching(line_data['sentence'])
-                
-                # Use the higher similarity score between the line and the full sentence
-                similarity = max(
-                    difflib.SequenceMatcher(None, normalized_concatenated_text, line_text_norm).ratio(),
-                    difflib.SequenceMatcher(None, normalized_concatenated_text, sentence_norm).ratio()
-                )
-                
-                if similarity > best_match_score:
-                    best_match_score = similarity
-                    best_line_index = line_index
-                    best_concatenation_count = i + 1  # Record how many SRTs we used (1, 2, or 3)
+            print(f"  SRT {srt_index} -> Line {best_line_index} (score: {best_match_score:.2f})")
+        else:
+            # No good match within window - might be extra narration, sound effect, etc.
+            # Don't map it, just continue
+            print(f"  SRT {srt_index} -> No match (best score: {best_match_score:.2f})")
 
-        # If we found a good match (above the threshold)
-        if best_match_score > 0.6:
-            # Map all the SRTs that were part of our successful concatenation
-            for i in range(best_concatenation_count):
-                mapped_srt_index = srt_index + i
-                mapping[mapped_srt_index] = best_line_index
-                mapped_srts.add(mapped_srt_index)
-            
-            # Improved logging to show what was matched
-            final_matched_text = " ".join([srt_entries[srt_index + i]['text'] for i in range(best_concatenation_count)])
-            print(f"  SRT {srt_index}..{srt_index + best_concatenation_count - 1} ('{final_matched_text[:50]}...') -> Line {best_line_index} (score: {best_match_score:.2f})")
-
-    print(f"DEBUG: Similarity mapping created: {len(mapping)} of {len(srt_entries)} SRT entries mapped (threshold: 0.6)")
+    print(f"DEBUG: Sequential mapping created: {len(mapping)} of {len(srt_entries)} SRT entries mapped")
     return mapping
 
 def check_if_current_sentence_fallback(line_data, current_time, srt_entries):
@@ -1663,22 +1690,28 @@ def check_if_current_sentence_fallback(line_data, current_time, srt_entries):
     
     return False
 
-def check_if_current_sentence_with_mapping(line_index, current_time, srt_entries, srt_map):
+def check_if_current_sentence_with_mapping(line_index, current_time, srt_entries, srt_map, all_lines_data=None, fallback_sentence_id=None):
     """
     Check if this line should be highlighted using pre-computed similarity mapping.
-    This is extremely fast since it's just a lookup.
+    Returns (is_highlighted, active_sentence_id) where:
+    - is_highlighted: True if this line should be highlighted
+    - active_sentence_id: The currently active sentence ID (or None)
+    
+    If no active SRT, uses fallback_sentence_id to persist last highlight.
     
     Args:
         line_index: Index of the current line in layout
         current_time: Current video timestamp
         srt_entries: List of all SRT entries
         srt_map: Pre-computed mapping of SRT index -> line index
+        all_lines_data: Optional list of all line data with sentence_id
+        fallback_sentence_id: Sentence ID to use when no SRT is active (persistence)
     
     Returns:
-        bool: True if this line should be highlighted now
+        tuple: (is_highlighted: bool, active_sentence_id: int or None)
     """
     if not srt_entries or not srt_map:
-        return False
+        return False, None
     
     # Find the currently active SRT entry
     active_srt_index = -1
@@ -1687,15 +1720,62 @@ def check_if_current_sentence_with_mapping(line_index, current_time, srt_entries
             active_srt_index = i
             break  # Use first match (should only be one active at a time)
     
-    # No active SRT entry
+    # NEW: If no active SRT, use fallback (persist previous highlight)
     if active_srt_index == -1:
-        return False
+        if fallback_sentence_id is not None and all_lines_data and line_index < len(all_lines_data):
+            current_line_data = all_lines_data[line_index]
+            current_sentence_id = current_line_data.get('sentence_id')
+            return current_sentence_id == fallback_sentence_id, fallback_sentence_id
+        return False, None
     
     # Look up the corresponding line index from pre-computed map
-    line_index_to_highlight = srt_map.get(active_srt_index)
+    mapped_line_indices = srt_map.get(active_srt_index)
     
-    # Check if this line matches the mapped line
-    return line_index == line_index_to_highlight
+    if mapped_line_indices is None:
+        # No mapping, persist fallback if available
+        if fallback_sentence_id is not None and all_lines_data and line_index < len(all_lines_data):
+            current_line_data = all_lines_data[line_index]
+            current_sentence_id = current_line_data.get('sentence_id')
+            return current_sentence_id == fallback_sentence_id, fallback_sentence_id
+        return False, None
+    
+    # NEW: Handle both single line (list with one element) and multiple lines (list)
+    if not isinstance(mapped_line_indices, list):
+        # Backwards compatibility: convert to list
+        mapped_line_indices = [mapped_line_indices]
+    
+    # Check if current line matches ANY of the mapped lines
+    for mapped_line_index in mapped_line_indices:
+        if not all_lines_data:
+            # Fallback: Check if this line matches the mapped line
+            if line_index == mapped_line_index:
+                return True, None
+            continue
+        
+        if mapped_line_index >= len(all_lines_data):
+            continue
+        
+        mapped_line_data = all_lines_data[mapped_line_index]
+        active_sentence_id = mapped_line_data.get('sentence_id')
+        
+        if active_sentence_id is None:
+            # Fallback: just check if line indices match
+            if line_index == mapped_line_index:
+                return True, None
+            continue
+        
+        # Check if current line belongs to the same sentence
+        if line_index >= len(all_lines_data):
+            continue
+        
+        current_line_data = all_lines_data[line_index]
+        current_sentence_id = current_line_data.get('sentence_id')
+        
+        # Highlight if both lines belong to the same sentence
+        if current_sentence_id == active_sentence_id:
+            return True, active_sentence_id
+    
+    return False, None  # No match found
 
 def check_if_current_sentence_sequential(line_data, line_idx, current_time, srt_entries, srt_to_sentence_map):
     """
@@ -1755,15 +1835,13 @@ def draw_highlight_box(draw, text, font, x, y):
     draw.rectangle(highlight_box, fill='#FFE066', outline=None)
 
 def draw_chapter_info(draw, fonts, book_title, chapter_title, author, width, height, padding):
-    """Draw chapter information with centered chapter title."""
-    # Draw chapter title centered at top of frame
+    """Draw chapter information with chapter title on right side."""
+    # Draw chapter title on the right side (top)
     chapter_bbox = fonts['title'].getbbox(chapter_title)
     chapter_width = chapter_bbox[2] - chapter_bbox[0]
-    chapter_height = chapter_bbox[3] - chapter_bbox[1]
-    chapter_x = (width - chapter_width) // 2  # Center horizontally
-    chapter_y = 50  # Fixed position at top of frame (50px from top)
+    chapter_x = width - padding - chapter_width
     draw.text(
-        (chapter_x, chapter_y),
+        (chapter_x, padding),
         chapter_title,
         font=fonts['title'],
         fill='#333'
@@ -1776,60 +1854,27 @@ def create_scroll_frame(
     layout, scroll_y, current_time, srt_entries,
     book_title, chapter_title, author,
     width, height, highlight_mode,  # Changed from enable_highlight
-    srt_to_sentence_map=None  # Sequential mapping to prevent duplicate highlights
+    srt_to_sentence_map=None,  # Sequential mapping to prevent duplicate highlights
+    last_highlighted_sentence_id=None  # NEW: Track previous highlight to prevent flickering
 ):
     """
     Create a single frame with scrolled text.
+    Returns: (frame: Image, current_highlighted_sentence_id: int or None)
     """
-    # Create image with background from file
-    background_path = r"C:\Users\Rajveer\Vite-reader\youtube-video-generator\image.png"
-    try:
-        # Load and resize background image to fill entire video
-        bg_img = Image.open(background_path)
-        # Resize to fill the video dimensions (stretch to fit)
-        img = bg_img.resize((width, height), Image.Resampling.LANCZOS)
-        # Convert to RGB if needed (in case it has alpha channel)
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
-    except Exception as e:
-        print(f"Warning: Could not load background image: {e}")
-        # Fallback to solid color
-        img = Image.new('RGB', (width, height), color='#f8f9fa')
-    
+    # Create image
+    img = Image.new('RGB', (width, height), color='#f8f9fa')
     draw = ImageDraw.Draw(img)
+    
+    # Draw gradient background (optional)
+    gradient = Image.new('RGB', (width, height), '#f8f9fa')
+    img.paste(gradient)
     
     # Calculate header offset
     header_height = int(layout['fonts']['title_size'] * 0.8) + 20
     text_start_y = layout['padding'] + header_height
     
-    # Add semi-transparent mask behind text area (#FAF3E0 at 65% opacity with rounded corners)
-    # Calculate text area dimensions with inner padding for breathing room
-    inner_padding = 60  # Extra padding inside the mask for text to breathe
-    text_area_left = layout['padding'] - inner_padding
-    text_area_top = layout['padding'] + header_height - inner_padding
-    text_area_right = width - layout['padding'] + inner_padding
-    text_area_bottom = height - layout['padding'] + inner_padding
-
-    # Ensure mask doesn't go outside video bounds
-    text_area_left = max(0, text_area_left)
-    text_area_top = max(layout['padding'] + header_height - 20, text_area_top)  # Keep below chapter title
-    text_area_right = min(width, text_area_right)
-    text_area_bottom = min(height, text_area_bottom)
-
-    # Create a transparent overlay for the rounded rectangle
-    mask_overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))  # Fully transparent
-    mask_draw = ImageDraw.Draw(mask_overlay)
-
-    # Draw rounded rectangle behind text area
-    corner_radius = 30  # Rounded corner radius
-    mask_draw.rounded_rectangle(
-        [(text_area_left, text_area_top), (text_area_right, text_area_bottom)],
-        radius=corner_radius,
-        fill=(250, 243, 224, 166)  # #FAF3E0 with 65% opacity (166/255)
-    )
-
-    # Paste the mask onto the main image
-    img.paste(mask_overlay, (0, 0), mask_overlay)
+    # NEW: Track which sentence is highlighted in this frame
+    current_highlighted_sentence_id = last_highlighted_sentence_id
     
     # Draw visible text lines
     for line_idx, line_data in enumerate(layout['lines']):
@@ -1841,11 +1886,19 @@ def create_scroll_frame(
             if highlight_mode == 'sentence':
                 # Use pre-computed mapping if available, otherwise fallback
                 if srt_to_sentence_map is not None:
-                    is_current = check_if_current_sentence_with_mapping(
-                        line_idx, current_time, srt_entries, srt_to_sentence_map
+                    # NEW: Pass fallback_sentence_id and get active sentence back
+                    is_current, active_sentence_id = check_if_current_sentence_with_mapping(
+                        line_idx, current_time, srt_entries, srt_to_sentence_map,
+                        layout['lines'],  # Pass all_lines_data for sentence_id matching
+                        last_highlighted_sentence_id  # NEW: Fallback to persist highlight
                     )
+                    
+                    # NEW: Update tracking once if we found a new active sentence (not per line)
+                    if active_sentence_id is not None and active_sentence_id != current_highlighted_sentence_id:
+                        current_highlighted_sentence_id = active_sentence_id
                 else:
                     is_current = check_if_current_sentence_fallback(line_data, current_time, srt_entries)
+                    # Note: fallback doesn't provide sentence_id, so we can't update tracking
                 
                 if is_current:
                     draw_highlight_box(draw, line_data['text'], 
@@ -1863,11 +1916,12 @@ def create_scroll_frame(
                 fill='#1a1a1a'
             )
     
-    # Draw chapter title LAST (after mask and text) to ensure it's always visible on top
+    # Draw chapter info (header/footer)
     draw_chapter_info(draw, layout['fonts'], book_title, chapter_title, 
                      author, width, height, layout['padding'])
     
-    return img
+    # NEW: Return both frame and current highlight state
+    return img, current_highlighted_sentence_id
 
 def generate_smart_scroll_frames(
     layout, srt_entries, total_duration,
@@ -1912,11 +1966,14 @@ def generate_smart_scroll_frames(
     # Track previous scroll position for smooth transitions
     previous_scroll = 0
     
+    # NEW: Track last highlighted sentence to prevent flickering
+    last_highlighted_sentence_id = None
+    
     for idx, current_time in enumerate(key_frame_times):
         # Calculate scroll position based on current sentence (static page with smart scroll)
         if srt_entries and highlight_mode != 'none':
             scroll_y = calculate_static_page_scroll(
-                current_time, srt_entries, layout, height, previous_scroll
+                current_time, srt_entries, srt_to_sentence_map, layout, height, previous_scroll
             )
             previous_scroll = scroll_y  # Update for next frame
         else:
@@ -1927,11 +1984,12 @@ def generate_smart_scroll_frames(
             )
         
         # Generate frame with highlighting check at this exact time
-        frame = create_scroll_frame(
+        frame, last_highlighted_sentence_id = create_scroll_frame(
             layout, scroll_y, current_time, srt_entries,
             book_title, chapter_title, author,
             width, height, highlight_mode,
-            srt_to_sentence_map  # Pass the mapping
+            srt_to_sentence_map,  # Pass the mapping
+            last_highlighted_sentence_id  # NEW: Pass previous highlight
         )
         
         # Save frame with sequential numbering

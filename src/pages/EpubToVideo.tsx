@@ -72,9 +72,12 @@ const EpubToVideo: React.FC = () => {
   };
 
   const adjustSrtTimestamps = (srtContent: string, offsetSeconds: number, startIndex: number): string => {
+    console.log(`[adjustSrtTimestamps] Called with offset=${offsetSeconds.toFixed(3)}s, startIndex=${startIndex}`);
+    
     const lines = srtContent.split('\n');
     let adjustedLines = [];
     let currentIndex = startIndex;
+    let timestampCount = 0;
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -83,15 +86,25 @@ const EpubToVideo: React.FC = () => {
         adjustedLines.push(currentIndex.toString());
         currentIndex++;
       } else if (line.includes('-->')) {
+        timestampCount++;
         const [startTime, endTime] = line.split('-->').map(t => t.trim());
-        const newStartSeconds = parseTimeToSeconds(startTime) + offsetSeconds;
-        const newEndSeconds = parseTimeToSeconds(endTime) + offsetSeconds;
+        const originalStartSeconds = parseTimeToSeconds(startTime);
+        const originalEndSeconds = parseTimeToSeconds(endTime);
+        const newStartSeconds = originalStartSeconds + offsetSeconds;
+        const newEndSeconds = originalEndSeconds + offsetSeconds;
+        
+        if (timestampCount === 1) {
+          // Log first timestamp for debugging
+          console.log(`[adjustSrtTimestamps] First entry: ${startTime} -> ${formatTime(newStartSeconds)} (offset: ${offsetSeconds.toFixed(3)}s)`);
+        }
+        
         adjustedLines.push(`${formatTime(newStartSeconds)} --> ${formatTime(newEndSeconds)}`);
       } else {
         adjustedLines.push(line);
       }
     }
     
+    console.log(`[adjustSrtTimestamps] Adjusted ${timestampCount} timestamp entries`);
     return adjustedLines.join('\n');
   };
 
@@ -203,10 +216,19 @@ const EpubToVideo: React.FC = () => {
             { includeSrt: true, includeTiming: true }
           );
 
-          console.log(`[Video Generation] Line ${i + 1} results:`);
+          console.log(`[Video Generation] Line ${i + 1} Full Cast response:`);
           console.log(`  - Audio blob size: ${blob.size} bytes`);
-          console.log(`  - Duration: ${duration || 'undefined'} seconds`);
+          console.log(`  - Duration from header: ${duration || 'undefined'} seconds`);
           console.log(`  - SRT content length: ${srtContent ? srtContent.length : 'undefined'} characters`);
+          
+          // Parse and log the first SRT entry to verify it starts at 0.0
+          if (srtContent) {
+            const firstTimestamp = srtContent.match(/(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/);
+            if (firstTimestamp) {
+              console.log(`  - First SRT timestamp: ${firstTimestamp[1]} --> ${firstTimestamp[2]}`);
+              console.log(`  - First SRT start (seconds): ${parseTimeToSeconds(firstTimestamp[1])}s`);
+            }
+          }
           console.log(`  - SRT preview: ${srtContent ? srtContent.substring(0, 100) + '...' : 'none'}`);
 
           if (!blob || blob.size === 0) {
@@ -218,12 +240,26 @@ const EpubToVideo: React.FC = () => {
           durations.push(duration || 0);
 
           if (srtContent && duration) {
+            console.log(`[Video Generation] BEFORE ADJUSTMENT - Line ${i + 1}:`);
+            console.log(`  - Current cumulative duration: ${cumulativeDuration.toFixed(3)}s`);
+            console.log(`  - This chunk's duration: ${duration.toFixed(3)}s`);
+            console.log(`  - Raw SRT preview: ${srtContent.substring(0, 200)}`);
+            
             const adjustedSrt = adjustSrtTimestamps(srtContent, cumulativeDuration, i + 1);
+            
+            console.log(`[Video Generation] AFTER ADJUSTMENT - Line ${i + 1}:`);
+            console.log(`  - Adjusted SRT preview: ${adjustedSrt.substring(0, 200)}`);
+            console.log(`  - Next cumulative will be: ${(cumulativeDuration + duration).toFixed(3)}s`);
+            
             combinedSrt += adjustedSrt + '\n\n';
             cumulativeDuration += duration;
             console.log(`[Video Generation] Line ${i + 1} added to cumulative: duration=${duration}s, total=${cumulativeDuration.toFixed(2)}s`);
+          } else if (duration) {
+            // Still add to cumulative duration even if SRT is missing
+            cumulativeDuration += duration;
+            console.log(`[Video Generation] Line ${i + 1} added to cumulative (no SRT): duration=${duration}s, total=${cumulativeDuration.toFixed(2)}s`);
           } else {
-            console.warn(`[Video Generation] Line ${i + 1} missing data: duration=${duration}, srtContent=${!!srtContent}`);
+            console.warn(`[Video Generation] Line ${i + 1} missing both data: duration=${duration}, srtContent=${!!srtContent}`);
           }
         } catch (error) {
           console.error(`[Video Generation] Failed to generate audio for line ${i + 1}:`, error);
