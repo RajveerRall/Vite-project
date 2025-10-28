@@ -1,0 +1,18 @@
+{
+  "bookTitle": "The Way of Kings.epub",
+  "chapter": "Endnote",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 1,
+  "textLength": 1257,
+  "processingTime": 2194,
+  "timestamp": "2025-10-28T07:42:41.685Z",
+  "scenes": [
+    {
+      "anchor_text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.”\nThe above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem.",
+      "scene_description": "A depiction of the dying highstorm illuminating the silent landscape. The poem speaks of a silence above and below.",
+      "image_prompt": "Cinematic digital painting, fading highstorm illuminating a desolate, rocky plain, jagged rock formations, twisted withered trees struggling against the wind, storm clouds breaking apart revealing glimpses of a pale sky above, Epic illustration, painterly brushwork, stylized realism, highly detailed, muted tones with dramatic contrasts of light and shadow, high-angle wide shot emphasizing the vastness and desolation, none",
+      "mood": "desolate"
+    }
+  ]
+}

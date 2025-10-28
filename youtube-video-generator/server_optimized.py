@@ -14,6 +14,11 @@ from typing import List
 
 app = FastAPI()
 
+def hex_to_rgb(hex_color):
+    """Convert hex color to RGB tuple."""
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
 # CORS for your frontend
 app.add_middleware(
     CORSMiddleware,
@@ -1388,7 +1393,12 @@ def precompute_text_layout(text, width, height):
     """
     fonts = load_ereader_fonts(width, height)
     padding = 120
-    max_width = width - (2 * padding)
+    
+    # Account for container padding in text width calculation
+    # Container has 8% padding on each side, plus internal padding
+    container_padding = int(width * 0.08)
+    effective_width = width - (2 * container_padding)
+    max_width = effective_width - (2 * padding)
     
     # Split into sentences
     sentences = split_into_sentences(text)
@@ -2062,9 +2072,44 @@ def create_scroll_frame(
     gradient = Image.new('RGB', (width, height), '#f8f9fa')
     img.paste(gradient)
     
+    # NEW: Create semi-transparent container overlay (centered with padding)
+    container_padding = int(width * 0.08)  # 8% padding on sides
+    container_margin_y = int(height * 0.12)  # 12% padding top/bottom
+    
+    container_width = width - (container_padding * 2)
+    container_height = height - (container_margin_y * 2)
+    container_x = container_padding
+    container_y = container_margin_y
+    
+    # Create a semi-transparent overlay
+    overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    overlay_draw = ImageDraw.Draw(overlay)
+    
+    # Draw rounded rectangle for container
+    corner_radius = int(width * 0.02)  # 2% of width for rounded corners
+    container_color = (*hex_to_rgb('#F0F0E3'), int(255 * 0.65))  # 65% opacity
+    
+    overlay_draw.rounded_rectangle(
+        [(container_x, container_y), 
+         (container_x + container_width, container_y + container_height)],
+        radius=corner_radius,
+        fill=container_color
+    )
+    
+    # Composite the overlay onto the main image
+    img = Image.alpha_composite(img.convert('RGBA'), overlay).convert('RGB')
+    draw = ImageDraw.Draw(img)  # Recreate draw object after conversion
+    
+    # Calculate container bounds for clipping
+    container_top = container_margin_y
+    container_bottom = height - container_margin_y
+    
     # Calculate header offset
     header_height = int(layout['fonts']['title_size'] * 0.8) + 20
     text_start_y = layout['padding'] + header_height
+    
+    # Adjust text padding to respect container margins
+    text_padding_x = layout['padding'] + container_padding
     
     # NEW: Track which sentence is highlighted in this frame
     current_highlighted_sentence_id = last_highlighted_sentence_id
@@ -2073,8 +2118,8 @@ def create_scroll_frame(
     for line_idx, line_data in enumerate(layout['lines']):
         line_y = line_data['y'] - scroll_y + text_start_y
         
-        # Only draw lines in viewport
-        if -50 < line_y < height + 50:
+        # Only draw lines within container bounds
+        if container_top < line_y < container_bottom:
             # Draw highlight based on mode
             if highlight_mode == 'sentence':
                 # Use pre-computed mapping if available, otherwise fallback
@@ -2096,14 +2141,14 @@ def create_scroll_frame(
                 if is_current:
                     draw_highlight_box(draw, line_data['text'], 
                                      layout['fonts']['body'], 
-                                     layout['padding'], line_y)
+                                     text_padding_x, line_y)
             elif highlight_mode == 'word':
                 # TODO: Implement word-level highlighting
                 pass
             
-            # Draw text
+            # Draw text (adjusted for container padding)
             draw.text(
-                (layout['padding'], line_y),
+                (text_padding_x, line_y),
                 line_data['text'],
                 font=layout['fonts']['body'],
                 fill='#1a1a1a'

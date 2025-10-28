@@ -1,0 +1,30 @@
+{
+  "bookTitle": "The Way of Kings.epub",
+  "chapter": "74: GHOSTBLOOD",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 3,
+  "textLength": 5457,
+  "processingTime": 4908,
+  "timestamp": "2025-10-27T19:48:38.369Z",
+  "scenes": [
+    {
+      "anchor_text": "Shallan rubbed her eyes. She’d read through Jasnah’s notes—at least the most important ones. Those alone had made a large stack. She still sat in the alcove, though they’d sent a parshman to get her a blanket to wrap around herself, covering up the hospital robe.",
+      "scene_description": "Shallan, wrapped in a blanket, sits surrounded by a mountain of Jasnah's research notes within a stone alcove of the Kharbranth hospital. She is exhausted but alert, having just grasped a critical revelation.",
+      "image_prompt": "Cinematic digital painting, a young woman reading amidst a mountain of scrolls and books, stone alcove in a vast library within the city of Kharbranth, ancient scholarly setting, muted color palette, soft diffused light from unseen windows, high angle shot to show scale of books, Shallan: young woman with fiery red hair, pale skin, wrapped in a thick woven blanket",
+      "mood": "pensive"
+    },
+    {
+      "anchor_text": "“They serve our food,” Jasnah continued. “They work our storehouses. They tend our children. There isn’t a village in Roshar that doesn’t have some parshmen. We ignore them; we just expect them to be there, doing as they do. Working without complaint.",
+      "scene_description": "A wide shot showcasing various scenes of parshmen performing mundane tasks within a bustling Alethi marketplace. The scene emphasizes their ubiquitous presence and integration into everyday life.",
+      "image_prompt": "Cinematic digital painting, Parshmen performing everyday tasks, a sprawling Alethi marketplace bustling with activity, Roshar fantasy setting, painterly brushwork, soft natural lighting, wide angle composition showing marketplace scope, Parshmen: various submissive postures, dull grey skin, wearing simple woven clothing",
+      "mood": "uneasy"
+    },
+    {
+      "anchor_text": "She set the sheet down. On it was a symbol of three diamonds in a pattern, overlapping one another. It was the same symbol that Nan Balat had shown her weeks ago. The symbol worn by Luesh, her father’s steward, the man who had known how to use the Soulcaster. The symbol worn by the men who had come, pressuring her family to return it.",
+      "scene_description": "Jasnah's dimly lit study, with the Ghostblood symbol prominently displayed on a piece of parchment. The symbol overlaps, hinting at hidden connections and danger, a connection Shallan recognizes.",
+      "image_prompt": "Cinematic digital painting, a Ghostblood symbol on a parchment in a study, Jasnah's study with overflowing bookshelves and scattered papers, clandestine atmosphere, dramatic chiaroscuro lighting, close up, ominous tones, Symbol: three overlapping diamonds",
+      "mood": "ominous"
+    }
+  ]
+}
