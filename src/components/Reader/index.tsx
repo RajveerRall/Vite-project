@@ -272,7 +272,7 @@ const Reader: React.FC = () => {
           text: fullText,
           bookTitle: bookTitle || 'Untitled',
           chapter: currentChapterTitle || 'Chapter',
-          maxScenes: Math.min(10, Math.ceil(fullText.length / 2000)), // 1 scene per 2000 chars, max 10
+          maxScenes: Math.ceil(fullText.length / 1500), // Let LLM decide based on content density (~1 scene per 1500 chars, no hard limit)
           bookTheme: 'atmospheric narrative',
           colorPalette: 'muted tones with dramatic contrasts',
           videoFormat: videoFormat

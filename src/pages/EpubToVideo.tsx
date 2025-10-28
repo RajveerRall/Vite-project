@@ -203,7 +203,7 @@ const EpubToVideo: React.FC = () => {
             text: chapter.content,
             bookTitle: uploadedFile?.name || 'Unknown',
             chapter: chapter.title,
-            maxScenes: Math.min(10, Math.ceil(chapter.content.length / 2000)),
+            maxScenes: Math.ceil(chapter.content.length / 1500), // Let LLM decide optimal scene count (no hard limit)
             bookTheme: 'atmospheric narrative',
             colorPalette: 'muted tones with dramatic contrasts',
             videoFormat: settings.format

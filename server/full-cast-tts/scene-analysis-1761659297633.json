@@ -1,0 +1,30 @@
+{
+  "bookTitle": "The Way of Kings.epub",
+  "chapter": "Endnote",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 1,
+  "textLength": 1257,
+  "processingTime": 6203,
+  "timestamp": "2025-10-28T13:48:17.633Z",
+  "scenes": [
+    {
+      "anchor_text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.”\nThe above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward  but is also divisible into five distinct smaller sections, each of which makes a complete thought.",
+      "scene_description": "A colossal highstorm slowly dissipates over a vast, rocky plateau, revealing faint stars above, symbolizing the 'silence above' mentioned in the ketek.",
+      "image_prompt": "Cinematic digital painting, dying highstorm revealing stars, Rosharan rocky plateau stretching to the horizon, monumental scale, ethereal glow, painterly brushwork, stylized realism, atmospheric narrative, muted blues and purples with stark white lightning flashes, backlighting from the emerging stars, wide-angle composition emphasizing the vastness, no characters present",
+      "mood": "awe"
+    },
+    {
+      "anchor_text": "The complete poem must form a sentence that is grammatically correct and  poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry.",
+      "scene_description": "An ancient Vorin library with towering shelves of scrolls and tablets, bathed in soft light filtering through arched windows, representing the accumulated knowledge and reverence for poetry.",
+      "image_prompt": "Cinematic digital painting, interior of an ancient Vorin library, towering shelves filled with scrolls and tablets, stained glass windows with Vorin glyphs, stylized architectural details, painterly brushwork, atmospheric narrative, muted browns and golds, soft diffused light filtering through windows creating a sense of peace, medium shot showcasing the immensity of the library, no characters present",
+      "mood": "reverent"
+    },
+    {
+      "anchor_text": "We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms.",
+      "scene_description": "A panoramic view of a vast chasm landscape on Roshar, with distant storm clouds brewing on the horizon and a faint, reflective light emanating from the depths below, hinting at the 'silence below'.",
+      "image_prompt": "Cinematic digital painting, vast Rosharan chasm landscape, distant highstorm approaching, subtle light emanating from the chasm depths, painterly brushwork, stylized realism, atmospheric perspective, muted grays and blues with hints of orange in the storm clouds, dramatic lighting with strong contrasts, wide panoramic composition emphasizing the scale of the landscape, no characters present",
+      "mood": "mysterious"
+    }
+  ]
+}

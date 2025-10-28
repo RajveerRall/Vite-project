@@ -12,6 +12,7 @@ import re
 import difflib
 from typing import List
 from multiprocessing import Pool, cpu_count
+import numpy as np
 
 app = FastAPI()
 
@@ -1520,11 +1521,15 @@ def calculate_static_page_scroll(current_time, srt_entries, srt_map, layout, vie
     max_scroll = max(0, layout['total_height'] - effective_viewport + layout['padding'] * 2)
     target_scroll = min(target_scroll, max_scroll)
     
-    # 6. Apply smoothing to the scroll transition
+    # 6. Apply smoothing to the scroll transition with snap-to-target
     if previous_scroll is not None:
         # Ease towards the target scroll position for a smooth effect
-        ease_factor = 0.1  # Slower, smoother ease
+        ease_factor = 0.15  # Moderate ease speed
         scroll_y = previous_scroll + (target_scroll - previous_scroll) * ease_factor
+        
+        # Snap to target when within 2 pixels (eliminates wiggle at end of transition)
+        if abs(scroll_y - target_scroll) < 2:
+            scroll_y = target_scroll
     else:
         scroll_y = target_scroll  # No smoothing for the very first frame
     
@@ -2271,7 +2276,7 @@ def create_scroll_frame(
 
 def generate_frame_worker(args):
     """
-    Worker function for parallel frame generation.
+    Worker function for parallel frame generation (saves to disk).
     Must be top-level function for pickling.
     
     Args:
@@ -2280,34 +2285,32 @@ def generate_frame_worker(args):
                         srt_to_sentence_map, scene_timings, frames_dir)
     
     Returns:
-        (frame_idx, frames_dir): Tuple for ordering results
+        (frame_idx, frame_path): Tuple of index and path to saved frame
     """
     try:
-        # Unpack arguments
+        # Unpack arguments - remove use_pipe_mode
         (frame_idx, current_time, scroll_y, srt_entries, layout, 
          book_title, chapter_title, author, width, height, highlight_mode,
          srt_to_sentence_map, scene_timings, frames_dir) = args
         
-        # Generate frame (reuse existing create_scroll_frame function)
-        # Note: We don't pass last_highlighted_sentence_id because in parallel 
-        # processing we generate frames independently
+        # Generate frame
         frame, _ = create_scroll_frame(
             layout, scroll_y, current_time, srt_entries,
             book_title, chapter_title, author,
             width, height, highlight_mode,
-            srt_to_sentence_map,  # Pass the mapping
+            srt_to_sentence_map,
             None,  # last_highlighted_sentence_id (not needed in parallel)
             scene_timings
         )
         
-        # Save frame with sequential numbering
+        # Save frame to disk
         frame_path = os.path.join(frames_dir, f"frame_{frame_idx:06d}.png")
         frame.save(frame_path, 'PNG', optimize=False)
         
-        return (frame_idx, frames_dir)
+        return (frame_idx, frame_path)
     except Exception as e:
         print(f"Error in frame worker {frame_idx}: {e}")
-        return (frame_idx, frames_dir)
+        return (frame_idx, None)
 
 def generate_smart_scroll_frames(
     layout, srt_entries, total_duration,
@@ -2375,7 +2378,7 @@ def generate_smart_scroll_frames(
                     layout['total_height'], height
                 )
             
-            # Prepare task args for worker
+            # Prepare task args for worker (disk mode)
             task_args = (
                 idx, current_time, scroll_y, srt_entries, layout,
                 book_title, chapter_title, author, width, height, highlight_mode,
@@ -2755,17 +2758,17 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
         )
         print(f"✓ Preprocessed and prepared {len(scene_timings)} scene images for video overlay")
     
-    # Generate frames with pre-computed mapping
+    # STEP 1: Generate frames to disk (using parallel processing where possible)
     frames_dir, num_keyframes = generate_smart_scroll_frames(
         layout, srt_entries, duration,
         book_title, chapter_title, author,
-        width, height, highlight_mode,  # Pass mode
-        fps,  # Pass fps
-        srt_to_sentence_map,  # Pass the mapping
-        scene_timings  # NEW: Pass scene timings
+        width, height, highlight_mode,
+        fps,
+        srt_to_sentence_map,
+        scene_timings
     )
     
-    # Encode with FFmpeg interpolation
+    # STEP 2: Encode video using the correct interpolation method
     print("Encoding video with FFmpeg interpolation...")
     return create_video_with_ffmpeg_interpolated(
         frames_dir, audio_path, width, height, fps, num_keyframes, duration, 23
