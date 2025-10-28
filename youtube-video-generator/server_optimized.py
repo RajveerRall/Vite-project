@@ -11,6 +11,7 @@ import json
 import re
 import difflib
 from typing import List
+from multiprocessing import Pool, cpu_count
 
 app = FastAPI()
 
@@ -1388,8 +1389,8 @@ def wrap_text_pillow(text, font, max_width):
 
 def precompute_text_layout(text, width, height):
     """
-    Pre-compute all text positions for smooth scrolling.
-    Returns a list of lines with their Y positions.
+    Pre-compute all text positions for continuous paragraph flow.
+    Multiple sentences can appear on the same line naturally (like real paragraphs).
     """
     fonts = load_ereader_fonts(width, height)
     padding = 120
@@ -1400,24 +1401,60 @@ def precompute_text_layout(text, width, height):
     effective_width = width - (2 * container_padding)
     max_width = effective_width - (2 * padding)
     
-    # Split into sentences
+    # Split into sentences but keep them for mapping
     sentences = split_into_sentences(text)
     
-    # Wrap each sentence and track Y positions
+    # Join all sentences into continuous text (natural paragraph flow)
+    full_text = ' '.join(sentences)
+    
+    # Wrap the ENTIRE text as one continuous paragraph
+    wrapped_lines_text = wrap_text_pillow(full_text, fonts['body'], max_width)
+    
+    # Build sentence position map (character positions in full_text)
+    sentence_char_positions = []
+    cumulative_pos = 0
+    for sentence in sentences:
+        sentence_char_positions.append({
+            'start': cumulative_pos,
+            'end': cumulative_pos + len(sentence),
+            'text': sentence,
+            'index': len(sentence_char_positions)
+        })
+        cumulative_pos += len(sentence) + 1  # +1 for space between sentences
+    
+    # Map each wrapped line back to source sentence(s)
     wrapped_lines = []
     current_y = 0
-    line_height = int(fonts['body_size'] * 1.6)
+    line_height = int(fonts['body_size'] * 2.2)  # Increased from 1.4 to 2.2 for better readability (~30px more spacing)
+    char_position = 0
     
-    for sentence_idx, sentence in enumerate(sentences):  # Track sentence index
-        lines = wrap_text_pillow(sentence, fonts['body'], max_width)
-        for line in lines:
-            wrapped_lines.append({
-                'text': line,
-                'y': current_y,
-                'sentence': sentence,
-                'sentence_id': sentence_idx  # NEW: Track which sentence this line belongs to
-            })
-            current_y += line_height
+    for line_text in wrapped_lines_text:
+        line_end_pos = char_position + len(line_text)
+        
+        # Find which sentence(s) this line contains
+        # A line might span multiple sentences!
+        sentences_in_line = []
+        for sent_info in sentence_char_positions:
+            # Check if this sentence overlaps with current line's character range
+            if not (line_end_pos <= sent_info['start'] or char_position >= sent_info['end']):
+                sentences_in_line.append(sent_info['index'])
+        
+        # Use the first sentence for primary mapping (backward compatibility)
+        primary_sentence_id = sentences_in_line[0] if sentences_in_line else 0
+        primary_sentence_text = sentences[primary_sentence_id] if primary_sentence_id < len(sentences) else ""
+        
+        wrapped_lines.append({
+            'text': line_text,
+            'y': current_y,
+            'sentence': primary_sentence_text,  # Primary sentence for this line
+            'sentence_id': primary_sentence_id,  # Primary sentence ID
+            'all_sentence_ids': sentences_in_line,  # All sentences in this line (for multi-sentence lines)
+            'char_start': char_position,
+            'char_end': line_end_pos
+        })
+        
+        current_y += line_height
+        char_position = line_end_pos + 1  # +1 for space between wrapped lines
     
     total_height = current_y
     
@@ -1426,7 +1463,8 @@ def precompute_text_layout(text, width, height):
         'total_height': total_height,
         'fonts': fonts,
         'padding': padding,
-        'line_height': line_height
+        'line_height': line_height,
+        'sentences': sentences  # Keep original sentences for reference
     }
 
 def calculate_static_page_scroll(current_time, srt_entries, srt_map, layout, viewport_height, previous_scroll=None):
@@ -1476,8 +1514,10 @@ def calculate_static_page_scroll(current_time, srt_entries, srt_map, layout, vie
     target_scroll = max(0, current_line_y - target_position_on_screen)
     
     # 5. Ensure we don't scroll past the end of the content
-    # Add padding for header/footer visibility
-    max_scroll = max(0, layout['total_height'] - viewport_height + layout['padding'] * 2)
+    # Account for text container margins (18% top + 8% bottom = 26% total)
+    # Container only takes up 74% of frame height, so use that as effective viewport
+    effective_viewport = viewport_height * 0.74
+    max_scroll = max(0, layout['total_height'] - effective_viewport + layout['padding'] * 2)
     target_scroll = min(target_scroll, max_scroll)
     
     # 6. Apply smoothing to the scroll transition
@@ -1662,20 +1702,61 @@ def find_anchor_text_in_srt(anchor_text: str, srt_entries: list, threshold: floa
     
     return best_match
 
+def preprocess_scene_image(image_path: str, width: int, height: int) -> Image.Image:
+    """
+    Pre-process scene image once: load, zoom to fill, crop, and darken.
+    This is called once per scene to avoid repeated processing on every frame.
+    
+    Args:
+        image_path: Path to scene image file
+        width: Target frame width
+        height: Target frame height
+    
+    Returns:
+        Processed PIL Image ready to use as background
+    """
+    # Load scene image
+    scene_img = Image.open(image_path).convert('RGB')
+    img_width, img_height = scene_img.size
+    
+    # Calculate scale to fill frame (zoom to cover, no black bars)
+    scale_width = width / img_width
+    scale_height = height / img_height
+    scale = max(scale_width, scale_height)  # Use larger scale to ensure full coverage
+    
+    # Resize proportionally (no distortion)
+    new_width = int(img_width * scale)
+    new_height = int(img_height * scale)
+    scene_img_resized = scene_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    
+    # Center crop to exact frame size
+    left = (new_width - width) // 2
+    top = (new_height - height) // 2
+    cropped_img = scene_img_resized.crop((left, top, left + width, top + height))
+    
+    # Darken scene slightly for readability (0.8 = 80% brightness)
+    from PIL import ImageEnhance
+    enhancer = ImageEnhance.Brightness(cropped_img)
+    return enhancer.enhance(0.8)
+
 def calculate_scene_timings(scene_images: list, srt_entries: list, 
-                           scene_image_paths: dict, total_duration: float) -> list:
+                           scene_image_paths: dict, total_duration: float,
+                           width: int = 1920, height: int = 1080) -> list:
     """
     Map scene images to video timestamps using anchor_text fuzzy matching.
     Images display from their start time until the next scene starts (or video ends).
+    PRE-PROCESSES images once for performance.
     
     Args:
         scene_images: List of scene metadata from frontend (sceneIndex, anchor_text, filename)
         srt_entries: Parsed SRT entries from parse_srt_entries()
         scene_image_paths: Dict mapping filename -> local file path
         total_duration: Total video duration in seconds
+        width: Video frame width (for preprocessing)
+        height: Video frame height (for preprocessing)
     
     Returns:
-        List of dicts: {'scene_index', 'start_time', 'end_time', 'image_path', 'match_ratio'}
+        List of dicts: {'scene_index', 'start_time', 'end_time', 'preprocessed_image', 'match_ratio'}
     """
     scene_timings = []
     
@@ -1702,16 +1783,22 @@ def calculate_scene_timings(scene_images: list, srt_entries: list,
             print(f"    Anchor text: {anchor_text[:50]}...")
             continue
         
+        # PRE-PROCESS image once (zoom, crop, darken)
+        try:
+            preprocessed_img = preprocess_scene_image(image_path, width, height)
+            print(f"✓ Scene {scene_index}: Preprocessed and matched at {match['start_time']:.2f}s (ratio: {match['match_ratio']:.2f})")
+        except Exception as e:
+            print(f"⚠️  Scene {scene_index}: Failed to preprocess image: {e}")
+            continue
+        
         scene_timings.append({
             'scene_index': scene_index,
             'start_time': match['start_time'],
             'end_time': None,  # Will be calculated below
-            'image_path': image_path,
+            'preprocessed_image': preprocessed_img,  # Store processed image
             'match_ratio': match['match_ratio'],
             'anchor_text_preview': anchor_text[:50]
         })
-        
-        print(f"✓ Scene {scene_index}: Matched at {match['start_time']:.2f}s (ratio: {match['match_ratio']:.2f})")
     
     # Sort by start_time
     scene_timings.sort(key=lambda x: x['start_time'])
@@ -1973,8 +2060,12 @@ def check_if_current_sentence_with_mapping(line_index, current_time, srt_entries
         current_line_data = all_lines_data[line_index]
         current_sentence_id = current_line_data.get('sentence_id')
         
-        # Highlight if both lines belong to the same sentence
-        if current_sentence_id == active_sentence_id:
+        # NEW: Support multi-sentence lines (all_sentence_ids)
+        # Check if the active sentence is in this line's sentence list
+        all_sentence_ids = current_line_data.get('all_sentence_ids', [current_sentence_id])
+        
+        # Highlight if active sentence is in this line (supports multi-sentence lines)
+        if active_sentence_id in all_sentence_ids:
             return True, active_sentence_id
     
     return False, None  # No match found
@@ -2037,13 +2128,18 @@ def draw_highlight_box(draw, text, font, x, y):
     draw.rectangle(highlight_box, fill='#FFE066', outline=None)
 
 def draw_chapter_info(draw, fonts, book_title, chapter_title, author, width, height, padding):
-    """Draw chapter information with chapter title on right side."""
-    # Draw chapter title on the right side (top)
+    """Draw chapter information with chapter title at top center."""
+    # Draw chapter title at the top-center
     chapter_bbox = fonts['title'].getbbox(chapter_title)
     chapter_width = chapter_bbox[2] - chapter_bbox[0]
-    chapter_x = width - padding - chapter_width
+    chapter_height = chapter_bbox[3] - chapter_bbox[1]
+    
+    # Position at top-center with padding
+    chapter_x = (width - chapter_width) // 2  # Center horizontally
+    chapter_y = padding // 2  # Top with minimal padding
+    
     draw.text(
-        (chapter_x, padding),
+        (chapter_x, chapter_y),
         chapter_title,
         font=fonts['title'],
         fill='#333'
@@ -2064,22 +2160,32 @@ def create_scroll_frame(
     Create a single frame with scrolled text.
     Returns: (frame: Image, current_highlighted_sentence_id: int or None)
     """
-    # Create image
-    img = Image.new('RGB', (width, height), color='#f8f9fa')
+    # STEP 1: Create base background (scene image or plain background)
+    img = None
+    if scene_timings:
+        for scene in scene_timings:
+            if scene['start_time'] <= current_time < scene['end_time']:
+                # Use preprocessed image (already zoomed, cropped, darkened)
+                # This avoids repeated image processing on every frame (PERFORMANCE!)
+                if 'preprocessed_image' in scene:
+                    img = scene['preprocessed_image'].copy()  # Copy to avoid modifying cached image
+                    break
+    
+    # If no scene image, use plain background
+    if img is None:
+        img = Image.new('RGB', (width, height), color='#f8f9fa')
+    
     draw = ImageDraw.Draw(img)
     
-    # Draw gradient background (optional)
-    gradient = Image.new('RGB', (width, height), '#f8f9fa')
-    img.paste(gradient)
-    
-    # NEW: Create semi-transparent container overlay (centered with padding)
+    # STEP 2: Create semi-transparent container overlay (centered with padding)
     container_padding = int(width * 0.08)  # 8% padding on sides
-    container_margin_y = int(height * 0.12)  # 12% padding top/bottom
+    container_margin_top = int(height * 0.18)  # 18% padding top (more space for chapter title)
+    container_margin_bottom = int(height * 0.08)  # 8% padding bottom (increased visible area)
     
     container_width = width - (container_padding * 2)
-    container_height = height - (container_margin_y * 2)
+    container_height = height - container_margin_top - container_margin_bottom
     container_x = container_padding
-    container_y = container_margin_y
+    container_y = container_margin_top
     
     # Create a semi-transparent overlay
     overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
@@ -2101,12 +2207,11 @@ def create_scroll_frame(
     draw = ImageDraw.Draw(img)  # Recreate draw object after conversion
     
     # Calculate container bounds for clipping
-    container_top = container_margin_y
-    container_bottom = height - container_margin_y
+    container_top = container_margin_top
+    container_bottom = height - container_margin_bottom
     
-    # Calculate header offset
-    header_height = int(layout['fonts']['title_size'] * 0.8) + 20
-    text_start_y = layout['padding'] + header_height
+    # Calculate text start position (inside container, with padding from container top)
+    text_start_y = container_margin_top + layout['padding']
     
     # Adjust text padding to respect container margins
     text_padding_x = layout['padding'] + container_padding
@@ -2118,8 +2223,8 @@ def create_scroll_frame(
     for line_idx, line_data in enumerate(layout['lines']):
         line_y = line_data['y'] - scroll_y + text_start_y
         
-        # Only draw lines within container bounds
-        if container_top < line_y < container_bottom:
+        # Only draw lines within container bounds (use <= for better edge visibility)
+        if container_top <= line_y <= container_bottom:
             # Draw highlight based on mode
             if highlight_mode == 'sentence':
                 # Use pre-computed mapping if available, otherwise fallback
@@ -2158,16 +2263,51 @@ def create_scroll_frame(
     draw_chapter_info(draw, layout['fonts'], book_title, chapter_title, 
                      author, width, height, layout['padding'])
     
-    # NEW: Check if any scene should be displayed at current_time
-    if scene_timings:
-        for scene in scene_timings:
-            if scene['start_time'] <= current_time < scene['end_time']:
-                # Apply scene background
-                img = create_frame_with_scene_background(scene['image_path'], img)
-                break  # Only one scene at a time
+    # NOTE: Scene background is now applied at the beginning (STEP 1) before container overlay
+    # No need to apply it again here since we already handle it at the start of the function
     
     # NEW: Return both frame and current highlight state
     return img, current_highlighted_sentence_id
+
+def generate_frame_worker(args):
+    """
+    Worker function for parallel frame generation.
+    Must be top-level function for pickling.
+    
+    Args:
+        args: Tuple of (frame_idx, current_time, scroll_y, srt_entries, layout_data, 
+                        book_title, chapter_title, author, width, height, highlight_mode,
+                        srt_to_sentence_map, scene_timings, frames_dir)
+    
+    Returns:
+        (frame_idx, frames_dir): Tuple for ordering results
+    """
+    try:
+        # Unpack arguments
+        (frame_idx, current_time, scroll_y, srt_entries, layout, 
+         book_title, chapter_title, author, width, height, highlight_mode,
+         srt_to_sentence_map, scene_timings, frames_dir) = args
+        
+        # Generate frame (reuse existing create_scroll_frame function)
+        # Note: We don't pass last_highlighted_sentence_id because in parallel 
+        # processing we generate frames independently
+        frame, _ = create_scroll_frame(
+            layout, scroll_y, current_time, srt_entries,
+            book_title, chapter_title, author,
+            width, height, highlight_mode,
+            srt_to_sentence_map,  # Pass the mapping
+            None,  # last_highlighted_sentence_id (not needed in parallel)
+            scene_timings
+        )
+        
+        # Save frame with sequential numbering
+        frame_path = os.path.join(frames_dir, f"frame_{frame_idx:06d}.png")
+        frame.save(frame_path, 'PNG', optimize=False)
+        
+        return (frame_idx, frames_dir)
+    except Exception as e:
+        print(f"Error in frame worker {frame_idx}: {e}")
+        return (frame_idx, frames_dir)
 
 def generate_smart_scroll_frames(
     layout, srt_entries, total_duration,
@@ -2210,44 +2350,96 @@ def generate_smart_scroll_frames(
     # Convert to sorted list
     key_frame_times = sorted(key_frame_times)
     
-    # Track previous scroll position for smooth transitions
-    previous_scroll = 0
+    # Enable parallel processing if we have more than 100 frames
+    # (overhead not worth it for small videos)
+    USE_PARALLEL = len(key_frame_times) > 100
     
-    # NEW: Track last highlighted sentence to prevent flickering
-    last_highlighted_sentence_id = None
-    
-    for idx, current_time in enumerate(key_frame_times):
-        # Calculate scroll position based on current sentence (static page with smart scroll)
-        if srt_entries and highlight_mode != 'none':
-            scroll_y = calculate_static_page_scroll(
-                current_time, srt_entries, srt_to_sentence_map, layout, height, previous_scroll
+    if USE_PARALLEL:
+        print(f"Using parallel processing with up to {cpu_count() - 1} workers")
+        
+        # Pre-compute all tasks
+        tasks = []
+        previous_scroll = 0
+        
+        for idx, current_time in enumerate(key_frame_times):
+            # Calculate scroll position based on current sentence (static page with smart scroll)
+            if srt_entries and highlight_mode != 'none':
+                scroll_y = calculate_static_page_scroll(
+                    current_time, srt_entries, srt_to_sentence_map, layout, height, previous_scroll
+                )
+                previous_scroll = scroll_y  # Update for next frame
+            else:
+                # Fallback to continuous scroll if no SRT or highlighting disabled
+                scroll_y = calculate_scroll_position(
+                    current_time, total_duration,
+                    layout['total_height'], height
+                )
+            
+            # Prepare task args for worker
+            task_args = (
+                idx, current_time, scroll_y, srt_entries, layout,
+                book_title, chapter_title, author, width, height, highlight_mode,
+                srt_to_sentence_map, scene_timings, frames_dir
             )
-            previous_scroll = scroll_y  # Update for next frame
-        else:
-            # Fallback to continuous scroll if no SRT or highlighting disabled
-            scroll_y = calculate_scroll_position(
-                current_time, total_duration,
-                layout['total_height'], height
+            tasks.append(task_args)
+        
+        # Parallel processing
+        num_workers = max(1, cpu_count() - 1)
+        print(f"Generating {len(tasks)} frames in parallel with {num_workers} workers...")
+        
+        with Pool(processes=num_workers) as pool:
+            # Use imap_unordered for progress reporting
+            results = []
+            completed = 0
+            for result in pool.imap_unordered(generate_frame_worker, tasks):
+                completed += 1
+                if completed % 50 == 0 or completed == len(tasks):
+                    progress = (completed / len(tasks)) * 100
+                    print(f"Frame {completed}/{len(tasks)} ({progress:.1f}%)")
+        
+        print(f"Parallel frame generation complete: {len(tasks)} frames generated")
+    else:
+        # Sequential processing for small videos (<100 frames)
+        print("Using sequential processing for small video")
+        
+        # Track previous scroll position for smooth transitions
+        previous_scroll = 0
+        
+        # NEW: Track last highlighted sentence to prevent flickering
+        last_highlighted_sentence_id = None
+        
+        for idx, current_time in enumerate(key_frame_times):
+            # Calculate scroll position based on current sentence (static page with smart scroll)
+            if srt_entries and highlight_mode != 'none':
+                scroll_y = calculate_static_page_scroll(
+                    current_time, srt_entries, srt_to_sentence_map, layout, height, previous_scroll
+                )
+                previous_scroll = scroll_y  # Update for next frame
+            else:
+                # Fallback to continuous scroll if no SRT or highlighting disabled
+                scroll_y = calculate_scroll_position(
+                    current_time, total_duration,
+                    layout['total_height'], height
+                )
+            
+            # Generate frame with highlighting check at this exact time
+            frame, last_highlighted_sentence_id = create_scroll_frame(
+                layout, scroll_y, current_time, srt_entries,
+                book_title, chapter_title, author,
+                width, height, highlight_mode,
+                srt_to_sentence_map,  # Pass the mapping
+                last_highlighted_sentence_id,  # NEW: Pass previous highlight
+                scene_timings  # NEW: Pass scene timings
             )
-        
-        # Generate frame with highlighting check at this exact time
-        frame, last_highlighted_sentence_id = create_scroll_frame(
-            layout, scroll_y, current_time, srt_entries,
-            book_title, chapter_title, author,
-            width, height, highlight_mode,
-            srt_to_sentence_map,  # Pass the mapping
-            last_highlighted_sentence_id,  # NEW: Pass previous highlight
-            scene_timings  # NEW: Pass scene timings
-        )
-        
-        # Save frame with sequential numbering
-        frame_path = os.path.join(frames_dir, f"frame_{idx:06d}.png")
-        frame.save(frame_path, 'PNG', optimize=False)
-        
-        # Progress reporting every 50 frames
-        if idx % 50 == 0 or idx == len(key_frame_times) - 1:
-            progress = (idx + 1) / len(key_frame_times) * 100
-            print(f"Frame {idx + 1}/{len(key_frame_times)} ({progress:.1f}%) at {current_time:.2f}s")
+            
+            # Save frame with sequential numbering
+            frame_path = os.path.join(frames_dir, f"frame_{idx:06d}.png")
+            frame.save(frame_path, 'PNG', optimize=False)
+            
+            # Progress reporting every 50 frames
+            if idx % 50 == 0 or idx == len(key_frame_times) - 1:
+                progress = (idx + 1) / len(key_frame_times) * 100
+                print(f"Frame {idx + 1}/{len(key_frame_times)} ({progress:.1f}%) at {current_time:.2f}s")
     
     return frames_dir, len(key_frame_times)
 
@@ -2553,14 +2745,15 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
         print("Creating similarity-based SRT-to-sentence mapping (difflib)...")
         srt_to_sentence_map = create_srt_to_sentence_map(srt_entries, layout['lines'])
     
-    # Calculate scene timings (NEW)
+    # Calculate scene timings (NEW) - now with preprocessing!
     scene_timings = []
     if scene_images and srt_entries:
         print("Calculating scene image timings using anchor_text matching...")
         scene_timings = calculate_scene_timings(
-            scene_images, srt_entries, scene_image_paths or {}, duration
+            scene_images, srt_entries, scene_image_paths or {}, duration,
+            width, height  # Pass dimensions for preprocessing
         )
-        print(f"✓ Prepared {len(scene_timings)} scene images for video overlay")
+        print(f"✓ Preprocessed and prepared {len(scene_timings)} scene images for video overlay")
     
     # Generate frames with pre-computed mapping
     frames_dir, num_keyframes = generate_smart_scroll_frames(

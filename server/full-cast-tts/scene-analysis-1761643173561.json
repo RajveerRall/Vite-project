@@ -1,0 +1,30 @@
+{
+  "bookTitle": "The Way of Kings.epub",
+  "chapter": "74: GHOSTBLOOD",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 3,
+  "textLength": 5457,
+  "processingTime": 5798,
+  "timestamp": "2025-10-28T09:19:33.561Z",
+  "scenes": [
+    {
+      "anchor_text": "Shallan rubbed her eyes. She’d read through Jasnah’s notes—at least the most important ones. Those alone had made a large stack. She still sat in the alcove, though they’d sent a parshman to get her a blanket to wrap around herself, covering up the hospital robe.",
+      "scene_description": "Shallan sits exhausted in a library alcove surrounded by stacks of books and notes, wrapped in a blanket, indicating the late hour and intense study. A docile parshman stands silently in the periphery.",
+      "image_prompt": "Cinematic digital painting, Exhausted Shallan reading surrounded by stacks of notes and books, Ancient Kharbranth library alcove with towering shelves of scrolls and bound books, ancient Alethi library, muted tones with dramatic contrasts, painterly brushwork, stylized realism, soft light from oil lamps, medium shot establishing scale, Shallan: young woman with fiery red hair, slender build, wearing a simple hospital robe and a dark blanket; Parshman: docile, grey skin, blank expression, simple uniform",
+      "mood": "exhausted"
+    },
+    {
+      "anchor_text": "“We’ve nurtured the parshmen. We’ve integrated them into every part of our society. We depend on them, never realizing that we’ve harnessed a highstorm waiting to explode. The accounts from the Shattered Plains speak of these Parshendi’s ability to communicate among themselves, allowing them to sing their songs in unison when far apart. Their minds are connected, like spanreeds. Do you realize what that means?”",
+      "scene_description": "A sweeping vista of a bustling Rosharan city showcasing the omnipresence of parshmen performing various tasks, highlighting their integration into society while hinting at a latent, unseen connection between them.",
+      "image_prompt": "Illustrative concept art, Panoramic view of a Rosharan city with Parshmen performing daily tasks, bustling Alethi city with distinctive architecture, highstorms approach in distant sky, muted tones with dramatic contrasts, painterly brushwork, stylized realism, Dramatic, overcast lighting, High-angle composition emphasizing the scale and activity, no specific character reference",
+      "mood": "ominous"
+    },
+    {
+      "anchor_text": "She set the sheet down. On it was a symbol of three diamonds in a pattern, overlapping one another. It was the same symbol that Nan Balat had shown her weeks ago. The symbol worn by Luesh, her father’s steward, the man who had known how to use the Soulcaster. The symbol worn by the men who had come, pressuring her family to return it.",
+      "scene_description": "A close-up of a sheet of paper displaying the Ghostblood symbol (three overlapping diamonds) lying on Jasnah's desk. The surrounding environment suggests a cluttered workspace, hinting at the depth of her research.",
+      "image_prompt": "Cinematic digital painting, a sheet displaying the Ghostblood symbol on a desk, Jasnah's cluttered desk in Kharbranth library with books, notes, and arcane objects, muted tones with dramatic contrasts, painterly brushwork, stylized realism, subtle illumination from a nearby lamp, extreme close-up, no specific character reference",
+      "mood": "foreboding"
+    }
+  ]
+}

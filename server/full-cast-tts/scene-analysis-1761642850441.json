@@ -1,0 +1,18 @@
+{
+  "bookTitle": "The Way of Kings.epub",
+  "chapter": "Endnote",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 1,
+  "textLength": 1257,
+  "processingTime": 2314,
+  "timestamp": "2025-10-28T09:14:10.441Z",
+  "scenes": [
+    {
+      "anchor_text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.”",
+      "scene_description": "A vast landscape under the dying roiling storm, revealing the vast silence above. The light is fading, but still strong enough to illuminate the surreal landscape.",
+      "image_prompt": "Cinematic digital painting, Dying storms illuminating a vast, alien landscape, Cracked, red earth stretching to the horizon under a sky filled with dissipating storm clouds, colossal highstorms fading with radiant light shafts, a strange, rocky, barren landscape below, STYLE_atmospheric fantasy, surreal, painterly brushwork, ominous, dramatic lighting with bright rays piercing through dark clouds, wide panoramic composition emphasizing scale and desolation, no character reference",
+      "mood": "ominous"
+    }
+  ]
+}

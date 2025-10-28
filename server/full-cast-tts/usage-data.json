@@ -22905,5 +22905,2579 @@
     },
     "id": "1761592826065-h1kweu8ib",
     "timestamp": "2025-10-27T19:20:26.065Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan rubbed her eyes. She’d read through Jasnah’s notes—at least the most important ones. Those alone had made a large stack. She still sat in the alcove, though they’d sent a parshman to get her a blanket to wrap around herself, covering up the hospital robe. Her eyes burned from the night spent crying, then reading. She was exhausted. And yet she also felt alive.",
+    "characterCount": 370,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594524136-vvvo6c2iv",
+    "timestamp": "2025-10-27T19:48:44.136Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "It’s true. You’re right. The Voidbringers are the parshmen. I can see no other conclusion.",
+    "characterCount": 90,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594528191-tx7zs267c",
+    "timestamp": "2025-10-27T19:48:48.191Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah smiled, looking oddly pleased with herself, considering that she’d only convinced one person.",
+    "characterCount": 100,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594532295-k48f6eyst",
+    "timestamp": "2025-10-27T19:48:52.295Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "So what next?",
+    "characterCount": 13,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594533896-kg78vujgl",
+    "timestamp": "2025-10-27T19:48:53.896Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan asked.",
+    "characterCount": 14,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594535282-2ez9r3ivs",
+    "timestamp": "2025-10-27T19:48:55.282Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "That has to do with your previous studies.",
+    "characterCount": 42,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594537484-48iso3vf3",
+    "timestamp": "2025-10-27T19:48:57.484Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "My studies? You mean your father’s death?",
+    "characterCount": 41,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594539510-5c7k6xdse",
+    "timestamp": "2025-10-27T19:48:59.510Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Indeed.",
+    "characterCount": 7,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594540878-ot5ngmvof",
+    "timestamp": "2025-10-27T19:49:00.878Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "The Parshendi attacked him. Killed him suddenly, without warning.",
+    "characterCount": 65,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594543725-qhbabga9k",
+    "timestamp": "2025-10-27T19:49:03.726Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan said.",
+    "characterCount": 13,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594545138-uwvp3imvi",
+    "timestamp": "2025-10-27T19:49:05.138Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She focused on the other woman.",
+    "characterCount": 31,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594547544-eoasud4po",
+    "timestamp": "2025-10-27T19:49:07.544Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "That’s what made you begin studying all of this, isn’t it?",
+    "characterCount": 58,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594550280-7y9hy5e3n",
+    "timestamp": "2025-10-27T19:49:10.280Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah nodded.",
+    "characterCount": 14,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594551928-lz68fuf1x",
+    "timestamp": "2025-10-27T19:49:11.928Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Those wild parshmen—the Parshendi of the Shattered Plains—are the key.",
+    "characterCount": 70,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594553752-qi59bkycd",
+    "timestamp": "2025-10-27T19:49:13.752Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She leaned forward.",
+    "characterCount": 19,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594555333-ar823mgss",
+    "timestamp": "2025-10-27T19:49:15.333Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Shallan. The disaster awaiting us is all too real, all too terrible. I don’t need mystical warnings or theological sermons to frighten me. I’m downright terrified in my own right.",
+    "characterCount": 179,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594557503-roxl344ix",
+    "timestamp": "2025-10-27T19:49:17.503Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "But we have the parshmen tamed.",
+    "characterCount": 31,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594559345-ylzbs9jnj",
+    "timestamp": "2025-10-27T19:49:19.345Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Do we? Shallan, think of what they do, how they’re regarded, how often they’re used.",
+    "characterCount": 84,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594561653-1crbbgm38",
+    "timestamp": "2025-10-27T19:49:21.653Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan hesitated.",
+    "characterCount": 18,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594563280-c8u4prjc2",
+    "timestamp": "2025-10-27T19:49:23.280Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "The parshmen were pervasive.",
+    "characterCount": 28,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594565281-kl2fll1rs",
+    "timestamp": "2025-10-27T19:49:25.281Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "They serve our food. They work our storehouses. They tend our children. There isn’t a village in Roshar that doesn’t have some parshmen. We ignore them; we just expect them to be there, doing as they do. Working without complaint. Yet one group turned suddenly from peaceful friends to slaughtering warriors. Something set them off. Just as it did hundreds of years ago, during the days known as the Heraldic Epochs. There would be a period of peace, followed by an invasion of parshmen who—for reasons nobody understood—had suddenly gone mad with anger and rage. This was what was behind mankind’s fight to keep from being ‘banished to Damnation.’ This was what nearly ended our civilization. This was the terrible, repeated cataclysm that was so frightening men began to speak of them as Desolations. We’ve nurtured the parshmen. We’ve integrated them into every part of our society. We depend on them, never realizing that we’ve harnessed a highstorm waiting to explode. The accounts from the Shattered Plains speak of these Parshendi’s ability to communicate among themselves, allowing them to sing their songs in unison when far apart. Their minds are connected, like spanreeds. Do you realize what that means?",
+    "characterCount": 1215,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594571003-9zehnghmj",
+    "timestamp": "2025-10-27T19:49:31.003Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan nodded.",
+    "characterCount": 15,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594572454-g30ca97c9",
+    "timestamp": "2025-10-27T19:49:32.454Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "What would happen if every parshman on Roshar suddenly turned against his masters? Seeking freedom, or worse—vengeance?",
+    "characterCount": 119,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594577560-8f3guu75f",
+    "timestamp": "2025-10-27T19:49:37.560Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "We’d be devastated. Civilization as we know it could collapse. We have to do something!",
+    "characterCount": 87,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594581633-rnrz9kx01",
+    "timestamp": "2025-10-27T19:49:41.633Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "We are.",
+    "characterCount": 7,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594584004-cta7edxyb",
+    "timestamp": "2025-10-27T19:49:44.004Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah said.",
+    "characterCount": 12,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594585337-k78qfz2pd",
+    "timestamp": "2025-10-27T19:49:45.337Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "We’re gathering facts, making certain we know what we think we know.",
+    "characterCount": 68,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594587974-pc0peeyjd",
+    "timestamp": "2025-10-27T19:49:47.974Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "And how many facts do we need?",
+    "characterCount": 30,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594589900-q9xl74vol",
+    "timestamp": "2025-10-27T19:49:49.900Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "More. Many more.",
+    "characterCount": 16,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594592128-foved64hq",
+    "timestamp": "2025-10-27T19:49:52.128Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah glanced at the books.",
+    "characterCount": 28,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594593784-iu2j7ua8j",
+    "timestamp": "2025-10-27T19:49:53.784Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "There are some things about the histories I don’t yet understand. Tales of creatures fighting alongside the parshmen, beasts of stone that might be some kind of greatshell, and other oddities that I think may have truth to them. But we’ve exhausted what Kharbranth can offer. Are you still certain you want to delve into this? It is a heavy burden we will bear. You won’t be returning to your estates for some time.",
+    "characterCount": 415,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594596525-1sivhwkuf",
+    "timestamp": "2025-10-27T19:49:56.525Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan bit her lip, thinking of her brothers.",
+    "characterCount": 46,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594598662-hlrkdu58n",
+    "timestamp": "2025-10-27T19:49:58.662Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "You’d let me go now, after what I know?",
+    "characterCount": 39,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594600899-tmwv9iudz",
+    "timestamp": "2025-10-27T19:50:00.899Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "I won’t have you serving me while thinking of ways to escape.",
+    "characterCount": 61,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594602779-miyt84ma2",
+    "timestamp": "2025-10-27T19:50:02.780Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah sounded exhausted.",
+    "characterCount": 25,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594604659-n19mq6ove",
+    "timestamp": "2025-10-27T19:50:04.659Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "I can’t just abandon my brothers.",
+    "characterCount": 33,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594607027-1uoihbd6u",
+    "timestamp": "2025-10-27T19:50:07.027Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan’s insides twisted again.",
+    "characterCount": 32,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594609237-ak2zcvd2s",
+    "timestamp": "2025-10-27T19:50:09.237Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "But this is bigger than them. Damnation—it’s bigger than me or you or any of us. I have to help, Jasnah. I can’t walk out on this. I’ll find some other way to help my family.",
+    "characterCount": 174,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594614966-d0ghkuobr",
+    "timestamp": "2025-10-27T19:50:14.966Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Good. Then go pack our things. We’re leaving tomorrow on that ship I chartered for you.",
+    "characterCount": 87,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594617831-gqnle6jwg",
+    "timestamp": "2025-10-27T19:50:17.831Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "We’re going to Jah Keved?",
+    "characterCount": 25,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594619317-z3wygr2ze",
+    "timestamp": "2025-10-27T19:50:19.317Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "No. We need to get to the center of it all.",
+    "characterCount": 43,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594621350-5z1890eci",
+    "timestamp": "2025-10-27T19:50:21.350Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She looked at Shallan.",
+    "characterCount": 22,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594622708-f6epuffqk",
+    "timestamp": "2025-10-27T19:50:22.708Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "We’re going to the Shattered Plains. We need to find out if the Parshendi were ever ordinary parshmen, and if so, what set them off. Perhaps I am wrong about this, but if I am right, then the Parshendi could hold the key to turning ordinary parshmen into soldiers. Then, grimly, she continued. And we need to do it before someone else does, then uses it against us.",
+    "characterCount": 365,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594626464-b12o0yxoh",
+    "timestamp": "2025-10-27T19:50:26.464Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "Someone else?",
+    "characterCount": 13,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594627695-e9lke5fm8",
+    "timestamp": "2025-10-27T19:50:27.695Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan asked, feeling a sharp stab of panic.",
+    "characterCount": 45,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594630101-e0t6jwegy",
+    "timestamp": "2025-10-27T19:50:30.101Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "There are others looking for this?",
+    "characterCount": 34,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594631788-sj7lgo0od",
+    "timestamp": "2025-10-27T19:50:31.788Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Of course there are. Who do you think went to so much trouble trying to have me assassinated?",
+    "characterCount": 93,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594633573-tga8cag0s",
+    "timestamp": "2025-10-27T19:50:33.573Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She reached into a stack of papers on her desk.",
+    "characterCount": 47,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594635818-wm5bvs3zz",
+    "timestamp": "2025-10-27T19:50:35.818Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "I don’t know much about them. For all I know, there are many groups searching for these secrets. I know of one for certain, however. They call themselves the Ghostbloods.",
+    "characterCount": 170,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594637938-zrvwp3dn1",
+    "timestamp": "2025-10-27T19:50:37.938Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She pulled out a sheet.",
+    "characterCount": 23,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594639477-4tuc5o90w",
+    "timestamp": "2025-10-27T19:50:39.477Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Your friend Kabsal was one. We found their symbol tattooed on the inside of his arm.",
+    "characterCount": 84,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594641434-k00xjo3hu",
+    "timestamp": "2025-10-27T19:50:41.434Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She set the sheet down. On it was a symbol of three diamonds in a pattern, overlapping one another. It was the same symbol that Nan Balat had shown her weeks ago. The symbol worn by Luesh, her father’s steward, the man who had known how to use the Soulcaster. The symbol worn by the men who had come, pressuring her family to return it. The men who had been financing Shallan’s father in his bid to become highprince.",
+    "characterCount": 417,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594652974-xylhz81ll",
+    "timestamp": "2025-10-27T19:50:52.974Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "Almighty above.",
+    "characterCount": 15,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594654535-1lgmonv59",
+    "timestamp": "2025-10-27T19:50:54.535Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan whispered. She looked up.",
+    "characterCount": 33,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594656356-yy7sdeklx",
+    "timestamp": "2025-10-27T19:50:56.356Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "Jasnah, I think… I think my father might have been a member of this group.",
+    "characterCount": 74,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761594659504-ugltz34is",
+    "timestamp": "2025-10-27T19:50:59.504Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan rubbed her eyes. She’d read through Jasnah’s notes—at least the most important ones. Those alone had made a large stack. She still sat in the alcove, though they’d sent a parshman to get her a blanket to wrap around herself, covering up the hospital robe. Her eyes burned from the night spent crying, then reading. She was exhausted. And yet she also felt alive.",
+    "characterCount": 370,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624510532-mcch32l8f",
+    "timestamp": "2025-10-28T04:08:30.532Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "It’s true. You’re right. The Voidbringers are the parshmen. I can see no other conclusion.",
+    "characterCount": 90,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624513319-uz7snwsf4",
+    "timestamp": "2025-10-28T04:08:33.319Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah smiled, looking oddly pleased with herself, considering that she’d only convinced one person.",
+    "characterCount": 100,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624516402-42x2fgyhc",
+    "timestamp": "2025-10-28T04:08:36.402Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "So what next?",
+    "characterCount": 13,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624517500-ntaw0w15q",
+    "timestamp": "2025-10-28T04:08:37.500Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan asked.",
+    "characterCount": 14,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624518589-xr4mfvoc2",
+    "timestamp": "2025-10-28T04:08:38.589Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "That has to do with your previous studies.",
+    "characterCount": 42,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624520346-pme3x67on",
+    "timestamp": "2025-10-28T04:08:40.346Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "My studies? You mean your father’s death?",
+    "characterCount": 41,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624522037-we5mdk8c2",
+    "timestamp": "2025-10-28T04:08:42.037Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Indeed.",
+    "characterCount": 7,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624523655-v6ojke687",
+    "timestamp": "2025-10-28T04:08:43.655Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "The Parshendi attacked him. Killed him suddenly, without warning.",
+    "characterCount": 65,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624525711-87b9o2stv",
+    "timestamp": "2025-10-28T04:08:45.711Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan said.",
+    "characterCount": 13,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624526879-8gk3jwxff",
+    "timestamp": "2025-10-28T04:08:46.879Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She focused on the other woman.",
+    "characterCount": 31,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624528413-0gzlu5ba3",
+    "timestamp": "2025-10-28T04:08:48.413Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "That’s what made you begin studying all of this, isn’t it?",
+    "characterCount": 58,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624530311-xhcr2b2ds",
+    "timestamp": "2025-10-28T04:08:50.311Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah nodded.",
+    "characterCount": 14,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624531537-1ovk5sufc",
+    "timestamp": "2025-10-28T04:08:51.537Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Those wild parshmen—the Parshendi of the Shattered Plains—are the key.",
+    "characterCount": 70,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624532804-1fm7txt6q",
+    "timestamp": "2025-10-28T04:08:52.804Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She leaned forward.",
+    "characterCount": 19,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624534139-c9iwgb26j",
+    "timestamp": "2025-10-28T04:08:54.139Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Shallan. The disaster awaiting us is all too real, all too terrible. I don’t need mystical warnings or theological sermons to frighten me. I’m downright terrified in my own right.",
+    "characterCount": 179,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624536568-g2ew4cbqz",
+    "timestamp": "2025-10-28T04:08:56.568Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "But we have the parshmen tamed.",
+    "characterCount": 31,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624537837-uufgjm2xn",
+    "timestamp": "2025-10-28T04:08:57.837Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Do we? Shallan, think of what they do, how they’re regarded, how often they’re used.",
+    "characterCount": 84,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624539203-dsj7yffzq",
+    "timestamp": "2025-10-28T04:08:59.203Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan hesitated.",
+    "characterCount": 18,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624540643-17mvx7lg7",
+    "timestamp": "2025-10-28T04:09:00.643Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "The parshmen were pervasive.",
+    "characterCount": 28,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624542097-ezsy8wg9e",
+    "timestamp": "2025-10-28T04:09:02.097Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "They serve our food. They work our storehouses. They tend our children. There isn’t a village in Roshar that doesn’t have some parshmen. We ignore them; we just expect them to be there, doing as they do. Working without complaint. “Yet one group turned suddenly from peaceful friends to slaughtering warriors. Something set them off. Just as it did hundreds of years ago, during the days known as the Heraldic Epochs. There would be a period of peace, followed by an invasion of parshmen who—for reasons nobody understood—had suddenly gone mad with anger and rage. This was what was behind mankind’s fight to keep from being ‘banished to Damnation.’ This was what nearly ended our civilization. This was the terrible, repeated cataclysm that was so frightening men began to speak of them as Desolations. “We’ve nurtured the parshmen. We’ve integrated them into every part of our society. We depend on them, never realizing that we’ve harnessed a highstorm waiting to explode. The accounts from the Shattered Plains speak of these Parshendi’s ability to communicate among themselves, allowing them to sing their songs in unison when far apart. Their minds are connected, like spanreeds. Do you realize what that means?",
+    "characterCount": 1217,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624547548-vapx3tef0",
+    "timestamp": "2025-10-28T04:09:07.548Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan nodded.",
+    "characterCount": 15,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624548740-qwmovsvv0",
+    "timestamp": "2025-10-28T04:09:08.740Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "What would happen if every parshman on Roshar suddenly turned against his masters? Seeking freedom, or worse—vengeance?",
+    "characterCount": 119,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624552093-kg14nz6ez",
+    "timestamp": "2025-10-28T04:09:12.093Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "We’d be devastated. Civilization as we know it could collapse. We have to do something!",
+    "characterCount": 87,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624554687-6iioeigy3",
+    "timestamp": "2025-10-28T04:09:14.687Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "We are,",
+    "characterCount": 7,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624556306-k2dqkbfzf",
+    "timestamp": "2025-10-28T04:09:16.306Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah said.",
+    "characterCount": 12,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624557434-uz0r5l336",
+    "timestamp": "2025-10-28T04:09:17.434Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "We’re gathering facts, making certain we know what we think we know.",
+    "characterCount": 68,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624559697-4tbetwc2i",
+    "timestamp": "2025-10-28T04:09:19.697Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "And how many facts do we need?",
+    "characterCount": 30,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624561201-7e6gfut47",
+    "timestamp": "2025-10-28T04:09:21.201Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "More. Many more.",
+    "characterCount": 16,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624562438-giyb4xur4",
+    "timestamp": "2025-10-28T04:09:22.438Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah glanced at the books.",
+    "characterCount": 28,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624563727-4x9jznpvh",
+    "timestamp": "2025-10-28T04:09:23.727Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "There are some things about the histories I don’t yet understand. Tales of creatures fighting alongside the parshmen, beasts of stone that might be some kind of greatshell, and other oddities that I think may have truth to them. But we’ve exhausted what Kharbranth can offer. Are you still certain you want to delve into this? It is a heavy burden we will bear. You won’t be returning to your estates for some time.",
+    "characterCount": 415,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624566525-7yt0inwqr",
+    "timestamp": "2025-10-28T04:09:26.525Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan bit her lip, thinking of her brothers.",
+    "characterCount": 46,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624568301-zd2jnqgaa",
+    "timestamp": "2025-10-28T04:09:28.301Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "You’d let me go now, after what I know?",
+    "characterCount": 39,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624570012-se2fe5b21",
+    "timestamp": "2025-10-28T04:09:30.012Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "I won’t have you serving me while thinking of ways to escape.",
+    "characterCount": 61,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624571348-nws2qucrk",
+    "timestamp": "2025-10-28T04:09:31.348Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah sounded exhausted.",
+    "characterCount": 25,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624572970-c0aqy1lay",
+    "timestamp": "2025-10-28T04:09:32.970Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "I can’t just abandon my brothers.",
+    "characterCount": 33,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624574435-xsl3bvq6k",
+    "timestamp": "2025-10-28T04:09:34.435Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan’s insides twisted again.",
+    "characterCount": 32,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624576094-hffnih94p",
+    "timestamp": "2025-10-28T04:09:36.094Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "But this is bigger than them. Damnation—it’s bigger than me or you or any of us. I have to help, Jasnah. I can’t walk out on this. I’ll find some other way to help my family.",
+    "characterCount": 174,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624580602-52qogdubs",
+    "timestamp": "2025-10-28T04:09:40.602Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Good. Then go pack our things. We’re leaving tomorrow on that ship I chartered for you.",
+    "characterCount": 87,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624582906-ceg6ldxu1",
+    "timestamp": "2025-10-28T04:09:42.906Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "We’re going to Jah Keved?",
+    "characterCount": 25,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624584186-tshcex9nn",
+    "timestamp": "2025-10-28T04:09:44.186Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "No. We need to get to the center of it all.",
+    "characterCount": 43,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624585790-86zj4o1fi",
+    "timestamp": "2025-10-28T04:09:45.790Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She looked at Shallan.",
+    "characterCount": 22,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624587313-0fu4xl5fx",
+    "timestamp": "2025-10-28T04:09:47.313Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "We’re going to the Shattered Plains. We need to find out if the Parshendi were ever ordinary parshmen, and if so, what set them off. Perhaps I am wrong about this, but if I am right, then the Parshendi could hold the key to turning ordinary parshmen into soldiers.",
+    "characterCount": 264,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624590198-cbxpefh9q",
+    "timestamp": "2025-10-28T04:09:50.198Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Then, grimly, she continued.",
+    "characterCount": 28,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624591737-ff25e31kr",
+    "timestamp": "2025-10-28T04:09:51.737Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "And we need to do it before someone else does, then uses it against us.",
+    "characterCount": 71,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624593530-ikkvtwyr2",
+    "timestamp": "2025-10-28T04:09:53.530Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "Someone else?",
+    "characterCount": 13,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624594649-c1zuxizyv",
+    "timestamp": "2025-10-28T04:09:54.649Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan asked, feeling a sharp stab of panic.",
+    "characterCount": 45,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624596465-9rt8dbdd6",
+    "timestamp": "2025-10-28T04:09:56.465Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "There are others looking for this?",
+    "characterCount": 34,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624598136-qijtttv48",
+    "timestamp": "2025-10-28T04:09:58.136Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Of course there are. Who do you think went to so much trouble trying to have me assassinated?",
+    "characterCount": 93,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624600349-1t35bxvuc",
+    "timestamp": "2025-10-28T04:10:00.349Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She reached into a stack of papers on her desk.",
+    "characterCount": 47,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624602555-x75lv5a7p",
+    "timestamp": "2025-10-28T04:10:02.555Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "I don’t know much about them. For all I know, there are many groups searching for these secrets. I know of one for certain, however. They call themselves the Ghostbloods.",
+    "characterCount": 170,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624604132-cvrffun4s",
+    "timestamp": "2025-10-28T04:10:04.132Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She pulled out a sheet.",
+    "characterCount": 23,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624605673-0915y12h4",
+    "timestamp": "2025-10-28T04:10:05.673Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-EmmaMultilingualNeural",
+    "text": "Your friend Kabsal was one. We found their symbol tattooed on the inside of his arm.",
+    "characterCount": 84,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624608115-rl8y6lpej",
+    "timestamp": "2025-10-28T04:10:08.115Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She set the sheet down. On it was a symbol of three diamonds in a pattern, overlapping one another. It was the same symbol that Nan Balat had shown her weeks ago. The symbol worn by Luesh, her father’s steward, the man who had known how to use the Soulcaster. The symbol worn by the men who had come, pressuring her family to return it. The men who had been financing Shallan’s father in his bid to become highprince.",
+    "characterCount": 417,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624619297-9m386uppr",
+    "timestamp": "2025-10-28T04:10:19.297Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "Almighty above,",
+    "characterCount": 15,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624620863-2tyjjwov4",
+    "timestamp": "2025-10-28T04:10:20.863Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan whispered. She looked up.",
+    "characterCount": 33,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624622691-5yq661ll8",
+    "timestamp": "2025-10-28T04:10:22.691Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "Jasnah, I think… I think my father might have been a member of this group.",
+    "characterCount": 74,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761624625853-d08yj23h1",
+    "timestamp": "2025-10-28T04:10:25.853Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan rubbed her eyes. She’d read through Jasnah’s notes—at least the most important ones. Those alone had made a large stack. She still sat in the alcove, though they’d sent a parshman to get her a blanket to wrap around herself, covering up the hospital robe. Her eyes burned from the night spent crying, then reading. She was exhausted. And yet she also felt alive.",
+    "characterCount": 370,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628473621-bfj3134lq",
+    "timestamp": "2025-10-28T05:14:33.621Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "It’s true. You’re right. The Voidbringers are the parshmen. I can see no other conclusion.",
+    "characterCount": 90,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628476368-tc20553f9",
+    "timestamp": "2025-10-28T05:14:36.368Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah smiled, looking oddly pleased with herself, considering that she’d only convinced one person.",
+    "characterCount": 100,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628479956-5xk7awgu9",
+    "timestamp": "2025-10-28T05:14:39.956Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "So what next?",
+    "characterCount": 13,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628481174-vkr3fzlup",
+    "timestamp": "2025-10-28T05:14:41.174Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "That has to do with your previous studies.",
+    "characterCount": 42,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628483778-euyyico4e",
+    "timestamp": "2025-10-28T05:14:43.778Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "My studies? You mean your father’s death?",
+    "characterCount": 41,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628485815-1vajv8jql",
+    "timestamp": "2025-10-28T05:14:45.815Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Indeed.",
+    "characterCount": 7,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628486923-jv92vxmf1",
+    "timestamp": "2025-10-28T05:14:46.923Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "The Parshendi attacked him. Killed him suddenly, without warning.",
+    "characterCount": 65,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628489604-kevfebz7l",
+    "timestamp": "2025-10-28T05:14:49.604Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She focused on the other woman.",
+    "characterCount": 31,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628491774-407azhbpa",
+    "timestamp": "2025-10-28T05:14:51.774Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "That’s what made you begin studying all of this, isn’t it?",
+    "characterCount": 58,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628494491-2dn5b5se8",
+    "timestamp": "2025-10-28T05:14:54.491Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah nodded.",
+    "characterCount": 14,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628496177-jzl5xzor3",
+    "timestamp": "2025-10-28T05:14:56.177Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Those wild parshmen—the Parshendi of the Shattered Plains—are the key.",
+    "characterCount": 70,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628499410-ao32smhch",
+    "timestamp": "2025-10-28T05:14:59.411Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She leaned forward.",
+    "characterCount": 19,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628501070-z13s8nzle",
+    "timestamp": "2025-10-28T05:15:01.070Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Shallan. The disaster awaiting us is all too real, all too terrible. I don’t need mystical warnings or theological sermons to frighten me. I’m downright terrified in my own right.",
+    "characterCount": 179,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628507612-eekekio4w",
+    "timestamp": "2025-10-28T05:15:07.612Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "But we have the parshmen tamed.",
+    "characterCount": 31,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628509469-1t9cwoa5f",
+    "timestamp": "2025-10-28T05:15:09.469Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Do we? Shallan, think of what they do, how they’re regarded, how often they’re used.",
+    "characterCount": 84,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628512994-9ek23yunh",
+    "timestamp": "2025-10-28T05:15:12.994Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan hesitated. The parshmen were pervasive.",
+    "characterCount": 47,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628515542-pqbnmmadb",
+    "timestamp": "2025-10-28T05:15:15.542Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "They serve our food. They work our storehouses. They tend our children. There isn’t a village in Roshar that doesn’t have some parshmen. We ignore them; we just expect them to be there, doing as they do. Working without complaint.",
+    "characterCount": 230,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628522876-z22p0rbks",
+    "timestamp": "2025-10-28T05:15:22.876Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Yet one group turned suddenly from peaceful friends to slaughtering warriors. Something set them off. Just as it did hundreds of years ago, during the days known as the Heraldic Epochs. There would be a period of peace, followed by an invasion of parshmen who—for reasons nobody understood—had suddenly gone mad with anger and rage. This was what was behind mankind’s fight to keep from being ‘banished to Damnation.’ This was what nearly ended our civilization. This was the terrible, repeated cataclysm that was so frightening men began to speak of them as Desolations.",
+    "characterCount": 571,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628538726-5peujczel",
+    "timestamp": "2025-10-28T05:15:38.726Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "We’ve nurtured the parshmen. We’ve integrated them into every part of our society. We depend on them, never realizing that we’ve harnessed a highstorm waiting to explode. The accounts from the Shattered Plains speak of these Parshendi’s ability to communicate among themselves, allowing them to sing their songs in unison when far apart. Their minds are connected, like spanreeds. Do you realize what that means?",
+    "characterCount": 412,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628548957-57yf4rc4e",
+    "timestamp": "2025-10-28T05:15:48.957Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan nodded. What would happen if every parshman on Roshar suddenly turned against his masters? Seeking freedom, or worse—vengeance?",
+    "characterCount": 135,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628553225-5llibaqws",
+    "timestamp": "2025-10-28T05:15:53.225Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "We’d be devastated. Civilization as we know it could collapse. We have to do something!",
+    "characterCount": 87,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628556378-5prr0icxi",
+    "timestamp": "2025-10-28T05:15:56.378Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "We are. We’re gathering facts, making certain we know what we think we know.",
+    "characterCount": 76,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628558568-2x3d1fdr5",
+    "timestamp": "2025-10-28T05:15:58.568Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "And how many facts do we need?",
+    "characterCount": 30,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628559979-l8fc46yz9",
+    "timestamp": "2025-10-28T05:15:59.979Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "More. Many more.",
+    "characterCount": 16,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628561449-g6bu70tor",
+    "timestamp": "2025-10-28T05:16:01.449Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah glanced at the books.",
+    "characterCount": 28,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628562943-8u4lzkjxg",
+    "timestamp": "2025-10-28T05:16:02.944Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "There are some things about the histories I don’t yet understand. Tales of creatures fighting alongside the parshmen, beasts of stone that might be some kind of greatshell, and other oddities that I think may have truth to them. But we’ve exhausted what Kharbranth can offer. Are you still certain you want to delve into this? It is a heavy burden we will bear. You won’t be returning to your estates for some time.",
+    "characterCount": 415,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628571887-bcwcirnrr",
+    "timestamp": "2025-10-28T05:16:11.887Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan bit her lip, thinking of her brothers.",
+    "characterCount": 46,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628574302-z3w9zpqq4",
+    "timestamp": "2025-10-28T05:16:14.302Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "You’d let me go now, after what I know?",
+    "characterCount": 39,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628575806-u648ibmnf",
+    "timestamp": "2025-10-28T05:16:15.806Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "I won’t have you serving me while thinking of ways to escape.",
+    "characterCount": 61,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628577923-yb9ie3yhq",
+    "timestamp": "2025-10-28T05:16:17.923Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah sounded exhausted.",
+    "characterCount": 25,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628579596-4nl6yzo0d",
+    "timestamp": "2025-10-28T05:16:19.596Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "I can’t just abandon my brothers.",
+    "characterCount": 33,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628581195-yi74zcb6u",
+    "timestamp": "2025-10-28T05:16:21.195Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan’s insides twisted again.",
+    "characterCount": 32,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628583763-lfv2pp7cq",
+    "timestamp": "2025-10-28T05:16:23.763Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "But this is bigger than them. Damnation—it’s bigger than me or you or any of us. I have to help, Jasnah. I can’t walk out on this. I’ll find some other way to help my family.",
+    "characterCount": 174,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628588997-uufqashvw",
+    "timestamp": "2025-10-28T05:16:28.997Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Good. Then go pack our things. We’re leaving tomorrow on that ship I chartered for you.",
+    "characterCount": 87,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628592164-aked1nxge",
+    "timestamp": "2025-10-28T05:16:32.164Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "We’re going to Jah Keved?",
+    "characterCount": 25,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628593986-9fmuthlw4",
+    "timestamp": "2025-10-28T05:16:33.986Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "No. We need to get to the center of it all.",
+    "characterCount": 43,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628596038-vve9kc6qk",
+    "timestamp": "2025-10-28T05:16:36.038Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She looked at Shallan.",
+    "characterCount": 22,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628597860-anyp17wcw",
+    "timestamp": "2025-10-28T05:16:37.860Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "We’re going to the Shattered Plains. We need to find out if the Parshendi were ever ordinary parshmen, and if so, what set them off. Perhaps I am wrong about this, but if I am right, then the Parshendi could hold the key to turning ordinary parshmen into soldiers.",
+    "characterCount": 264,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628606142-0pxhmygbn",
+    "timestamp": "2025-10-28T05:16:46.142Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Then, grimly, she continued.",
+    "characterCount": 28,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628608383-xddkm4lja",
+    "timestamp": "2025-10-28T05:16:48.383Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "And we need to do it before someone else does, then uses it against us.",
+    "characterCount": 71,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628611368-07qoaq23b",
+    "timestamp": "2025-10-28T05:16:51.368Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "Someone else?",
+    "characterCount": 13,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628612723-5ppr1x66h",
+    "timestamp": "2025-10-28T05:16:52.723Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan asked, feeling a sharp stab of panic.",
+    "characterCount": 45,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628615229-36szv3ru3",
+    "timestamp": "2025-10-28T05:16:55.229Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "There are others looking for this? Of course there are. Who do you think went to so much trouble trying to have me assassinated?",
+    "characterCount": 128,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628619939-kqzy1lm8b",
+    "timestamp": "2025-10-28T05:16:59.939Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She reached into a stack of papers on her desk.",
+    "characterCount": 47,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628622825-qudwn2q5t",
+    "timestamp": "2025-10-28T05:17:02.825Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "I don’t know much about them. For all I know, there are many groups searching for these secrets. I know of one for certain, however. They call themselves the Ghostbloods.",
+    "characterCount": 170,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628628354-2m9du06b9",
+    "timestamp": "2025-10-28T05:17:08.354Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She pulled out a sheet.",
+    "characterCount": 23,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628629793-kmqyy2ujr",
+    "timestamp": "2025-10-28T05:17:09.793Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Your friend Kabsal was one. We found their symbol tattooed on the inside of his arm.",
+    "characterCount": 84,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628633575-dbgxtv752",
+    "timestamp": "2025-10-28T05:17:13.575Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She set the sheet down. On it was a symbol of three diamonds in a pattern, overlapping one another. It was the same symbol that Nan Balat had shown her weeks ago. The symbol worn by Luesh, her father’s steward, the man who had known how to use the Soulcaster. The symbol worn by the men who had come, pressuring her family to return it. The men who had been financing Shallan’s father in his bid to become highprince.",
+    "characterCount": 417,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628645533-2qrdja2z4",
+    "timestamp": "2025-10-28T05:17:25.533Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "Almighty above.",
+    "characterCount": 15,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628646927-xjprhaagf",
+    "timestamp": "2025-10-28T05:17:26.927Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan whispered. She looked up.",
+    "characterCount": 33,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628648565-yc08pof5p",
+    "timestamp": "2025-10-28T05:17:28.565Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_heart",
+    "text": "Jasnah, I think… I think my father might have been a member of this group.",
+    "characterCount": 74,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761628651306-3g0p31xv6",
+    "timestamp": "2025-10-28T05:17:31.306Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761633321411-u6lauqpet",
+    "timestamp": "2025-10-28T06:35:21.411Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761633903467-d33qj5j2e",
+    "timestamp": "2025-10-28T06:45:03.467Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761635119938-c87gf1gkh",
+    "timestamp": "2025-10-28T07:05:19.938Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761637391479-xm1zg60rm",
+    "timestamp": "2025-10-28T07:43:11.479Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761637995855-it4sbmuku",
+    "timestamp": "2025-10-28T07:53:15.855Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761642873963-oamsmpm7r",
+    "timestamp": "2025-10-28T09:14:33.963Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan rubbed her eyes. She’d read through Jasnah’s notes—at least the most important ones. Those alone had made a large stack. She still sat in the alcove, though they’d sent a parshman to get her a blanket to wrap around herself, covering up the hospital robe. Her eyes burned from the night spent crying, then reading. She was exhausted. And yet she also felt alive.",
+    "characterCount": 370,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643176429-cpy7aeakw",
+    "timestamp": "2025-10-28T09:19:36.429Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "It’s true. You’re right. The Voidbringers are the parshmen. I can see no other conclusion.",
+    "characterCount": 90,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643179372-qanjlzfy1",
+    "timestamp": "2025-10-28T09:19:39.372Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "she said.",
+    "characterCount": 9,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643180705-onsszgmf7",
+    "timestamp": "2025-10-28T09:19:40.705Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah smiled, looking oddly pleased with herself, considering that she’d only convinced one person.",
+    "characterCount": 100,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643183994-vts8ti5xy",
+    "timestamp": "2025-10-28T09:19:43.994Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "So what next?",
+    "characterCount": 13,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643185481-428dtej6w",
+    "timestamp": "2025-10-28T09:19:45.481Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan asked.",
+    "characterCount": 14,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643186760-osdxota9t",
+    "timestamp": "2025-10-28T09:19:46.760Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "That has to do with your previous studies.",
+    "characterCount": 42,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643188476-8ivwwb08o",
+    "timestamp": "2025-10-28T09:19:48.476Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "My studies? You mean your father’s death?",
+    "characterCount": 41,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643190170-zt4suokv0",
+    "timestamp": "2025-10-28T09:19:50.170Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Indeed.",
+    "characterCount": 7,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643191269-2zk9lg6f1",
+    "timestamp": "2025-10-28T09:19:51.269Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "The Parshendi attacked him. Killed him suddenly, without warning.",
+    "characterCount": 65,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643193739-ee756c9vc",
+    "timestamp": "2025-10-28T09:19:53.739Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan said.",
+    "characterCount": 13,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643195021-gk5kmdkg1",
+    "timestamp": "2025-10-28T09:19:55.021Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She focused on the other woman.",
+    "characterCount": 31,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643196850-e8g7yfbp0",
+    "timestamp": "2025-10-28T09:19:56.850Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "That’s what made you begin studying all of this, isn’t it?",
+    "characterCount": 58,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643198978-ktr8n76il",
+    "timestamp": "2025-10-28T09:19:58.978Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah nodded.",
+    "characterCount": 14,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643200246-apjep8pby",
+    "timestamp": "2025-10-28T09:20:00.246Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Those wild parshmen—the Parshendi of the Shattered Plains—are the key.",
+    "characterCount": 70,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643202743-q68ikjh7x",
+    "timestamp": "2025-10-28T09:20:02.743Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She leaned forward.",
+    "characterCount": 19,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643204468-q809qpuij",
+    "timestamp": "2025-10-28T09:20:04.468Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Shallan. The disaster awaiting us is all too real, all too terrible. I don’t need mystical warnings or theological sermons to frighten me. I’m downright terrified in my own right.",
+    "characterCount": 179,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643208765-zftu41m0q",
+    "timestamp": "2025-10-28T09:20:08.765Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "But we have the parshmen tamed.",
+    "characterCount": 31,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643210427-au1vyjqyd",
+    "timestamp": "2025-10-28T09:20:10.427Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Do we? Shallan, think of what they do, how they’re regarded, how often they’re used.",
+    "characterCount": 84,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643213110-mds5o58ej",
+    "timestamp": "2025-10-28T09:20:13.110Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan hesitated.",
+    "characterCount": 18,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643214595-dzvr9zv54",
+    "timestamp": "2025-10-28T09:20:14.595Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "The parshmen were pervasive.",
+    "characterCount": 28,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643216654-85s9e0ao2",
+    "timestamp": "2025-10-28T09:20:16.654Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "They serve our food. They work our storehouses. They tend our children. There isn’t a village in Roshar that doesn’t have some parshmen. We ignore them; we just expect them to be there, doing as they do. Working without complaint. Yet one group turned suddenly from peaceful friends to slaughtering warriors. Something set them off. Just as it did hundreds of years ago, during the days known as the Heraldic Epochs. There would be a period of peace, followed by an invasion of parshmen who—for reasons nobody understood—had suddenly gone mad with anger and rage. This was what was behind mankind’s fight to keep from being ‘banished to Damnation.’ This was what nearly ended our civilization. This was the terrible, repeated cataclysm that was so frightening men began to speak of them as Desolations. We’ve nurtured the parshmen. We’ve integrated them into every part of our society. We depend on them, never realizing that we’ve harnessed a highstorm waiting to explode. The accounts from the Shattered Plains speak of these Parshendi’s ability to communicate among themselves, allowing them to sing their songs in unison when far apart. Their minds are connected, like spanreeds. Do you realize what that means?",
+    "characterCount": 1215,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643264254-bw43e9hc5",
+    "timestamp": "2025-10-28T09:21:04.254Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah continued.",
+    "characterCount": 17,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643268086-oeofcatth",
+    "timestamp": "2025-10-28T09:21:08.086Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "We’d be devastated. Civilization as we know it could collapse. We have to do something!",
+    "characterCount": 87,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643273123-xcv9cxfgq",
+    "timestamp": "2025-10-28T09:21:13.123Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "We are. We’re gathering facts, making certain we know what we think we know.",
+    "characterCount": 76,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643276678-7mhkx4gfz",
+    "timestamp": "2025-10-28T09:21:16.678Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "And how many facts do we need?",
+    "characterCount": 30,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643279463-ekpax4xmo",
+    "timestamp": "2025-10-28T09:21:19.463Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "More. Many more.",
+    "characterCount": 16,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643281392-xk0bbvk6s",
+    "timestamp": "2025-10-28T09:21:21.392Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah glanced at the books.",
+    "characterCount": 28,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643284311-j29gc9zb1",
+    "timestamp": "2025-10-28T09:21:24.311Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "There are some things about the histories I don’t yet understand. Tales of creatures fighting alongside the parshmen, beasts of stone that might be some kind of greatshell, and other oddities that I think may have truth to them. But we’ve exhausted what Kharbranth can offer. Are you still certain you want to delve into this? It is a heavy burden we will bear. You won’t be returning to your estates for some time.",
+    "characterCount": 415,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643297147-byhophy1q",
+    "timestamp": "2025-10-28T09:21:37.147Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan bit her lip, thinking of her brothers.",
+    "characterCount": 46,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643300026-2pcwnvdaq",
+    "timestamp": "2025-10-28T09:21:40.026Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "You’d let me go now, after what I know?",
+    "characterCount": 39,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643302815-43a25j984",
+    "timestamp": "2025-10-28T09:21:42.815Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "I won’t have you serving me while thinking of ways to escape.",
+    "characterCount": 61,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643305766-4yz9964vs",
+    "timestamp": "2025-10-28T09:21:45.766Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Jasnah sounded exhausted.",
+    "characterCount": 25,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643308030-bkzglpvf0",
+    "timestamp": "2025-10-28T09:21:48.030Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "I can’t just abandon my brothers.",
+    "characterCount": 33,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643310416-na6irbzuz",
+    "timestamp": "2025-10-28T09:21:50.416Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan’s insides twisted again.",
+    "characterCount": 32,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643312936-zekn37zq5",
+    "timestamp": "2025-10-28T09:21:52.936Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "But this is bigger than them. Damnation—it’s bigger than me or you or any of us. I have to help, Jasnah. I can’t walk out on this. I’ll find some other way to help my family.",
+    "characterCount": 174,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643320418-503rynoq1",
+    "timestamp": "2025-10-28T09:22:00.418Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Good. Then go pack our things. We’re leaving tomorrow on that ship I chartered for you.",
+    "characterCount": 87,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643324889-p3476zqgl",
+    "timestamp": "2025-10-28T09:22:04.889Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "We’re going to Jah Keved?",
+    "characterCount": 25,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643327673-qgbl2kxty",
+    "timestamp": "2025-10-28T09:22:07.673Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "No. We need to get to the center of it all.",
+    "characterCount": 43,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643330266-ocfg88who",
+    "timestamp": "2025-10-28T09:22:10.266Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She looked at Shallan.",
+    "characterCount": 22,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643332220-yglhsl6ii",
+    "timestamp": "2025-10-28T09:22:12.220Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "We’re going to the Shattered Plains. We need to find out if the Parshendi were ever ordinary parshmen, and if so, what set them off. Perhaps I am wrong about this, but if I am right, then the Parshendi could hold the key to turning ordinary parshmen into soldiers.",
+    "characterCount": 264,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643343062-250fu7e7w",
+    "timestamp": "2025-10-28T09:22:23.062Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Then, grimly, she continued.",
+    "characterCount": 28,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643345587-az9xiympt",
+    "timestamp": "2025-10-28T09:22:25.587Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "And we need to do it before someone else does, then uses it against us.",
+    "characterCount": 71,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643349790-ncxiskjcx",
+    "timestamp": "2025-10-28T09:22:29.790Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "Someone else?",
+    "characterCount": 13,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643351585-wxtvk9m4h",
+    "timestamp": "2025-10-28T09:22:31.585Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan asked, feeling a sharp stab of panic.",
+    "characterCount": 45,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643354494-93ccwa7o9",
+    "timestamp": "2025-10-28T09:22:34.494Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "There are others looking for this?",
+    "characterCount": 34,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643356778-9h6kar2l8",
+    "timestamp": "2025-10-28T09:22:36.778Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Of course there are. Who do you think went to so much trouble trying to have me assassinated?",
+    "characterCount": 93,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643361550-t7q0oxskt",
+    "timestamp": "2025-10-28T09:22:41.550Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She reached into a stack of papers on her desk.",
+    "characterCount": 47,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643364783-5c68fqk7q",
+    "timestamp": "2025-10-28T09:22:44.783Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "I don’t know much about them. For all I know, there are many groups searching for these secrets. I know of one for certain, however. They call themselves the Ghostbloods.",
+    "characterCount": 170,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643371626-16yudtt30",
+    "timestamp": "2025-10-28T09:22:51.626Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She pulled out a sheet.",
+    "characterCount": 23,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643373663-4h2co8cjx",
+    "timestamp": "2025-10-28T09:22:53.663Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bf_emma",
+    "text": "Your friend Kabsal was one. We found their symbol tattooed on the inside of his arm.",
+    "characterCount": 84,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643377994-r3c51nqyn",
+    "timestamp": "2025-10-28T09:22:57.994Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She set the sheet down. On it was a symbol of three diamonds in a pattern, overlapping one another. It was the same symbol that Nan Balat had shown her weeks ago. The symbol worn by Luesh, her father’s steward, the man who had known how to use the Soulcaster. The symbol worn by the men who had come, pressuring her family to return it. The men who had been financing Shallan’s father in his bid to become highprince.",
+    "characterCount": 417,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643395355-r2c1fpt5m",
+    "timestamp": "2025-10-28T09:23:15.355Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "Almighty above.",
+    "characterCount": 15,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643397385-3q68jmx6b",
+    "timestamp": "2025-10-28T09:23:17.385Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "Shallan whispered.",
+    "characterCount": 18,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643399364-j6mus9j9z",
+    "timestamp": "2025-10-28T09:23:19.364Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "af_sarah",
+    "text": "Jasnah, I think… I think my father might have been a member of this group.",
+    "characterCount": 74,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643402735-x12as5qyo",
+    "timestamp": "2025-10-28T09:23:22.735Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "She looked up.",
+    "characterCount": 14,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761643404224-mxxk8n0pn",
+    "timestamp": "2025-10-28T09:23:24.224Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761647049931-xc41ytteu",
+    "timestamp": "2025-10-28T10:24:09.931Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761648514100-3rthpgjj7",
+    "timestamp": "2025-10-28T10:48:34.100Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761649551116-zdc2loyn9",
+    "timestamp": "2025-10-28T11:05:51.116Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761651198950-f4jlitfui",
+    "timestamp": "2025-10-28T11:33:18.950Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761652010843-zb5xeeu8c",
+    "timestamp": "2025-10-28T11:46:50.843Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761652678425-2gq4vze6m",
+    "timestamp": "2025-10-28T11:57:58.425Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761653529024-bg6ng5x2f",
+    "timestamp": "2025-10-28T12:12:09.024Z"
+  },
+  {
+    "provider": "kokoro",
+    "voiceId": "bm_george",
+    "text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.” The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward but is also divisible into five distinct smaller sections, each of which makes a complete thought. The complete poem must form a sentence that is grammatically correct and poignant in meaning. Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry. The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note. There is no record of this particular ketek in any repository of Vorin poetry, so it is very unlikely that the subject was merely repeating something he once heard. None of the ardents we showed it to had any knowledge of it, though three did praise its structure and ask to meet the poet. We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms. —Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+    "characterCount": 1255,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1761654023252-kudztwr4h",
+    "timestamp": "2025-10-28T12:20:23.252Z"
   }
 ]
