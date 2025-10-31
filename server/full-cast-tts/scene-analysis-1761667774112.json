@@ -1,0 +1,30 @@
+{
+  "bookTitle": "The Way of Kings.epub",
+  "chapter": "Copyright",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 1,
+  "textLength": 544,
+  "processingTime": 4569,
+  "timestamp": "2025-10-28T16:09:34.112Z",
+  "scenes": [
+    {
+      "anchor_text": "This is a work of fiction. All of the characters, organizations, and events portrayed in this novel are either products of the author’s imagination or are used fictitiously.",
+      "scene_description": "A symbolic depiction of the creation of a fictional world.",
+      "image_prompt": "Cinematic digital painting, a vast, swirling nebula forming constellations and continents, a primordial landscape emerging from cosmic dust, ethereal, painterly brushwork, stylized realism, highly detailed, cosmic horror, dramatic lighting with vibrant blues, purples, and golds against deep blacks, wide panoramic composition emphasizing scale and mystery, no characters present",
+      "mood": "awe"
+    },
+    {
+      "anchor_text": "THE WAY OF KINGS\nCopyright © 2010 by Dragonsteel Entertainment, LLC\nAll rights reserved.",
+      "scene_description": "A grand library interior, filled with ancient tomes and mystical artifacts.",
+      "image_prompt": "Cinematic digital painting, a towering library filled with countless books and scrolls, glowing orbs floating amongst the shelves, ancient artifacts displayed in glass cases, high fantasy setting, ornate architecture, painterly brushwork, stylized realism, highly detailed, warm, inviting lighting from unseen sources, high-angle composition emphasizing the vastness of knowledge, muted earth tones with accents of gold and silver, no characters present",
+      "mood": "serene"
+    },
+    {
+      "anchor_text": "Interior illustrations by Isaac Stewart, Ben McSweeney, and Greg Call Edited by Moshe Feder\nA Tor BookPublished by Tom Doherty Associates, LLC175 Fifth AvenueNew York, NY 10010",
+      "scene_description": "A blacksmith working at his forge, creating a sword.",
+      "image_prompt": "Cinematic digital painting, a blacksmith hammering a glowing sword at a fiery forge, sparks flying, tools scattered around the workshop, dark fantasy setting, medieval architecture, painterly brushwork, stylized realism, highly detailed, intense heat from the forge illuminating the scene, close-up composition focusing on the craftsmanship, muted earth tones with bright oranges and reds, the blacksmith's silhouette is visible, but details are obscured by smoke and heat",
+      "mood": "powerful"
+    }
+  ]
+}

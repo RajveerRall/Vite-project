@@ -139,7 +139,12 @@ const ENV_KEYS = {
   kokoroApiKey: process.env.KOKORO_API_KEY || process.env.VITE_KOKORO_API_KEY,
 };
 
+// Optional: Force single provider/voice for all script lines
+const FORCE_PROVIDER = process.env.FORCE_PROVIDER || null; // e.g., 'kokoro' or 'msedge'
+const FORCE_VOICE_ID = process.env.FORCE_VOICE_ID || null; // e.g., 'am_adam' or 'bm_george'
+
 // Choose LLM (prefer Gemini)
+// Note: ModularTTS uses 'gemini-2.0-flash' as the model ID, even when configured with 'gemini-2.5-pro'
 const DEFAULT_LLM = ENV_KEYS.gemini ? 'gemini-2.0-flash' : (ENV_KEYS.openai ? 'gpt-4o' : null);
 
 // Maintain casting memory across requests by keeping a single factory + casting manager
@@ -170,13 +175,31 @@ const ALL_VOICES = [
 ];
 
 // Filter to only enabled providers
-const VOICE_POOL = ALL_VOICES.filter(v => {
+let VOICE_POOL = ALL_VOICES.filter(v => {
   if (v.provider === 'kokoro') return !!ENV_KEYS.kokoroApiUrl;
   if (v.provider === 'msedge') return !!ENV_KEYS.msedgeBaseUrl;
   return false;
 });
 
-console.log(`[full-cast-tts] Voice pool has ${VOICE_POOL.length} voices from enabled providers`);
+// Override: Force single provider/voice if env vars are set
+if (FORCE_PROVIDER && FORCE_VOICE_ID) {
+  const forcedVoice = ALL_VOICES.find(v => 
+    v.provider === FORCE_PROVIDER && 
+    v.voiceId === FORCE_VOICE_ID &&
+    (FORCE_PROVIDER === 'kokoro' ? !!ENV_KEYS.kokoroApiUrl : !!ENV_KEYS.msedgeBaseUrl)
+  );
+  
+  if (forcedVoice) {
+    VOICE_POOL = [forcedVoice];
+    console.log(`[full-cast-tts] ⚙️  FORCED: Using single voice ${FORCE_VOICE_ID} from ${FORCE_PROVIDER}`);
+  } else {
+    console.warn(`[full-cast-tts] ⚠️  FORCE_PROVIDER=${FORCE_PROVIDER} and FORCE_VOICE_ID=${FORCE_VOICE_ID} specified, but voice not found or provider disabled. Using default pool.`);
+  }
+} else if (FORCE_PROVIDER || FORCE_VOICE_ID) {
+  console.warn(`[full-cast-tts] ⚠️  Both FORCE_PROVIDER and FORCE_VOICE_ID must be set to force a single voice. Ignoring single value.`);
+}
+
+console.log(`[full-cast-tts] Voice pool has ${VOICE_POOL.length} voices from enabled providers${FORCE_PROVIDER ? ` [FORCED: ${FORCE_VOICE_ID}]` : ''}`);
 
 // Per-user CastingManager instances for session isolation
 const userCastingManagers = new Map();
@@ -456,6 +479,143 @@ app.post('/api/full-cast-tts', async (req, res) => {
 
 // --- Chat-thread parser endpoint (two-step JSON-only flow with session memory) ---
 // Body: { sessionId: string, text: string, llm?: string, inputChunkId?: string }
+/**
+ * Smart text chunking for long inputs
+ * Splits by paragraph boundaries, preserving dialogue context
+ */
+function chunkTextByParagraphs(text, maxChars = 4000) {
+  // First try: Split by paragraphs (double newlines)
+  const paragraphs = text.split(/\n\s*\n/);
+  
+  // If we only got 1 paragraph (or the first one is too long), try sentence splitting
+  if (paragraphs.length === 1 || text.length > maxChars * 2) {
+    console.log(`[chunkTextByParagraphs] No paragraph breaks found, trying sentence splitting...`);
+    
+    // Split by sentence boundaries (. ! ? followed by space)
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    const chunks = [];
+    let currentChunk = '';
+    
+    for (const sentence of sentences) {
+      const sentenceText = sentence.trim();
+      if (!sentenceText) continue;
+      
+      // If adding this sentence would exceed limit and we have content, save chunk
+      if (currentChunk && (currentChunk.length + sentenceText.length + 1) > maxChars) {
+        chunks.push(currentChunk.trim());
+        currentChunk = sentenceText;
+      } else {
+        currentChunk += (currentChunk ? ' ' : '') + sentenceText;
+      }
+    }
+    
+    // Add remaining chunk
+    if (currentChunk.trim()) {
+      chunks.push(currentChunk.trim());
+    }
+    
+    return chunks.length > 0 ? chunks : [text];
+  }
+  
+  // Original paragraph-based logic
+  const chunks = [];
+  let currentChunk = '';
+  
+  for (const para of paragraphs) {
+    const paraText = para.trim();
+    if (!paraText) continue;
+    
+    // If adding this paragraph would exceed limit and we have content, save chunk
+    if (currentChunk && (currentChunk.length + paraText.length + 2) > maxChars) {
+      chunks.push(currentChunk.trim());
+      currentChunk = paraText;
+    } else {
+      currentChunk += (currentChunk ? '\n\n' : '') + paraText;
+    }
+  }
+  
+  // Add remaining chunk
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+  
+  return chunks.length > 0 ? chunks : [text];
+}
+
+/**
+ * Process single text chunk with retry on JSON errors
+ */
+async function processChunkWithRetry(
+  chunkText, 
+  chosen, 
+  history, 
+  userCastingManager, 
+  inputChunkId, 
+  reqId,
+  maxRetries = 3  // Increased from 2 to 3 for better retry coverage
+) {
+  let lastError = null;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const structured = structureTextForLLM(chunkText);
+      
+      if (attempt > 0) {
+        console.log(`[chat-thread] [req ${reqId}] Retry attempt ${attempt}/${maxRetries}`);
+      }
+      
+      const script = await sharedFactory.createAndExecuteChain({
+        llmIds: [chosen],
+        parserId: 'chatThreadParser',
+        rawTextInput: structured,
+        context: {
+          chatHistory: history,
+          inputChunkId: inputChunkId || `chunk-${Date.now()}`,
+          CASTING_CONTEXT: JSON.stringify(userCastingManager.getCharacterMap(), null, 2),
+          AVAILABLE_VOICES: userCastingManager.getAvailableVoicesForLLM ? userCastingManager.getAvailableVoicesForLLM() : undefined
+        }
+      });
+      
+      // Validate script is array
+      if (!Array.isArray(script)) {
+        throw new Error('LLM returned non-array script');
+      }
+      
+      console.log(`[chat-thread] [req ${reqId}] Chunk processed: ${script.length} lines`);
+      return script;
+      
+    } catch (e) {
+      lastError = e;
+      const errorMsg = e.message || String(e);
+      
+      // Check if it's a JSON parsing error (includes various JSON error types)
+      const isJsonError = errorMsg.includes('JSON') || 
+                         errorMsg.includes('Unterminated string') ||
+                         errorMsg.includes('control character') ||
+                         errorMsg.includes('Unexpected token') ||
+                         errorMsg.includes('JSONDecodeError') ||
+                         errorMsg.includes('Invalid JSON');
+      
+      if (isJsonError) {
+        console.warn(`[chat-thread] [req ${reqId}] JSON parsing error on attempt ${attempt + 1}:`, errorMsg);
+        
+        if (attempt < maxRetries) {
+          // Wait before retry (exponential backoff)
+          const delayMs = 1000 * Math.pow(2, attempt); // Exponential: 1s, 2s, 4s
+          console.log(`[chat-thread] [req ${reqId}] Waiting ${delayMs}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          continue;
+        }
+      }
+      
+      // Non-JSON error or max retries reached
+      throw e;
+    }
+  }
+  
+  throw lastError;
+}
+
 app.post('/api/chat-thread', async (req, res) => {
   const { sessionId, text, llm, inputChunkId } = req.body || {};
   if (!text || typeof text !== 'string') {
@@ -472,21 +632,48 @@ app.post('/api/chat-thread', async (req, res) => {
     if (!chosen) {
       return res.status(400).json({ error: 'No LLM configured. Set OPENAI_API_KEY or GEMINI_API_KEY.' });
     }
-    // Structure text minimally (reuse util) to give the LLM a stable JSON input
-    const structured = structureTextForLLM(text);
-    console.log(`[chat-thread] [req ${req.reqId}] Structured text for LLM:`, structured);
-    const script = await sharedFactory.createAndExecuteChain({
-      llmIds: [chosen],
-      parserId: 'chatThreadParser',
-      rawTextInput: structured,
-      context: {
-        chatHistory: history,
-        inputChunkId: inputChunkId || `chunk-${Date.now()}`,
-        CASTING_CONTEXT: JSON.stringify(userCastingManager.getCharacterMap(), null, 2),
-        AVAILABLE_VOICES: userCastingManager.getAvailableVoicesForLLM ? userCastingManager.getAvailableVoicesForLLM() : undefined
+    
+    // CHUNKING: Split long texts to prevent JSON errors
+    const CHUNK_THRESHOLD = 5000; // Characters
+    let allScripts = [];
+    
+    if (text.length > CHUNK_THRESHOLD) {
+      console.log(`[chat-thread] [req ${req.reqId}] Text too long (${text.length} chars), splitting into chunks...`);
+      const chunks = chunkTextByParagraphs(text, 4000);
+      console.log(`[chat-thread] [req ${req.reqId}] Split into ${chunks.length} chunks`);
+      
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        console.log(`[chat-thread] [req ${req.reqId}] Processing chunk ${i + 1}/${chunks.length} (${chunk.length} chars)`);
+        
+        const script = await processChunkWithRetry(
+          chunk,
+          chosen,
+          history,
+          userCastingManager,
+          `${inputChunkId}-chunk-${i}`,
+          req.reqId
+        );
+        
+        allScripts.push(...script);
       }
-    });
-    console.log(`[chat-thread] [req ${req.reqId}] LLM returned script:`, JSON.stringify(script, null, 2));
+      
+      console.log(`[chat-thread] [req ${req.reqId}] All chunks processed: ${allScripts.length} total lines`);
+    } else {
+      // Single chunk processing with retry
+      console.log(`[chat-thread] [req ${req.reqId}] Processing single chunk (${text.length} chars)`);
+      allScripts = await processChunkWithRetry(
+        text,
+        chosen,
+        history,
+        userCastingManager,
+        inputChunkId,
+        req.reqId
+      );
+    }
+    
+    const script = allScripts;
+    console.log(`[chat-thread] [req ${req.reqId}] LLM returned script:`, JSON.stringify(script.slice(0, 3), null, 2), '... (truncated)');
     // Persist any new assignments into the user's casting manager
     try {
       const characterMap = userCastingManager.getCharacterMap();

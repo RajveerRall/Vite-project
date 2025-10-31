@@ -367,13 +367,14 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
     """
     Create video from key frames using simple FFmpeg frame rate conversion.
     Used when frames are sparse and need interpolation.
+    Uses GPU hardware acceleration if available.
     """
     output_path = os.path.join(tempfile.gettempdir(), f"output_{uuid.uuid4().hex}.mp4")
     
     # Calculate input framerate (keyframes per second)
     input_fps = num_keyframes / total_duration
     
-    print(f"Encoding video with FFmpeg (with interpolation):")
+    print(f"Encoding video with FFmpeg (with interpolation, {GPU_ENCODER} encoder):")
     print(f"  Input: {num_keyframes} key frames at {input_fps:.2f} fps")
     print(f"  Output: {target_fps} fps (simple interpolation)")
     
@@ -385,20 +386,42 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
         '-i', audio_path,
         # Simple frame rate conversion (much faster than minterpolate)
         '-vf', f'fps={target_fps}',
-        '-c:v', 'libx264',
-        '-c:a', 'aac',
-        '-pix_fmt', 'yuv420p',
-        '-crf', str(crf),
-        '-preset', 'fast',  # Faster encoding
-        '-t', str(total_duration),  # Set explicit duration to match audio
-        output_path
     ]
     
-    print(f"Running FFmpeg: {' '.join(cmd)}")
+    # Add encoder-specific options based on available GPU
+    if GPU_ENCODER == 'nvenc':
+        cmd.extend([
+            '-c:v', 'h264_nvenc',
+            '-preset', 'p4',  # NVENC preset (p1=fastest, p7=slowest)
+            '-cq', str(crf),  # Constant quality (similar to CRF)
+            '-b:v', '0',      # Use CQ mode
+        ])
+    elif GPU_ENCODER == 'qsv':
+        cmd.extend([
+            '-c:v', 'h264_qsv',
+            '-preset', 'fast',
+            '-global_quality', str(crf),
+        ])
+    else:  # CPU fallback
+        cmd.extend([
+            '-c:v', 'libx264',
+            '-preset', 'fast',
+            '-crf', str(crf),
+        ])
+    
+    # Common options
+    cmd.extend([
+        '-c:a', 'aac',
+        '-pix_fmt', 'yuv420p',
+        '-t', str(total_duration),  # Set explicit duration to match audio
+        output_path
+    ])
+    
+    print(f"Running FFmpeg: {' '.join(cmd[:10])}...")
     
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        print(f"FFmpeg completed successfully")
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=300)
+        print(f"✓ Video encoded successfully with {GPU_ENCODER}")
         print(f"Video created: {output_path}")
         
         shutil.rmtree(frames_dir)
@@ -407,9 +430,64 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
         return output_path
         
     except subprocess.CalledProcessError as e:
+        # If hardware encoding fails, fallback to CPU
+        if GPU_ENCODER != 'cpu':
+            print(f"⚠ Hardware encoding failed, falling back to CPU")
+            return create_video_with_ffmpeg_interpolated_cpu_fallback(
+                frames_dir, audio_path, width, height, target_fps, num_keyframes, total_duration, crf
+            )
         print(f"FFmpeg failed: {e.returncode}")
         print(f"Error: {e.stderr}")
         raise Exception(f"Video encoding failed: {e.stderr}")
+    except subprocess.TimeoutExpired:
+        raise Exception("FFmpeg encoding timed out after 5 minutes")
+
+def create_video_with_ffmpeg_interpolated_cpu_fallback(frames_dir, audio_path, width, height, target_fps, num_keyframes, total_duration, crf):
+    """
+    CPU fallback for interpolation encoding when hardware acceleration fails.
+    """
+    output_path = os.path.join(tempfile.gettempdir(), f"output_{uuid.uuid4().hex}.mp4")
+    
+    # Calculate input framerate (keyframes per second)
+    input_fps = num_keyframes / total_duration
+    
+    print(f"Encoding video with FFmpeg (with interpolation, CPU fallback):")
+    print(f"  Input: {num_keyframes} key frames at {input_fps:.2f} fps")
+    print(f"  Output: {target_fps} fps (simple interpolation)")
+    
+    cmd = [
+        get_ffmpeg_path(),
+        '-y',
+        '-framerate', str(input_fps),
+        '-i', os.path.join(frames_dir, 'frame_%06d.png'),
+        '-i', audio_path,
+        '-vf', f'fps={target_fps}',
+        '-c:v', 'libx264',
+        '-c:a', 'aac',
+        '-pix_fmt', 'yuv420p',
+        '-crf', str(crf),
+        '-preset', 'fast',
+        '-t', str(total_duration),
+        output_path
+    ]
+    
+    print(f"Running FFmpeg (CPU): {' '.join(cmd[:10])}...")
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=300)
+        print("✓ Video encoded successfully with CPU")
+        print(f"Video created: {output_path}")
+        
+        shutil.rmtree(frames_dir)
+        print(f"Cleaned up frames directory")
+        
+        return output_path
+        
+    except subprocess.CalledProcessError as e:
+        print(f"FFmpeg error: {e.stderr}")
+        raise Exception(f"Video encoding failed: {e.stderr}")
+    except subprocess.TimeoutExpired:
+        raise Exception("FFmpeg encoding timed out after 5 minutes")
 
 def create_video_with_ffmpeg(frames_dir, audio_path, width, height, fps, crf):
     """
@@ -1744,13 +1822,75 @@ def preprocess_scene_image(image_path: str, width: int, height: int) -> Image.Im
     enhancer = ImageEnhance.Brightness(cropped_img)
     return enhancer.enhance(0.8)
 
+def preprocess_scene_image_worker(args):
+    """
+    Worker function for parallel scene image preprocessing.
+    Must be top-level function for multiprocessing pickling.
+    
+    Args:
+        args: Tuple of (scene, srt_entries, scene_image_paths, width, height)
+            - scene: Dict with sceneIndex, anchor_text, filename
+            - srt_entries: List of parsed SRT entries
+            - scene_image_paths: Dict mapping filename -> local file path
+            - width: Target frame width
+            - height: Target frame height
+    
+    Returns:
+        Dict with scene timing data or None if processing failed
+    """
+    try:
+        scene, srt_entries, scene_image_paths, width, height = args
+        
+        anchor_text = scene.get('anchor_text', '')
+        filename = scene.get('filename', '')
+        scene_index = scene.get('sceneIndex', -1)
+        
+        if not anchor_text or not filename:
+            print(f"⚠️  Scene {scene_index}: Missing anchor_text or filename, skipping")
+            return None
+        
+        # Check if image file exists
+        image_path = scene_image_paths.get(filename)
+        if not image_path or not os.path.exists(image_path):
+            print(f"⚠️  Scene {scene_index}: Image file not found ({filename}), skipping")
+            return None
+        
+        # Find matching timestamp in SRT using fuzzy matching
+        match = find_anchor_text_in_srt(anchor_text, srt_entries)
+        
+        if match['match_ratio'] < 0.5:
+            print(f"⚠️  Scene {scene_index}: Low match ratio ({match['match_ratio']:.2f}), skipping")
+            print(f"    Anchor text: {anchor_text[:50]}...")
+            return None
+        
+        # PRE-PROCESS image once (zoom, crop, darken)
+        try:
+            preprocessed_img = preprocess_scene_image(image_path, width, height)
+            print(f"✓ Scene {scene_index}: Preprocessed and matched at {match['start_time']:.2f}s (ratio: {match['match_ratio']:.2f})")
+        except Exception as e:
+            print(f"⚠️  Scene {scene_index}: Failed to preprocess image: {e}")
+            return None
+        
+        return {
+            'scene_index': scene_index,
+            'start_time': match['start_time'],
+            'end_time': None,  # Will be calculated below
+            'preprocessed_image': preprocessed_img,  # Store processed image
+            'match_ratio': match['match_ratio'],
+            'anchor_text_preview': anchor_text[:50]
+        }
+    except Exception as e:
+        scene_index = scene.get('sceneIndex', -1) if 'scene' in locals() else -1
+        print(f"⚠️  Scene {scene_index}: Error in worker: {e}")
+        return None
+
 def calculate_scene_timings(scene_images: list, srt_entries: list, 
                            scene_image_paths: dict, total_duration: float,
                            width: int = 1920, height: int = 1080) -> list:
     """
     Map scene images to video timestamps using anchor_text fuzzy matching.
     Images display from their start time until the next scene starts (or video ends).
-    PRE-PROCESSES images once for performance.
+    PRE-PROCESSES images once for performance using parallel processing.
     
     Args:
         scene_images: List of scene metadata from frontend (sceneIndex, anchor_text, filename)
@@ -1763,47 +1903,40 @@ def calculate_scene_timings(scene_images: list, srt_entries: list,
     Returns:
         List of dicts: {'scene_index', 'start_time', 'end_time', 'preprocessed_image', 'match_ratio'}
     """
+    if not scene_images:
+        return []
+    
+    # Prepare tasks for parallel processing
+    tasks = []
+    for scene in scene_images:
+        task_args = (scene, srt_entries, scene_image_paths, width, height)
+        tasks.append(task_args)
+    
+    # Use parallel processing for multiple images (similar to frame generation)
+    # Enable parallel if we have more than 1 image (small overhead, but better CPU utilization)
+    USE_PARALLEL = len(tasks) > 1
+    
     scene_timings = []
     
-    for scene in scene_images:
-        anchor_text = scene.get('anchor_text', '')
-        filename = scene.get('filename', '')
-        scene_index = scene.get('sceneIndex', -1)
+    if USE_PARALLEL:
+        print(f"Preprocessing {len(tasks)} scene images in parallel with up to {cpu_count() - 1} workers...")
+        num_workers = max(1, cpu_count() - 1)
         
-        if not anchor_text or not filename:
-            print(f"⚠️  Scene {scene_index}: Missing anchor_text or filename, skipping")
-            continue
-        
-        # Check if image file exists
-        image_path = scene_image_paths.get(filename)
-        if not image_path or not os.path.exists(image_path):
-            print(f"⚠️  Scene {scene_index}: Image file not found ({filename}), skipping")
-            continue
-        
-        # Find matching timestamp in SRT using fuzzy matching
-        match = find_anchor_text_in_srt(anchor_text, srt_entries)
-        
-        if match['match_ratio'] < 0.5:
-            print(f"⚠️  Scene {scene_index}: Low match ratio ({match['match_ratio']:.2f}), skipping")
-            print(f"    Anchor text: {anchor_text[:50]}...")
-            continue
-        
-        # PRE-PROCESS image once (zoom, crop, darken)
-        try:
-            preprocessed_img = preprocess_scene_image(image_path, width, height)
-            print(f"✓ Scene {scene_index}: Preprocessed and matched at {match['start_time']:.2f}s (ratio: {match['match_ratio']:.2f})")
-        except Exception as e:
-            print(f"⚠️  Scene {scene_index}: Failed to preprocess image: {e}")
-            continue
-        
-        scene_timings.append({
-            'scene_index': scene_index,
-            'start_time': match['start_time'],
-            'end_time': None,  # Will be calculated below
-            'preprocessed_image': preprocessed_img,  # Store processed image
-            'match_ratio': match['match_ratio'],
-            'anchor_text_preview': anchor_text[:50]
-        })
+        with Pool(processes=num_workers) as pool:
+            # Process all scenes in parallel
+            results = pool.map(preprocess_scene_image_worker, tasks)
+            
+            # Filter out None results (failed processing)
+            scene_timings = [result for result in results if result is not None]
+            
+            print(f"✓ Parallel preprocessing complete: {len(scene_timings)} of {len(tasks)} scenes processed successfully")
+    else:
+        # Sequential processing for single image (no overhead)
+        print(f"Preprocessing {len(tasks)} scene image(s) sequentially...")
+        for task in tasks:
+            result = preprocess_scene_image_worker(task)
+            if result is not None:
+                scene_timings.append(result)
     
     # Sort by start_time
     scene_timings.sort(key=lambda x: x['start_time'])

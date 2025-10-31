@@ -7,7 +7,7 @@ import { requestFullCast, ttsForLine } from '../services/fullCastTTS';
 
 interface VideoSettings {
   format: 'youtube' | 'mobile';
-  style: 'ereader' | 'subtitle' | 'minimal';
+  style: 'ereader' | 'split';
   highlightMode: 'none' | 'sentence' | 'word';  // Changed from enableHighlight boolean
   enableSceneImages: boolean;  // NEW: Toggle for AI-generated scene images
 }
@@ -124,6 +124,48 @@ const EpubToVideo: React.FC = () => {
     setSettings(prev => ({ ...prev, [key]: value }));
   }, []);
 
+  /**
+   * Split long text into optimal chunks for TTS
+   * Based on ModularTTS chunkText logic: maxLength = 1700 chars (conservative)
+   */
+  const chunkScriptLine = useCallback((text: string, maxLength: number = 1000): string[] => {
+    if (!text || text.trim().length === 0) return [];
+    
+    if (text.length <= maxLength) {
+      return [text];
+    }
+    
+    // Split by sentence boundaries first
+    const sentences = text.match(/[^.!?]+[.!?]*|[^.!?\s]+/g) || [text];
+    const chunks: string[] = [];
+    let currentChunk = '';
+    
+    for (const sentence of sentences) {
+      const trimmedSentence = sentence.trim();
+      if (!trimmedSentence) continue;
+      
+      // Check if adding this sentence would exceed maxLength
+      const potentialChunk = currentChunk 
+        ? (currentChunk + ' ' + trimmedSentence)
+        : trimmedSentence;
+      
+      if (potentialChunk.length > maxLength && currentChunk) {
+        // Save current chunk and start new one
+        chunks.push(currentChunk.trim());
+        currentChunk = trimmedSentence;
+      } else {
+        currentChunk = potentialChunk;
+      }
+    }
+    
+    // Add remaining chunk
+    if (currentChunk.trim()) {
+      chunks.push(currentChunk.trim());
+    }
+    
+    return chunks.filter(chunk => chunk.trim().length > 0);
+  }, []);
+
   const handleExtractChapters = useCallback(async () => {
     if (!uploadedFile) return;
 
@@ -216,12 +258,44 @@ const EpubToVideo: React.FC = () => {
           });
       }
 
-      // Step 2: Generate audio for each script line with SRT
+      // Step 2: Generate audio for each script line with SRT (batched parallel processing)
       setVideoProgress({
         stage: 'audio',
         percentage: 50,
-        message: 'Generating audio...'
+        message: 'Preparing audio generation...'
       });
+
+      // Flatten all chunks into tasks with metadata
+      interface TtsTask {
+        lineIndex: number;
+        chunkIndex: number;
+        totalChunksForLine: number;
+        text: string;
+        provider?: string;
+        voiceId?: string;
+        lineDialogue: string;
+      }
+
+      const ttsTasks: TtsTask[] = [];
+      for (let i = 0; i < script.length; i++) {
+        const line = script[i];
+        const textChunks = chunkScriptLine(line.dialogue);
+        
+        for (let chunkIdx = 0; chunkIdx < textChunks.length; chunkIdx++) {
+          ttsTasks.push({
+            lineIndex: i,
+            chunkIndex: chunkIdx,
+            totalChunksForLine: textChunks.length,
+            text: textChunks[chunkIdx],
+            provider: line.provider,
+            voiceId: line.voiceId,
+            lineDialogue: line.dialogue
+          });
+        }
+      }
+
+      console.log(`[Video Generation] Prepared ${ttsTasks.length} TTS tasks from ${script.length} script lines`);
+      console.log(`[Video Generation] Processing with batch size of 3 (max concurrent requests)`);
 
       // Collect audio blobs and metadata
       const audioBlobs: Blob[] = [];
@@ -229,74 +303,96 @@ const EpubToVideo: React.FC = () => {
       let combinedSrt = '';
       let cumulativeDuration = 0;
 
-      for (let i = 0; i < script.length; i++) {
-        const line = script[i];
-        const audioProgress = 50 + (i / script.length) * 30;
+      // Process TTS tasks in batches of 3
+      interface TtsResult {
+        taskIndex: number;
+        blob: Blob;
+        duration: number;
+        srtContent?: string;
+        lineIndex: number;
+        chunkIndex: number;
+      }
+
+      const allResults: TtsResult[] = [];
+      const batchSize = 3;
+      let completedTasks = 0;
+
+      for (let i = 0; i < ttsTasks.length; i += batchSize) {
+        const batch = ttsTasks.slice(i, i + batchSize);
+        const batchPromises = batch.map(async (task, batchIdx) => {
+          const taskIndex = i + batchIdx;
+          try {
+            const { blob, srtContent, duration } = await ttsForLine(
+              task.text, 
+              task.provider, 
+              task.voiceId, 
+              { includeSrt: true, includeTiming: true }
+            );
+
+            // Log chunk details
+            console.log(`[Video Generation] Line ${task.lineIndex + 1}, Chunk ${task.chunkIndex + 1}/${task.totalChunksForLine} (Task ${taskIndex + 1}/${ttsTasks.length}):`);
+            console.log(`  - Text length: ${task.text.length} chars`);
+            console.log(`  - Audio blob size: ${blob.size} bytes`);
+            console.log(`  - Duration: ${duration || 'undefined'} seconds`);
+            console.log(`  - SRT content length: ${srtContent ? srtContent.length : 'undefined'} characters`);
+
+            if (!blob || blob.size === 0) {
+              console.error(`[Video Generation] Line ${task.lineIndex + 1}, Chunk ${task.chunkIndex + 1} returned empty blob!`);
+              throw new Error(`Audio generation failed for line ${task.lineIndex + 1}, chunk ${task.chunkIndex + 1}`);
+            }
+
+            return {
+              taskIndex,
+              blob,
+              duration: duration || 0,
+              srtContent: srtContent || undefined,
+              lineIndex: task.lineIndex,
+              chunkIndex: task.chunkIndex
+            };
+          } catch (error) {
+            console.error(`[Video Generation] Failed to generate audio for line ${task.lineIndex + 1}, chunk ${task.chunkIndex + 1}:`, error);
+            throw error; // Don't continue with incomplete audio
+          }
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+        allResults.push(...batchResults);
         
+        // Update progress after each batch completes
+        completedTasks += batchResults.length;
+        const audioProgress = 50 + (completedTasks / ttsTasks.length) * 30;
         setVideoProgress({
           stage: 'audio',
           percentage: Math.round(audioProgress),
-          message: `Generating audio ${i + 1}/${script.length}...`
+          message: `Generating audio ${completedTasks}/${ttsTasks.length}...`
         });
+      }
 
-        console.log(`[Video Generation] Processing line ${i + 1}/${script.length}: "${line.dialogue.substring(0, 50)}..."`);
-        
-        try {
-          const { blob, srtContent, duration, wordTimings } = await ttsForLine(
-            line.dialogue, 
-            line.provider, 
-            line.voiceId, 
-            { includeSrt: true, includeTiming: true }
+      // Sort results by taskIndex to maintain original order
+      allResults.sort((a, b) => a.taskIndex - b.taskIndex);
+
+      // Process results in order and update cumulative tracking
+      for (const result of allResults) {
+        audioBlobs.push(result.blob);
+        durations.push(result.duration);
+
+        if (result.srtContent && result.duration > 0) {
+          // Adjust SRT timestamps for this chunk
+          const adjustedSrt = adjustSrtTimestamps(
+            result.srtContent, 
+            cumulativeDuration, 
+            audioBlobs.length  // Use total chunk index
           );
-
-          console.log(`[Video Generation] Line ${i + 1} Full Cast response:`);
-          console.log(`  - Audio blob size: ${blob.size} bytes`);
-          console.log(`  - Duration from header: ${duration || 'undefined'} seconds`);
-          console.log(`  - SRT content length: ${srtContent ? srtContent.length : 'undefined'} characters`);
           
-          // Parse and log the first SRT entry to verify it starts at 0.0
-          if (srtContent) {
-            const firstTimestamp = srtContent.match(/(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/);
-            if (firstTimestamp) {
-              console.log(`  - First SRT timestamp: ${firstTimestamp[1]} --> ${firstTimestamp[2]}`);
-              console.log(`  - First SRT start (seconds): ${parseTimeToSeconds(firstTimestamp[1])}s`);
-            }
-          }
-          console.log(`  - SRT preview: ${srtContent ? srtContent.substring(0, 100) + '...' : 'none'}`);
-
-          if (!blob || blob.size === 0) {
-            console.error(`[Video Generation] Line ${i + 1} returned empty blob!`);
-            throw new Error(`Audio generation failed for line ${i + 1}`);
-          }
-
-          audioBlobs.push(blob);
-          durations.push(duration || 0);
-
-          if (srtContent && duration) {
-            console.log(`[Video Generation] BEFORE ADJUSTMENT - Line ${i + 1}:`);
-            console.log(`  - Current cumulative duration: ${cumulativeDuration.toFixed(3)}s`);
-            console.log(`  - This chunk's duration: ${duration.toFixed(3)}s`);
-            console.log(`  - Raw SRT preview: ${srtContent.substring(0, 200)}`);
-            
-            const adjustedSrt = adjustSrtTimestamps(srtContent, cumulativeDuration, i + 1);
-            
-            console.log(`[Video Generation] AFTER ADJUSTMENT - Line ${i + 1}:`);
-            console.log(`  - Adjusted SRT preview: ${adjustedSrt.substring(0, 200)}`);
-            console.log(`  - Next cumulative will be: ${(cumulativeDuration + duration).toFixed(3)}s`);
-            
-            combinedSrt += adjustedSrt + '\n\n';
-            cumulativeDuration += duration;
-            console.log(`[Video Generation] Line ${i + 1} added to cumulative: duration=${duration}s, total=${cumulativeDuration.toFixed(2)}s`);
-          } else if (duration) {
-            // Still add to cumulative duration even if SRT is missing
-            cumulativeDuration += duration;
-            console.log(`[Video Generation] Line ${i + 1} added to cumulative (no SRT): duration=${duration}s, total=${cumulativeDuration.toFixed(2)}s`);
-          } else {
-            console.warn(`[Video Generation] Line ${i + 1} missing both data: duration=${duration}, srtContent=${!!srtContent}`);
-          }
-        } catch (error) {
-          console.error(`[Video Generation] Failed to generate audio for line ${i + 1}:`, error);
-          throw error; // Don't continue with incomplete audio
+          combinedSrt += adjustedSrt + '\n\n';
+          cumulativeDuration += result.duration;
+          
+          console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added: duration=${result.duration}s, total=${cumulativeDuration.toFixed(2)}s`);
+        } else if (result.duration > 0) {
+          cumulativeDuration += result.duration;
+          console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added (no SRT): duration=${result.duration}s, total=${cumulativeDuration.toFixed(2)}s`);
+        } else {
+          console.warn(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} missing both data: duration=${result.duration}, srtContent=${!!result.srtContent}`);
         }
       }
 
@@ -304,6 +400,15 @@ const EpubToVideo: React.FC = () => {
       console.log(`  - Total chunks: ${audioBlobs.length}`);
       console.log(`  - Individual sizes:`, audioBlobs.map(b => b.size));
       console.log(`  - Total duration: ${cumulativeDuration}s`);
+      
+      // Phase 2: Log chunk metadata before upload
+      console.log(`[Video Generation] Preparing to upload ${audioBlobs.length} audio chunks`);
+      let totalSize = 0;
+      audioBlobs.forEach((blob, i) => {
+        totalSize += blob.size;
+        console.log(`[Video Generation] Chunk ${i}: ${blob.size} bytes (${(blob.size/1024/1024).toFixed(2)} MB), duration=${durations[i]?.toFixed(2) || 'unknown'}s`);
+      });
+      console.log(`[Video Generation] Total audio size: ${totalSize} bytes (${(totalSize/1024/1024).toFixed(2)} MB)`);
 
       // Validation before sending to Python server
       if (cumulativeDuration === 0) {
@@ -387,10 +492,18 @@ const EpubToVideo: React.FC = () => {
 
       console.log(`[Video Generation] Sending ${audioBlobs.length} individual audio chunks`);
 
+      // Estimate FormData size (rough calculation)
+      const estimatedFormDataSize = totalSize + combinedSrt.length + chapter.content.length;
+      console.log(`[Video Generation] Estimated FormData size: ~${(estimatedFormDataSize/1024/1024).toFixed(2)} MB`);
+      if (estimatedFormDataSize > 100 * 1024 * 1024) {
+        console.warn(`⚠️  WARNING: FormData size (${(estimatedFormDataSize/1024/1024).toFixed(2)} MB) exceeds typical FastAPI limit (100 MB)`);
+      }
+
       const formData = new FormData();
       
       // Send individual audio chunks instead of combining them
       audioBlobs.forEach((blob, index) => {
+        console.log(`[Video Generation] Appending chunk ${index} to FormData: ${blob.size} bytes`);
         formData.append('audio_chunks', blob, `audio_${index}.mp3`);
       });
       
@@ -409,6 +522,7 @@ const EpubToVideo: React.FC = () => {
       formData.append('chapter_title', chapter.title);
       formData.append('author', 'Unknown Author');
       formData.append('format', settings.format);
+      formData.append('style', settings.style);
       formData.append('highlight_mode', settings.highlightMode);
 
       // Add scene images if available
@@ -699,16 +813,13 @@ const EpubToVideo: React.FC = () => {
                     onChange={(e) => handleSettingsChange('style', e.target.value)}
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
                   >
-                    <option value="ereader">E-Reader (Book Style)</option>
-                    <option value="subtitle">Subtitle Style</option>
-                    <option value="minimal">Minimal</option>
+                    <option value="ereader">Full Screen (Scene + Text Overlay)</option>
+                    <option value="split">Split Screen (Image Left, Text Right)</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
                     {settings.style === 'ereader' 
-                      ? 'Elegant book-like appearance with serif fonts and page margins' 
-                      : settings.style === 'subtitle'
-                      ? 'Modern subtitle style with bold text and highlighting'
-                      : 'Clean minimal design with focus on readability'
+                      ? 'Scene image as background with semi-transparent text container' 
+                      : 'Scene image on left half, text container on right half'
                     }
                   </p>
                 </div>
