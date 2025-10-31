@@ -109,7 +109,17 @@ const AppContent: React.FC = () => {
         }
       } catch {}
     })();
-    return () => { (sub as any)?.remove?.(); };
+    return () => { 
+      // CapacitorApp.addListener returns a Promise that resolves to a PluginListenerHandle
+      // Handle both Promise and direct handle cases
+      if (sub && typeof sub === 'object' && 'then' in sub) {
+        // It's a Promise
+        (sub as Promise<any>).then(handle => handle?.remove?.()).catch(() => {});
+      } else if (sub && typeof (sub as any).remove === 'function') {
+        // It's a direct handle
+        (sub as any).remove();
+      }
+    };
   }, []);
 
   // *** NEW: Don't gate everything behind auth loading ***

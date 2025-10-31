@@ -2,44 +2,35 @@
 import { trackEvent } from '../lib/analytics';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import localforage from 'localforage';
+import localforage from 'localforage'; // Phase 3: Still needed for cleanup operations
 import JSZip from 'jszip';
 // Dynamic import for xmldom to avoid blocking initial page load
 // const { DOMParser } = await import('xmldom');
 import { getDirectoryPath, resolveRelativePath } from '../utils/pathUtils';
 import { getDOMParser } from './book/domParser';
-import { regenerateCoverUrl } from './book/storage';
+// import { regenerateCoverUrl } from './book/storage'; // Phase 2: No longer needed directly (handled by repository)
 
 // getDOMParser moved to ./book/domParser
 import { processHtmlContent, extractTextFromHtml, cleanEpubContent, deepCleanEpubContent } from '../utils/textExtraction';
 import { BookData, TOCItem } from '@/types/books'; // Ensure BookData includes all necessary fields like lastChapter
 import { useAuth } from "./AuthContext";
 // import { supabase, uploadFile, deleteFile, getFileUrl, type BookRecord } from '../lib/supabase'; // Switch to dynamic import
-import { generateUUID } from '../lib/utils';
+// import { generateUUID } from '../lib/utils'; // Phase 2: No longer needed directly (handled by hooks)
 import { registerAdapter, getAdapterForFile } from './book/formats';
 import { epubAdapter } from './book/formats/epubAdapter';
 import { pdfAdapter } from './book/formats/pdfAdapter';
 import { mobiAdapter } from './book/formats/mobiAdapter';
-import { saveReaderState } from '../utils/readerState';
+// import { saveReaderState } from '../utils/readerState'; // Phase 3: Now handled by useBookNavigation hook
 
-// Lightweight local type to avoid importing supabase client at startup
-interface CloudBookRecord {
-  id: string;
-  user_id: string;
-  title: string;
-  author?: string;
-  current_page: number;
-  last_chapter?: string | null;
-  total_pages: number;
-  last_read: string;
-  file_url?: string | null;
-  cover_url?: string | null;
-}
+// Phase 2: Import custom hooks
+import { useBookStorage } from '../hooks/books/useBookStorage';
+import { useBookSync } from '../hooks/books/useBookSync';
+import { useBookLibrary } from '../hooks/books/useBookLibrary';
+import { useBookNavigation } from '../hooks/books/useBookNavigation';
 
-localforage.config({
-  name: "EbookReaderApp",  // Database name
-  storeName: "bookStorage" // Object store for BookContext's data
-});
+// Phase 3: CloudBookRecord moved to CloudBookRepository.ts
+
+// Phase 3: LocalForage config moved to LocalBookRepository
 
 // ... (BookContextValue interface - should be the same as the last full version I provided)
 interface BookContextValue {
@@ -98,15 +89,36 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   const { isAuthenticated, user, hasExplicitlySignedOut } = useAuth();
   const userId = user?.id;
   const navigate = useNavigate();
-  const [books, setBooks] = useState<BookData[]>([]);
-  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false); // New state
-  const [isSyncingFromCloud, setIsSyncingFromCloud] = useState<boolean>(false); // New loading state
   const [isClosing, setIsClosing] = useState<boolean>(false); // Track when book is being closed to prevent reopening
   
-  // ... (all other state declarations from the previous full version remain the same)
+  // Phase 2: Use custom hooks for storage and sync
+  const {
+    books: storageBooks,
+    setBooks,
+    isLoading,
+    isInitialLoadComplete,
+    setIsInitialLoadComplete,
+    saveBooks: saveBooksToStorage,
+  } = useBookStorage(userId);
+
+  const {
+    isSyncingFromCloud,
+    syncBooks,
+    syncBookToCloud,
+    syncProgressToCloud,
+    removeBookFromCloud,
+  } = useBookSync(userId, isAuthenticated, isInitialLoadComplete);
+
+  // Use storage books as the source of truth
+  const books = storageBooks;
+  
+  // Reading state (not handled by hooks)
   const [currentBook, setCurrentBook] = useState<BookData | null>(null);
   const [isReading, setIsReading] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  // Phase 3: Loading state for book operations (openBook/closeBook)
+  // Note: isLoading from useBookStorage handles general loading, this is for specific operations
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isBookOperationLoading, setIsBookOperationLoading] = useState<boolean>(false);
   const [isPageLoading, setIsPageLoading] = useState<boolean>(false);
   const [bookTitle, setBookTitle] = useState<string>('');
   const [bookAuthor, setBookAuthor] = useState<string>('');
@@ -120,11 +132,22 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   const [opfPath, setOpfPath] = useState<string>('');
   const [htmlFiles, setHtmlFiles] = useState<string[]>([]);
   const [isPlayModeVisible, setIsPlayModeVisible] = useState<boolean>(false);
-  // *** NEW: Add a ref to ensure the default book is only loaded once per session ***
-  const defaultBookLoadAttempted = useRef(false);
-  const defaultBookLoadedThisSession = useRef(false); // Track if default book loaded this session
-    // 2. Add a ref to track when a book reading session starts
+  
+  // Phase 3: Default book refs removed - now handled by DefaultBookService
+  // Track reading session start time for analytics
   const readingStartTimestamp = useRef<number | null>(null);
+  
+  // Phase 2: Use custom hooks for library operations (after ALL state declarations)
+  const { addBook: addBookToLibrary, removeBook: removeBookFromLibrary } = useBookLibrary(
+    books,
+    setBooks,
+    setIsBookOperationLoading, // Use local loading state for book operations
+    isAuthenticated,
+    syncBookToCloud
+  );
+  
+  // Phase 2: Use navigation hook (after ALL state declarations)
+  useBookNavigation(isReading, currentBook, currentPageDisplay, totalPages);
   // Adapter session for non-EPUB formats (single active book at a time)
   const currentAdapterSessionRef = useRef<{
     bookId: string;
@@ -142,88 +165,8 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     return typeof label === 'string' ? label : '';
   }, [books, currentBook]);
 
-  // 1. Load books from LocalForage on initial mount
-  useEffect(() => {
-    const loadBooksFromStorage = async () => {
-      console.log("[LocalForage Load] Attempting to load books.");
-      // Use unique timer name to avoid conflicts in development
-      const timerName = `[Perf] localforage-initial-load-${Date.now()}`;
-      console.time(timerName);
-      setIsLoading(true);
-      try {
-        const keys = await localforage.keys();
-        
-        // Use user-specific prefixes when authenticated, fallback to old format for backwards compatibility
-        const userPrefix = userId ? `user_${userId}_` : '';
-        const metadataPrefix = userPrefix ? `${userPrefix}book_metadata_` : 'book_metadata_';
-        const bookMetadataKeys = keys.filter(key => key.startsWith(metadataPrefix));
-        
-        console.log(`[LocalForage Load] Using prefix: "${metadataPrefix}", found ${bookMetadataKeys.length} books`);
-        let loadedBooks: BookData[] = [];
-
-        // *** NEW: If no books are in storage, load the default book ***
-        if (bookMetadataKeys.length === 0 && !defaultBookLoadAttempted.current) {
-          console.log("[Default Book] Library is empty. Attempting to load default book.");
-          defaultBookLoadAttempted.current = true; // Prevent re-loading
-
-          // AWAIT the result of loading the default book.
-          const defaultBook = await loadDefaultBook();
-          if (defaultBook) {
-            // Add it directly to the array we will use to set the state.
-            loadedBooks.push(defaultBook);
-          }
-        } else {
-            // If storage is NOT empty, load from it as before.
-            for (const key of bookMetadataKeys) {
-                const bookId = key.replace(metadataPrefix, '');
-                const metadata = await localforage.getItem(key) as BookData;
-                const filePrefix = userPrefix ? `${userPrefix}book_file_` : 'book_file_';
-                const fileKey = `${filePrefix}${bookId}`;
-                const file = await localforage.getItem(fileKey) as File;
-
-                if (metadata && file) {
-                    console.log(`[LocalForage Load] Loaded book: ${metadata.title}, currentPage: ${metadata.currentPage}, lastChapter: ${metadata.lastChapter?.label || 'none'}`);
-                    
-                    // Regenerate cover URL since blob URLs don't persist across page reloads
-                    const freshCoverUrl = await regenerateCoverUrl(file);
-                    const bookWithFreshCover = { 
-                        ...metadata, 
-                        file: file,
-                        coverUrl: freshCoverUrl || metadata.coverUrl // Use fresh URL if available, otherwise keep old one
-                    };
-                    
-                    console.log(`[LocalForage Load] Cover regenerated for "${metadata.title}": ${freshCoverUrl ? 'Success' : 'Failed'}`);
-                    loadedBooks.push(bookWithFreshCover);
-                }
-            }
-        }
-
-        // Set the state ONCE with the final list of books.
-        setBooks(loadedBooks);
-        console.log("[LocalForage Load] Finished loading books. Final Count:", loadedBooks.length);
-        
-        // *** NEW: Ensure default book is always available when user is not authenticated ***
-        if (!userId && loadedBooks.length === 0 && !defaultBookLoadAttempted.current) {
-          console.log("[Default Book] User not authenticated and no books loaded, ensuring default book is available");
-          const defaultBook = await loadDefaultBook();
-          if (defaultBook) {
-            setBooks([defaultBook]);
-            console.log("[Default Book] Default book loaded for unauthenticated user");
-          }
-        }
-
-      } catch (error) {
-        console.error("[LocalForage Load] Error loading books from storage", error);
-        setBooks([]); // Fallback to empty library on error
-      } finally {
-        console.timeEnd(timerName);
-        setIsLoading(false);
-        setIsInitialLoadComplete(true);
-      }
-    };
-
-    loadBooksFromStorage();
-  }, [userId]); // Depend on userId so it reloads when user signs in/out
+  // Phase 2: Storage is now handled by useBookStorage hook
+  // The hook automatically loads books on mount and when userId changes
 
   // *** FIXED: Clean up user-specific data when user signs out ***
   // This effect now includes safeguards to prevent clearing books during page refresh
@@ -235,6 +178,14 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       // This gives the auth context time to restore the user's session
       const timeoutId = setTimeout(async () => {
         if (!userId) {
+          // FIXED: Don't reset state if we're on the reader route and a book is open
+          // This prevents the loader from appearing unnecessarily during auth state changes
+          const isOnReaderRoute = window.location.pathname.startsWith('/reader');
+          if (isOnReaderRoute && isReading && currentBook) {
+            console.log('[BookContext] Book is open and reading on reader route, skipping cleanup that would reset isInitialLoadComplete');
+            return; // Skip cleanup to preserve reading state
+          }
+          
           // The hasExplicitlySignedOut flag is already checked in the outer useEffect condition
           // If we're here, it means the user has explicitly signed out
           // No need for additional "hasUploadedBooks" safeguards
@@ -285,10 +236,12 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
                 console.log(`[BookContext] Removed book key: ${key}`);
               }
              
-              // Reset flags
-              defaultBookLoadAttempted.current = false;
-              defaultBookLoadedThisSession.current = false; // Reset session flag
-              setIsInitialLoadComplete(false);
+              // Phase 3: Default book flags removed - handled by DefaultBookService
+              // FIXED: Only reset isInitialLoadComplete if we're not on reader route with open book
+              // This prevents loader from appearing unnecessarily
+              if (!isOnReaderRoute || !isReading) {
+                setIsInitialLoadComplete(false);
+              }
               
               // Clear current book state
               setCurrentBook(null);
@@ -310,13 +263,23 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
               
               // *** NEW: Load the default book after clearing user data ***
               // This ensures users always see the default book when signed out
-              const defaultBook = await loadDefaultBook();
+              const { DefaultBookService } = await import('../services/books/DefaultBookService');
+              const defaultBook = await DefaultBookService.loadDefaultBook();
               if (defaultBook) {
                 setBooks([defaultBook]);
                 console.log('[BookContext] Default book loaded after sign-out cleanup');
+                // FIXED: Set isInitialLoadComplete back to true after loading default book
+                // This prevents ReaderWrapper from showing loader unnecessarily
+                setIsInitialLoadComplete(true);
+              } else {
+                // Even if default book failed to load, set isInitialLoadComplete to true
+                // to prevent infinite loader state
+                setIsInitialLoadComplete(true);
               }
             } catch (error) {
               console.error('[BookContext] Error clearing user data:', error);
+              // Ensure isInitialLoadComplete is set even on error
+              setIsInitialLoadComplete(true);
             }
           };
           
@@ -335,86 +298,57 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
 // PASTE THIS ENTIRE BLOCK INTO YOUR BookContext.tsx FILE
 // =================================================================
 
-  // 2. Save books to LocalForage whenever the 'books' array changes
-useEffect(() => {
-  // This is a safety check. It prevents the app from saving an empty
-  // book list when it first starts, before it has loaded your library.
-  if (!isInitialLoadComplete) {
-    return;
-  }
-
-  // *** NEW: Don't cleanup during sync to prevent race conditions ***
-  // This prevents the race condition where cleanup runs before Supabase sync completes
-  if (isSyncingFromCloud) {
-    console.log('[LocalForage Save] Skipping cleanup during sync to prevent race conditions');
-    return;
-  }
-
-  // *** NEW: Don't cleanup if we're in the middle of authentication changes ***
-  // This prevents cleanup from running during sign-in/sign-out transitions
-  if (!isInitialLoadComplete) {
-    console.log('[LocalForage Save] Skipping cleanup - initial load not complete');
-    return;
-  }
-
-  // *** NEW: Don't cleanup if user is signing out (userId is undefined) ***
-  // This prevents cleanup from running during the sign-out process
-  if (!userId && books.length === 0) {
-    console.log('[LocalForage Save] Skipping cleanup - user signing out, books already cleared');
-    return;
-  }
-
-  // *** NEW: Don't cleanup if we're in the middle of clearing user data ***
-  // This prevents cleanup from running during the sign-out cleanup process
-  if (!userId && !isInitialLoadComplete) {
-    console.log('[LocalForage Save] Skipping cleanup - user data clearing in progress');
-    return;
-  }
-
-  const saveBooksToStorage = async () => {
-    console.log(`[LocalForage Save] A change was detected. Saving ${books.length} books.`);
-    try {
-      // To correctly handle book removals, we will find all keys for books
-      // that are no longer in our current library state and remove them.
-      const allKeysInStorage = await localforage.keys();
-      const currentBookIds = new Set(books.map(b => b.id));
-
-      for (const key of allKeysInStorage) {
-        if (key.startsWith('book_metadata_') || key.startsWith('book_file_')) {
-          const bookIdInKey = key.replace('book_metadata_', '').replace('book_file_', '');
-          if (!currentBookIds.has(bookIdInKey)) {
-            // *** NEW: Never remove the default book (1984) ***
-            const metadata = await localforage.getItem(key) as BookData;
-            if (metadata && metadata.title === '1984') {
-              console.log(`[LocalForage Save] Preserving default book: ${metadata.title}`);
-              continue; // Skip removal for default book
-            }
-            
-            console.log(`[LocalForage Save] Removing stale book key: ${key}`);
-            await localforage.removeItem(key);
-          }
-        }
-      }
-
-      // Now, save each book that is currently in the state.
-      for (const book of books) {
-        // We separate the large file from its metadata for efficiency
-        const { file, ...metadata } = book;
-        console.log(`[LocalForage Save] Saving book: ${metadata.title}, currentPage: ${metadata.currentPage}, lastChapter: ${metadata.lastChapter?.label || 'none'}`);
-        await localforage.setItem(`book_metadata_${book.id}`, metadata);
-        await localforage.setItem(`book_file_${book.id}`, file);
-      }
-
-      console.log("[LocalForage Save] All books have been successfully saved.");
-
-    } catch (error) {
-      console.error('[LocalForage Save] An error occurred while saving books:', error);
+  // Phase 3: Save books to storage when books array changes
+  // Use ref to prevent save/load loops
+  const isSavingRef = useRef(false);
+  const lastSavedBooksRef = useRef<string>('');
+  
+  useEffect(() => {
+    // This is a safety check. It prevents the app from saving an empty
+    // book list when it first starts, before it has loaded your library.
+    if (!isInitialLoadComplete) {
+      return;
     }
-  };
 
-  saveBooksToStorage();
+    // Don't save during sync to prevent race conditions
+    if (isSyncingFromCloud) {
+      console.log('[BookContext Save] Skipping save during sync to prevent race conditions');
+      return;
+    }
 
-}, [books, isInitialLoadComplete, isSyncingFromCloud]); // This hook runs ONLY when the 'books' array changes.
+    // Don't save if user is signing out (userId is undefined) and books are already cleared
+    if (!userId && books.length === 0) {
+      console.log('[BookContext Save] Skipping save - user signing out, books already cleared');
+      return;
+    }
+
+    // Prevent save/load loops: only save if books actually changed
+    const booksKey = JSON.stringify(books.map(b => ({ id: b.id, currentPage: b.currentPage, lastChapter: b.lastChapter })));
+    if (lastSavedBooksRef.current === booksKey) {
+      console.log('[BookContext Save] Books unchanged, skipping save');
+      return;
+    }
+
+    // Prevent concurrent saves
+    if (isSavingRef.current) {
+      console.log('[BookContext Save] Save already in progress, skipping');
+      return;
+    }
+
+    isSavingRef.current = true;
+    lastSavedBooksRef.current = booksKey;
+
+    // Save books using the hook's save function
+    saveBooksToStorage(books, true)
+      .then(() => {
+        isSavingRef.current = false;
+      })
+      .catch(error => {
+        console.error('[BookContext Save] Error saving books:', error);
+        isSavingRef.current = false;
+        lastSavedBooksRef.current = ''; // Reset to allow retry
+      });
+  }, [books, isInitialLoadComplete, isSyncingFromCloud, userId, saveBooksToStorage]);
 
   // Cleanup blob URLs when component unmounts to prevent memory leaks
   useEffect(() => {
@@ -427,743 +361,60 @@ useEffect(() => {
     };
   }, []); // Empty dependency array means this runs only on unmount
 
-  // Sync books from cloud when user signs in
+  // Phase 3: Cloud sync is handled by useBookSync hook
+  // Track if sync has already run to prevent infinite loops
+  const syncHasRunRef = useRef<string | null>(null);
+  const booksRef = useRef(books);
+  
+  // Keep booksRef in sync with books
   useEffect(() => {
-    console.log('[SupabaseSync] 🔍 Effect triggered:', { isAuthenticated, userId });
+    booksRef.current = books;
+  }, [books]);
+  
+  // Trigger sync when user signs in and initial load completes
+  useEffect(() => {
+    // Only sync once per authentication session
+    const syncKey = userId && isInitialLoadComplete ? `${userId}-${isInitialLoadComplete}` : null;
     
-    const syncBooksOnLogin = async () => {
-      if (isAuthenticated && userId) {
-        try {
-          console.log('[SupabaseSync] 🚀 Starting sync - User authenticated:', { userId });
-          setIsSyncingFromCloud(true);
-          console.log('[SupabaseSync] User signed in, starting progressive sync...');
-
-          const { supabase } = await import('../lib/supabase');
-
-          // Fetch books metadata from Supabase
-          const { data: cloudBooksData, error } = await supabase
-            .from('books')
-            .select('*')
-            .eq('user_id', userId)
-            .order('last_read', { ascending: false });
-
-          if (error) {
-            throw new Error(`Supabase fetch error: ${error.message}`);
+    if (isAuthenticated && userId && isInitialLoadComplete && syncHasRunRef.current !== syncKey) {
+      console.log('[BookContext] Triggering sync for user:', userId);
+      syncHasRunRef.current = syncKey;
+      
+      // Use ref to get current books without causing dependency issues
+      const currentBooks = booksRef.current;
+      syncBooks(currentBooks)
+        .then(syncedBooks => {
+          // Only update if books actually changed (deep comparison)
+          const booksChanged =
+            syncedBooks.length !== currentBooks.length ||
+            syncedBooks.some((b, i) => b.id !== currentBooks[i]?.id);
+          if (booksChanged) {
+            console.log('[BookContext] Books changed after sync, updating state');
+            setBooks(syncedBooks);
+          } else {
+            console.log('[BookContext] No changes after sync, skipping update');
           }
-
-          console.log(`[SupabaseSync] Retrieved ${cloudBooksData.length} books from Supabase`);
-
-          if (cloudBooksData.length === 0) {
-            console.log('[SupabaseSync] No cloud books to sync');
-            setIsSyncingFromCloud(false);
-            return;
-          }
-
-          // Debug: Show file_url values from database
-          console.log('[SupabaseSync] 🔍 Database file_url values:');
-          cloudBooksData.forEach((book, index) => {
-            console.log(`[SupabaseSync] Book ${index + 1}: "${book.title}" - file_url: ${book.file_url || 'null'}`);
-          });
-
-          // Step 1: Check which books are missing locally and need to be downloaded
-          const downloadStartTime = performance.now();
-          const currentLocalBooks = books;
-          
-          // Debug: List available storage buckets
-          try {
-            console.log('[SupabaseSync] 🔍 Checking available storage buckets...');
-            const { data: buckets } = await supabase.storage.listBuckets();
-            if (buckets) {
-              console.log('[SupabaseSync] Available buckets:', buckets.map(b => b.name));
-            }
-          } catch (bucketError) {
-            console.warn('[SupabaseSync] Could not list buckets:', bucketError);
-          }
-          
-          // Simple duplicate check by ID only (as it was working before)
-          const existingBookIds = new Set(currentLocalBooks.map(book => book.id));
-          
-          // Separate books into existing and missing
-          const existingCloudBooks = cloudBooksData.filter((cloudBook: CloudBookRecord) => 
-            existingBookIds.has(cloudBook.id)
-          );
-          const missingCloudBooks = cloudBooksData.filter((cloudBook: CloudBookRecord) => 
-            !existingBookIds.has(cloudBook.id)
-          );
-
-          console.log(`[SupabaseSync] 📊 Books analysis:`);
-          console.log(`[SupabaseSync] - Already local: ${existingCloudBooks.length} books`);
-          console.log(`[SupabaseSync] - Need download: ${missingCloudBooks.length} books`);
-
-          // Step 2: Update existing books with cloud metadata (without re-downloading files)
-          let updatedBooks = [...currentLocalBooks];
-          existingCloudBooks.forEach((cloudBook: CloudBookRecord) => {
-            const localIndex = updatedBooks.findIndex(book => book.id === cloudBook.id);
-            if (localIndex >= 0) {
-              const localBook = updatedBooks[localIndex];
-              const cloudDate = new Date(cloudBook.last_read);
-              const localDate = new Date(localBook.lastRead);
-
-              // Use the version with the most recent reading progress
-              if (cloudDate > localDate) {
-                updatedBooks[localIndex] = {
-                  ...localBook, // Keep local file and cover
-                  currentPage: cloudBook.current_page,
-                  lastChapter: cloudBook.last_chapter ? { 
-                    id: 'restored-chapter', 
-                    href: cloudBook.last_chapter, 
-                    label: cloudBook.last_chapter.split('/').pop()?.replace('.html', '') || 'Chapter',
-                    children: []
-                  } : localBook.lastChapter,
-                  totalPages: cloudBook.total_pages || localBook.totalPages,
-                  lastRead: cloudBook.last_read,
-                };
-                console.log(`[SupabaseSync] ♻️ Updated existing book metadata: "${cloudBook.title}"`);
-              } else {
-                console.log(`[SupabaseSync] ⏭️ Local version newer, keeping: "${cloudBook.title}"`);
-              }
-            }
-          });
-
-          if (missingCloudBooks.length === 0) {
-            console.log('[SupabaseSync] ✅ All books already exist locally, sync complete!');
-            setBooks(updatedBooks);
-            setIsSyncingFromCloud(false);
-            return;
-          }
-
-          console.log(`[SupabaseSync] 🚀 Starting PROGRESSIVE download for ${missingCloudBooks.length} missing books...`);
-          console.log(`[SupabaseSync] Placeholders will appear immediately, books will complete as they download`);
-          
-          // Step 3: Create placeholders only for missing books
-          const placeholderBooks = missingCloudBooks.map((cloudBook: CloudBookRecord) => ({
-            id: cloudBook.id,
-            title: cloudBook.title || 'Loading...',
-            author: cloudBook.author || 'Loading...',
-            file: new File([''], 'loading.epub', { type: 'application/epub+zip' }), // Empty placeholder
-            coverUrl: null, // Will be set when download completes
-            currentPage: cloudBook.current_page || 0,
-            lastChapter: cloudBook.last_chapter ? { 
-              id: 'restored-chapter', 
-              href: cloudBook.last_chapter, 
-              label: cloudBook.last_chapter.split('/').pop()?.replace('.html', '') || 'Chapter',
-              children: []
-            } : null,
-            totalPages: cloudBook.total_pages || 0,
-            lastRead: cloudBook.last_read || new Date().toISOString(),
-            isDownloading: true, // Show loading state
-          }));
-
-          // Step 4: Add placeholders to existing books and show immediately
-          // IMPORTANT: Keep any default books that aren't in cloud storage
-          const defaultBooks = currentLocalBooks.filter(book => 
-            !cloudBooksData.some(cloudBook => cloudBook.id === book.id) &&
-            (book.title === '1984' || book.id === 'default-book-1984') // Keep the default book by title or ID
-          );
-          
-          // Remove any duplicate default books from updatedBooks to prevent duplicates
-          const updatedBooksWithoutDuplicates = updatedBooks.filter(book => 
-            !(book.title === '1984' && defaultBooks.some(defaultBook => defaultBook.title === '1984'))
-          );
-          
-          const booksWithPlaceholders = [...updatedBooksWithoutDuplicates, ...defaultBooks, ...placeholderBooks];
-          setBooks(booksWithPlaceholders);
-          console.log(`[SupabaseSync] 📦 ${placeholderBooks.length} placeholder books + ${defaultBooks.length} default books added to UI`);
-
-          // Step 5: Start downloading only missing books individually (parallel)
-          let completedCount = 0;
-          const totalBooks = missingCloudBooks.length;
-
-          const downloadPromises = missingCloudBooks.map(async (cloudBook: CloudBookRecord, index: number) => {
-            try {
-              // Only try the bucket that actually exists in your Supabase project
-              const possibleBuckets = ['book-files'];
-              let fileData: Blob | null = null;
-              let successfulBucket = '';
-              
-              // First, try to use the file_url from the database if it exists
-              if (cloudBook.file_url) {
-                try {
-                  console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Trying file_url from database: ${cloudBook.file_url}`);
-                  
-                  // Fix malformed file_urls that have wrong endpoints and image parameters
-                  let correctedUrl = cloudBook.file_url;
-                  
-                  // Remove image quality parameters
-                  if (correctedUrl.includes('?quality=')) {
-                    correctedUrl = correctedUrl.split('?')[0];
-                    console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Removed image quality parameter`);
-                  }
-                  
-                  // Fix wrong endpoint from /render/image/public/ to /object/
-                  if (correctedUrl.includes('/render/image/public/')) {
-                    correctedUrl = correctedUrl.replace('/render/image/public/', '/object/');
-                    console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Fixed endpoint from render/image to object`);
-                  }
-                  
-                  // Extract bucket and path from corrected URL
-                  const url = new URL(correctedUrl);
-                  const pathParts = url.pathname.split('/');
-                  
-                  // Find the bucket name (should be after /storage/v1/object/)
-                  const objectIndex = pathParts.findIndex(part => part === 'object');
-                  if (objectIndex !== -1 && objectIndex + 1 < pathParts.length) {
-                    const bucketFromUrl = pathParts[objectIndex + 1];
-                    const pathFromUrl = pathParts.slice(objectIndex + 2).join('/');
-                    
-                    console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Corrected parsing - bucket: ${bucketFromUrl}, path: ${pathFromUrl}`);
-                    
-                    if (bucketFromUrl && pathFromUrl) {
-                      // For private buckets, use Supabase client download instead of public URL
-                      try {
-                        const { supabase } = await import('../lib/supabase');
-                        const { data, error } = await supabase.storage
-                          .from(bucketFromUrl)
-                          .download(pathFromUrl);
-                        
-                        if (error) {
-                          throw error;
-                        }
-                        
-                        if (data && data.size > 0) {
-                          fileData = data;
-                          successfulBucket = bucketFromUrl;
-                          console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ✅ Downloaded using Supabase client from private bucket: ${bucketFromUrl}`);
-                        }
-                      } catch (clientError) {
-                        console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ❌ Supabase client download failed:`, clientError);
-                        throw clientError;
-                      }
-                    }
-                  } else {
-                    throw new Error('Could not parse corrected file_url structure');
-                  }
-                } catch (urlError) {
-                  console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ❌ Failed using corrected file_url:`, urlError);
-                }
-              }
-              
-              // If file_url didn't work, try the fallback bucket approach
-              if (!fileData || fileData.size === 0) {
-                for (const bucket of possibleBuckets) {
-                  try {
-                    const downloadPath = `${userId}/${cloudBook.id}.epub`;
-                    console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] Trying bucket: ${bucket}, path: ${downloadPath}`);
-                    
-                    // Use Supabase client download for private buckets
-                    const { supabase } = await import('../lib/supabase');
-                    const { data, error } = await supabase.storage
-                      .from(bucket)
-                      .download(downloadPath);
-                    
-                    if (error) {
-                      throw error;
-                    }
-                    
-                    if (data && data.size > 0) {
-                      fileData = data;
-                      successfulBucket = bucket;
-                      console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ✅ Downloaded from bucket: ${bucket}`);
-                      break;
-                    }
-                  } catch (bucketError) {
-                    console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ❌ Failed with bucket ${bucket}:`, bucketError);
-                    continue; // Try next bucket
-                  }
-                }
-              }
-
-              if (!fileData || fileData.size === 0) {
-                throw new Error(`All buckets failed for book: ${cloudBook.title}`);
-              }
-
-              // Validate file size
-              if (fileData.size < 1000) {
-                throw new Error(`File too small (${fileData.size} bytes), likely corrupted`);
-              }
-
-              console.log(`[SupabaseSync] [${index + 1}/${totalBooks}] ✅ "${cloudBook.title}" downloaded successfully from bucket: ${successfulBucket}`);
-
-              const file = new File([fileData], `${cloudBook.title}.epub`, { type: 'application/epub+zip' });
-              
-              // Handle cover - inline regeneration to avoid dependency issues
-              let coverUrl: string | null = null;
-              if (cloudBook.cover_url) {
-                coverUrl = cloudBook.cover_url;
-              } else {
-                // Inline cover regeneration
-                try {
-                  const zip = new JSZip();
-                  const loadedZip = await zip.loadAsync(file);
-                  
-                  // Try different cover extraction methods
-                  const coverBlob = await (async () => {
-                    // Method 1: Look for cover.jpg/cover.png in root
-                    for (const name of ['cover.jpg', 'cover.jpeg', 'cover.png']) {
-                      const coverFile = loadedZip.file(name);
-                      if (coverFile) {
-                        return await coverFile.async('blob');
-                      }
-                    }
-                    
-                    // Method 2: Look in common directories
-                    for (const dir of ['images/', 'Images/', 'OEBPS/images/', 'OEBPS/Images/']) {
-                      for (const name of ['cover.jpg', 'cover.jpeg', 'cover.png']) {
-                        const coverFile = loadedZip.file(dir + name);
-                        if (coverFile) {
-                          return await coverFile.async('blob');
-                        }
-                      }
-                    }
-                    
-                    return null;
-                  })();
-                  
-                  if (coverBlob) {
-                    coverUrl = URL.createObjectURL(coverBlob);
-                  }
-                } catch (coverError) {
-                  console.warn('[SupabaseSync] Could not extract cover:', coverError);
-                }
-              }
-
-              // Create complete book object
-              const completeBook = {
-                id: cloudBook.id,
-                title: cloudBook.title || 'Unknown Title',
-                author: cloudBook.author || 'Unknown Author',
-                file,
-                coverUrl,
-                currentPage: cloudBook.current_page || 0,
-                lastChapter: cloudBook.last_chapter ? { 
-                  id: 'restored-chapter', 
-                  href: cloudBook.last_chapter, 
-                  label: cloudBook.last_chapter.split('/').pop()?.replace('.html', '') || 'Chapter',
-                  children: []
-                } : null,
-                totalPages: cloudBook.total_pages || 0,
-                lastRead: cloudBook.last_read || new Date().toISOString(),
-                isDownloading: false, // Mark as complete
-              };
-
-              // Step 4: Update the specific book immediately when download completes
-              setBooks(currentBooks => {
-                return currentBooks.map(book => 
-                  book.id === cloudBook.id ? completeBook : book
-                );
-              });
-
-              completedCount++;
-              console.log(`[SupabaseSync] 📥 Book ${completedCount}/${totalBooks} ready: "${cloudBook.title}"`);
-
-              return completeBook;
-
-            } catch (error) {
-              console.error(`[SupabaseSync] [${index + 1}/${totalBooks}] ❌ Failed to download "${cloudBook.title}":`, error);
-              
-              // *** NEW: Keep failed book as placeholder with error state instead of removing it ***
-              setBooks(currentBooks => {
-                return currentBooks.map(book => 
-                  book.id === cloudBook.id 
-                    ? {
-                        ...book,
-                        isDownloading: false,
-                        downloadFailed: true, // Add error flag
-                        title: `${cloudBook.title} (Download Failed)`,
-                        author: cloudBook.author || 'Unknown Author',
-                        file: new File([''], 'download-failed.epub', { type: 'application/epub+zip' }), // Empty placeholder
-                      }
-                    : book
-                );
-              });
-
-              return null;
-            }
-          });
-
-          // Wait for all downloads to complete
-          await Promise.all(downloadPromises);
-
-          const totalDownloadTime = performance.now() - downloadStartTime;
-          console.log(`[SupabaseSync] 🎉 Smart sync complete in ${totalDownloadTime.toFixed(0)}ms`);
-          console.log(`[SupabaseSync] 📊 Results: ${completedCount}/${totalBooks} new books downloaded, ${existingCloudBooks.length} already local`);
-          
-          // Ensure default book is always available after sync
-          await ensureDefaultBookAvailable();
-
-        } catch (error) {
-          console.error('[SupabaseSync] Progressive sync failed:', error);
-        } finally {
-          setIsSyncingFromCloud(false);
-        }
-      } else {
-        console.log('[SupabaseSync] ❌ Sync not started - User not authenticated:', { isAuthenticated, userId });
-      }
-    };
-
-    syncBooksOnLogin();
-  }, [isAuthenticated, userId]); // Simplified dependencies
+        })
+        .catch(error => {
+          console.error('[BookContext] Sync error:', error);
+          // Reset sync flag on error so it can retry
+          syncHasRunRef.current = null;
+        });
+    }
+    
+    // Reset sync flag when user changes (signs out or different user signs in)
+    if (!isAuthenticated || !userId) {
+      syncHasRunRef.current = null;
+    }
+  }, [isAuthenticated, userId, isInitialLoadComplete, syncBooks, setBooks]); // syncBooks is stable from useCallback
 
 // =================================================================
 
-  // regenerateCoverUrl moved to ./book/storage
+  // Phase 3: Cleanup - removed commented code and duplicate functions
+  // All storage, sync, and library operations are now handled by hooks
 
-  // *** NEW: Function to ensure default book is always available ***
-  const ensureDefaultBookAvailable = async (): Promise<void> => {
-    // Check if 1984 is already in the books array (by title or ID)
-    const hasDefaultBook = books.some(book => 
-      book.title === '1984' || book.id === 'default-book-1984'
-    );
-    if (!hasDefaultBook) {
-      console.log('[Default Book] 1984 not found, loading default book...');
-      const defaultBook = await loadDefaultBook();
-      if (defaultBook) {
-        setBooks(prevBooks => [...prevBooks, defaultBook]);
-        console.log('[Default Book] 1984 added to library');
-      }
-    } else {
-      console.log('[Default Book] 1984 already exists in library, skipping duplicate load');
-    }
-  };
-
-  // *** NEW: Function to load the default sample book ***
-  const loadDefaultBook = async (): Promise<BookData | null> => {
-    // Prevent loading same default book multiple times in one session
-    if (defaultBookLoadedThisSession.current) {
-      console.log('[Default Book] Already loaded this session, skipping duplicate');
-      return null;
-    }
-    
-    defaultBookLoadedThisSession.current = true;
-    
-    // Load 1984.epub from the public folder
-    const defaultBookPath = '/1984.epub';
-    console.log(`[Default Book] Fetching from: ${defaultBookPath}`);
-    setIsLoading(true); // Show loading indicator
-    try {
-      const response = await fetch(defaultBookPath);
-      if (!response.ok) {
-        throw new Error(`Network response was not ok. Status: ${response.status}`);
-      }
-      const bookBlob = await response.blob();
-      const bookFile = new File([bookBlob], "1984.epub", { type: 'application/epub+zip' });
-
-      // ---- This is the same logic copied from the start of your `addBook` function ----
-      const zip = new JSZip();
-      const loadedZip = await zip.loadAsync(bookFile);
-      const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
-      if (!containerXml) throw new Error('Invalid EPUB: container.xml not found');
-      const DOMParser = await getDOMParser();
-      const parser = new DOMParser();
-      const containerDoc = parser.parseFromString(containerXml, 'application/xml');
-      const rootfiles = containerDoc.getElementsByTagName('rootfile');
-      const opfPath = rootfiles[0]?.getAttribute('full-path') || '';
-      const opfContent = await loadedZip.file(opfPath)?.async('text');
-      if (!opfContent) throw new Error('Invalid EPUB: OPF file not found');
-      const opfDoc = parser.parseFromString(opfContent, 'application/xml');
-      const title = opfDoc.getElementsByTagName('dc:title')[0]?.textContent?.trim() || 'Unknown Title';
-      const author = opfDoc.getElementsByTagName('dc:creator')[0]?.textContent?.trim() || 'Unknown Author';
-      
-      // Use a consistent ID for the default book to prevent duplicates
-      const id = 'default-book-1984';
-
-      // This part for cover is complex, can be simplified or kept if needed
-      let coverUrl: string | null = null;
-       const metaCover = Array.from(opfDoc.getElementsByTagName('meta')).find(m => m.getAttribute('name') === 'cover');
-        if (metaCover) {
-            const coverId = metaCover.getAttribute('content');
-            const coverItem = Array.from(opfDoc.getElementsByTagName('item')).find(item => item.getAttribute('id') === coverId);
-            if (coverItem) {
-                const href = coverItem.getAttribute('href');
-                if (href) {
-                    const coverPath = resolveRelativePath(getDirectoryPath(opfPath), href);
-                    const coverBlob = await loadedZip.file(coverPath)?.async('blob');
-                    if(coverBlob) coverUrl = URL.createObjectURL(coverBlob);
-                }
-            }
-        }
-      
-      const newBook: BookData = {
-        id, title, author, coverUrl,
-        currentPage: 0, totalPages: 0,
-        file: bookFile, lastRead: new Date().toISOString(),
-      };
-      
-      console.log(`[Default Book] Successfully processed: ${newBook.title}`);
-      // Instead of calling setBooks, RETURN the created book object
-      return newBook;
-
-    } catch (error) {
-      console.error("[Default Book] Failed to load the default book:", error);
-      return null; // Return null on failure
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  // const addBook = async (file: File): Promise<void> => {
-  //   // This function is now only used for USER uploads, not the default book.
-  //   console.log(`[addBook] Attempting to add book: ${file.name}`);
-  //   if (file.name.split('.').pop()?.toLowerCase() !== 'epub') {
-  //     alert('Please upload an EPUB file.');
-  //     return;
-  //   }
-  //   setIsLoading(true); // Global loading for adding a book
-  //   try {
-  //     const zip = new JSZip(); // Using JSZip from BookContext
-  //     const loadedZip = await zip.loadAsync(file);
-
-  //     const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
-  //     if (!containerXml) throw new Error('Invalid EPUB: container.xml not found');
-  //     const parser = new DOMParser();
-  //     const containerDoc = parser.parseFromString(containerXml, 'application/xml');
-  //     const rootfiles = containerDoc.getElementsByTagName('rootfile');
-  //     if (rootfiles.length === 0) throw new Error('Invalid EPUB: No rootfile found');
-  //     const currentOpfPath = rootfiles[0].getAttribute('full-path') || '';
-  //     const opfContent = await loadedZip.file(currentOpfPath)?.async('text');
-  //     if (!opfContent) throw new Error('Invalid EPUB: OPF file not found');
-  //     const opfDoc = parser.parseFromString(opfContent, 'application/xml');
-
-  //     const titleElements = opfDoc.getElementsByTagName('dc:title');
-  //     const title = titleElements.length > 0 ? titleElements[0].textContent?.trim() || 'Unknown Title' : 'Unknown Title';
-  //     const creatorElements = opfDoc.getElementsByTagName('dc:creator');
-  //     const author = creatorElements.length > 0 ? creatorElements[0].textContent?.trim() || 'Unknown Author' : 'Unknown Author';
-  //     // Simple ID generation, ensure it's unique enough for your needs
-  //     const id = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-
-  //     let coverUrl: string | null = null;
-  //     const metaTags = opfDoc.getElementsByTagName('meta');
-  //     let coverId = '';
-  //     for (let i = 0; i < metaTags.length; i++) {
-  //       if (metaTags[i].getAttribute('name') === 'cover') {
-  //         coverId = metaTags[i].getAttribute('content') || '';
-  //         break;
-  //       }
-  //     }
-  //     if (coverId) {
-  //       const items = opfDoc.getElementsByTagName('item');
-  //       for (let i = 0; i < items.length; i++) {
-  //         if (items[i].getAttribute('id') === coverId) {
-  //           const href = items[i].getAttribute('href');
-  //           if (href) {
-  //             const coverPath = resolveRelativePath(getDirectoryPath(currentOpfPath), href);
-  //             const coverBlob = await loadedZip.file(coverPath)?.async('blob');
-  //             if (coverBlob) {
-  //               coverUrl = await new Promise<string>((resolve) => {
-  //                 const reader = new FileReader();
-  //                 reader.onloadend = () => resolve(reader.result as string);
-  //                 reader.readAsDataURL(coverBlob);
-  //               });
-  //             }
-  //           }
-  //           break;
-  //         }
-  //       }
-  //     }
-
-  //     const newBook: BookData = {
-  //       id,
-  //       title,
-  //       author,
-  //       coverUrl,
-  //       currentPage: 0,
-  //       totalPages: 0, // This will be calculated when the book is opened
-  //       file, // The actual File object
-  //       lastRead: new Date().toISOString(),
-  //       // lastChapter: undefined, // Initialized as undefined
-  //     };
-  //     console.log(`[addBook] New book created: ${newBook.title}, ID: ${newBook.id}`);
-  //     setBooks(prevBooks => {
-  //       // Check if book with same ID already exists to prevent duplicates
-  //       if (prevBooks.find(b => b.id === newBook.id)) {
-  //           console.warn(`[addBook] Book with ID ${newBook.id} already exists. Not adding duplicate.`);
-  //           alert(`Book "${newBook.title}" is already in your library.`);
-  //           return prevBooks;
-  //       }
-  //       console.log(`[addBook] Adding book to state. Previous count: ${prevBooks.length}`);
-  //       return [...prevBooks, newBook];
-  //     });
-
-  //     // 3. TRACK THE EVENT!
-  //     trackEvent('add_book', {
-  //     // You can add more details, e.g., distinguish between upload and drag-drop if you want
-  //       method: 'upload', 
-  //     });
-  //   } catch (error) {
-  //     console.error('[addBook] Error processing EPUB file:', error);
-  //     alert(`Error adding book: ${(error as Error).message}`);
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-
-
-    // 👇 THIS IS THE NEW, UNIVERSAL addBook FUNCTION BASED ON YOUR PROVEN LOGIC 👇
-  const addBook = async (file: File): Promise<BookData> => {
-    setIsLoading(true);
-    try {
-      // Detect and open via registered adapter. For now, only EPUB adapter is registered.
-      const adapter = await getAdapterForFile(file);
-      if (!adapter) {
-        throw new Error('Unsupported format. Currently supported: EPUB');
-      }
-
-      // Use adapter.open to obtain meta; BookContext still manages state uniformly.
-      const { meta } = await adapter.open(file);
-
-      const newBook: BookData = {
-        id: generateUUID(),
-        title: meta.title,
-        author: meta.author,
-        coverUrl: meta.coverUrl,
-        currentPage: 0,
-        totalPages: meta.totalPages || 0,
-        file,
-        lastRead: new Date().toISOString(),
-      };
-      
-      // Step 2: Update the local state IMMEDIATELY for a fast UI response.
-      // This makes the book appear in the library right away for everyone.
-      setBooks(prevBooks => [...prevBooks, newBook]);
-
-      // Fire-and-forget: warm up Kokoro via microserver to reduce cold starts
-      try {
-        const baseURL = (import.meta as any).env?.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
-        // Don't await; short timeout via AbortController
-        const controller = new AbortController();
-        setTimeout(() => { try { controller.abort(); } catch {} }, 2000);
-        fetch(`${baseURL}/api/warmup/kokoro`, { method: 'POST', signal: controller.signal }).catch(() => {});
-      } catch {}
-
-      // Step 3 (Conditional Enhancement): If the user is signed in, sync the new book to the cloud.
-      if (isAuthenticated) {
-        // This runs in the background ("fire and forget") so the UI is not blocked.
-        syncBookToCloud(newBook);
-      }
-
-      trackEvent('add_book', { 
-        method: 'upload',
-        book_title: newBook.title,
-        book_author: newBook.author || 'Unknown',
-        book_id: newBook.id,
-        has_cover: !!newBook.coverUrl,
-        platform: 'web',
-        timestamp: new Date().toISOString()
-      });
-
-      // Return the newly created book so it can be auto-opened
-      return newBook;
-
-    } catch (error) {
-      console.error('[addBook] Error processing EPUB file:', error);
-      throw new Error(`Error adding book: ${(error as Error).message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-
-
-  // Sync book to Supabase (for new book uploads)
-  const syncBookToCloud = async (book: BookData) => {
-    if (!isAuthenticated || !userId) return;
-    
-    try {
-      console.log(`[SupabaseSync] Starting sync for "${book.title}"`);
-      const { uploadFile, getFileUrl, supabase } = await import('../lib/supabase');
-      
-      // Upload EPUB file to Supabase Storage
-      const fileName = `${book.id}.epub`;
-      const filePath = `${userId}/${fileName}`;
-      
-      console.log(`[SupabaseSync] Upload path: ${filePath}`);
-      console.log(`[SupabaseSync] User ID: ${userId}`);
-      console.log(`[SupabaseSync] Book ID: ${book.id}`);
-      
-      await uploadFile('book-files', filePath, book.file);
-      const fileUrl = getFileUrl('book-files', filePath);
-      
-      // Upload cover image if available
-      let coverUrl = null;
-      if (book.coverUrl && book.coverUrl.startsWith('blob:')) {
-        try {
-          // Extract cover from EPUB and upload to Supabase
-          const coverBlob = await fetch(book.coverUrl).then(r => r.blob());
-          const coverPath = `${userId}/${book.id}-cover.jpg`;
-          await uploadFile('book-covers', coverPath, coverBlob);
-          coverUrl = getFileUrl('book-covers', coverPath);
-        } catch (coverError) {
-          console.warn('[SupabaseSync] Could not upload cover:', coverError);
-        }
-      }
-
-      // Save book metadata to Supabase database
-      const bookRecord = {
-        id: book.id, // IMPORTANT: Use the same ID as the file path
-        user_id: userId,
-        title: book.title,
-        author: book.author || '',
-        current_page: book.currentPage,
-        last_chapter: typeof book.lastChapter === 'string' ? book.lastChapter : book.lastChapter?.href || '',
-        total_pages: book.totalPages,
-        last_read: book.lastRead,
-        file_url: fileUrl,
-        cover_url: coverUrl || undefined
-      };
-
-      const { error } = await supabase
-        .from('books')
-        .upsert(bookRecord as any, { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        })
-        .select();
-
-      if (error) {
-        throw new Error(`Supabase database error: ${error.message}`);
-      }
-
-      console.log(`[SupabaseSync] Successfully synced "${book.title}" to Supabase`);
-      
-    } catch (error) {
-      console.error("[SupabaseSync] Error in syncBookToCloud:", error);
-      // Don't throw - let the book save locally even if cloud sync fails
-    }
-  };
-
-  // Sync book progress to Supabase (for reading progress updates)
-  const syncProgressToCloud = useCallback(async (bookId: string, currentPage: number, lastChapter: any) => {
-    if (!isAuthenticated || !userId) return;
-    
-    try {
-      const { supabase } = await import('../lib/supabase');
-      const lastChapterStr = typeof lastChapter === 'string' ? lastChapter : lastChapter?.href || '';
-      
-      const { error } = await supabase
-        .from('books')
-        .update({
-          current_page: currentPage,
-          last_chapter: lastChapterStr,
-          last_read: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-        .eq('id', bookId);
-
-      if (error) {
-        throw new Error(`Supabase update error: ${error.message}`);
-      }
-
-      console.log(`[SupabaseSync] Updated progress for book ${bookId}: page ${currentPage}`);
-    } catch (error) {
-      console.error('[SupabaseSync] Error syncing progress:', error);
-    }
-  }, [isAuthenticated, userId]);
-
-
-  // --- All other functions (findChapterForPageCallback, loadPageCallback, useEffect for page loading, openBook, closeBook, nextPage, prevPage, navigateToTocItem, removeBook, extractTocFromEntries, togglePlayMode)
-  // --- should be taken from the last full version of BookContext.tsx I provided, as their internal logic was mostly okay.
-  // --- The primary fix here is for the load/save effects.
-  // --- Remember to include the `isPageLoading` state and its management.
+  // Use library hook for addBook
+  const addBook = addBookToLibrary;
 
     const findChapterForPageCallback = useCallback((pageIndex: number, currentToc: TOCItem[], currentHtmlFiles: string[]): TOCItem | null => {
     if (!currentHtmlFiles || currentHtmlFiles.length === 0 || !currentToc || currentToc.length === 0 || pageIndex < 0 || pageIndex >= currentHtmlFiles.length) return null;
@@ -1238,18 +489,25 @@ useEffect(() => {
           )
         );
 
-        // Sync progress to cloud if user is signed in
-        if (isAuthenticated && userId) {
+        // Phase 2: Sync progress to cloud using hook
           syncProgressToCloud(currentBookRef.id, pageIdxToLoad, chapterForPage);
-        }
       }
       setTimeout(() => { /* Image/CSS processing logic - unchanged */
         const contentElement = document.querySelector('.epub-content');
         if (contentElement) {
           const images = contentElement.querySelectorAll('img');
           images.forEach(async (img: HTMLImageElement) => {
+            // Check if src is set to about:blank or invalid - this indicates it needs processing
+            const currentSrc = img.getAttribute('src') || img.src;
             const epubSrc = img.getAttribute('data-epub-src');
-            if (epubSrc && !epubSrc.startsWith('blob:')) {
+            
+            // Skip if image already has a valid blob URL
+            if (currentSrc && currentSrc.startsWith('blob:')) {
+              return;
+            }
+            
+            // Only process if we have a valid epubSrc
+            if (epubSrc && epubSrc.trim() && !epubSrc.startsWith('blob:') && epubSrc !== 'about:blank') {
               try {
                 const imageBlob = await zipToUse.file(epubSrc)?.async('blob');
                 if (imageBlob) {
@@ -1258,15 +516,29 @@ useEffect(() => {
                   img.onload = () => {
                     img.style.opacity = '1';
                   };
+                  img.onerror = () => {
+                    console.warn(`Image failed to load from blob URL: ${epubSrc}`);
+                    img.style.opacity = '0.5';
+                  };
                 } else { 
                   console.warn(`Image not found in zip: ${epubSrc}`); 
                   img.alt = `Missing: ${epubSrc}`;
                   img.style.opacity = '0.5'; // Show placeholder state
+                  // Remove invalid src to prevent about:blank errors
+                  img.removeAttribute('src');
                 }
               } catch (e) { 
                 console.error(`Error loading image ${epubSrc}:`, e);
                 img.style.opacity = '0.3'; // Show error state
+                // Remove invalid src to prevent about:blank errors
+                img.removeAttribute('src');
               }
+            } else if (currentSrc === 'about:blank' || !epubSrc || epubSrc === 'about:blank') {
+              // Handle images with invalid src or missing epubSrc
+              console.warn(`Image has invalid src or missing data-epub-src:`, { src: currentSrc, epubSrc });
+              img.removeAttribute('src');
+              img.style.opacity = '0.3';
+              img.alt = 'Image unavailable';
             }
           });
           const links = contentElement.querySelectorAll('link[data-epub-css-href]');
@@ -1318,9 +590,8 @@ useEffect(() => {
                 b.id === currentBook.id ? { ...b, currentPage: currentPageToLoad, lastChapter: chapterForPage } : b
               )
             );
-            if (isAuthenticated && userId) {
+            // Phase 2: Sync progress to cloud using hook
               syncProgressToCloud(currentBook.id, currentPageToLoad, chapterForPage);
-            }
           } catch (e) {
             console.error('[useEffect PageLoad Adapter ERROR]', e);
             setCurrentContent(`<div>Error loading page: ${(e as Error).message}</div>`);
@@ -1346,63 +617,14 @@ useEffect(() => {
     }
   }, [currentBook, bookZip, htmlFiles, currentPageToLoad, loadPageCallback, toc, isReading]);
 
+  // Phase 3: Use library hook for removeBook with cloud cleanup
   const removeBook = async (bookId: string): Promise<void> => {
-    const bookToRemove = books.find(b => b.id === bookId);
-    if (bookToRemove?.coverUrl?.startsWith('blob:')) {
-      URL.revokeObjectURL(bookToRemove.coverUrl);
-    }
-    trackEvent('remove_book', {
-      book_title: bookToRemove?.title || 'Unknown',
-      book_author: bookToRemove?.author || 'Unknown',
-      book_id: bookId,
-      had_cover: !!bookToRemove?.coverUrl,
-      platform: 'web',
-      timestamp: new Date().toISOString()
-    });
-    console.log(`[removeBook] Removing book ID: ${bookId}`);
+    // Remove from local state using library hook
+    await removeBookFromLibrary(bookId);
     
-    // Remove from local state
-    setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
-    
-    // Remove from Supabase if user is signed in
+    // Remove from cloud if user is signed in
     if (isAuthenticated && userId) {
-      try {
-        const { supabase, deleteFile } = await import('../lib/supabase');
-        // Get book info for file cleanup
-        const { data: bookData } = await supabase
-          .from('books')
-          .select('file_url, cover_url')
-          .eq('user_id', userId)
-          .eq('id', bookId)
-          .single();
-
-        if (bookData) {
-          // Delete files from storage
-          if (bookData.file_url) {
-            const filePath = `${userId}/${bookId}.epub`;
-            await deleteFile('book-files', filePath);
-          }
-          if (bookData.cover_url) {
-            const coverPath = `${userId}/${bookId}-cover.jpg`;
-            await deleteFile('book-covers', coverPath);
-          }
-        }
-
-        // Delete database record
-        const { error } = await supabase
-          .from('books')
-          .delete()
-          .eq('user_id', userId)
-          .eq('id', bookId);
-
-        if (error) {
-          throw new Error(`Supabase delete error: ${error.message}`);
-        }
-
-        console.log(`[SupabaseSync] Removed book ${bookId} from Supabase`);
-      } catch (error) {
-        console.error('[SupabaseSync] Error removing book from Supabase:', error);
-      }
+      await removeBookFromCloud(bookId);
     }
   };
 
@@ -1498,7 +720,8 @@ useEffect(() => {
   const openBook = async (book: BookData): Promise<void> => { /* Extended to support adapter sessions */
     console.log(`[openBook] Opening: ${book.title}`); 
     console.time(`[Performance] Opening ${book.title}`);
-    setIsLoading(true); closeBook(false);
+    setIsBookOperationLoading(true);
+    setIsClosing(false);
     setBookTitle(book.title); setBookAuthor(book.author); setCurrentBook(book);
 
     // Fire-and-forget: warm up Kokoro via microserver to reduce cold starts
@@ -1530,10 +753,27 @@ useEffect(() => {
         setToc(extractedToc);
         setBookZip(null); setIsReading(true);
 
+        // PRIORITY 1: URL parameter (if present) - highest priority
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlPageParam = urlParams.get('page');
         let pageIdxToLoadInitially = 0;
-        if (book.currentPage != null && book.currentPage >= 0 && book.currentPage < fileOrder.length) {
-          pageIdxToLoadInitially = book.currentPage;
+        
+        if (urlPageParam !== null) {
+          const urlPage = parseInt(urlPageParam, 10);
+          if (!isNaN(urlPage) && urlPage >= 0 && urlPage < fileOrder.length) {
+            pageIdxToLoadInitially = urlPage;
+            console.log(`[openBook Adapter] Using URL page parameter: ${urlPage}`);
+          } else {
+            console.warn(`[openBook Adapter] Invalid URL page parameter: ${urlPageParam}, falling back to saved position`);
+          }
         }
+        
+        // PRIORITY 2: Use saved currentPage if no URL param
+        if (urlPageParam === null && book.currentPage != null && book.currentPage >= 0 && book.currentPage < fileOrder.length) {
+          pageIdxToLoadInitially = book.currentPage;
+          console.log(`[openBook Adapter] Using saved currentPage: ${book.currentPage}`);
+        }
+        
         pageIdxToLoadInitially = Math.max(0, Math.min(pageIdxToLoadInitially, fileOrder.length - 1));
         setCurrentPageToLoad(pageIdxToLoadInitially); setCurrentPageDisplay(pageIdxToLoadInitially);
         
@@ -1610,49 +850,74 @@ useEffect(() => {
       setBookZip(loadedZip); setIsReading(true);
       
       // IMPROVED: Better logic for determining the initial page to load
+      // PRIORITY 1: URL parameter (if present) - highest priority
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlPageParam = urlParams.get('page');
       let pageIdxToLoadInitially = 0; // Default to first page
       
-      console.log(`[openBook] Book restoration data - currentPage: ${book.currentPage}, lastChapter: ${book.lastChapter?.label || 'none'}`);
-      
-      // First, try to use the lastChapter if it exists and is valid
-      if (book.lastChapter?.href && extractedToc.length > 0) {
-        console.log(`[openBook] Attempting to restore from lastChapter: ${book.lastChapter.href}`);
-        const chapterPath = book.lastChapter.href.split('#')[0];
-        
-        // Try multiple matching strategies for better compatibility
-        let pageIndexFromChapter = currentFileOrder.findIndex(file => {
-          // Strategy 1: Exact match
-          if (file === chapterPath) return true;
-          // Strategy 2: File ends with the chapter path
-          if (file.endsWith('/' + chapterPath)) return true;
-          // Strategy 3: Chapter path ends with the file name (reverse match)
-          const fileName = file.split('/').pop() || '';
-          const chapterFileName = chapterPath.split('/').pop() || '';
-          if (fileName === chapterFileName && fileName.length > 0) return true;
-          // Strategy 4: Both paths normalized (remove leading ./ or ../)
-          const normalizedFile = file.replace(/^\.\.?\//g, '');
-          const normalizedChapter = chapterPath.replace(/^\.\.?\//g, '');
-          if (normalizedFile === normalizedChapter) return true;
-          return false;
-        });
-        
-        if (pageIndexFromChapter !== -1) {
-          pageIdxToLoadInitially = pageIndexFromChapter;
-          console.log(`[openBook] Successfully matched lastChapter to page index: ${pageIndexFromChapter}`);
+      if (urlPageParam !== null) {
+        const urlPage = parseInt(urlPageParam, 10);
+        if (!isNaN(urlPage) && urlPage >= 0 && urlPage < currentFileOrder.length) {
+          pageIdxToLoadInitially = urlPage;
+          console.log(`[openBook] Using URL page parameter: ${urlPage}`);
         } else {
-          console.warn(`[openBook] Could not match lastChapter "${chapterPath}" to any file in currentFileOrder:`, currentFileOrder);
-          // Fallback to currentPage if lastChapter matching fails
-          if (book.currentPage != null && book.currentPage >= 0 && book.currentPage < currentFileOrder.length) {
-            pageIdxToLoadInitially = book.currentPage;
-            console.log(`[openBook] Falling back to saved currentPage: ${book.currentPage}`);
+          console.warn(`[openBook] Invalid URL page parameter: ${urlPageParam}, falling back to saved position`);
+        }
+      }
+      
+      // PRIORITY 2: If no URL param, try to use the lastChapter if it exists and is valid
+      if (urlPageParam === null) {
+        console.log(`[openBook] Book restoration data - currentPage: ${book.currentPage}, lastChapter: ${book.lastChapter?.label || 'none'}`);
+        
+        // First, try to use the lastChapter if it exists and is valid
+        if (book.lastChapter?.href && extractedToc.length > 0) {
+          console.log(`[openBook] Attempting to restore from lastChapter: ${book.lastChapter.href}`);
+          const chapterPath = book.lastChapter.href.split('#')[0];
+          
+          // Try multiple matching strategies for better compatibility
+          let pageIndexFromChapter = currentFileOrder.findIndex(file => {
+            // Strategy 1: Exact match
+            if (file === chapterPath) return true;
+            // Strategy 2: File ends with the chapter path
+            if (file.endsWith('/' + chapterPath)) return true;
+            // Strategy 3: Chapter path ends with the file name (reverse match)
+            const fileName = file.split('/').pop() || '';
+            const chapterFileName = chapterPath.split('/').pop() || '';
+            if (fileName === chapterFileName && fileName.length > 0) return true;
+            // Strategy 4: Both paths normalized (remove leading ./ or ../)
+            const normalizedFile = file.replace(/^\.\.?\//g, '');
+            const normalizedChapter = chapterPath.replace(/^\.\.?\//g, '');
+            if (normalizedFile === normalizedChapter) return true;
+            return false;
+          });
+          
+          if (pageIndexFromChapter !== -1) {
+            pageIdxToLoadInitially = pageIndexFromChapter;
+            console.log(`[openBook] Successfully matched lastChapter to page index: ${pageIndexFromChapter}`);
+          } else {
+            console.warn(`[openBook] Could not match lastChapter "${chapterPath}" to any file in currentFileOrder:`, currentFileOrder);
+            // Fallback to currentPage if lastChapter matching fails
+            if (book.currentPage != null && book.currentPage >= 0 && book.currentPage < currentFileOrder.length) {
+              pageIdxToLoadInitially = book.currentPage;
+              console.log(`[openBook] Falling back to saved currentPage: ${book.currentPage}`);
+            }
           }
         }
-      } 
-      // If no lastChapter, use currentPage
-      else if (book.currentPage != null && book.currentPage >= 0 && book.currentPage < currentFileOrder.length) {
+        
+        // PRIORITY 3: If no lastChapter was found/used and no URL param, use currentPage
+        if (pageIdxToLoadInitially === 0 && book.currentPage != null && book.currentPage >= 0 && book.currentPage < currentFileOrder.length) {
+          pageIdxToLoadInitially = book.currentPage;
+          console.log(`[openBook] Using saved currentPage: ${book.currentPage}`);
+        }
+      }
+      
+      // Final fallback: if we still have pageIdxToLoadInitially === 0 and no URL param was set
+      if (pageIdxToLoadInitially === 0 && urlPageParam === null && book.currentPage != null && book.currentPage >= 0 && book.currentPage < currentFileOrder.length) {
         pageIdxToLoadInitially = book.currentPage;
-        console.log(`[openBook] Using saved currentPage: ${book.currentPage}`);
-      } else {
+        console.log(`[openBook] Final fallback: Using saved currentPage: ${book.currentPage}`);
+      }
+      
+      if (pageIdxToLoadInitially === 0 && urlPageParam === null && !book.lastChapter && (!book.currentPage || book.currentPage === 0)) {
         console.log(`[openBook] No valid saved position found, starting from beginning`);
       }
       
@@ -1692,15 +957,24 @@ useEffect(() => {
     } catch (error) {
       console.timeEnd(`[Performance] Opening ${book.title}`);
       console.error(`[Performance] Failed to open ${book.title}:`, error);
-      console.error('[openBook ERROR]', error); closeBook(true); alert(`Error opening book: ${(error as Error).message}`);
-    } finally { setIsLoading(false); }
+      console.error('[openBook ERROR]', error);
+      // Cleanup state on error without calling closeBook (which navigates away)
+      setIsReading(false);
+      setCurrentBook(null);
+      setBookZip(null);
+      setIsBookOperationLoading(false);
+      alert(`Error opening book: ${(error as Error).message}`);
+    } finally {
+      setIsBookOperationLoading(false);
+    }
   };
 
   const closeBook = (resetGlobalLoading = true): void => { /* Unchanged */
     // CRITICAL: Set closing flag FIRST to prevent ReaderWrapper from reopening
     setIsClosing(true);
     console.log('[closeBook] Setting isClosing flag to true');
-    
+    console.log('[closeBook Debug] Current Book when closing:', currentBook?.id);
+    console.log('[closeBook Debug] isReading when closing:', isReading);
     // 5. TRACK THE EVENT AND CALCULATE DURATION
     if (readingStartTimestamp.current && currentBook) {
       const endTime = Date.now();
@@ -1720,10 +994,11 @@ useEffect(() => {
       readingStartTimestamp.current = null; // Reset the timer
     }
     console.log("[closeBook] Closing book."); setIsReading(false); setCurrentBook(null); setBookZip(null);
+    console.log('[closeBook Debug] After state reset: isReading:', isReading, 'currentBook:', currentBook);
     setOpfPath(''); setHtmlFiles([]); setToc([]); setCurrentContent(''); setBookTitle('');
     setBookAuthor(''); setIsPlayModeVisible(false); setCurrentPageText('');
     setCurrentPageToLoad(0); setCurrentPageDisplay(0);
-    if (resetGlobalLoading) setIsLoading(false);
+    if (resetGlobalLoading) setIsBookOperationLoading(false);
     setIsPageLoading(false);
     
     // Navigate back to library
@@ -1830,30 +1105,8 @@ useEffect(() => {
   };
 
   // URL synchronization: Update URL when page changes
-  useEffect(() => {
-    if (isReading && currentBook && currentPageDisplay >= 0) {
-      // Update URL without navigation (replaceState prevents history spam)
-      const newUrl = `/reader/${currentBook.id}?page=${currentPageDisplay}`;
-      window.history.replaceState({}, '', newUrl);
-      
-      // Also save to localStorage for state restoration
-      saveReaderState({
-        bookId: currentBook.id,
-        page: currentPageDisplay,
-        timestamp: Date.now(),
-        bookTitle: currentBook.title
-      });
-      
-      // Track page change for analytics
-      trackEvent('page_navigation', {
-        method: 'page_change',
-        book_id: currentBook.id,
-        book_title: currentBook.title,
-        page_number: currentPageDisplay,
-        total_pages: totalPages
-      });
-    }
-  }, [currentPageDisplay, currentBook, isReading, totalPages]);
+  // Phase 3: Navigation URL sync is handled by useBookNavigation hook
+  // Removed duplicate effect to avoid conflicts
 
   const value: BookContextValue = {
     books, addBook, removeBook,
