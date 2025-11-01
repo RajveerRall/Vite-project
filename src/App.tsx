@@ -26,6 +26,8 @@ import GoogleOneTap from './components/Auth/GoogleOneTap';
 import './App.css';
 import { useTTSUsageRecorder } from './hooks/useTTSUsageRecorder';
 import { Capacitor } from '@capacitor/core';
+import { initializeUsageTracking, updateUsageTrackerUserId } from './services/tts/index';
+import { isTrackingEnabled } from './utils/trackingConfig';
 
 // Lazy load the ReaderWrapper component since it's heavy and not needed initially
 const ReaderWrapper = React.lazy(() => import('./components/Reader/ReaderWrapper'));
@@ -76,9 +78,26 @@ const MainApp: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
-  const { loading } = useAuth();
+  const { loading, user } = useAuth();
   // Globally listen for TTS usage events and persist to Supabase when needed
   useTTSUsageRecorder();
+  
+  // Initialize usage tracking on app start and when user changes (only if tracking enabled)
+  React.useEffect(() => {
+    if (isTrackingEnabled()) {
+      initializeUsageTracking(user?.id).catch(console.error);
+    } else {
+      console.log('[App] Usage tracking disabled in development');
+    }
+  }, []);
+  
+  React.useEffect(() => {
+    // Update tracker when user logs in/out (only if tracking enabled)
+    if (isTrackingEnabled()) {
+      updateUsageTrackerUserId(user?.id);
+    }
+  }, [user?.id]);
+  
   React.useEffect(() => {
     // Handle warm link
     const sub = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {

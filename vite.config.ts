@@ -9,6 +9,17 @@ export default defineConfig({
     {
       name: 'html-transform',
       transformIndexHtml(html) {
+        // Check if tracking should be enabled
+        // In vite.config.ts, we check NODE_ENV at build time
+        const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+        const analyticsEnabled = process.env.VITE_ANALYTICS_ENABLED !== 'false';
+        const shouldInjectAnalytics = !isDev && analyticsEnabled;
+
+        if (!shouldInjectAnalytics) {
+          // Replace with comment indicating analytics are disabled
+          return html.replace(/<!-- ANALYTICS_PLACEHOLDER -->/g, '<!-- Analytics disabled in development mode -->');
+        }
+
         return html.replace(
           /<!-- ANALYTICS_PLACEHOLDER -->/g,
           `

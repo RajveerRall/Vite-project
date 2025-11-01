@@ -6,6 +6,7 @@ import { createTTSProgressRepository } from '../repositories/TTSProgressReposito
 import { createAdaptivePlaybackStrategy } from '../services/tts/strategies/AdaptivePlaybackStrategy';
 import { IPlaybackStrategy } from '../services/tts/strategies/IPlaybackStrategy';
 import { createTTSChunkService } from '../services/tts/TTSChunkService';
+import { getUsageTracker, initializeUsageTracking } from '../services/tts/index';
 
 // Helper: split text into sentence chunks
 function splitTextIntoChunks(text: string): string[] {
@@ -108,7 +109,7 @@ export const useReaderTTS = ({
   const [isPaused, setIsPaused] = useState(false);
   const [resumeIndex, setResumeIndex] = useState<number | null>(null);
   const [hasFinishedPlayback, setHasFinishedPlayback] = useState<boolean>(false);
-  const [useKokoroTTS, setUseKokoroTTS] = useState<boolean>(false);
+  const [useKokoroTTS] = useState<boolean>(false);
   const [highlightedContent, setHighlightedContent] = useState<string>(currentContent);
 
   // === Refs ===
@@ -148,61 +149,53 @@ export const useReaderTTS = ({
     console.log(`[${readerInstanceId}][Speed Ref Sync] ttsSpeedRef updated to: ${ttsSpeed}x`);
   }, [ttsSpeed, readerInstanceId]);
 
-  // === Usage recording helper ===
+  // === Usage recording helper - Enhanced with queue and retry ===
   const recordUsageSeconds = useCallback(async (seconds: number) => {
     if (!seconds || seconds <= 0) return;
     
     try {
-      const { supabase } = await import('../lib/supabase');
-      const { getAnonymousSessionId } = await import('../utils/anonymousSession');
+      // Use enhanced usage tracker with queue and retry
       
-      if (user?.id) {
-        // ========================================
-        // AUTHENTICATED USER - EXISTING LOGIC
-        // ========================================
-        await supabase.rpc('increment_tts_usage', {
-          p_user_id: user.id,
-          p_seconds: seconds,
-          p_source: 'reader'
-        });
-        
-        console.log('[TTS Usage] Recorded for authenticated user:', {
-          userId: user.id,
-          seconds,
-          source: 'reader'
-        });
-      } else {
-        // ========================================
-        // ANONYMOUS USER - NEW LOGIC
-        // ========================================
-        const sessionId = getAnonymousSessionId();
-        const userAgent = navigator.userAgent;
-        
-        const { data, error } = await supabase.rpc('record_anonymous_tts_usage', {
-          p_session_id: sessionId,
-          p_seconds: seconds,
-          p_source: 'reader',
-          p_user_agent: userAgent
-        });
-        
-        if (error) throw error;
-        
-        console.log('[TTS Usage] Recorded for anonymous user:', {
-          sessionId,
-          seconds,
-          source: 'reader',
-          totalThisMonth: data?.total_minutes_this_month
-        });
+      // Ensure tracker is initialized
+      let tracker = getUsageTracker();
+      if (!tracker) {
+        await initializeUsageTracking(user?.id);
+        tracker = getUsageTracker();
       }
       
-      // Notify UI components (works for both)
-      window.dispatchEvent(new CustomEvent('tts-usage-updated', { 
-        detail: { 
-          seconds, 
-          source: 'reader',
-          isAnonymous: !user?.id
-        } 
-      }));
+      if (!tracker) {
+        console.warn('[TTS Usage] Tracker not available, falling back to direct call');
+        // Fallback to direct call if tracker unavailable
+        const { supabase } = await import('../lib/supabase');
+        const { getAnonymousSessionId } = await import('../utils/anonymousSession');
+        
+        if (user?.id) {
+          await supabase.rpc('increment_tts_usage', {
+            p_user_id: user.id,
+            p_seconds: seconds,
+            p_source: 'reader'
+          });
+        } else {
+          const sessionId = getAnonymousSessionId();
+          await supabase.rpc('record_anonymous_tts_usage', {
+            p_session_id: sessionId,
+            p_seconds: seconds,
+            p_source: 'reader',
+            p_user_agent: navigator.userAgent
+          });
+        }
+        return;
+      }
+      
+      // Use enhanced tracker (handles queue, retry, circuit breaker)
+      await tracker.recordUsageSeconds(seconds, 'reader', {
+        onSuccess: () => {
+          console.log('[TTS Usage] Recorded successfully via enhanced tracker');
+        },
+        onError: (error: Error) => {
+          console.warn('[TTS Usage] Failed to record usage:', error);
+        }
+      });
     } catch (e) {
       console.warn('[TTS Usage] Failed to record usage:', e);
     }

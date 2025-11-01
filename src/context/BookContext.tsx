@@ -136,6 +136,8 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   // Phase 3: Default book refs removed - now handled by DefaultBookService
   // Track reading session start time for analytics
   const readingStartTimestamp = useRef<number | null>(null);
+  // Guard ref to prevent infinite loop in sign-out cleanup
+  const cleanupCompletedRef = useRef<boolean>(false);
   
   // Phase 2: Use custom hooks for library operations (after ALL state declarations)
   const { addBook: addBookToLibrary, removeBook: removeBookFromLibrary } = useBookLibrary(
@@ -172,8 +174,22 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   // This effect now includes safeguards to prevent clearing books during page refresh
   // when the user is just temporarily unauthenticated
   useEffect(() => {
+    // DEBUG: Log condition variables to diagnose inconsistent behavior
+    console.log('[BookContext Cleanup Check] Condition variables:', {
+      userId: userId || 'null',
+      isInitialLoadComplete,
+      hasExplicitlySignedOut,
+      cleanupCompleted: cleanupCompletedRef.current,
+      conditionMet: !userId && isInitialLoadComplete && hasExplicitlySignedOut && !cleanupCompletedRef.current
+    });
+    
     // FIXED: Only run cleanup if user has EXPLICITLY signed out
-    if (!userId && isInitialLoadComplete && hasExplicitlySignedOut) {
+    // Also check if cleanup has already completed to prevent infinite loop
+    if (!userId && isInitialLoadComplete && hasExplicitlySignedOut && !cleanupCompletedRef.current) {
+      console.log('[BookContext Cleanup] Starting cleanup process...');
+      // Mark cleanup as started to prevent re-running
+      cleanupCompletedRef.current = true;
+      
       // Add a delay to prevent clearing books during page refresh
       // This gives the auth context time to restore the user's session
       const timeoutId = setTimeout(async () => {
@@ -183,6 +199,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
           const isOnReaderRoute = window.location.pathname.startsWith('/reader');
           if (isOnReaderRoute && isReading && currentBook) {
             console.log('[BookContext] Book is open and reading on reader route, skipping cleanup that would reset isInitialLoadComplete');
+            cleanupCompletedRef.current = false; // Reset flag so cleanup can run later
             return; // Skip cleanup to preserve reading state
           }
           
@@ -236,13 +253,6 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
                 console.log(`[BookContext] Removed book key: ${key}`);
               }
              
-              // Phase 3: Default book flags removed - handled by DefaultBookService
-              // FIXED: Only reset isInitialLoadComplete if we're not on reader route with open book
-              // This prevents loader from appearing unnecessarily
-              if (!isOnReaderRoute || !isReading) {
-                setIsInitialLoadComplete(false);
-              }
-              
               // Clear current book state
               setCurrentBook(null);
               setIsReading(false);
@@ -268,8 +278,8 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
               if (defaultBook) {
                 setBooks([defaultBook]);
                 console.log('[BookContext] Default book loaded after sign-out cleanup');
-                // FIXED: Set isInitialLoadComplete back to true after loading default book
-                // This prevents ReaderWrapper from showing loader unnecessarily
+                // OPTIMIZED: Only set isInitialLoadComplete once at the end
+                // No need to toggle false/true - just set it to true after cleanup completes
                 setIsInitialLoadComplete(true);
               } else {
                 // Even if default book failed to load, set isInitialLoadComplete to true
@@ -286,13 +296,27 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
           clearUserData();
         } else {
           console.log('[BookContext] User re-authenticated during delay, skipping book cleanup');
+          cleanupCompletedRef.current = false; // Reset flag if user re-authenticated
         }
       }, 2000); // 2 second delay to allow auth context to restore session
       
       // Cleanup timeout if userId changes before delay completes
-      return () => clearTimeout(timeoutId);
+      return () => {
+        clearTimeout(timeoutId);
+        // If effect re-runs before timeout completes, reset the flag
+        cleanupCompletedRef.current = false;
+      };
     }
   }, [userId, isInitialLoadComplete, hasExplicitlySignedOut]);
+  
+  // Reset cleanup guard when user signs in (userId becomes defined)
+  // This allows cleanup to run again if user signs out again later
+  useEffect(() => {
+    if (userId) {
+      cleanupCompletedRef.current = false;
+      console.log('[BookContext] User signed in, resetting cleanup guard');
+    }
+  }, [userId]);
 
   // =================================================================
 // PASTE THIS ENTIRE BLOCK INTO YOUR BookContext.tsx FILE

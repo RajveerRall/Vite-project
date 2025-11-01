@@ -176,3 +176,25 @@ export interface PlaybackStrategyConfig {
   instanceId?: string;
 }
 
+/**
+ * Usage event with idempotency support
+ */
+export interface UsageEvent {
+  id: string;
+  userId?: string;
+  sessionId?: string;
+  seconds: number;
+  source: string;
+  timestamp: number;
+  checksum?: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Validation result for usage events
+ */
+export interface UsageEventValidation {
+  valid: boolean;
+  errors?: string[];
+}
+

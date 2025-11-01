@@ -1,5 +1,7 @@
 // src/lib/analytics.ts
 
+import { isTrackingEnabled } from '../utils/trackingConfig';
+
 // This interface makes it clear what we can send to Google Analytics.
 interface EventParams {
   [key: string]: string | number | boolean | undefined;
@@ -21,6 +23,12 @@ const isAnalyticsAvailable = {
  * @param eventParams Optional parameters providing context (e.g., { method: 'upload' }).
  */
 export const trackEvent = (eventName: string, eventParams?: EventParams) => {
+  // Skip tracking if disabled in development
+  if (!isTrackingEnabled()) {
+    console.log(`[Analytics] Tracking disabled - skipping event: ${eventName}`);
+    return;
+  }
+
   // Track in Google Analytics
   if (isAnalyticsAvailable.gtag()) {
     try {
@@ -66,6 +74,11 @@ export const trackEvent = (eventName: string, eventParams?: EventParams) => {
  * @param properties Object containing user properties
  */
 export const setUserProperties = (properties: Record<string, any>) => {
+  if (!isTrackingEnabled()) {
+    console.log('[Analytics] Tracking disabled - skipping user properties');
+    return;
+  }
+
   if (isAnalyticsAvailable.amplitude()) {
     try {
       console.log(`[Analytics] Setting Amplitude user properties:`, properties);
@@ -84,6 +97,11 @@ export const setUserProperties = (properties: Record<string, any>) => {
  * @param userProperties Optional user properties
  */
 export const identifyUser = (userId: string, userProperties?: Record<string, any>) => {
+  if (!isTrackingEnabled()) {
+    console.log('[Analytics] Tracking disabled - skipping user identification');
+    return;
+  }
+
   if (isAnalyticsAvailable.amplitude()) {
     try {
       console.log(`[Analytics] Identifying user in Amplitude: ${userId}`, userProperties || '');
@@ -106,6 +124,11 @@ export const identifyUser = (userId: string, userProperties?: Record<string, any
  * @param pageProperties Optional page properties
  */
 export const trackPageView = (pageName: string, pageProperties?: Record<string, any>) => {
+  if (!isTrackingEnabled()) {
+    console.log('[Analytics] Tracking disabled - skipping page view');
+    return;
+  }
+
   if (isAnalyticsAvailable.amplitude()) {
     try {
       console.log(`[Analytics] Tracking page view in Amplitude: ${pageName}`, pageProperties || '');
@@ -125,6 +148,11 @@ export const trackPageView = (pageName: string, pageProperties?: Record<string, 
  * Send a test event to verify Amplitude is working
  */
 export const sendTestEvent = () => {
+  if (!isTrackingEnabled()) {
+    console.log('[Analytics] Tracking disabled - skipping test event');
+    return;
+  }
+
   if (isAnalyticsAvailable.amplitude()) {
     try {
       console.log('[Analytics] Sending test event to Amplitude');
@@ -147,6 +175,11 @@ export const sendTestEvent = () => {
  * @param data Object to push to dataLayer
  */
 export const pushToDataLayer = (data: Record<string, any>) => {
+  if (!isTrackingEnabled()) {
+    console.log('[Analytics] Tracking disabled - skipping dataLayer push');
+    return;
+  }
+
   if (isAnalyticsAvailable.dataLayer()) {
     try {
       console.log(`[Analytics] Pushing to GTM dataLayer:`, data);
@@ -165,6 +198,11 @@ export const pushToDataLayer = (data: Record<string, any>) => {
  * @param eventParams Event parameters
  */
 export const trackGTMEvent = (eventName: string, eventParams?: Record<string, any>) => {
+  if (!isTrackingEnabled()) {
+    console.log(`[Analytics] Tracking disabled - skipping GTM event: ${eventName}`);
+    return;
+  }
+
   if (isAnalyticsAvailable.dataLayer()) {
     try {
       console.log(`[Analytics] Tracking GTM Event: ${eventName}`, eventParams || '');
