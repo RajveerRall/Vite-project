@@ -15,7 +15,9 @@ export interface AudioBufferManager {
 }
 
 export class TTSChunkService implements IChunkService {
-  private audioBuffer: Record<number, string> = {};
+  private audioBuffer: Record<number, string> = {}; // Blob URLs for HTML5 Audio
+  private audioBufferObjects: Map<number, Blob> = new Map(); // Blob objects for Web Audio API
+  private decodedBuffers: Map<number, AudioBuffer> = new Map(); // Pre-decoded AudioBuffers
   private durationsBuffer: Record<number, number> = {};
   private bufferVoice: string;
   private audioContext: AudioContext | null = null;
@@ -152,7 +154,9 @@ export class TTSChunkService implements IChunkService {
       const audioBlob = await this.fetchChunkAudio(chunkIndex, text, config);
       const audioUrl = URL.createObjectURL(audioBlob);
       
+      // Store both blob URL (for HTML5) and blob object (for Web Audio)
       this.audioBuffer[chunkIndex] = audioUrl;
+      this.audioBufferObjects.set(chunkIndex, audioBlob);
       this.bufferVoice = config.selectedVoice;
 
       console.log(
@@ -164,6 +168,53 @@ export class TTSChunkService implements IChunkService {
       console.warn(`[${this.instanceId}][Prefetch] Failed to pre-fetch chunk #${chunkIndex}`, error);
       throw error;
     }
+  }
+
+  /**
+   * Pre-decode chunk for Web Audio API (for seamless playback)
+   */
+  async preDecodeChunk(chunkIndex: number, audioBlob: Blob): Promise<AudioBuffer> {
+    if (!this.audioContext) {
+      const Ctx: any = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!Ctx) {
+        throw new Error('Web Audio API not supported');
+      }
+      this.audioContext = new Ctx();
+    }
+
+    // Check if already decoded
+    if (this.decodedBuffers.has(chunkIndex)) {
+      return this.decodedBuffers.get(chunkIndex)!;
+    }
+
+    try {
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+      this.decodedBuffers.set(chunkIndex, audioBuffer);
+      
+      console.log(
+        `[${this.instanceId}][PreDecode] Pre-decoded chunk #${chunkIndex} (duration: ${audioBuffer.duration.toFixed(2)}s)`
+      );
+      
+      return audioBuffer;
+    } catch (error) {
+      console.error(`[${this.instanceId}][PreDecode] Failed to pre-decode chunk #${chunkIndex}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get pre-decoded AudioBuffer
+   */
+  getDecodedBuffer(chunkIndex: number): AudioBuffer | null {
+    return this.decodedBuffers.get(chunkIndex) || null;
+  }
+
+  /**
+   * Get blob object for chunk (for Web Audio API)
+   */
+  getBlob(chunkIndex: number): Blob | null {
+    return this.audioBufferObjects.get(chunkIndex) || null;
   }
 
   /**
@@ -227,7 +278,7 @@ export class TTSChunkService implements IChunkService {
    */
   clearBuffer(): void {
     const bufferUrls = Object.values(this.audioBuffer);
-    console.log(`[${this.instanceId}][clearBuffer] Clearing ${bufferUrls.length} buffered audio URLs`);
+    console.log(`[${this.instanceId}][clearBuffer] Clearing ${bufferUrls.length} buffered audio URLs and ${this.decodedBuffers.size} decoded buffers`);
     
     bufferUrls.forEach((url) => {
       if (url && url.startsWith('blob:')) {
@@ -236,6 +287,8 @@ export class TTSChunkService implements IChunkService {
     });
     
     this.audioBuffer = {};
+    this.audioBufferObjects.clear();
+    this.decodedBuffers.clear();
     this.durationsBuffer = {};
   }
 
@@ -249,6 +302,13 @@ export class TTSChunkService implements IChunkService {
       voice: this.bufferVoice,
       clear: () => this.clearBuffer(),
     };
+  }
+
+  /**
+   * Get decoded buffers map (for Web Audio API)
+   */
+  getDecodedBuffers(): Map<number, AudioBuffer> {
+    return this.decodedBuffers;
   }
 
   /**

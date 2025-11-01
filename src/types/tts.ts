@@ -162,3 +162,17 @@ export interface HighlightOptions {
   escapeHtml?: boolean;
 }
 
+/**
+ * Playback strategy type
+ */
+export type PlaybackStrategyType = 'seamless' | 'html5' | 'auto';
+
+/**
+ * Playback strategy configuration
+ */
+export interface PlaybackStrategyConfig {
+  type?: PlaybackStrategyType;
+  playbackRate?: number;
+  instanceId?: string;
+}
+

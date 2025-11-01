@@ -3,6 +3,9 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useAnonymousUsageLimit } from './useAnonymousUsageLimit';
 import { createTTSProgressRepository } from '../repositories/TTSProgressRepository';
+import { createAdaptivePlaybackStrategy } from '../services/tts/strategies/AdaptivePlaybackStrategy';
+import { IPlaybackStrategy } from '../services/tts/strategies/IPlaybackStrategy';
+import { createTTSChunkService } from '../services/tts/TTSChunkService';
 
 // Helper: split text into sentence chunks
 function splitTextIntoChunks(text: string): string[] {
@@ -82,6 +85,21 @@ export const useReaderTTS = ({
   // Initialize progress repository
   const readerInstanceId = useRef(`ReaderInstance_${Date.now()}_${Math.random().toString(36).substring(2,7)}`).current;
   const progressRepository = useRef(createTTSProgressRepository(readerInstanceId)).current;
+  
+  // Initialize playback strategy (with automatic fallback)
+  const playbackStrategyRef = useRef<IPlaybackStrategy | null>(null);
+  const chunksRef = useRef<string[]>([]);
+  
+  if (!playbackStrategyRef.current) {
+    playbackStrategyRef.current = createAdaptivePlaybackStrategy({
+      playbackRate: ttsSpeed,
+      instanceId: readerInstanceId,
+      forceStrategy: 'auto', // Auto-detect: seamless if available, HTML5 otherwise
+    });
+  }
+  
+  // Initialize chunk service for pre-decoding
+  const chunkServiceRef = useRef(createTTSChunkService(readerInstanceId)).current;
   // === TTS Playback States ===
   const [chunks, setChunks] = useState<string[]>([]);
   const [currentChunkIndex, setCurrentChunkIndex] = useState<number | null>(null);
@@ -262,6 +280,13 @@ export const useReaderTTS = ({
   // === Cleanup audio on unmount or page change ===
   useEffect(() => {
     return () => {
+      // Cleanup strategy
+      if (playbackStrategyRef.current) {
+        playbackStrategyRef.current.stop();
+        playbackStrategyRef.current.cleanup();
+      }
+      
+      // Cleanup HTML5 Audio
       if (audioRef.current) {
         // Remove event listeners before cleanup
         const handlers = (audioRef.current as any)?._handlers;
@@ -324,6 +349,10 @@ export const useReaderTTS = ({
 
     console.log(`[Prefetch] Starting pre-fetch for chunks from index ${startIndex}`);
 
+    // Check if using seamless playback
+    const strategy = playbackStrategyRef.current;
+    const isSeamless = strategy && (strategy as any).getStrategyType?.() === 'seamless';
+
     for (let i = 0; i < chunksToFetch.length; i++) {
       const chunkIndex = startIndex + i;
       if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex) continue;
@@ -331,23 +360,17 @@ export const useReaderTTS = ({
       try {
         const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
         const textChunk = chunksToFetch[i];
-        // Use configured TTS API URL or default to relative path
         const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
         
-        // Build query parameters with voice and speed
-        // Build the absolute API base using env when provided (for other callers)
-
         const params = new URLSearchParams({
           text: textChunk,
           voice: selectedVoiceRef.current,
           format: 'audio-24khz-48kbitrate-mono-mp3'
         });
         
-        // Add speed parameter if not 1 (normal speed)
         if (ttsSpeed !== 1) {
           const speedPercent = Math.round((ttsSpeed - 1) * 100);
           const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
-          // Fix: Use set() instead of append() to avoid double encoding
           params.set('rate', speedParam);
         }
         
@@ -361,17 +384,29 @@ export const useReaderTTS = ({
           continue;
         }
 
-        // Track duration for this prefetched chunk (prefer server header, else decode)
+        // Track duration for this prefetched chunk
         try {
           const headerSeconds = Number(response.headers.get('X-Audio-Duration') || 0);
           const seconds = headerSeconds > 0 ? headerSeconds : await getBlobDurationSeconds(audioBlob);
           durationsBuffer.current[chunkIndex] = seconds;
         } catch {}
 
+        // Store blob URL for HTML5 playback (fallback)
         const audioUrl = URL.createObjectURL(audioBlob);
         audioBuffer.current[chunkIndex] = audioUrl;
-        // Track the voice used for this buffered chunk
         bufferVoiceRef.current = selectedVoiceRef.current;
+
+        // ✅ SEAMLESS INTEGRATION: Pre-decode for Web Audio API if using seamless playback
+        if (isSeamless && strategy) {
+          try {
+            await strategy.prepareChunk(chunkIndex, audioBlob);
+            console.log(`[Prefetch] Pre-decoded chunk #${chunkIndex} for seamless playback`);
+          } catch (error) {
+            console.warn(`[Prefetch] Failed to pre-decode chunk #${chunkIndex} for seamless playback:`, error);
+            // Continue with HTML5 fallback
+          }
+        }
+
         console.log(`[Prefetch] Successfully buffered chunk #${chunkIndex} with voice ${selectedVoiceRef.current}`);
 
       } catch (error) {
@@ -403,6 +438,32 @@ export const useReaderTTS = ({
     setIsPaused(false); 
     setHasFinishedPlayback(false);
 
+    // Check if we should use seamless playback
+    const strategy = playbackStrategyRef.current;
+    const isSeamless = strategy && (strategy as any).getStrategyType?.() === 'seamless';
+
+    // Try seamless playback first if available and chunk is ready
+    if (isSeamless && strategy) {
+      // Get blob from chunk service
+      const audioBlob = chunkServiceRef.getBlob(index);
+      
+      if (audioBlob) {
+        try {
+          console.log(`[playChunk] Attempting seamless playback for chunk #${index}`);
+          // Strategy will handle seamless auto-advance via onChunkComplete handler
+          await strategy.play(audioBlob, index);
+          
+          // Prefetch next chunks
+          prefetchChunks(index + 1);
+          return; // Success - seamless playback started
+        } catch (error) {
+          console.warn(`[playChunk] Seamless playback failed, falling back to HTML5:`, error);
+          // Fall through to HTML5 Audio below
+        }
+      }
+    }
+
+    // HTML5 Audio fallback (original implementation)
     const playAudio = (audioUrl: string) => {
       // Clean up previous audio element if it exists
       if (audioRef.current) {
@@ -437,14 +498,12 @@ export const useReaderTTS = ({
           ? durationsBuffer.current[index]
           : (elapsed > 0 ? elapsed : Math.round((audioRef.current as any)?.duration || 0));
         
-        // Record usage - wrap in try-catch to prevent errors from blocking auto-advance
-        try {
-          await recordUsageSeconds(seconds);
-          console.log(`[playChunk] recordUsageSeconds completed for chunk #${index}`);
-        } catch (error) {
+        // ✅ CRITICAL FIX: Make usage tracking non-blocking (fire-and-forget)
+        // Remove await to prevent blocking the next chunk
+        recordUsageSeconds(seconds).catch((error) => {
           console.error(`[playChunk] Error recording usage seconds:`, error);
-          // Continue anyway - don't let usage tracking block auto-advance
-        }
+          // Silently continue - usage tracking shouldn't interrupt playback
+        });
         
         // Set auto-advance flag to prevent handleNextSentence from pausing
         isAutoAdvancingRef.current = true;
@@ -512,9 +571,36 @@ export const useReaderTTS = ({
       prefetchChunks(index + 1);
     };
 
+    // ✅ FIX: Check if seamless is actively playing before creating HTML5 Audio
+    const isSeamlessActive = isSeamless && strategy && (strategy.isPlaying() || strategy.isPaused());
+    
     if (audioBuffer.current[index]) {
       const bufferedUrl = audioBuffer.current[index];
       if (bufferedUrl && bufferedUrl.startsWith('blob:') && bufferVoiceRef.current === selectedVoiceRef.current) {
+        // If seamless is active, try seamless playback first (prevents double playback)
+        if (isSeamlessActive && strategy) {
+          try {
+            // Get blob from buffer for seamless playback
+            let audioBlob = chunkServiceRef.getBlob(index);
+            if (!audioBlob) {
+              // If blob not in chunk service, fetch it from blob URL
+              const response = await fetch(bufferedUrl);
+              audioBlob = await response.blob();
+            }
+            
+            // Pre-decode and play with seamless
+            await strategy.prepareChunk(index, audioBlob);
+            console.log(`[playChunk] Pre-decoded chunk #${index} from buffer for seamless playback`);
+            await strategy.play(audioBlob, index);
+            prefetchChunks(index + 1);
+            return; // Success - seamless playback started, no HTML5 Audio
+          } catch (error) {
+            console.warn(`[playChunk] Seamless playback from buffer failed, falling back to HTML5:`, error);
+            // Fall through to HTML5 Audio below
+          }
+        }
+        
+        // Use HTML5 Audio (either seamless not active, or seamless failed)
         console.log(`[playChunk] Playing chunk #${index} from BUFFER with voice ${selectedVoiceRef.current}.`);
         playAudio(bufferedUrl);
       } else {
@@ -565,6 +651,22 @@ export const useReaderTTS = ({
         audioBuffer.current[index] = audioUrl;
         // Track the voice used for this on-demand chunk
         bufferVoiceRef.current = selectedVoiceRef.current;
+        
+        // Try seamless playback first if available
+        if (isSeamless && strategy) {
+          try {
+            // Pre-decode if not already done
+            await strategy.prepareChunk(index, audioBlob);
+            console.log(`[playChunk] Pre-decoded chunk #${index} for seamless playback`);
+            await strategy.play(audioBlob, index);
+            prefetchChunks(index + 1);
+            return; // Success - seamless playback started
+          } catch (error) {
+            console.warn(`[playChunk] Seamless playback failed, using HTML5:`, error);
+            // Fall through to HTML5 Audio
+          }
+        }
+        
         playAudio(audioUrl);
       } catch (error) {
         if ((error as any).name !== 'AbortError') {
@@ -598,30 +700,131 @@ export const useReaderTTS = ({
     console.log(`[${readerInstanceId}][playChunkRef] Synchronized playChunkRef with playChunk function`);
   }, [playChunk, readerInstanceId]);
 
+  // Keep chunksRef synchronized
+  useEffect(() => {
+    chunksRef.current = chunks;
+  }, [chunks]);
+  
+  // Set up event handlers for strategy (using refs to avoid stale closures)
+  useEffect(() => {
+    if (!playbackStrategyRef.current) return;
+    
+    playbackStrategyRef.current.setEventHandlers({
+      onPlay: (chunkIndex: number) => {
+        playStartTimeRef.current[chunkIndex] = Date.now();
+        console.log(`[Strategy] Audio started playing chunk #${chunkIndex}`);
+      },
+      onChunkComplete: (chunkIndex: number) => {
+        // Handle seamless auto-advance
+        console.log(`[Strategy] Audio ended for chunk #${chunkIndex}, advancing to chunk #${chunkIndex + 1}`);
+        
+        // Calculate usage seconds
+        const elapsed = playStartTimeRef.current[chunkIndex] ? Math.round((Date.now() - playStartTimeRef.current[chunkIndex]) / 1000) : 0;
+        const seconds = (durationsBuffer.current[chunkIndex] && durationsBuffer.current[chunkIndex] > 0)
+          ? durationsBuffer.current[chunkIndex]
+          : (elapsed > 0 ? elapsed : 0);
+        
+        // ✅ CRITICAL FIX: Make usage tracking non-blocking (fire-and-forget)
+        recordUsageSeconds(seconds).catch((error) => {
+          console.error(`[Strategy] Error recording usage seconds:`, error);
+        });
+        
+        // Auto-advance to next chunk
+        const nextChunkIndex = chunkIndex + 1;
+        if (nextChunkIndex < chunksRef.current.length && playChunkRef.current) {
+          isAutoAdvancingRef.current = true;
+          playChunkRef.current(nextChunkIndex).catch((error) => {
+            console.error(`[Strategy] Error in auto-advance:`, error);
+            isAutoAdvancingRef.current = false;
+          });
+          setTimeout(() => {
+            isAutoAdvancingRef.current = false;
+          }, 100);
+        } else {
+          // End of chunks
+          setIsSpeaking(false);
+          setIsPaused(false);
+          setHasFinishedPlayback(true);
+          setCurrentChunkIndex(null);
+          clearResumeIndex();
+        }
+      },
+      onError: (error: Error) => {
+        console.error(`[${readerInstanceId}][Strategy] Audio playback error:`, error);
+        setIsSpeaking(false);
+        setIsPaused(false);
+        setCurrentChunkIndex(null);
+        ttsIntentActiveRef.current = false;
+        addToast('Audio playback failed. If it does not work contact us.', 'error');
+      },
+    });
+  }, [readerInstanceId, clearResumeIndex, recordUsageSeconds, addToast, chunksRef, setIsSpeaking, setIsPaused, setHasFinishedPlayback, setCurrentChunkIndex]);
+  
+  // Update playback rate when ttsSpeed changes
+  useEffect(() => {
+    if (playbackStrategyRef.current) {
+      playbackStrategyRef.current.setPlaybackRate(ttsSpeed);
+    }
+  }, [ttsSpeed]);
+
   // === Pause playback ===
   const pausePlayback = useCallback(() => {
     console.log(`[${readerInstanceId}][pausePlayback] PAUSE CALLED - currentChunkIndex: ${currentChunkIndex}, isSpeaking: ${isSpeaking}`);
     
+    const strategy = playbackStrategyRef.current;
+    
+    // Try strategy first (seamless or HTML5)
+    if (strategy && strategy.isPlaying()) {
+      strategy.pause();
+      setIsPaused(true);
+      setIsSpeaking(false);
+      ttsIntentActiveRef.current = true;
+      
+      if (currentChunkIndex !== null) {
+        console.log(`[${readerInstanceId}][pausePlayback] Saving resumeIndex: ${currentChunkIndex}`);
+        setResumeIndex(currentChunkIndex);
+      }
+      return;
+    }
+    
+    // Fallback to HTML5 Audio
     if (audioRef.current && isSpeaking) {
       audioRef.current.pause();
       setIsPaused(true);
       setIsSpeaking(false);
       ttsIntentActiveRef.current = true;
       
-      // Save resume index
       if (currentChunkIndex !== null) {
         console.log(`[${readerInstanceId}][pausePlayback] Saving resumeIndex: ${currentChunkIndex}`);
         setResumeIndex(currentChunkIndex);
-    }
+      }
     } else {
       console.log(`[${readerInstanceId}][pausePlayback] No audio ref or not speaking - audioRef: ${!!audioRef.current}, isSpeaking: ${isSpeaking}`);
     }
   }, [isSpeaking, currentChunkIndex, readerInstanceId]);
 
   // === Resume playback ===
-  const resumePlayback = useCallback(() => {
+  const resumePlayback = useCallback(async () => {
     console.log(`[${readerInstanceId}][resumePlayback] RESUME CALLED - resumeIndex: ${resumeIndex}, isPaused: ${isPaused}, audioRef: ${!!audioRef.current}`);
     
+    const strategy = playbackStrategyRef.current;
+    
+    // Try strategy first (seamless or HTML5)
+    if (strategy && strategy.isPaused()) {
+      try {
+        await strategy.resume();
+        setIsPaused(false);
+        setIsSpeaking(true);
+        ttsIntentActiveRef.current = true;
+        return;
+      } catch (error) {
+        // If seamless resume fails (e.g., chunk evicted from queue), fallback to HTML5
+        console.warn('[Resume] Strategy resume failed, falling back to HTML5:', error);
+        // Don't return - continue to HTML5 fallback below
+      }
+    }
+    
+    // Fallback to HTML5 Audio
     if (audioRef.current && isPaused) {
       console.log(`[${readerInstanceId}][resumePlayback] Resuming existing audio`);
       const playPromise = audioRef.current.play();
@@ -644,8 +847,13 @@ export const useReaderTTS = ({
         setIsSpeaking(true);
         ttsIntentActiveRef.current = true;
       }
-    } else if (!audioRef.current && resumeIndex !== null) {
-      console.log(`[${readerInstanceId}][resumePlayback] No audio ref, playing chunk ${resumeIndex}`);
+    } else if (resumeIndex !== null) {
+      // Fallback: If no audio ref or strategy resume failed, restart playback from saved index
+      console.log(`[${readerInstanceId}][resumePlayback] Restarting playback from chunk ${resumeIndex}`);
+      // Stop strategy if it's still active but in error state
+      if (strategy && (strategy.isPlaying() || strategy.isPaused())) {
+        strategy.stop();
+      }
       playChunk(resumeIndex);
     } else {
       console.log(`[${readerInstanceId}][resumePlayback] Cannot resume - resumeIndex: ${resumeIndex}, isPaused: ${isPaused}, audioRef: ${!!audioRef.current}`);
@@ -654,6 +862,14 @@ export const useReaderTTS = ({
 
   // === Halt playback (for navigation or stopping) ===
   const haltPlayback = useCallback(() => {
+    const strategy = playbackStrategyRef.current;
+    
+    // Stop strategy first (seamless or HTML5)
+    if (strategy && (strategy.isPlaying() || strategy.isPaused())) {
+      strategy.stop();
+    }
+    
+    // Fallback to HTML5 Audio cleanup
     if (audioRef.current) {
       // Remove event listeners before cleanup
       const handlers = (audioRef.current as any)?._handlers;
