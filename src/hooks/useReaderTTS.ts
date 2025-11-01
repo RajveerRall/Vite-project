@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useAnonymousUsageLimit } from './useAnonymousUsageLimit';
+import { createTTSProgressRepository } from '../repositories/TTSProgressRepository';
 
 // Helper: split text into sentence chunks
 function splitTextIntoChunks(text: string): string[] {
@@ -60,8 +61,7 @@ interface UseReaderTTSProps {
   ttsSpeed?: number;
 }
 
-const LOCAL_STORAGE_PREFIX = 'ebookReaderProgress_';
-const CHUNK_HIGHLIGHT_CLASS = 'tts-highlight';
+// Constants moved to src/constants/tts.ts
 
 /**
  * Custom hook for managing all Text-to-Speech functionality
@@ -78,6 +78,10 @@ export const useReaderTTS = ({
   const { addToast } = useToast();
   const { user } = useAuth();
   const anonymousLimit = useAnonymousUsageLimit();
+  
+  // Initialize progress repository
+  const readerInstanceId = useRef(`ReaderInstance_${Date.now()}_${Math.random().toString(36).substring(2,7)}`).current;
+  const progressRepository = useRef(createTTSProgressRepository(readerInstanceId)).current;
   // === TTS Playback States ===
   const [chunks, setChunks] = useState<string[]>([]);
   const [currentChunkIndex, setCurrentChunkIndex] = useState<number | null>(null);
@@ -93,7 +97,6 @@ export const useReaderTTS = ({
   const audioBuffer = useRef<Record<number, string>>({});
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const readerInstanceId = useRef(`ReaderInstance_${Date.now()}_${Math.random().toString(36).substring(2,7)}`).current;
   const ttsIntentActiveRef = useRef(false);
   const currentTTSBaseOffsetRef = useRef<number>(0);
   // === Usage Tracking Refs ===
@@ -110,6 +113,10 @@ export const useReaderTTS = ({
   const prevVoiceRef = useRef<string>(selectedVoice);
   // === Track last pause/resume action to prevent double-calls ===
   const lastPauseResumeActionRef = useRef<number>(0);
+  // === Ref for playChunk to avoid stale closures in onended handlers ===
+  const playChunkRef = useRef<((index: number) => Promise<void>) | null>(null);
+  // === Flag to track auto-advance vs manual navigation ===
+  const isAutoAdvancingRef = useRef<boolean>(false);
 
   // === Keep selectedVoiceRef synchronized with selectedVoice prop ===
   useEffect(() => {
@@ -201,61 +208,34 @@ export const useReaderTTS = ({
     }
   }, []);
 
-  // === Local Storage Helpers ===
-  const getStorageKey = useCallback((): string | null => {
-    if (!bookTitle) return null;
-    const safeTitle = bookTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
-    return `${LOCAL_STORAGE_PREFIX}${safeTitle}_page${currentPageDisplay}`;
-  }, [bookTitle, currentPageDisplay]);
-
-  const saveResumeIndex = useCallback((index: number) => {
-    const key = getStorageKey();
-    if (key && index >= 0) {
-      try {
-        localStorage.setItem(key, JSON.stringify({ index }));
-        console.log(`%c[${readerInstanceId}][TTS Resume Save] Page ${currentPageDisplay}: Saved Index ${index} for key ${key}`, "color: blue;");
-      } catch (e) {
-        console.error(`%c[${readerInstanceId}][TTS Resume Save] Page ${currentPageDisplay}: Error saving:`, "color: red;", e);
-      }
-    }
-  }, [currentPageDisplay, getStorageKey, readerInstanceId]);
-
-  const loadResumeIndex = useCallback((): number | null => {
-    const key = getStorageKey();
-    if (!key) return null;
+  // === Local Storage Helpers (using Repository) ===
+  const saveResumeIndex = useCallback(async (index: number) => {
     try {
-      const savedData = localStorage.getItem(key);
-      if (savedData) {
-        const data = JSON.parse(savedData);
-        if (data && typeof data.index === 'number') {
-          if (currentPageText && data.index >= currentPageText.length) {
-            localStorage.removeItem(key);
-            return null;
-          }
-          return data.index;
-        }
-      }
-    } catch (e) {
-      console.error(`%c[${readerInstanceId}][TTS Resume Load] Error loading for key ${key}:`, "color: red;", e);
-      localStorage.removeItem(key);
+      await progressRepository.saveResumeIndex(bookTitle, currentPageDisplay, index);
+    } catch (error) {
+      console.error(`[${readerInstanceId}][TTS Resume Save] Error:`, error);
     }
-    return null;
-  }, [currentPageText, getStorageKey, readerInstanceId]);
+  }, [bookTitle, currentPageDisplay, progressRepository, readerInstanceId]);
 
-  const clearResumeIndex = useCallback(() => {
-    const key = getStorageKey();
-    if (key) {
-      try {
-        localStorage.removeItem(key);
-        console.log(`%c[${readerInstanceId}][TTS Resume Clear] Page ${currentPageDisplay}: Cleared progress for key ${key}`, "color: purple;");
-      } catch (e) {
-        console.error(`%c[${readerInstanceId}][TTS Resume Clear] Page ${currentPageDisplay}: Error clearing for key ${key}:`, "color: red;", e);
-      }
+  const loadResumeIndex = useCallback(async (): Promise<number | null> => {
+    try {
+      return await progressRepository.loadResumeIndex(bookTitle, currentPageDisplay, currentPageText?.length || 0);
+    } catch (error) {
+      console.error(`[${readerInstanceId}][TTS Resume Load] Error:`, error);
+      return null;
+    }
+  }, [bookTitle, currentPageDisplay, currentPageText?.length, progressRepository, readerInstanceId]);
+
+  const clearResumeIndex = useCallback(async () => {
+    try {
+      await progressRepository.clearResumeIndex(bookTitle, currentPageDisplay);
+    } catch (error) {
+      console.error(`[${readerInstanceId}][TTS Resume Clear] Error:`, error);
     }
     setResumeIndex(null);
     setHasFinishedPlayback(true);
     currentTTSBaseOffsetRef.current = 0;
-  }, [currentPageDisplay, getStorageKey, readerInstanceId]);
+  }, [bookTitle, currentPageDisplay, progressRepository, readerInstanceId]);
 
   // === Split text into chunks whenever currentPageText changes ===
   useEffect(() => {
@@ -283,6 +263,13 @@ export const useReaderTTS = ({
   useEffect(() => {
     return () => {
       if (audioRef.current) {
+        // Remove event listeners before cleanup
+        const handlers = (audioRef.current as any)?._handlers;
+        if (handlers) {
+          audioRef.current.removeEventListener('play', handlers.handlePlay);
+          audioRef.current.removeEventListener('ended', handlers.handleEnded);
+          audioRef.current.removeEventListener('error', handlers.handleError);
+        }
         audioRef.current.pause();
         audioRef.current.src = '';
         audioRef.current = null;
@@ -396,6 +383,10 @@ export const useReaderTTS = ({
 
   // === Play chunk function ===
   const playChunk = useCallback(async (index: number) => {
+    // Ensure playChunkRef is set immediately when playChunk is called
+    // This guarantees it's available when handleEnded runs
+    playChunkRef.current = playChunk;
+    
     if (index < 0 || index >= chunks.length) {
       setIsSpeaking(false); 
       setIsPaused(false); 
@@ -403,6 +394,7 @@ export const useReaderTTS = ({
       setCurrentChunkIndex(null); 
       clearResumeIndex(); 
       ttsIntentActiveRef.current = false;
+      isAutoAdvancingRef.current = false;
       return;
     }
 
@@ -412,27 +404,81 @@ export const useReaderTTS = ({
     setHasFinishedPlayback(false);
 
     const playAudio = (audioUrl: string) => {
-      if (audioRef.current) audioRef.current.pause();
-      else audioRef.current = new Audio();
-
-      audioRef.current.src = audioUrl;
+      // Clean up previous audio element if it exists
+      if (audioRef.current) {
+        // Remove all event listeners to prevent stale handlers
+        const oldHandlers = (audioRef.current as any)?._handlers;
+        if (oldHandlers) {
+          audioRef.current.removeEventListener('play', oldHandlers.handlePlay);
+          audioRef.current.removeEventListener('ended', oldHandlers.handleEnded);
+          audioRef.current.removeEventListener('error', oldHandlers.handleError);
+        }
+        audioRef.current.pause();
+        // Clear src to reset the element
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
       
-      // Apply current playback speed to ensure it persists across chunks
-      audioRef.current.playbackRate = ttsSpeedRef.current;
-      console.log(`[playChunk] Applied playback rate: ${ttsSpeedRef.current}x to chunk #${index}`);
+      // Create fresh audio element
+      audioRef.current = new Audio();
       
-      audioRef.current.onplay = () => {
+      // Set up event handlers BEFORE setting src (more reliable)
+      const handlePlay = () => {
         playStartTimeRef.current[index] = Date.now();
+        console.log(`[playChunk] Audio started playing chunk #${index}`);
       };
-      audioRef.current.onended = async () => {
+      
+      const handleEnded = async () => {
+        console.log(`[playChunk] Audio ended for chunk #${index}, advancing to chunk #${index + 1}`);
+        
+        // Calculate usage seconds
         const elapsed = playStartTimeRef.current[index] ? Math.round((Date.now() - playStartTimeRef.current[index]) / 1000) : 0;
         const seconds = (durationsBuffer.current[index] && durationsBuffer.current[index] > 0)
           ? durationsBuffer.current[index]
           : (elapsed > 0 ? elapsed : Math.round((audioRef.current as any)?.duration || 0));
-        await recordUsageSeconds(seconds);
-        playChunk(index + 1);
+        
+        // Record usage - wrap in try-catch to prevent errors from blocking auto-advance
+        try {
+          await recordUsageSeconds(seconds);
+          console.log(`[playChunk] recordUsageSeconds completed for chunk #${index}`);
+        } catch (error) {
+          console.error(`[playChunk] Error recording usage seconds:`, error);
+          // Continue anyway - don't let usage tracking block auto-advance
+        }
+        
+        // Set auto-advance flag to prevent handleNextSentence from pausing
+        isAutoAdvancingRef.current = true;
+        console.log(`[playChunk] Auto-advance flag set to true`);
+        
+        // Use ref to ensure we always call the latest playChunk function
+        // This fixes the stale closure issue when playChunk is recreated
+        const nextChunkIndex = index + 1;
+        
+        if (playChunkRef.current) {
+          console.log(`[playChunk] playChunkRef.current is available, calling playChunkRef.current(${nextChunkIndex})`);
+          // Don't await - fire and continue to avoid blocking
+          playChunkRef.current(nextChunkIndex).catch((error) => {
+            console.error(`[playChunk] Error calling playChunkRef.current:`, error);
+            isAutoAdvancingRef.current = false;
+          });
+        } else {
+          console.error(`[playChunk] playChunkRef.current is null! Trying direct call to playChunk(${nextChunkIndex})`);
+          // Fallback: call playChunk directly if ref is null (it's in closure scope)
+          playChunk(nextChunkIndex).catch((error) => {
+            console.error(`[playChunk] Error calling playChunk directly:`, error);
+            isAutoAdvancingRef.current = false;
+          });
+        }
+        
+        // Clear auto-advance flag after a short delay to allow playChunk to start
+        // This prevents handleNextSentence from interfering if called during transition
+        setTimeout(() => {
+          isAutoAdvancingRef.current = false;
+          console.log(`[playChunk] Auto-advance flag cleared`);
+        }, 100);
       };
-      audioRef.current.onerror = (e) => {
+      
+      const handleError = (e: Event) => {
         console.error(`[${readerInstanceId}][playChunk] Audio playback error:`, e);
         setIsSpeaking(false); 
         setIsPaused(false); 
@@ -440,7 +486,29 @@ export const useReaderTTS = ({
         ttsIntentActiveRef.current = false;
         addToast('Audio playback failed. If it does not work contact us.', 'error');
       };
-      audioRef.current.play();
+      
+      // Attach event listeners using addEventListener (more reliable than onXXX properties)
+      audioRef.current.addEventListener('play', handlePlay);
+      audioRef.current.addEventListener('ended', handleEnded);
+      audioRef.current.addEventListener('error', handleError);
+      
+      // Set src and playback properties
+      audioRef.current.src = audioUrl;
+      audioRef.current.playbackRate = ttsSpeedRef.current;
+      console.log(`[playChunk] Set src and playback rate: ${ttsSpeedRef.current}x for chunk #${index}`);
+      
+      // Store handlers on the element for cleanup later (optional, for reference)
+      (audioRef.current as any)._handlers = { handlePlay, handleEnded, handleError };
+      
+      // Start playback
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.error(`[playChunk] Play failed for chunk #${index}:`, error);
+          handleError(error as any);
+        });
+      }
+      
       prefetchChunks(index + 1);
     };
 
@@ -523,6 +591,13 @@ export const useReaderTTS = ({
     }
   }, [chunks, clearResumeIndex, prefetchChunks, readerInstanceId, ttsSpeed, addToast]);
 
+  // Keep playChunkRef synchronized with playChunk function
+  // This MUST run immediately after playChunk is defined to ensure it's available for audio handlers
+  useEffect(() => {
+    playChunkRef.current = playChunk;
+    console.log(`[${readerInstanceId}][playChunkRef] Synchronized playChunkRef with playChunk function`);
+  }, [playChunk, readerInstanceId]);
+
   // === Pause playback ===
   const pausePlayback = useCallback(() => {
     console.log(`[${readerInstanceId}][pausePlayback] PAUSE CALLED - currentChunkIndex: ${currentChunkIndex}, isSpeaking: ${isSpeaking}`);
@@ -580,6 +655,13 @@ export const useReaderTTS = ({
   // === Halt playback (for navigation or stopping) ===
   const haltPlayback = useCallback(() => {
     if (audioRef.current) {
+      // Remove event listeners before cleanup
+      const handlers = (audioRef.current as any)?._handlers;
+      if (handlers) {
+        audioRef.current.removeEventListener('play', handlers.handlePlay);
+        audioRef.current.removeEventListener('ended', handlers.handleEnded);
+        audioRef.current.removeEventListener('error', handlers.handleError);
+      }
       audioRef.current.pause();
       if (audioRef.current.src) {
         URL.revokeObjectURL(audioRef.current.src);
@@ -874,30 +956,33 @@ export const useReaderTTS = ({
 
   // === Load resume index and highlight content ===
   useEffect(() => {
-    const loadedIndex = loadResumeIndex();
-    setResumeIndex(loadedIndex);
-    setHasFinishedPlayback(false);
+    const loadAndHighlight = async () => {
+      const loadedIndex = await loadResumeIndex();
+      setResumeIndex(loadedIndex);
+      setHasFinishedPlayback(false);
 
-    if (!currentPageText || loadedIndex === null) {
-      setHighlightedContent(currentContent);
-      return;
-    }
+      if (!currentPageText || loadedIndex === null) {
+        setHighlightedContent(currentContent);
+        return;
+      }
 
-    // For resume, we'll highlight the beginning of the text since we don't know the exact chunk
-    const highlightLength = Math.min(100, currentPageText.length);
-    const start = loadedIndex;
-    const end = Math.min(start + highlightLength, currentPageText.length);
+      // For resume, we'll highlight the beginning of the text since we don't know the exact chunk
+      const highlightLength = Math.min(100, currentPageText.length);
+      const start = loadedIndex;
+      const end = Math.min(start + highlightLength, currentPageText.length);
 
-    const escapeHtml = (str: string) =>
-      str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const escapeHtml = (str: string) =>
+        str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-    const before = escapeHtml(currentPageText.substring(0, start));
-    const highlight = escapeHtml(currentPageText.substring(start, end));
-    const after = escapeHtml(currentPageText.substring(end));
+      const before = escapeHtml(currentPageText.substring(0, start));
+      const highlight = escapeHtml(currentPageText.substring(start, end));
+      const after = escapeHtml(currentPageText.substring(end));
 
-    const highlightedHtml = `${before}<span class="tts-highlight">${highlight}</span>${after}`;
-    setHighlightedContent(highlightedHtml);
+      const highlightedHtml = `${before}<span class="tts-highlight">${highlight}</span>${after}`;
+      setHighlightedContent(highlightedHtml);
+    };
 
+    loadAndHighlight();
   }, [loadResumeIndex, currentPageDisplay, currentContent, currentPageText]);
 
   // === Reset highlighted content when TTS stops ===
@@ -938,15 +1023,22 @@ export const useReaderTTS = ({
   }, [currentChunkIndex, isSpeaking, pausePlayback, prefetchChunks, playChunk, readerInstanceId]);
 
   const handleNextSentence = useCallback(() => {
+    // Check if we're currently auto-advancing (from onended handler)
+    // If so, don't pause - let auto-advance continue seamlessly
+    if (isAutoAdvancingRef.current) {
+      console.log(`[${readerInstanceId}][Next Sentence] Skipping pause - auto-advancing in progress`);
+      return;
+    }
+    
     if (currentChunkIndex !== null && currentChunkIndex < chunks.length - 1) {
-      // Stop current playback if playing
+      // Stop current playback if playing (manual navigation only)
       if (isSpeaking) {
         pausePlayback();
       }
       
       // Play the next sentence
       const nextChunkIndex = currentChunkIndex + 1;
-      console.log(`[${readerInstanceId}][Next Sentence] Moving from chunk ${currentChunkIndex} to ${nextChunkIndex}`);
+      console.log(`[${readerInstanceId}][Next Sentence] Manual navigation: Moving from chunk ${currentChunkIndex} to ${nextChunkIndex}`);
       
       // Prefetch and play the next chunk
       prefetchChunks(nextChunkIndex);

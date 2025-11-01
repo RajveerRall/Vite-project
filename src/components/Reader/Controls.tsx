@@ -13,7 +13,7 @@ import InteractiveProgressBar from './InteractiveProgressBar';
 // Import the stylesheet. It will now handle all the appearance styling.
 import './Controls.css'; 
 
-interface ControlsProps {
+export interface ControlsProps {
   readingProgress: number;
   onReadAloud: () => void;
   onStopTTS: () => void;
