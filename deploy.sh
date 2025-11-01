@@ -69,9 +69,21 @@ REMOTE=$(git rev-parse origin/$BRANCH)
 if [ "$LOCAL" = "$REMOTE" ]; then
     print_status "Already up to date."
 else
-    print_status "Updates available. Pulling changes..."
-    git pull origin "$BRANCH"
-    print_success "Successfully pulled latest changes"
+    print_status "Updates available. Syncing with remote..."
+    
+    # Check if branches have diverged (common after force push)
+    if git merge-base --is-ancestor HEAD origin/$BRANCH 2>/dev/null; then
+        # Local is behind remote - can fast-forward
+        print_status "Fast-forwarding to remote branch..."
+        git merge --ff-only origin/$BRANCH
+        print_success "Successfully fast-forwarded to latest changes"
+    else
+        # Branches have diverged - reset to match remote exactly
+        print_warning "Branches have diverged (likely due to force push on remote)"
+        print_status "Resetting local branch to match remote exactly..."
+        git reset --hard origin/$BRANCH
+        print_success "Successfully reset to match remote branch"
+    fi
 fi
 
 # Step 3: Install dependencies (if needed)
