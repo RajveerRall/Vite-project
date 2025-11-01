@@ -19,10 +19,12 @@ export interface UseReaderSettingsReturn {
   // TTS Settings
   selectedVoice: string;
   ttsSpeed: number;
+  autoContinueChapters: boolean;
   
   // TTS Controls
   setSelectedVoice: (voice: string) => void;
   setTtsSpeed: (speed: number) => void;
+  setAutoContinueChapters: (enabled: boolean) => void;
   
   // Settings widget controls
   toggleSettings: () => void;
@@ -56,6 +58,12 @@ export const useReaderSettings = (): UseReaderSettingsReturn => {
   const [ttsSpeed, setTtsSpeed] = useState<number>(() => {
     const savedSpeed = localStorage.getItem('reader-tts-speed');
     return savedSpeed ? parseFloat(savedSpeed) : 1; // Default 1x speed
+  });
+  
+  // Auto-continue chapters state - persisted in localStorage
+  const [autoContinueChapters, setAutoContinueChapters] = useState<boolean>(() => {
+    const saved = localStorage.getItem('reader-auto-continue-chapters');
+    return saved !== null ? saved === 'true' : true; // Default true
   });
   
   // Settings widget state
@@ -100,6 +108,12 @@ export const useReaderSettings = (): UseReaderSettingsReturn => {
   const handleSpeedChange = useCallback((speed: number) => {
     setTtsSpeed(speed);
     localStorage.setItem('reader-tts-speed', speed.toString());
+  }, []);
+  
+  // Auto-continue chapters management function
+  const handleAutoContinueChange = useCallback((enabled: boolean) => {
+    setAutoContinueChapters(enabled);
+    localStorage.setItem('reader-auto-continue-chapters', enabled.toString());
   }, []);
 
   // Settings widget control functions
@@ -154,6 +168,7 @@ export const useReaderSettings = (): UseReaderSettingsReturn => {
     isSettingsOpen,
     selectedVoice,
     ttsSpeed,
+    autoContinueChapters,
     
     // Font controls
     increaseFontSize,
@@ -166,6 +181,7 @@ export const useReaderSettings = (): UseReaderSettingsReturn => {
     // TTS controls
     setSelectedVoice: handleVoiceChange,
     setTtsSpeed: handleSpeedChange,
+    setAutoContinueChapters: handleAutoContinueChange,
     
     // Settings widget
     toggleSettings,

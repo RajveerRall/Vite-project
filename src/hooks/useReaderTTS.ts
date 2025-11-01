@@ -63,6 +63,8 @@ interface UseReaderTTSProps {
   // New TTS settings
   selectedVoice?: string;
   ttsSpeed?: number;
+  // Callback for when playback completes
+  onPlaybackComplete?: () => void;
 }
 
 // Constants moved to src/constants/tts.ts
@@ -77,7 +79,8 @@ export const useReaderTTS = ({
   currentPageText,
   currentContent,
   selectedVoice = 'en-US-BrianMultilingualNeural',
-  ttsSpeed = 1
+  ttsSpeed = 1,
+  onPlaybackComplete
 }: UseReaderTTSProps): UseReaderTTSReturn => {
   const { addToast } = useToast();
   const { user } = useAuth();
@@ -498,36 +501,50 @@ export const useReaderTTS = ({
           // Silently continue - usage tracking shouldn't interrupt playback
         });
         
-        // Set auto-advance flag to prevent handleNextSentence from pausing
-        isAutoAdvancingRef.current = true;
-        console.log(`[playChunk] Auto-advance flag set to true`);
-        
         // Use ref to ensure we always call the latest playChunk function
         // This fixes the stale closure issue when playChunk is recreated
         const nextChunkIndex = index + 1;
         
-        if (playChunkRef.current) {
-          console.log(`[playChunk] playChunkRef.current is available, calling playChunkRef.current(${nextChunkIndex})`);
-          // Don't await - fire and continue to avoid blocking
-          playChunkRef.current(nextChunkIndex).catch((error) => {
-            console.error(`[playChunk] Error calling playChunkRef.current:`, error);
+        // Check if there are more chunks to play
+        if (nextChunkIndex < chunksRef.current.length) {
+          // Set auto-advance flag to prevent handleNextSentence from pausing
+          isAutoAdvancingRef.current = true;
+          console.log(`[playChunk] Auto-advance flag set to true`);
+          
+          if (playChunkRef.current) {
+            console.log(`[playChunk] playChunkRef.current is available, calling playChunkRef.current(${nextChunkIndex})`);
+            // Don't await - fire and continue to avoid blocking
+            playChunkRef.current(nextChunkIndex).catch((error) => {
+              console.error(`[playChunk] Error calling playChunkRef.current:`, error);
+              isAutoAdvancingRef.current = false;
+            });
+          } else {
+            console.error(`[playChunk] playChunkRef.current is null! Trying direct call to playChunk(${nextChunkIndex})`);
+            // Fallback: call playChunk directly if ref is null (it's in closure scope)
+            playChunk(nextChunkIndex).catch((error) => {
+              console.error(`[playChunk] Error calling playChunk directly:`, error);
+              isAutoAdvancingRef.current = false;
+            });
+          }
+          
+          // Clear auto-advance flag after a short delay to allow playChunk to start
+          // This prevents handleNextSentence from interfering if called during transition
+          setTimeout(() => {
             isAutoAdvancingRef.current = false;
-          });
+            console.log(`[playChunk] Auto-advance flag cleared`);
+          }, 100);
         } else {
-          console.error(`[playChunk] playChunkRef.current is null! Trying direct call to playChunk(${nextChunkIndex})`);
-          // Fallback: call playChunk directly if ref is null (it's in closure scope)
-          playChunk(nextChunkIndex).catch((error) => {
-            console.error(`[playChunk] Error calling playChunk directly:`, error);
-            isAutoAdvancingRef.current = false;
-          });
+          // End of chunks - playback complete
+          console.log(`[playChunk] Reached end of all chunks, playback complete`);
+          setIsSpeaking(false);
+          setIsPaused(false);
+          setHasFinishedPlayback(true);
+          setCurrentChunkIndex(null);
+          clearResumeIndex();
+          
+          // Call the playback complete callback
+          onPlaybackComplete?.();
         }
-        
-        // Clear auto-advance flag after a short delay to allow playChunk to start
-        // This prevents handleNextSentence from interfering if called during transition
-        setTimeout(() => {
-          isAutoAdvancingRef.current = false;
-          console.log(`[playChunk] Auto-advance flag cleared`);
-        }, 100);
       };
       
       const handleError = (e: Event) => {
@@ -740,6 +757,9 @@ export const useReaderTTS = ({
           setHasFinishedPlayback(true);
           setCurrentChunkIndex(null);
           clearResumeIndex();
+          
+          // Call the playback complete callback
+          onPlaybackComplete?.();
         }
       },
       onError: (error: Error) => {
