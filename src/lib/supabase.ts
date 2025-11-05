@@ -17,10 +17,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 })
 
-// Add event listener for auth state changes
-supabase.auth.onAuthStateChange((event, session) => {
-  console.log(`Supabase auth event: ${event}`, session)
-})
+// Note: Auth state changes are handled in AuthContext.tsx to avoid conflicts
+// Do not add global listeners here
 
 // Database types for TypeScript
 export interface BookRecord {

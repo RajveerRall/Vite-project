@@ -7,6 +7,10 @@ const path = require('path'); // Import path
 
 const app = express();
 
+// Import DodoPayments API proxy (keeping for gradual migration)
+// Note: Subscription webhook is now handled by Supabase Edge Function
+const dodopaymentsApi = require('./server/dodopayments-api.cjs');
+
 const PORT = process.env.PORT || 8080;
 // --------> ADD THIS DEBUG LINE <--------
 console.log(`--->>> DEBUG: Value of process.env.PORT is: '${process.env.PORT}' (Type: ${typeof process.env.PORT})`);
@@ -22,7 +26,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Parse JSON for all routes (webhook is now handled by Edge Function)
 app.use(express.json());
+
+// Mount DodoPayments API proxy (must be before webhook handler to avoid conflicts)
+app.use('/api/dodopayments', dodopaymentsApi);
 
 // --- API Route ---
 const handleTTS = async (req, res) => {
@@ -176,6 +184,10 @@ const handleUserBooks = async (req, res) => {
 };
 
 app.post('/api/user-books', handleUserBooks);
+
+// --- Subscription Webhooks ---
+// NOTE: Webhook is now handled by Supabase Edge Function: /functions/v1/dodo-webhook
+// Keeping this comment for reference during migration period
 
 // --- Health Check ---
 app.get('/health', (req, res) => {

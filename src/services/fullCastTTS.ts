@@ -25,11 +25,14 @@ export async function requestFullCast(text: string, options: FullCastOptions = {
   let userId: string | undefined;
   let userEmail: string | undefined;
   try {
-    const { supabase } = await import('../lib/supabase');
-    const { data } = await supabase.auth.getUser();
-    userId = data?.user?.id;
-    userEmail = (data?.user as any)?.email as string | undefined;
-  } catch {}
+    const { getUserSafely } = await import('../lib/authToken');
+    const { user } = await getUserSafely(5000);
+    userId = user?.id;
+    userEmail = user?.email as string | undefined;
+  } catch (error) {
+    console.error('[fullCastTTS] Failed to get user for chat-thread request:', error);
+    // Continue with undefined userId - request will work without auth
+  }
 
   // Use chat-thread endpoint if parser is chatThread
   if (options.parser === 'chatThread') {
@@ -81,11 +84,14 @@ export async function ttsForLine(text: string, provider?: string, voiceId?: stri
   let userId: string | undefined;
   let userEmail: string | undefined;
   try {
-    const { supabase } = await import('../lib/supabase');
-    const { data } = await supabase.auth.getUser();
-    userId = data?.user?.id;
-    userEmail = (data?.user as any)?.email as string | undefined;
-  } catch {}
+    const { getUserSafely } = await import('../lib/authToken');
+    const { user } = await getUserSafely(5000);
+    userId = user?.id;
+    userEmail = user?.email as string | undefined;
+  } catch (error) {
+    console.error('[fullCastTTS] Failed to get user for TTS request:', error);
+    // Continue with undefined userId - request will work without auth
+  }
   const response = await fetch(`${baseURL}/api/tts`, {
     method: 'POST',
     headers: {

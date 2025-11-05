@@ -22,18 +22,21 @@ import AuthCallback from './pages/auth/callback';
 import TermsOfService from './pages/TermsOfService';
 import EpubToAudiobook from './pages/EpubToAudiobook';
 import GoogleOneTap from './components/Auth/GoogleOneTap';
+import AccountPage from './pages/account/AccountPage';
+import Dashboard from './pages/Dashboard';
 // import ScannerPage from './pages/ScannerPage'; // Temporarily disabled
 import './App.css';
 import { useTTSUsageRecorder } from './hooks/useTTSUsageRecorder';
 import { Capacitor } from '@capacitor/core';
 import { initializeUsageTracking, updateUsageTrackerUserId } from './services/tts/index';
 import { isTrackingEnabled } from './utils/trackingConfig';
+import { SubscriptionProvider } from './context/SubscriptionContext';
 
 // Lazy load the ReaderWrapper component since it's heavy and not needed initially
 const ReaderWrapper = React.lazy(() => import('./components/Reader/ReaderWrapper'));
 
 const MainApp: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, hasExplicitlySignedOut } = useAuth();
   const location = useLocation();
   const isReaderRoute = location.pathname.startsWith('/reader');
 
@@ -48,16 +51,17 @@ const MainApp: React.FC = () => {
   }, []);
 
   // Memoize GoogleOneTap to prevent re-mounts
-  // Now with stable callback dependencies, this will only re-create when auth state changes
+  // Only mount if user is not authenticated AND has not explicitly signed out
+  // This prevents GoogleOneTap from auto-triggering after explicit sign-out
   const googleOneTapComponent = React.useMemo(() => {
-    if (!isAuthenticated && !Capacitor.isNativePlatform()) {
+    if (!isAuthenticated && !hasExplicitlySignedOut && !Capacitor.isNativePlatform()) {
       return <GoogleOneTap 
         onSuccess={handleGoogleSuccess} 
         onError={handleGoogleError} 
       />;
     }
     return null;
-  }, [isAuthenticated, handleGoogleSuccess, handleGoogleError]);
+  }, [isAuthenticated, hasExplicitlySignedOut, handleGoogleSuccess, handleGoogleError]);
 
   return (
     <div className="app">
@@ -66,6 +70,8 @@ const MainApp: React.FC = () => {
       <Routes>
         {/* Main app routes */}
         <Route path="/" element={<Library />} />
+        <Route path="/account" element={<AccountPage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/reader/:bookId" element={
           <React.Suspense fallback={<SuspenseLoader />}>
             <ReaderWrapper />
@@ -106,8 +112,17 @@ const AppContent: React.FC = () => {
         try {
           const { supabase } = await import('./lib/supabase');
           console.log('[Auth Deep Link] Exchanging code for session (warm)...');
-          await supabase.auth.exchangeCodeForSession(url);
+          
+          // Add timeout protection
+          const exchangePromise = supabase.auth.exchangeCodeForSession(url);
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Session exchange timeout after 10 seconds')), 10000);
+          });
+          
+          await Promise.race([exchangePromise, timeoutPromise]);
           console.log('[Auth Deep Link] Session exchange complete (warm).');
+        } catch (error) {
+          console.error('[Auth Deep Link] Session exchange failed (warm):', error);
         } finally {
           try { await Browser.close(); } catch {}
         }
@@ -123,10 +138,19 @@ const AppContent: React.FC = () => {
         if (url?.startsWith('yoread://auth/callback')) {
           const { supabase } = await import('./lib/supabase');
           console.log('[Auth Deep Link] Exchanging code for session (cold)...');
-          await supabase.auth.exchangeCodeForSession(url);
+          
+          // Add timeout protection
+          const exchangePromise = supabase.auth.exchangeCodeForSession(url);
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Session exchange timeout after 10 seconds')), 10000);
+          });
+          
+          await Promise.race([exchangePromise, timeoutPromise]);
           console.log('[Auth Deep Link] Session exchange complete (cold).');
         }
-      } catch {}
+      } catch (error) {
+        console.error('[Auth Deep Link] Session exchange failed (cold):', error);
+      }
     })();
     return () => { 
       // CapacitorApp.addListener returns a Promise that resolves to a PluginListenerHandle
@@ -180,8 +204,10 @@ const App: React.FC = () => {
       <Router>
         <ToastProvider>
           <BookProvider>
-            <AppContent />
-            <ToastWrapper />
+            <SubscriptionProvider>
+              <AppContent />
+              <ToastWrapper />
+            </SubscriptionProvider>
           </BookProvider>
         </ToastProvider>
       </Router>

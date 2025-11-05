@@ -1,6 +1,7 @@
 import React from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
 
 interface GoogleSignInProps {
   onSuccess?: () => void;
@@ -8,6 +9,8 @@ interface GoogleSignInProps {
 }
 
 const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
+  const { resetSignOutState } = useAuth();
+  
   const handleCredentialResponse = async (credentialResponse: any) => {
     try {
       console.log('[GoogleSignIn] Credential received:', credentialResponse);
@@ -15,6 +18,11 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
       if (!credentialResponse.credential) {
         throw new Error('No credential received from Google');
       }
+      
+      // Clear sign-out flag BEFORE authentication attempt to allow explicit sign-in
+      // This prevents onAuthStateChange from rejecting the SIGNED_IN event
+      resetSignOutState();
+      console.log('[GoogleSignIn] Cleared sign-out flag before authentication');
       
       console.log('[GoogleSignIn] Authenticating with Supabase using Google token');
       const { data, error } = await supabase.auth.signInWithIdToken({

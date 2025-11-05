@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "node server.cjs",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "build": "npm run generate-static && tsc && vite build",
     "build:mobile": "npm run generate-static && tsc && vite build --mode mobile",
     "build:mobile-clean": "npm run generate-static && tsc && vite build --mode mobile",
@@ -16,7 +18,11 @@
     "create-collage": "node scripts/create-book-collage-sprite.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "node server.cjs"
+    "start": "node server.cjs",
+    "supabase:functions:dev": "supabase functions serve",
+    "supabase:functions:deploy": "supabase functions deploy",
+    "supabase:functions:deploy:webhook": "supabase functions deploy dodo-webhook",
+    "supabase:functions:logs": "supabase functions logs"
   },
   "dependencies": {
     "@capacitor/app": "^7.1.0",
@@ -33,7 +39,6 @@
     "@supabase/supabase-js": "^2.55.0",
     "@types/localforage": "^0.0.34",
     "@types/react-router-dom": "^5.3.3",
-    "@your-scope/modular-tts": "file:modular-tts-0.1.0.tgz",
     "adm-zip": "^0.5.16",
     "axios": "^1.8.3",
     "class-variance-authority": "^0.7.1",

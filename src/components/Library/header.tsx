@@ -79,16 +79,22 @@ import { AuthForm } from "../Auth/AuthForm";
 import { useTTSUsage } from "../../hooks/useTTSUsage";
 import { useFullCastUsage } from "../../hooks/useFullCastUsage";
 import { useAnonymousUsageLimit } from "../../hooks/useAnonymousUsageLimit";
-import { Menu, X, RefreshCw } from 'lucide-react';
+import { useSubscription } from "../../context/SubscriptionContext";
+import { SubscriptionModal } from "../Subscription/SubscriptionModal";
+import { Menu, X, RefreshCw, Sparkles, User, LogOut, Settings } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { isAuthenticated, user, signOut } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showAccountDrawer, setShowAccountDrawer] = useState(false);
   const { usedMinutes, totalMinutes, loading: usageLoading, refresh } = useTTSUsage();
   const { usedMinutes: fcUsed, totalMinutes: fcTotal, loading: fcLoading, refresh: fcRefresh } = useFullCastUsage();
   const anonymousLimit = useAnonymousUsageLimit();
+  const { isSubscribed, minutesRemaining, usageLimit, subscriptionInfo } = useSubscription();
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const accountDrawerRef = useRef<HTMLDivElement>(null);
   
   // Feature flag - set to true to re-enable Full Cast tracker
   const SHOW_FULL_CAST = false;
@@ -99,16 +105,19 @@ const Header: React.FC = () => {
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
         setShowMobileMenu(false);
       }
+      if (accountDrawerRef.current && !accountDrawerRef.current.contains(event.target as Node)) {
+        setShowAccountDrawer(false);
+      }
     };
 
-    if (showMobileMenu) {
+    if (showMobileMenu || showAccountDrawer) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showMobileMenu]);
+  }, [showMobileMenu, showAccountDrawer]);
 
   const handleSignInClick = async () => {
     // Don't check for existing session - user should manually sign in
@@ -169,25 +178,51 @@ const Header: React.FC = () => {
             {/* --- Logged-In State - Desktop --- */}
             {isAuthenticated && (
               <div className="hidden md:flex items-center gap-x-4">
-                {/* Pro Badge */}
-                <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300">
-                  Pro
-                </span>
+                {/* Upgrade Button - Show when not subscribed or near limit */}
+                {(!isSubscribed || (minutesRemaining !== null && minutesRemaining < 10)) && (
+                  <button
+                    onClick={() => setShowSubscriptionModal(true)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full transition-colors font-medium text-sm shadow-md"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Upgrade Now
+                  </button>
+                )}
+                
+                {/* Pro Badge - Only show if subscribed */}
+                {isSubscribed && (
+                  <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300">
+                    Pro
+                  </span>
+                )}
                 
                 {/* TTS Usage */}
-                <div className="flex items-center gap-x-2 text-sm text-gray-700">
-                  <span className="font-medium">
-                    {usageLoading ? 'Usage: …' : `Usage: ${usedMinutes ?? 0}/${totalMinutes} min`}
-                  </span>
-                  <button 
-                    onClick={() => refresh()}
-                    className="text-gray-500 hover:text-gray-700 transition-colors"
-                    title="Refresh usage data"
-                    disabled={usageLoading}
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </button>
-                </div>
+                {isAuthenticated && (
+                  <div className="flex items-center gap-x-2 text-sm text-gray-700">
+                    <span className="font-medium">
+                      {usageLimit ? (
+                        `${Math.ceil((subscriptionInfo?.profile?.tts_minutes_used || 0) / 60)}/${usageLimit.minutes_limit + (usageLimit.prepaid_minutes || 0)} min`
+                      ) : subscriptionInfo?.profile ? (
+                        // Fallback: show usage from subscriptionInfo if usageLimit not loaded yet
+                        `${Math.ceil((subscriptionInfo.profile.tts_minutes_used || 0) / 60)}/${(subscriptionInfo.profile.tts_minutes_limit || 0) + (subscriptionInfo.profile.prepaid_minutes || 0)} min`
+                      ) : usageLoading ? (
+                        'Usage: …'
+                      ) : totalMinutes > 0 ? (
+                        `Usage: ${usedMinutes ?? 0}/${totalMinutes} min`
+                      ) : (
+                        `Usage: ${usedMinutes ?? 0} min`
+                      )}
+                    </span>
+                    <button 
+                      onClick={() => refresh()}
+                      className="text-gray-500 hover:text-gray-700 transition-colors"
+                      title="Refresh usage data"
+                      disabled={usageLoading}
+                    >
+                      <RefreshCw className={`h-4 w-4 ${usageLoading ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                )}
                 
                 {/* Anonymous Usage Badge */}
                 {!isAuthenticated && anonymousLimit && (
@@ -227,28 +262,83 @@ const Header: React.FC = () => {
                   </div>
                 )}
                 
-                {/* User Email */}
-                <span className="text-sm text-gray-600">
-                  {user?.email}
-                </span>
-                
-                {/* Sign Out Button */}
-                <button 
-                  onClick={signOut}
-                  className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-300 rounded-full transition-colors"
-                >
-                  Sign Out
-                </button>
+                {/* Profile Icon with Account Drawer */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAccountDrawer(!showAccountDrawer)}
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+                    title={user?.email || 'Account'}
+                  >
+                    <User className="w-5 h-5 text-gray-700" />
+                  </button>
+
+                  {/* Account Drawer */}
+                  {showAccountDrawer && (
+                    <>
+                      {/* Backdrop */}
+                      <div
+                        className="fixed inset-0 z-40 bg-black bg-opacity-25"
+                        onClick={() => setShowAccountDrawer(false)}
+                      />
+                      {/* Drawer Menu */}
+                      <div
+                        ref={accountDrawerRef}
+                        className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* User Email Display */}
+                        <div className="px-4 py-3 border-b border-gray-200">
+                          <div className="text-xs text-gray-500 mb-1">Signed in as</div>
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            {user?.email}
+                          </div>
+                        </div>
+                        {/* Menu Items */}
+                        <Link
+                          to="/account"
+                          onClick={() => setShowAccountDrawer(false)}
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Settings className="w-4 h-4" />
+                          <span>Account</span>
+                        </Link>
+                        <button
+                          onClick={() => {
+                            setShowAccountDrawer(false);
+                            signOut();
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span>Sign Out</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             )}
             
             {/* --- Logged-In State - Mobile (Simplified) --- */}
             {isAuthenticated && (
               <div className="md:hidden flex items-center gap-x-2">
-                {/* Pro Badge - Mobile */}
-                <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300">
-                  Pro
-                </span>
+                {/* Upgrade Button - Mobile - Show when not subscribed or near limit */}
+                {(!isSubscribed || (minutesRemaining !== null && minutesRemaining < 10)) && (
+                  <button
+                    onClick={() => setShowSubscriptionModal(true)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full transition-colors font-medium text-xs shadow-md"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Upgrade
+                  </button>
+                )}
+                
+                {/* Pro Badge - Mobile - Only show if subscribed */}
+                {isSubscribed && (
+                  <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300">
+                    Pro
+                  </span>
+                )}
                 
                 {/* Sign Out Button - Mobile */}
                 <button 
@@ -282,15 +372,41 @@ const Header: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{user?.email}</p>
-                  <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300 mt-1 inline-block">
-                    Pro
-                  </span>
+                  {isSubscribed && (
+                    <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300 mt-1 inline-block">
+                      Pro
+                    </span>
+                  )}
                 </div>
               </div>
+
+              {/* Account Link */}
+              <Link
+                to="/account"
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors border border-gray-200"
+              >
+                <Settings className="w-4 h-4" />
+                <span>Account</span>
+              </Link>
               
               {/* Usage Stats */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-gray-800 bg-gradient-to-r from-gray-100 to-amber-100 px-3 py-2 rounded-lg">Usage Statistics</h3>
+                
+                {/* Upgrade Button in Mobile Menu */}
+                {(!isSubscribed || (minutesRemaining !== null && minutesRemaining < 10)) && (
+                  <button
+                    onClick={() => {
+                      setShowSubscriptionModal(true);
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-colors font-medium text-sm shadow-md"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Upgrade Plan
+                  </button>
+                )}
                 
                 {/* TTS Usage */}
                 <div className="flex items-center justify-between">
@@ -372,6 +488,12 @@ const Header: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Subscription Modal */}
+      <SubscriptionModal
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+      />
     </header>
   );
 };

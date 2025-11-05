@@ -31,21 +31,113 @@ export class CloudBookRepository {
 
   /**
    * Fetch all books for the current user from Supabase
+   * Uses REST API directly (like SubscriptionService) for reliability
+   * This bypasses Supabase client session initialization issues
    */
   async fetchUserBooks(): Promise<CloudBookRecord[]> {
-    const { supabase } = await import('../../../lib/supabase');
+    console.log('[CloudBookRepository] Fetching user books from Supabase...', { userId: this.userId });
     
-    const { data, error } = await supabase
-      .from('books')
-      .select('*')
-      .eq('user_id', this.userId)
-      .order('last_read', { ascending: false });
-
-    if (error) {
-      throw new Error(`Supabase fetch error: ${error.message}`);
+    try {
+      // Use REST API directly (like SubscriptionService) - more reliable than client
+      const { getAccessToken } = await import('../../../lib/authToken');
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Missing Supabase environment variables');
+      }
+      
+      // Get access token (with timeout protection)
+      console.log('[CloudBookRepository] Getting access token...');
+      let accessToken: string;
+      try {
+        accessToken = await getAccessToken(5000);
+      } catch (tokenError) {
+        console.error('[CloudBookRepository] Failed to get access token:', tokenError);
+        throw new Error('No access token available - please sign in again');
+      }
+      
+      if (!accessToken) {
+        throw new Error('No access token available');
+      }
+      
+      console.log('[CloudBookRepository] Using REST API for books fetch...');
+      
+      // Build PostgREST query URL using URLSearchParams (consistent with SubscriptionService)
+      const url = `${supabaseUrl}/rest/v1/books`;
+      const params = new URLSearchParams();
+      params.append('select', '*');
+      params.append('user_id', `eq.${this.userId}`);
+      params.append('order', 'last_read.desc');
+      
+      const fullUrl = `${url}?${params.toString()}`;
+      console.log(`[CloudBookRepository] REST API URL: ${fullUrl.substring(0, 150)}...`);
+      
+      // Add timeout protection
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 10000); // 10 second timeout
+      
+      try {
+        const response = await fetch(fullUrl, {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+          },
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[CloudBookRepository] HTTP ${response.status}:`, errorText);
+          
+          // Provide helpful error messages
+          if (response.status === 401) {
+            throw new Error('Authentication failed - please sign in again');
+          } else if (response.status === 403) {
+            throw new Error('Permission denied - check RLS policies');
+          } else {
+            throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+          }
+        }
+        
+        const data = await response.json();
+        console.log(`[CloudBookRepository] Successfully fetched ${data?.length || 0} books via REST API`);
+        return (data || []) as CloudBookRecord[];
+        
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timeout after 10 seconds - check network connection');
+        }
+        throw fetchError;
+      }
+      
+    } catch (error) {
+      console.error('[CloudBookRepository] Error fetching user books:', error);
+      
+      // Enhanced error logging
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          console.error('[CloudBookRepository] Query timed out - possible network or RLS issue');
+        } else if (error.message.includes('permission denied') || 
+                   error.message.includes('RLS') || 
+                   error.message.includes('policy') ||
+                   error.message.includes('403')) {
+          console.error('[CloudBookRepository] RLS policy issue detected - check auth.uid()::text in policies');
+        } else if (error.message.includes('401') || error.message.includes('Authentication')) {
+          console.error('[CloudBookRepository] Authentication issue - session may have expired');
+        }
+      }
+      
+      throw error;
     }
-
-    return (data || []) as CloudBookRecord[];
   }
 
   /**
@@ -204,16 +296,21 @@ export class CloudBookRepository {
 
   /**
    * Download a book file from Supabase Storage
+   * Uses direct fetch() instead of supabase.storage.download() to avoid hanging
    * Handles multiple download strategies for reliability
    */
   async downloadBookFile(
     cloudBook: CloudBookRecord,
     possibleBuckets: string[] = ['book-files']
   ): Promise<Blob> {
+    const startTime = performance.now();
+    console.log(`[CloudBookRepository] Starting download for: "${cloudBook.title}"`);
+    
     let fileData: Blob | null = null;
     let successfulBucket = '';
+    let downloadMethod = '';
 
-    // Strategy 1: Try using file_url from database
+    // Strategy 1: Try using file_url from database (direct fetch)
     if (cloudBook.file_url) {
       try {
         let correctedUrl = cloudBook.file_url;
@@ -228,28 +325,40 @@ export class CloudBookRepository {
           correctedUrl = correctedUrl.replace('/render/image/public/', '/object/');
         }
 
-        // Extract bucket and path from URL
-        const url = new URL(correctedUrl);
-        const pathParts = url.pathname.split('/');
-        const objectIndex = pathParts.findIndex(part => part === 'object');
-
-        if (objectIndex !== -1 && objectIndex + 1 < pathParts.length) {
-          const bucketFromUrl = pathParts[objectIndex + 1];
-          const pathFromUrl = pathParts.slice(objectIndex + 2).join('/');
-
-          if (bucketFromUrl && pathFromUrl) {
-            const { supabase } = await import('../../../lib/supabase');
-            const { data, error } = await supabase.storage
-              .from(bucketFromUrl)
-              .download(pathFromUrl);
-
-            if (!error && data && data.size > 0) {
-              fileData = data;
-              successfulBucket = bucketFromUrl;
-              console.log(
-                `[CloudBookRepository] Downloaded using file_url from bucket: ${bucketFromUrl}`
-              );
+        console.log(`[CloudBookRepository] Trying direct fetch from file_url...`);
+        
+        // Use direct fetch with timeout (faster and more reliable than client)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout for large files
+        
+        try {
+          const response = await fetch(correctedUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/octet-stream, */*',
+            },
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (response.ok) {
+            const blob = await response.blob();
+            if (blob.size > 0) {
+              fileData = blob;
+              successfulBucket = 'file_url';
+              downloadMethod = 'direct_fetch_url';
+              console.log(`[CloudBookRepository] ✅ Downloaded via file_url: ${blob.size} bytes`);
             }
+          } else {
+            console.log(`[CloudBookRepository] file_url fetch failed: ${response.status}`);
+          }
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === 'AbortError') {
+            console.log('[CloudBookRepository] file_url fetch timeout');
+          } else {
+            console.log('[CloudBookRepository] file_url fetch error:', fetchError.message);
           }
         }
       } catch (urlError) {
@@ -257,31 +366,156 @@ export class CloudBookRepository {
       }
     }
 
-    // Strategy 2: Fallback to standard bucket path
+    // Strategy 2: Try direct fetch using public URL (if bucket is public)
     if (!fileData || fileData.size === 0) {
       for (const bucket of possibleBuckets) {
         try {
           const downloadPath = `${this.userId}/${cloudBook.id}.epub`;
+          
+          // Get public URL first (works for public buckets)
+          const { getFileUrl } = await import('../../../lib/supabase');
+          const publicUrl = getFileUrl(bucket, downloadPath);
+          
+          console.log(`[CloudBookRepository] Trying public URL for bucket ${bucket}: ${downloadPath}`);
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          
+          try {
+            const response = await fetch(publicUrl, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/octet-stream, */*',
+              },
+              signal: controller.signal,
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+              const blob = await response.blob();
+              if (blob.size > 0) {
+                fileData = blob;
+                successfulBucket = bucket;
+                downloadMethod = 'public_url';
+                console.log(`[CloudBookRepository] ✅ Downloaded from public URL (${bucket}): ${blob.size} bytes`);
+                break;
+              }
+            } else if (response.status === 404) {
+              // Not found, try next bucket
+              console.log(`[CloudBookRepository] File not found in bucket ${bucket}`);
+            }
+          } catch (fetchError: any) {
+            clearTimeout(timeoutId);
+            if (fetchError.name !== 'AbortError') {
+              console.log(`[CloudBookRepository] Public URL fetch failed for ${bucket}:`, fetchError.message);
+            }
+          }
+        } catch (bucketError) {
+          console.log(`[CloudBookRepository] Error with bucket ${bucket}:`, bucketError);
+          continue;
+        }
+      }
+    }
+
+    // Strategy 3: Fallback to Supabase Storage REST API with auth (for private buckets)
+    if (!fileData || fileData.size === 0) {
+      console.log('[CloudBookRepository] Direct fetch failed, trying Storage REST API...');
+      
+      for (const bucket of possibleBuckets) {
+        try {
+          const downloadPath = `${this.userId}/${cloudBook.id}.epub`;
+          const { getAccessToken } = await import('../../../lib/authToken');
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+          
+          const accessToken = await getAccessToken(5000);
+          const storageUrl = `${supabaseUrl}/storage/v1/object/${bucket}/${downloadPath}`;
+          
+          console.log(`[CloudBookRepository] Trying Storage REST API for bucket ${bucket}...`);
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          
+          try {
+            const response = await fetch(storageUrl, {
+              method: 'GET',
+              headers: {
+                'apikey': supabaseAnonKey,
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/octet-stream, */*',
+              },
+              signal: controller.signal,
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+              const blob = await response.blob();
+              if (blob.size > 0) {
+                fileData = blob;
+                successfulBucket = bucket;
+                downloadMethod = 'storage_rest_api';
+                console.log(`[CloudBookRepository] ✅ Downloaded via Storage REST API (${bucket}): ${blob.size} bytes`);
+                break;
+              }
+            } else {
+              console.log(`[CloudBookRepository] Storage REST API failed: ${response.status}`);
+            }
+          } catch (fetchError: any) {
+            clearTimeout(timeoutId);
+            if (fetchError.name !== 'AbortError') {
+              console.log(`[CloudBookRepository] Storage REST API error:`, fetchError.message);
+            }
+          }
+        } catch (bucketError) {
+          console.log(`[CloudBookRepository] Storage REST API failed for ${bucket}:`, bucketError);
+          continue;
+        }
+      }
+    }
+
+    // Strategy 4: Last resort - Supabase client (with timeout)
+    if (!fileData || fileData.size === 0) {
+      console.log('[CloudBookRepository] Trying Supabase client storage as last resort...');
+      
+      for (const bucket of possibleBuckets) {
+        try {
+          const downloadPath = `${this.userId}/${cloudBook.id}.epub`;
           const { supabase } = await import('../../../lib/supabase');
-          const { data, error } = await supabase.storage
+          
+          const downloadPromise = supabase.storage
             .from(bucket)
             .download(downloadPath);
-
+          
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Storage download timeout after 30s')), 30000);
+          });
+          
+          const result = await Promise.race([downloadPromise, timeoutPromise]) as any;
+          const { data, error } = result;
+          
           if (!error && data && data.size > 0) {
             fileData = data;
             successfulBucket = bucket;
-            console.log(`[CloudBookRepository] Downloaded from bucket: ${bucket}`);
+            downloadMethod = 'client_storage';
+            console.log(`[CloudBookRepository] ✅ Downloaded via client storage (${bucket}): ${data.size} bytes`);
             break;
+          } else if (error) {
+            console.log(`[CloudBookRepository] Client storage error for ${bucket}:`, error.message);
           }
-        } catch (bucketError) {
-          console.log(`[CloudBookRepository] Failed with bucket ${bucket}:`, bucketError);
+        } catch (bucketError: any) {
+          if (!bucketError.message.includes('timeout')) {
+            console.log(`[CloudBookRepository] Client storage failed for ${bucket}:`, bucketError.message);
+          }
           continue;
         }
       }
     }
 
     if (!fileData || fileData.size === 0) {
-      throw new Error(`All download methods failed for book: ${cloudBook.title}`);
+      const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+      throw new Error(`All download methods failed for book: "${cloudBook.title}" (tried for ${elapsed}s)`);
     }
 
     // Validate file size
@@ -291,8 +525,9 @@ export class CloudBookRepository {
       );
     }
 
+    const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
     console.log(
-      `[CloudBookRepository] Successfully downloaded "${cloudBook.title}" from bucket: ${successfulBucket}`
+      `[CloudBookRepository] ✅ Successfully downloaded "${cloudBook.title}" (${fileData.size} bytes) via ${downloadMethod} in ${elapsed}s`
     );
 
     return fileData;

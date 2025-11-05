@@ -1,55 +1,103 @@
 # 🚀 Production Deployment Guide
 
 ## Overview
-Your ebook reader consists of 3 parts:
+
+Your ebook reader consists of 4 parts:
 1. **Frontend** (React app) - User interface
-2. **Books API Server** - Handles book storage and sync
-3. **Main TTS Server** - Text-to-speech functionality
+2. **Supabase Edge Functions** - Subscription and payment APIs
+3. **Express Server** - TTS functionality only
+4. **Supabase Database** - User data, subscriptions, usage tracking
 
 ## 📋 Prerequisites
 
-### 1. Clerk Production Setup
+### 1. Supabase Setup
+- Supabase project created
+- Edge Functions configured
+- Database schema deployed
+
+### 2. Environment Variables
+
+**Frontend (.env):**
 ```bash
-# Get your production keys from https://clerk.com
-VITE_CLERK_PUBLISHABLE_KEY=pk_live_your_production_key
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_DODO_API_KEY=your-dodo-api-key
+VITE_DODO_BASE_URL=https://test.dodopayments.com
 ```
 
-### 2. Domain/Hosting Accounts
-- **Frontend**: Vercel/Netlify account
-- **Backend**: Railway/Render account (or VPS)
+**Supabase Edge Functions (set in Dashboard):**
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `DODO_PAYMENTS_API_KEY`
+- `DODO_BASE_URL`
+- `DODO_WEBHOOK_SECRET`
+
+---
 
 ## 🔧 Step-by-Step Deployment
 
-### Step 1: Deploy Books API Server
+### Step 1: Deploy Supabase Edge Functions
+
+```bash
+# Install Supabase CLI
+npm install -g supabase
+
+# Login to Supabase
+supabase login
+
+# Deploy all functions
+npm run supabase:functions:deploy
+
+# Or deploy individually
+supabase functions deploy subscriptions
+supabase functions deploy products
+supabase functions deploy dodo-webhook
+supabase functions deploy increment-usage
+```
+
+**Verify deployment:**
+- Go to Supabase Dashboard → Edge Functions
+- Check all functions are deployed and active
+- Set environment variables in Edge Functions settings
+
+### Step 2: Configure DodoPayments Webhook
+
+1. Go to DodoPayments Dashboard → Webhooks
+2. Set webhook URL to: `https://[project-ref].supabase.co/functions/v1/dodo-webhook`
+3. Select events:
+   - `subscription.created`
+   - `subscription.updated`
+   - `subscription.cancelled`
+   - `payment.succeeded`
+
+### Step 3: Deploy Express Server (TTS)
 
 #### Option A: Railway (Recommended)
 ```bash
-# In your books-api directory
-npm install railway
+# In your project root
 railway login
 railway init
 railway up
 ```
 
-#### Option B: Render
-1. Connect your GitHub repo to Render
-2. Create new Web Service
-3. Set build command: `cd books-api && npm install`
-4. Set start command: `npm start`
-5. Set environment: `PORT=3001`
+#### Option B: Fly.io
+```bash
+# Using existing fly.toml
+fly deploy
+```
 
 #### Option C: DigitalOcean/VPS
 ```bash
 # On your server
 git clone your-repo
-cd your-repo/books-api
+cd your-repo/Vite-project
 npm install --production
-pm2 start server.js --name "books-api"
+pm2 start server.cjs --name "yoread-tts"
 pm2 startup
 pm2 save
 ```
 
-### Step 2: Deploy Frontend
+### Step 4: Deploy Frontend
 
 #### Vercel (Recommended)
 ```bash
@@ -59,9 +107,7 @@ npm i -g vercel
 # In your project root
 vercel
 
-# Set environment variables in Vercel dashboard:
-# VITE_CLERK_PUBLISHABLE_KEY=pk_live_your_key
-# VITE_BOOKS_API_URL=https://your-books-api.railway.app
+# Set environment variables in Vercel dashboard
 ```
 
 #### Netlify
@@ -70,210 +116,269 @@ vercel
 npm run build
 
 # Deploy to Netlify
-# Set environment variables:
-# VITE_CLERK_PUBLISHABLE_KEY=pk_live_your_key
-# VITE_BOOKS_API_URL=https://your-books-api.railway.app
+# Set environment variables
 ```
 
-### Step 3: Configure Clerk for Production
+### Step 5: Verify Deployment
 
-1. Go to [Clerk Dashboard](https://clerk.com)
-2. Add your production domain to allowed origins
-3. Update JWT settings if needed
-4. Get your production publishable key
-
-### Step 4: Update Environment Variables
-
-Create `.env.production`:
+1. **Test Edge Functions:**
 ```bash
-VITE_CLERK_PUBLISHABLE_KEY=pk_live_your_production_key
-VITE_BOOKS_API_URL=https://your-books-api.railway.app
+# Test products endpoint (public)
+curl https://[project-ref].supabase.co/functions/v1/products
+
+# Test webhook (requires signature)
+curl -X POST https://[project-ref].supabase.co/functions/v1/dodo-webhook \
+  -H "Content-Type: application/json" \
+  -d '{"type":"test","data":{}}'
 ```
+
+2. **Test Express Server:**
+```bash
+curl https://your-tts-server.com/health
+```
+
+3. **Test Frontend:**
+- Visit deployed URL
+- Sign up/login
+- Verify subscription flow works
+
+---
 
 ## 🔒 Security Considerations
 
-### 1. CORS Configuration
-Update `books-api/server.js`:
-```javascript
-app.use(cors({
-  origin: [
-    'https://your-frontend-domain.vercel.app',
-    'http://localhost:5173' // Keep for development
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-```
+### 1. Environment Variables
+- Never commit secrets to git
+- Use Supabase Dashboard for Edge Function secrets
+- Use platform-specific secret management (Vercel, Railway, etc.)
 
-### 2. Rate Limiting
-Add to `books-api/server.js`:
-```javascript
-const rateLimit = require('express-rate-limit');
+### 2. CORS Configuration
+- Edge Functions handle CORS automatically
+- Express server CORS configured in `server.cjs`
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
+### 3. Webhook Security
+- Webhook signature verification required
+- Set `DODO_WEBHOOK_SECRET` in Supabase Dashboard
+- Verify signature in Edge Function
 
-app.use('/api/', limiter);
-```
+---
 
-### 3. File Size Limits
-Already configured in `books-api/server.js`:
-```javascript
-app.use(express.json({ limit: '50mb' }));
-```
+## 📊 Monitoring
 
-## 📊 Monitoring & Analytics
+### Edge Functions
+- View logs: `supabase functions logs [function-name]`
+- Monitor in Supabase Dashboard → Edge Functions
+- Set up alerts for function errors
 
-### 1. Server Health Monitoring
-```bash
-# Check if Books API is running
-curl https://your-books-api.railway.app/health
-```
+### Express Server
+- Monitor server logs via deployment platform
+- Check health endpoint: `/health`
 
-### 2. Clerk Analytics
-- User sign-ups tracked automatically
-- View in Clerk Dashboard
+### Database
+- Monitor in Supabase Dashboard
+- Check RLS policies are working correctly
+- Monitor usage quotas
 
-### 3. Error Logging
-Add to `books-api/server.js`:
-```javascript
-app.use((err, req, res, next) => {
-  console.error('Server Error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-```
+---
 
 ## 🧪 Testing Production Setup
 
-### 1. Test Books API
-```bash
-curl -X POST https://your-books-api.railway.app/api/books \
-  -H "Content-Type: application/json" \
-  -d '{"userId":"test","action":"get"}'
-```
+### 1. Test Subscription Flow
+1. Sign up new user
+2. Verify customer created in DodoPayments
+3. Create checkout session
+4. Complete payment
+5. Verify webhook updates subscription
+6. Check subscription active in dashboard
 
-### 2. Test Frontend
-1. Visit your deployed app
-2. Sign up/login with Clerk
-3. Upload a book
-4. Verify it syncs across devices
+### 2. Test Usage Tracking
+1. Use TTS feature
+2. Verify usage incremented
+3. Check limit enforcement
+4. Verify prepaid consumption (if applicable)
 
-## 🔄 CI/CD Pipeline (Optional)
+### 3. Test Webhook
+- Send test webhook from DodoPayments dashboard
+- Verify subscription/payment updates correctly
+- Check logs for errors
+
+---
+
+## 🔄 CI/CD Pipeline
 
 ### GitHub Actions Example
 ```yaml
 # .github/workflows/deploy.yml
 name: Deploy to Production
+
 on:
   push:
     branches: [main]
+
 jobs:
+  deploy-edge-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: supabase/setup-cli@v1
+      - run: supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  
   deploy-frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
       - run: npm install
       - run: npm run build
-      - uses: amondnet/vercel-action@v20
+      - uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
 ```
 
+---
+
 ## 🚨 Troubleshooting
 
-### Common Issues
+### Edge Functions Not Working
 
-1. **CORS Errors**
-   - Update allowed origins in books-api
-   - Check environment variables
+1. **Function Not Found (404)**
+   - Verify function is deployed: `supabase functions list`
+   - Check function name matches URL
+   - Verify project reference is correct
 
-2. **Book Sync Not Working**
-   - Verify VITE_BOOKS_API_URL is correct
-   - Check network requests in browser dev tools
+2. **Unauthorized (401)**
+   - Check auth token is valid
+   - Verify `verify_jwt` setting in config.toml
+   - Check token expiration
 
-3. **Authentication Issues**
-   - Verify Clerk production keys
-   - Check allowed domains in Clerk dashboard
+3. **Webhook Signature Invalid**
+   - Verify `DODO_WEBHOOK_SECRET` matches DodoPayments dashboard
+   - Check webhook headers are correct
+   - Verify DodoPayments SDK version
 
-### Debug Commands
-```bash
-# Check server logs
-railway logs # for Railway
-heroku logs --tail # for Heroku
+### Express Server Issues
 
-# Test API endpoint
-curl https://your-books-api.railway.app/health
-```
+1. **TTS Not Working**
+   - Check server is running
+   - Verify `/api/tts` endpoint is accessible
+   - Check CORS configuration
+
+2. **Static Files Not Serving**
+   - Verify `dist` directory exists
+   - Check Express static middleware configuration
+   - Verify file permissions
+
+### Database Issues
+
+1. **RLS Policy Errors**
+   - Verify service role key is set in Edge Functions
+   - Check RLS policies allow service role access
+   - Verify user permissions
+
+2. **Missing Data**
+   - Check webhook is processing correctly
+   - Verify database schema matches migrations
+   - Check Edge Function logs for errors
+
+---
 
 ## 💰 Cost Estimation
 
 ### Monthly Costs (Approximate)
-- **Vercel**: Free tier (good for most usage)
-- **Railway**: $5-20/month (depending on usage)
-- **Clerk**: Free up to 10k MAU, then $25/month
-- **Total**: ~$5-45/month depending on scale
 
-## 📈 Scaling Considerations
+- **Supabase**: Free tier (good for most usage)
+  - Edge Functions: Included in plan
+  - Database: Included in plan
+  - Storage: Included in plan
+  
+- **Express Server**: $5-20/month (Railway/Fly.io)
+  - TTS functionality only
+  
+- **DodoPayments**: Transaction fees only
+  
+- **Frontend**: Free (Vercel/Netlify free tier)
 
-### Database Migration (Future)
-When you outgrow file-based storage:
-```javascript
-// Consider migrating to:
-// - PostgreSQL (Railway provides this)
-// - MongoDB Atlas
-// - Supabase
-```
-
-### CDN for Books (Future)
-```javascript
-// For large-scale deployment:
-// - AWS S3 + CloudFront
-// - Cloudinary for images
-```
+**Total**: ~$5-20/month depending on server hosting
 
 ---
 
-**🎉 Your ebook reader is now production-ready!** Users can sign up, save books, and access them from any device. 
+## 📈 Scaling Considerations
 
+### Edge Functions
+- Auto-scales with traffic
+- No cold start issues for frequent endpoints
+- Monitor execution times in Supabase Dashboard
 
+### Database
+- Supabase handles scaling automatically
+- Monitor connection pool usage
+- Consider read replicas for high traffic
 
+### Express Server
+- Scale horizontally if needed
+- Consider load balancing for TTS
+- Monitor CPU/memory usage
 
-### login to ssh
-ssh -i C:\Users\Rajveer\.ssh\id_ed25519 root@161.35.186.252
+---
 
+## 🔄 Rollback Plan
 
-### go to vite read
+If issues arise:
 
-cd Vite-reader
+1. **Rollback Edge Functions**
+   - Deploy previous version: `supabase functions deploy [function-name] --version [version]`
+   - Or disable function temporarily in Dashboard
 
-### check git branch it should be auth-setup and fetch the changes
+2. **Rollback Webhook**
+   - Point DodoPayments webhook back to Express server temporarily
+   - Update Express server to handle webhooks again
 
-git status
+3. **Rollback Frontend**
+   - Deploy previous version from Vercel/Netlify dashboard
+   - Or revert git commit and redeploy
 
-git pull
+---
 
-### build the app
+## 📚 Additional Resources
 
-yarn build
+- [Supabase Edge Functions Docs](https://supabase.com/docs/guides/functions)
+- [DodoPayments Webhook Docs](https://docs.dodopayments.com)
+- [Edge Functions Architecture](./EDGE_FUNCTIONS.md)
 
+---
 
-### remove th older verision of distroy from yoread
+## 🎉 Deployment Checklist
 
-sudo rm -rf /var/www/yoread.com/*
+- [ ] Deploy all Edge Functions to Supabase
+- [ ] Set environment variables in Supabase Dashboard
+- [ ] Configure DodoPayments webhook URL
+- [ ] Deploy Express server (TTS)
+- [ ] Deploy frontend
+- [ ] Test subscription flow end-to-end
+- [ ] Test webhook processing
+- [ ] Monitor function logs
+- [ ] Set up error alerts
+- [ ] Update documentation
 
+---
 
-### Copy directory from vite to yoread
+## 📝 Deployment Commands Summary
 
-sudo cp -r ~/Vite-project/dist/* /var/www/yoread.com/ 
+```bash
+# 1. Deploy Edge Functions
+supabase functions deploy subscriptions
+supabase functions deploy products
+supabase functions deploy dodo-webhook
+supabase functions deploy increment-usage
 
-### copy cover from the vite to yoread
+# 2. Deploy Express Server (TTS)
+railway up  # or fly deploy, or pm2 start
 
-sudo cp -r ~/Vite-project/public/sample-book-covers /var/www/yoread.com/
+# 3. Deploy Frontend
+vercel --prod  # or netlify deploy --prod
 
-
-### permission
-
-sudo chown -R www-data:www-data /var/www/yoread.com 
+# 4. Verify
+curl https://[project-ref].supabase.co/functions/v1/products
+curl https://your-tts-server.com/health
+```

@@ -127,7 +127,99 @@ export class TTSUsageTracker {
   }
 
   /**
+   * Check usage limit before recording (for authenticated users)
+   * Uses REST API instead of RPC to avoid hanging
+   */
+  private async checkUsageLimit(userId: string): Promise<{ allowed: boolean; reason?: string }> {
+    try {
+      const { getAccessToken } = await import('../../lib/authToken');
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        console.warn('[TTS Usage] Missing Supabase env vars, allowing usage');
+        return { allowed: true };
+      }
+      
+      const accessToken = await getAccessToken(5000);
+      const url = `${supabaseUrl}/rest/v1/rpc/check_tts_usage_limit`;
+      
+      // Add timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify({ p_user_id: userId }),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          console.warn('[TTS Usage] Limit check failed, allowing usage:', response.status);
+          return { allowed: true }; // Fail open
+        }
+        
+        const data = await response.json();
+        
+        if (data?.limit_exceeded) {
+          return {
+            allowed: false,
+            reason: `Usage limit exceeded. ${data.minutes_used}/${data.minutes_limit} minutes used.`,
+          };
+        }
+        
+        return { allowed: true };
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name !== 'AbortError') {
+          console.warn('[TTS Usage] Limit check error, allowing usage:', fetchError.message);
+        }
+        return { allowed: true }; // Fail open
+      }
+    } catch (error) {
+      console.warn('[TTS Usage] Error checking limit, allowing usage:', error);
+      return { allowed: true }; // Fail open
+    }
+  }
+
+  /**
+   * Send usage event to DodoPayments (for authenticated users with customer_id)
+   */
+  private async sendToDodoPayments(
+    customerId: string,
+    minutesUsed: number,
+    source: string
+  ): Promise<void> {
+    try {
+      const { getDodoPaymentsService } = await import('../subscription/DodoPaymentsService');
+      const dodoService = getDodoPaymentsService();
+
+      if (!dodoService.isServiceEnabled()) {
+        return; // Silently skip if DodoPayments not configured
+      }
+
+      await dodoService.sendUsageEvent(customerId, minutesUsed, {
+        source,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.warn('[TTS Usage] Failed to send to DodoPayments (non-critical):', error);
+      // Don't throw - DodoPayments failure shouldn't break TTS
+    }
+  }
+
+  /**
    * Direct tracking (bypasses queue, used for immediate attempts)
+   * Uses REST API instead of RPC to avoid hanging
    */
   private async trackUsageDirect(
     seconds: number,
@@ -135,35 +227,192 @@ export class TTSUsageTracker {
     userId?: string,
     sessionId?: string
   ): Promise<void> {
-    const { supabase } = await import('../../lib/supabase');
+    const { getAccessToken } = await import('../../lib/authToken');
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
 
     if (userId) {
-      // Authenticated user - FIX: Add error checking
-      const eventId = crypto.randomUUID();
-      const { error } = await supabase.rpc('increment_tts_usage', {
-        p_user_id: userId,
-        p_seconds: seconds,
-        p_source: source,
-        p_event_id: eventId, // Add idempotency support
-      });
+      // Check limit before recording (with REST API)
+      const limitCheck = await this.checkUsageLimit(userId);
+      if (!limitCheck.allowed) {
+        const error = new Error(limitCheck.reason || 'Usage limit exceeded');
+        (error as any).code = 'TTS_USAGE_LIMIT_EXCEEDED';
+        throw error;
+      }
 
-      if (error) {
-        throw new Error(`Failed to record usage for authenticated user: ${error.message}`);
+      // Authenticated user - record usage via REST API
+      const eventId = crypto.randomUUID();
+      const url = `${supabaseUrl}/rest/v1/rpc/increment_tts_usage`;
+      
+      const accessToken = await getAccessToken(5000);
+      
+      // Add timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify({
+            p_user_id: userId,
+            p_seconds: seconds,
+            p_source: source,
+            p_event_id: eventId,
+          }),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[TTS Usage] HTTP ${response.status}:`, errorText);
+          
+          // Check if it's a limit exceeded error
+          if (errorText.includes('TTS_USAGE_LIMIT_EXCEEDED') || errorText.includes('limit exceeded')) {
+            const limitError = new Error(errorText);
+            (limitError as any).code = 'TTS_USAGE_LIMIT_EXCEEDED';
+            throw limitError;
+          }
+          throw new Error(`Failed to record usage: ${errorText}`);
+        }
+        
+        // Success - continue with DodoPayments if needed
+        // Send to DodoPayments if customer_id exists
+        // Only bill for overage beyond included subscription minutes (prepaid already consumed)
+        try {
+          const { supabase } = await import('../../lib/supabase');
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('customer_id')
+            .eq('id', userId)
+            .single();
+
+          if (profile?.customer_id) {
+            // Get usage data AFTER increment to check for billable overage
+            // Use REST API for check_tts_usage_limit as well
+            const checkUrl = `${supabaseUrl}/rest/v1/rpc/check_tts_usage_limit`;
+            const checkController = new AbortController();
+            const checkTimeoutId = setTimeout(() => checkController.abort(), 5000);
+            
+            try {
+              const checkResponse = await fetch(checkUrl, {
+                method: 'POST',
+                headers: {
+                  'apikey': supabaseAnonKey,
+                  'Authorization': `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'return=representation',
+                },
+                body: JSON.stringify({ p_user_id: userId }),
+                signal: checkController.signal,
+              });
+              
+              clearTimeout(checkTimeoutId);
+              
+              if (checkResponse.ok) {
+                const usageData = await checkResponse.json();
+
+                if (usageData && usageData.minutes_limit > 0) {
+                  // Calculate billable minutes: only subscription usage that exceeds the included limit
+                  // Prepaid was already consumed first by increment_tts_usage, so we only check subscription overage
+                  const subscriptionUsage = usageData.minutes_used || 0;
+                  const includedMinutes = usageData.minutes_limit || 0;
+                  const newMinutes = seconds / 60;
+                  
+                  // Calculate what portion of this usage event is billable
+                  // If subscription usage now exceeds included, bill the overage portion
+                  const previousUsage = subscriptionUsage - newMinutes;
+                  const previousOverage = Math.max(0, previousUsage - includedMinutes);
+                  const currentOverage = Math.max(0, subscriptionUsage - includedMinutes);
+                  const billableIncrement = Math.max(0, currentOverage - previousOverage);
+                  
+                  // Only send to DodoPayments if there's billable overage from this increment
+                  if (billableIncrement > 0) {
+                    this.sendToDodoPayments(profile.customer_id, billableIncrement, source).catch((err) => {
+                      console.warn('[TTS Usage] DodoPayments send failed (non-critical):', err);
+                    });
+                  }
+                  // If no billable increment, usage is covered by prepaid/included, no billing needed
+                } else {
+                  // No limit or can't get usage data: fallback - send all minutes
+                  // DodoPayments should handle included minutes on their side for subscriptions
+                  const minutesUsed = seconds / 60;
+                  this.sendToDodoPayments(profile.customer_id, minutesUsed, source).catch((err) => {
+                    console.warn('[TTS Usage] DodoPayments send failed (non-critical):', err);
+                  });
+                }
+              }
+            } catch (checkError) {
+              // Ignore usage check errors for DodoPayments - non-critical
+              console.warn('[TTS Usage] Failed to check usage for DodoPayments:', checkError);
+            }
+          }
+        } catch (dodoError) {
+          // Ignore DodoPayments errors - non-critical
+          console.warn('[TTS Usage] Failed to send to DodoPayments:', dodoError);
+        }
+        
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Usage tracking request timeout after 10 seconds');
+        }
+        throw fetchError;
       }
     } else if (sessionId) {
-      // Anonymous user
-      const { data, error } = await supabase.rpc('record_anonymous_tts_usage', {
-        p_session_id: sessionId,
-        p_seconds: seconds,
-        p_source: source,
-        p_user_agent: navigator.userAgent,
-      });
-
-      if (error) {
-        throw new Error(`Failed to record usage for anonymous user: ${error.message}`);
+      // Anonymous user - use REST API
+      const url = `${supabaseUrl}/rest/v1/rpc/record_anonymous_tts_usage`;
+      
+      const accessToken = await getAccessToken(5000);
+      
+      // Add timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify({
+            p_session_id: sessionId,
+            p_seconds: seconds,
+            p_source: source,
+            p_user_agent: navigator.userAgent,
+          }),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to record usage for anonymous user: ${errorText}`);
+        }
+        
+        return await response.json();
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Anonymous usage tracking request timeout after 10 seconds');
+        }
+        throw fetchError;
       }
-
-      return data;
     } else {
       throw new Error('Either userId or sessionId must be provided');
     }
@@ -177,11 +426,12 @@ export class TTSUsageTracker {
     source: string = 'reader',
     callbacks?: UsageTrackingCallbacks
   ): Promise<void> {
+    // TEMPORARILY DISABLED FOR TESTING - Remove this comment block to re-enable
     // Skip tracking if disabled in development
-    if (!isTrackingEnabled()) {
-      console.log('[TTS Usage] Tracking disabled in development - skipping usage recording');
-      return;
-    }
+    // if (!isTrackingEnabled()) {
+    //   console.log('[TTS Usage] Tracking disabled in development - skipping usage recording');
+    //   return;
+    // }
 
     // Validation
     const validation = this.validateEvent(seconds, source);

@@ -1,7 +1,7 @@
 // src/hooks/books/useBookSync.ts
 // Hook for managing cloud sync operations
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { BookData } from '@/types/books';
 import { CloudBookRepository, CloudBookRecord } from '../../services/books/repository/CloudBookRepository';
 import { BookSyncService } from '../../services/books/BookSyncService';
@@ -26,6 +26,7 @@ export function useBookSync(
   isInitialLoadComplete: boolean
 ): UseBookSyncReturn {
   const [isSyncingFromCloud, setIsSyncingFromCloud] = useState<boolean>(false);
+  const fallbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Create repository instance when user is authenticated (memoized)
   const cloudRepository = useMemo(() => {
@@ -95,9 +96,28 @@ export function useBookSync(
         console.log('[useBookSync] 🚀 Starting sync - User authenticated:', { userId });
         setIsSyncingFromCloud(true);
 
-        // Fetch books from cloud
-        const cloudBooks = await cloudRepository.fetchUserBooks();
+        // Set up fallback timeout to reset UI state if query hangs
+        // This prevents the loader from persisting indefinitely
+        const FALLBACK_TIMEOUT_MS = 60000; // 60 seconds
+        fallbackTimeoutRef.current = setTimeout(() => {
+          console.warn('[useBookSync] ⚠️ Fallback timeout triggered - Query taking longer than expected');
+          console.warn('[useBookSync] This usually means:');
+          console.warn('[useBookSync] 1. Supabase query is hanging (likely RLS policy issue)');
+          console.warn('[useBookSync] 2. Please run supabase-books-rls-migration.sql in Supabase SQL Editor');
+          console.warn('[useBookSync] 3. Query may still complete in background, but UI state is reset');
+          setIsSyncingFromCloud(false);
+        }, FALLBACK_TIMEOUT_MS);
 
+        // Fetch books from cloud
+        console.log('[useBookSync] Fetching books from cloud repository...');
+        const cloudBooks = await cloudRepository.fetchUserBooks();
+        
+        // Clear fallback timeout since query completed successfully
+        if (fallbackTimeoutRef.current) {
+          clearTimeout(fallbackTimeoutRef.current);
+          fallbackTimeoutRef.current = null;
+        }
+        
         console.log(`[useBookSync] Retrieved ${cloudBooks.length} books from Supabase`);
 
         if (cloudBooks.length === 0) {
@@ -149,13 +169,47 @@ export function useBookSync(
         setIsSyncingFromCloud(false);
         return currentBooks;
       } catch (error) {
+        // Clear fallback timeout since we're handling the error
+        if (fallbackTimeoutRef.current) {
+          clearTimeout(fallbackTimeoutRef.current);
+          fallbackTimeoutRef.current = null;
+        }
+        
         console.error('[useBookSync] Progressive sync failed:', error);
-        setIsSyncingFromCloud(false);
+        // Log specific error types for better debugging
+        if (error instanceof Error) {
+          if (error.message.includes('RLS') || error.message.includes('permission denied')) {
+            console.error('[useBookSync] RLS Policy Error - Books table may need RLS migration. Run supabase-books-rls-migration.sql');
+          } else if (error.message.includes('fetch') || error.message.includes('network')) {
+            console.error('[useBookSync] Network Error - Check internet connection and Supabase availability');
+          } else {
+            console.error('[useBookSync] Error details:', error.message, error.stack);
+          }
+        }
         return localBooks;
+      } finally {
+        // CRITICAL: Always reset sync state to prevent infinite loader
+        // Clear timeout if still pending (shouldn't happen, but safety net)
+        if (fallbackTimeoutRef.current) {
+          clearTimeout(fallbackTimeoutRef.current);
+          fallbackTimeoutRef.current = null;
+        }
+        setIsSyncingFromCloud(false);
+        console.log('[useBookSync] Sync state reset (finally block)');
       }
     },
     [isAuthenticated, userId, cloudRepository, isInitialLoadComplete]
   );
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (fallbackTimeoutRef.current) {
+        clearTimeout(fallbackTimeoutRef.current);
+        fallbackTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   return {
     isSyncingFromCloud,

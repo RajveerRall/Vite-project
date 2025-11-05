@@ -65,15 +65,33 @@ class IDBStorage<T extends { id?: string }> {
     try {
       const db = await this.getIndexedDB();
       return new Promise((resolve, reject) => {
+        // Check if store exists before accessing
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          console.warn(`[IDBStorage] Object store "${this.storeName}" not found, falling back to localStorage`);
+          this.useLocalStorage = true;
+          this.put(item).then(resolve).catch(reject);
+          return;
+        }
+        
         const transaction = db.transaction([this.storeName], 'readwrite');
         const store = transaction.objectStore(this.storeName);
         const request = store.put(storedItem);
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = () => {
+          // If store access fails, fallback to localStorage
+          console.warn(`[IDBStorage] Transaction error for "${this.storeName}", falling back to localStorage:`, request.error);
+          this.useLocalStorage = true;
+          this.put(item).then(resolve).catch(reject);
+        };
       });
-    } catch (error) {
+    } catch (error: any) {
       // Fallback to localStorage on IndexedDB error
-      this.useLocalStorage = true;
+      if (error?.name === 'NotFoundError' || error?.message?.includes('object store') || error?.message?.includes('not found')) {
+        console.warn(`[IDBStorage] Object store "${this.storeName}" not found, falling back to localStorage`);
+        this.useLocalStorage = true;
+      } else {
+        this.useLocalStorage = true;
+      }
       await this.put(item);
     }
   }
@@ -86,14 +104,33 @@ class IDBStorage<T extends { id?: string }> {
 
     try {
       const db = await this.getIndexedDB();
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
+        // Check if store exists before accessing
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          console.warn(`[IDBStorage] Object store "${this.storeName}" not found, falling back to localStorage`);
+          this.useLocalStorage = true;
+          resolve(this.getLocalStorageItems().find(item => item.id === id));
+          return;
+        }
+        
         const transaction = db.transaction([this.storeName], 'readonly');
         const store = transaction.objectStore(this.storeName);
         const request = store.get(id);
         request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+        request.onerror = () => {
+          // If store access fails, fallback to localStorage
+          console.warn(`[IDBStorage] Transaction error for "${this.storeName}", falling back to localStorage:`, request.error);
+          this.useLocalStorage = true;
+          resolve(this.getLocalStorageItems().find(item => item.id === id));
+        };
       });
-    } catch (error) {
+    } catch (error: any) {
+      // If transaction fails (store doesn't exist), fallback to localStorage
+      if (error?.name === 'NotFoundError' || error?.message?.includes('object store') || error?.message?.includes('not found')) {
+        console.warn(`[IDBStorage] Object store "${this.storeName}" not found, falling back to localStorage`);
+        this.useLocalStorage = true;
+        return this.getLocalStorageItems().find(item => item.id === id);
+      }
       this.useLocalStorage = true;
       return this.get(id);
     }
@@ -106,14 +143,33 @@ class IDBStorage<T extends { id?: string }> {
 
     try {
       const db = await this.getIndexedDB();
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
+        // Check if store exists before accessing
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          console.warn(`[IDBStorage] Object store "${this.storeName}" not found, falling back to localStorage`);
+          this.useLocalStorage = true;
+          resolve(this.getLocalStorageItems());
+          return;
+        }
+        
         const transaction = db.transaction([this.storeName], 'readonly');
         const store = transaction.objectStore(this.storeName);
         const request = store.getAll();
         request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
+        request.onerror = () => {
+          // If store access fails, fallback to localStorage
+          console.warn(`[IDBStorage] Transaction error for "${this.storeName}", falling back to localStorage:`, request.error);
+          this.useLocalStorage = true;
+          resolve(this.getLocalStorageItems());
+        };
       });
-    } catch (error) {
+    } catch (error: any) {
+      // If transaction fails (store doesn't exist), fallback to localStorage
+      if (error?.name === 'NotFoundError' || error?.message?.includes('object store') || error?.message?.includes('not found')) {
+        console.warn(`[IDBStorage] Object store "${this.storeName}" not found, falling back to localStorage`);
+        this.useLocalStorage = true;
+        return this.getLocalStorageItems();
+      }
       this.useLocalStorage = true;
       return this.getAll();
     }
@@ -130,14 +186,33 @@ class IDBStorage<T extends { id?: string }> {
     try {
       const db = await this.getIndexedDB();
       return new Promise((resolve, reject) => {
+        // Check if store exists before accessing
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          console.warn(`[IDBStorage] Object store "${this.storeName}" not found, falling back to localStorage`);
+          this.useLocalStorage = true;
+          this.delete(id).then(resolve).catch(reject);
+          return;
+        }
+        
         const transaction = db.transaction([this.storeName], 'readwrite');
         const store = transaction.objectStore(this.storeName);
         const request = store.delete(id);
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = () => {
+          // If store access fails, fallback to localStorage
+          console.warn(`[IDBStorage] Transaction error for "${this.storeName}", falling back to localStorage:`, request.error);
+          this.useLocalStorage = true;
+          this.delete(id).then(resolve).catch(reject);
+        };
       });
-    } catch (error) {
-      this.useLocalStorage = true;
+    } catch (error: any) {
+      // If transaction fails (store doesn't exist), fallback to localStorage
+      if (error?.name === 'NotFoundError' || error?.message?.includes('object store') || error?.message?.includes('not found')) {
+        console.warn(`[IDBStorage] Object store "${this.storeName}" not found, falling back to localStorage`);
+        this.useLocalStorage = true;
+      } else {
+        this.useLocalStorage = true;
+      }
       return this.delete(id);
     }
   }
@@ -152,14 +227,33 @@ class IDBStorage<T extends { id?: string }> {
     try {
       const db = await this.getIndexedDB();
       return new Promise((resolve, reject) => {
+        // Check if store exists before accessing
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          console.warn(`[IDBStorage] Object store "${this.storeName}" not found, falling back to localStorage`);
+          this.useLocalStorage = true;
+          this.clear().then(resolve).catch(reject);
+          return;
+        }
+        
         const transaction = db.transaction([this.storeName], 'readwrite');
         const store = transaction.objectStore(this.storeName);
         const request = store.clear();
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = () => {
+          // If store access fails, fallback to localStorage
+          console.warn(`[IDBStorage] Transaction error for "${this.storeName}", falling back to localStorage:`, request.error);
+          this.useLocalStorage = true;
+          this.clear().then(resolve).catch(reject);
+        };
       });
-    } catch (error) {
-      this.useLocalStorage = true;
+    } catch (error: any) {
+      // If transaction fails (store doesn't exist), fallback to localStorage
+      if (error?.name === 'NotFoundError' || error?.message?.includes('object store') || error?.message?.includes('not found')) {
+        console.warn(`[IDBStorage] Object store "${this.storeName}" not found, falling back to localStorage`);
+        this.useLocalStorage = true;
+      } else {
+        this.useLocalStorage = true;
+      }
       return this.clear();
     }
   }

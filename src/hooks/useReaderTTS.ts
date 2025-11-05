@@ -139,6 +139,8 @@ export const useReaderTTS = ({
   const playChunkRef = useRef<((index: number) => Promise<void>) | null>(null);
   // === Flag to track auto-advance vs manual navigation ===
   const isAutoAdvancingRef = useRef<boolean>(false);
+  // === Ref for handleStopTTS to avoid circular dependency ===
+  const handleStopTTSRef = useRef<(() => void) | null>(null);
 
   // === Keep selectedVoiceRef synchronized with selectedVoice prop ===
   useEffect(() => {
@@ -196,13 +198,44 @@ export const useReaderTTS = ({
           console.log('[TTS Usage] Recorded successfully via enhanced tracker');
         },
         onError: (error: Error) => {
+          // Check if it's a limit exceeded error
+          if ((error as any).code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
+              error.message.includes('limit exceeded') ||
+              error.message.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
+            console.warn('[TTS Usage] Limit exceeded, stopping TTS:', error);
+            // Stop TTS playback using ref
+            if (handleStopTTSRef.current) {
+              handleStopTTSRef.current();
+            }
+            // Show error toast
+            addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+            // Dispatch event for subscription UI
+            window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
+              detail: { error: error.message }
+            }));
+            throw error; // Re-throw to prevent further processing
+          }
           console.warn('[TTS Usage] Failed to record usage:', error);
         }
       });
-    } catch (e) {
+    } catch (e: any) {
+      // Check if it's a limit exceeded error
+      if (e?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
+          e?.message?.includes('limit exceeded') ||
+          e?.message?.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
+        // Stop TTS and show error using ref
+        if (handleStopTTSRef.current) {
+          handleStopTTSRef.current();
+        }
+        addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+        window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
+          detail: { error: e.message }
+        }));
+        throw e; // Re-throw to prevent further processing
+      }
       console.warn('[TTS Usage] Failed to record usage:', e);
     }
-  }, [user?.id]);
+  }, [user?.id, addToast]);
 
   // Decode an audio Blob once to get duration in seconds (fallback if server doesn't send header)
   const getBlobDurationSeconds = useCallback(async (blob: Blob): Promise<number> => {
@@ -922,6 +955,11 @@ export const useReaderTTS = ({
     clearResumeIndex();
     ttsIntentActiveRef.current = false;
   }, [haltPlayback, clearResumeIndex]);
+
+  // Update handleStopTTSRef when handleStopTTS changes
+  useEffect(() => {
+    handleStopTTSRef.current = handleStopTTS;
+  }, [handleStopTTS]);
 
   // === Handle main TTS button pressed ===
   const handleTTS = useCallback(async (selectedTextOverride?: string | any) => {

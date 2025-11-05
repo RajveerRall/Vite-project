@@ -20,7 +20,8 @@ import { ReaderHeader } from './ReaderHeader';
 import { ReaderContent } from './ReaderContent';
 import { FullCastOverlay } from './FullCastOverlay';
 import { ReaderControlsContainer } from './ReaderControlsContainer';
-
+import { SubscriptionLimitModal } from '../Subscription/SubscriptionLimitModal';
+import { useSubscription } from '../../context/SubscriptionContext';
 
 // TTS highlighting is now handled by the useReaderTTS hook
 
@@ -59,6 +60,21 @@ const Reader: React.FC = () => {
   
   // Phase 1: Use extracted hooks
   const isMobile = useMobileDetection();
+  
+  // Subscription context for limit checking
+  const { isLimitExceeded, refreshUsageLimit } = useSubscription();
+  const [showLimitModal, setShowLimitModal] = React.useState(false);
+  
+  // Listen for limit exceeded events from TTS tracker
+  React.useEffect(() => {
+    const handleLimitExceeded = () => {
+      setShowLimitModal(true);
+      refreshUsageLimit();
+    };
+    
+    window.addEventListener('tts-limit-exceeded', handleLimitExceeded);
+    return () => window.removeEventListener('tts-limit-exceeded', handleLimitExceeded);
+  }, [refreshUsageLimit]);
   
   const uiState = useReaderUI(currentBook);
   const {
@@ -218,6 +234,13 @@ const Reader: React.FC = () => {
     anonymousLimit,
     hasFinishedPlayback
   } = ttsHook;
+  
+  // Also check subscription limit status (moved here after isSpeaking/isProcessing are defined)
+  React.useEffect(() => {
+    if (isLimitExceeded && (isSpeaking || isProcessing)) {
+      setShowLimitModal(true);
+    }
+  }, [isLimitExceeded, isSpeaking, isProcessing]);
   
   // Update the refs with the latest functions
   handleTTSRef.current = handleTTS;
@@ -441,6 +464,17 @@ const Reader: React.FC = () => {
        bookTitle={bookTitle}
        author={bookAuthor}
        coverUrl={currentBook?.coverUrl || null}
+     />
+     
+     {/* Subscription Limit Modal */}
+     <SubscriptionLimitModal
+       isOpen={showLimitModal}
+       onClose={() => setShowLimitModal(false)}
+       onUpgrade={() => {
+         // TODO: Implement subscription upgrade flow (Phase 3)
+         console.log('[Reader] Subscription upgrade clicked');
+         setShowLimitModal(false);
+       }}
      />
    </div>
  );
