@@ -79,8 +79,10 @@ export const AccountPage: React.FC = () => {
   // Handle subscription success redirect from DodoPayments
   useEffect(() => {
     const subscriptionId = searchParams.get('subscription_id');
+    const paymentId = searchParams.get('payment_id'); // ✅ Add payment_id handling for prepaid purchases
     const status = searchParams.get('status');
     
+    // Handle subscription redirects
     if (subscriptionId && status) {
       console.log('[AccountPage] Subscription redirect detected:', { subscriptionId, status });
       
@@ -107,6 +109,39 @@ export const AccountPage: React.FC = () => {
       // Clean up URL parameters after processing
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.delete('subscription_id');
+      newSearchParams.delete('status');
+      setSearchParams(newSearchParams, { replace: true });
+    }
+    
+    // ✅ NEW: Handle prepaid purchase redirects
+    if (paymentId && status) {
+      console.log('[AccountPage] Prepaid purchase redirect detected:', { paymentId, status });
+      
+      // Show success message
+      if (status === 'succeeded') {
+        console.log('[AccountPage] Prepaid purchase succeeded!');
+        // Optionally show a toast notification here
+      }
+      
+      // Refresh subscription and transaction data to show updated info
+      if (user?.id) {
+        const refreshData = async () => {
+          try {
+            const subInfo = await fetchSubscriptionInfo(user.id);
+            setSubscriptionInfo(subInfo);
+            const usageInfo = await fetchUsageLimit(user.id);
+            setUsageLimit(usageInfo);
+            // Transaction list will auto-refresh via its own useEffect
+          } catch (err) {
+            console.error('[AccountPage] Failed to refresh after prepaid purchase:', err);
+          }
+        };
+        refreshData();
+      }
+      
+      // Clean up URL parameters after processing
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('payment_id');
       newSearchParams.delete('status');
       setSearchParams(newSearchParams, { replace: true });
     }

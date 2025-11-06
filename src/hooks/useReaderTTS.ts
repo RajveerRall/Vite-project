@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import { useAnonymousUsageLimit } from './useAnonymousUsageLimit';
 import { createTTSProgressRepository } from '../repositories/TTSProgressRepository';
 import { createAdaptivePlaybackStrategy } from '../services/tts/strategies/AdaptivePlaybackStrategy';
@@ -8,6 +9,7 @@ import { IPlaybackStrategy } from '../services/tts/strategies/IPlaybackStrategy'
 import { createTTSChunkService } from '../services/tts/TTSChunkService';
 import { getUsageTracker, initializeUsageTracking } from '../services/tts/index';
 import { highlightChunkInHtml, highlightTextInHtml } from '../utils/htmlHighlight';
+import { fetchUsageLimit } from '../services/subscription/SubscriptionService';
 
 // Helper: split text into sentence chunks
 function splitTextIntoChunks(text: string): string[] {
@@ -85,6 +87,7 @@ export const useReaderTTS = ({
 }: UseReaderTTSProps): UseReaderTTSReturn => {
   const { addToast } = useToast();
   const { user } = useAuth();
+  const { refreshUsageLimit } = useSubscription();
   const anonymousLimit = useAnonymousUsageLimit();
   
   // Initialize progress repository
@@ -532,12 +535,28 @@ export const useReaderTTS = ({
           ? durationsBuffer.current[index]
           : (elapsed > 0 ? elapsed : Math.round((audioRef.current as any)?.duration || 0));
         
-        // ✅ CRITICAL FIX: Make usage tracking non-blocking (fire-and-forget)
-        // Remove await to prevent blocking the next chunk
-        recordUsageSeconds(seconds).catch((error) => {
+        // ✅ CRITICAL FIX: Make usage tracking blocking - stop playback if limit exceeded
+        try {
+          await recordUsageSeconds(seconds);
+        } catch (error: any) {
           console.error(`[playChunk] Error recording usage seconds:`, error);
-          // Silently continue - usage tracking shouldn't interrupt playback
-        });
+          // Stop playback if limit exceeded
+          if (error?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
+              error?.message?.includes('limit exceeded') ||
+              error?.message?.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
+            console.warn('[TTS Usage] Limit exceeded, stopping TTS playback');
+            if (handleStopTTSRef.current) {
+              handleStopTTSRef.current();
+            }
+            addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+            window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
+              detail: { error: error.message }
+            }));
+            return; // Don't continue to next chunk
+          }
+          // For other errors (network issues, etc.), log but continue playback
+          console.warn('[TTS Usage] Non-critical error, continuing playback:', error);
+        }
         
         // Use ref to ensure we always call the latest playChunk function
         // This fixes the stale closure issue when playChunk is recreated
@@ -765,7 +784,7 @@ export const useReaderTTS = ({
         // This ensures highlight is synchronized with audio playback
         setCurrentChunkIndex(chunkIndex);
       },
-      onChunkComplete: (chunkIndex: number) => {
+      onChunkComplete: async (chunkIndex: number) => {
         // Handle seamless auto-advance
         console.log(`[Strategy] Audio ended for chunk #${chunkIndex}, advancing to chunk #${chunkIndex + 1}`);
         
@@ -775,10 +794,28 @@ export const useReaderTTS = ({
           ? durationsBuffer.current[chunkIndex]
           : (elapsed > 0 ? elapsed : 0);
         
-        // ✅ CRITICAL FIX: Make usage tracking non-blocking (fire-and-forget)
-        recordUsageSeconds(seconds).catch((error) => {
+        // ✅ CRITICAL FIX: Make usage tracking blocking - stop playback if limit exceeded
+        try {
+          await recordUsageSeconds(seconds);
+        } catch (error: any) {
           console.error(`[Strategy] Error recording usage seconds:`, error);
-        });
+          // Stop playback if limit exceeded
+          if (error?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
+              error?.message?.includes('limit exceeded') ||
+              error?.message?.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
+            console.warn('[TTS Usage] Limit exceeded, stopping TTS playback');
+            if (handleStopTTSRef.current) {
+              handleStopTTSRef.current();
+            }
+            addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+            window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
+              detail: { error: error.message }
+            }));
+            return; // Don't continue to next chunk
+          }
+          // For other errors (network issues, etc.), log but continue playback
+          console.warn('[TTS Usage] Non-critical error, continuing playback:', error);
+        }
         
         // Auto-advance to next chunk
         const nextChunkIndex = chunkIndex + 1;
@@ -981,6 +1018,29 @@ export const useReaderTTS = ({
       }
     }
     
+    // ✅ FIXED: Refresh usage limit and check directly for authenticated users
+    if (user?.id) {
+      // Refresh the context first
+      await refreshUsageLimit();
+      
+      // Fetch limit directly to get fresh data (context might not update immediately)
+      const limitData = await fetchUsageLimit(user.id);
+      
+      if (limitData) {
+        // Check if limit is exceeded (using same logic as SubscriptionContext)
+        const limitExceeded = (limitData.limit_exceeded ?? false) || 
+                              (limitData.minutes_remaining !== null && 
+                               limitData.minutes_remaining < 1 && 
+                               (limitData.prepaid_minutes ?? 0) === 0);
+        
+        if (limitExceeded) {
+          console.warn('[TTS] Authenticated user limit exceeded, blocking TTS');
+          addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+          return; // Block TTS
+        }
+      }
+    }
+    
     // Type guard: Only accept string overrides
     let textOverride: string | undefined;
     if (selectedTextOverride !== undefined) {
@@ -1171,7 +1231,7 @@ export const useReaderTTS = ({
     };
     startPlayback();
 
-  }, [isPaused, isSpeaking, resumeIndex, chunks, currentPageText, readerInstanceId, pausePlayback, resumePlayback, playChunk, prefetchChunks, anonymousLimit, addToast]);
+  }, [isPaused, isSpeaking, resumeIndex, chunks, currentPageText, readerInstanceId, pausePlayback, resumePlayback, playChunk, prefetchChunks, anonymousLimit, addToast, user?.id, refreshUsageLimit]);
 
   // === Save progress periodically on chunk change ===
   useEffect(() => {

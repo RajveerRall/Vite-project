@@ -149,7 +149,11 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Computed values
   const isSubscribed = subscriptionInfo?.subscription?.status === 'active' || subscriptionInfo?.subscription?.status === 'trial';
-  const isLimitExceeded = usageLimit?.limit_exceeded ?? false;
+  // Check limit_exceeded flag OR if remaining is less than 1 minute (defensive check for decimal precision issues)
+  const isLimitExceeded = (usageLimit?.limit_exceeded ?? false) || 
+                          (usageLimit?.minutes_remaining !== null && 
+                           usageLimit?.minutes_remaining < 1 && 
+                           (usageLimit?.prepaid_minutes ?? 0) === 0);
   // Calculate total remaining including prepaid (already included in minutes_remaining from DB, but ensure it's correct)
   const minutesRemaining = usageLimit?.minutes_remaining ?? null;
   const prepaidMinutes = usageLimit?.prepaid_minutes ?? 0;

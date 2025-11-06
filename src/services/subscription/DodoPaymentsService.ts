@@ -29,7 +29,7 @@ export class DodoPaymentsService {
   constructor(config?: DodoPaymentsConfig) {
     // Get from environment or config (for server-side usage events)
     this.apiKey = config?.apiKey || import.meta.env.VITE_DODO_API_KEY || '';
-    this.baseUrl = config?.baseUrl || import.meta.env.VITE_DODO_BASE_URL || 'https://test.dodopayments.com';
+    this.baseUrl = config?.baseUrl || import.meta.env.VITE_DODO_BASE_URL || 'https://live.dodopayments.com';
     
     // Only enable if API key is present (for server-side) or if we're in browser
     this.isEnabled = !!this.apiKey || typeof window !== 'undefined';

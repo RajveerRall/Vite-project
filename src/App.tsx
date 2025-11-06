@@ -12,18 +12,7 @@ import Footer from "./components/Common/Footer";
 import SuspenseLoader from './components/Common/SuspenseLoader';
 import { ToastContainer } from './components/Common/Toast';
 import { ToastProvider, useToast } from './context/ToastContext';
-import BlogListPage from './pages/blog/BlogListPage';
-import BlogPostPage from './pages/blog/BlogPostPage';
-import TopicListPage from './pages/blog/TopicListPage';
-import TopicPage from './pages/blog/TopicPage';
-import TopicArticlePage from './pages/blog/TopicArticlePage';
-import BlogExample from './components/Blog/BlogExample';
-import AuthCallback from './pages/auth/callback';
-import TermsOfService from './pages/TermsOfService';
-import EpubToAudiobook from './pages/EpubToAudiobook';
 import GoogleOneTap from './components/Auth/GoogleOneTap';
-import AccountPage from './pages/account/AccountPage';
-import Dashboard from './pages/Dashboard';
 // import ScannerPage from './pages/ScannerPage'; // Temporarily disabled
 import './App.css';
 import { useTTSUsageRecorder } from './hooks/useTTSUsageRecorder';
@@ -34,6 +23,26 @@ import { SubscriptionProvider } from './context/SubscriptionContext';
 
 // Lazy load the ReaderWrapper component since it's heavy and not needed initially
 const ReaderWrapper = React.lazy(() => import('./components/Reader/ReaderWrapper'));
+
+// Lazy load all non-critical routes - they won't be bundled in initial load
+const BlogListPage = React.lazy(() => import('./pages/blog/BlogListPage'));
+const BlogPostPage = React.lazy(() => import('./pages/blog/BlogPostPage'));
+const TopicListPage = React.lazy(() => import('./pages/blog/TopicListPage'));
+const TopicPage = React.lazy(() => import('./pages/blog/TopicPage'));
+const TopicArticlePage = React.lazy(() => import('./pages/blog/TopicArticlePage'));
+const BlogExample = React.lazy(() => import('./components/Blog/BlogExample'));
+const AuthCallback = React.lazy(() => import('./pages/auth/callback'));
+const TermsOfService = React.lazy(() => import('./pages/TermsOfService'));
+const EpubToAudiobook = React.lazy(() => import('./pages/EpubToAudiobook'));
+const AccountPage = React.lazy(() => import('./pages/account/AccountPage'));
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+
+// Simple loading fallback for lazy routes
+const LazyRouteFallback = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="text-lg text-gray-600">Loading...</div>
+  </div>
+);
 
 const MainApp: React.FC = () => {
   const { isAuthenticated, hasExplicitlySignedOut } = useAuth();
@@ -70,8 +79,16 @@ const MainApp: React.FC = () => {
       <Routes>
         {/* Main app routes */}
         <Route path="/" element={<Library />} />
-        <Route path="/account" element={<AccountPage />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/account" element={
+          <React.Suspense fallback={<LazyRouteFallback />}>
+            <AccountPage />
+          </React.Suspense>
+        } />
+        <Route path="/dashboard" element={
+          <React.Suspense fallback={<LazyRouteFallback />}>
+            <Dashboard />
+          </React.Suspense>
+        } />
         <Route path="/reader/:bookId" element={
           <React.Suspense fallback={<SuspenseLoader />}>
             <ReaderWrapper />
@@ -84,7 +101,7 @@ const MainApp: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
-  const { loading, user } = useAuth();
+  const { user } = useAuth();
   // Globally listen for TTS usage events and persist to Supabase when needed
   useTTSUsageRecorder();
   
@@ -169,25 +186,55 @@ const AppContent: React.FC = () => {
   return (
     <Routes>
       {/* Public routes - no auth required */}
-      <Route path="/blog" element={<BlogListPage />} />
-      <Route path="/blog/:slug" element={<BlogPostPage />} />
-      <Route path="/blog-test" element={<BlogExample />} />
-      <Route path="/terms" element={<TermsOfService />} />
-      <Route path="/epub-to-audiobook" element={<EpubToAudiobook />} />
+      <Route path="/blog" element={
+        <React.Suspense fallback={<LazyRouteFallback />}>
+          <BlogListPage />
+        </React.Suspense>
+      } />
+      <Route path="/blog/:slug" element={
+        <React.Suspense fallback={<LazyRouteFallback />}>
+          <BlogPostPage />
+        </React.Suspense>
+      } />
+      <Route path="/blog-test" element={
+        <React.Suspense fallback={<LazyRouteFallback />}>
+          <BlogExample />
+        </React.Suspense>
+      } />
+      <Route path="/terms" element={
+        <React.Suspense fallback={<LazyRouteFallback />}>
+          <TermsOfService />
+        </React.Suspense>
+      } />
+      <Route path="/epub-to-audiobook" element={
+        <React.Suspense fallback={<LazyRouteFallback />}>
+          <EpubToAudiobook />
+        </React.Suspense>
+      } />
       
       {/* New topic-based blog routes */}
-      <Route path="/topics" element={<TopicListPage />} />
-      <Route path="/topics/:topicSlug" element={<TopicPage />} />
-      <Route path="/topics/:topicSlug/:articleSlug" element={<TopicArticlePage />} />
+      <Route path="/topics" element={
+        <React.Suspense fallback={<LazyRouteFallback />}>
+          <TopicListPage />
+        </React.Suspense>
+      } />
+      <Route path="/topics/:topicSlug" element={
+        <React.Suspense fallback={<LazyRouteFallback />}>
+          <TopicPage />
+        </React.Suspense>
+      } />
+      <Route path="/topics/:topicSlug/:articleSlug" element={
+        <React.Suspense fallback={<LazyRouteFallback />}>
+          <TopicArticlePage />
+        </React.Suspense>
+      } />
       
       {/* Scanner - Temporarily disabled */}
       {/* <Route path="/scanner" element={<ScannerPage />} /> */}
       
       {/* Auth callback route for OAuth providers */}
       <Route path="/auth/callback" element={
-        <React.Suspense fallback={<div className="flex items-center justify-center min-h-screen">
-          <div className="text-lg text-gray-600">Loading...</div>
-        </div>}>
+        <React.Suspense fallback={<LazyRouteFallback />}>
           <AuthCallback />
         </React.Suspense>
       } />

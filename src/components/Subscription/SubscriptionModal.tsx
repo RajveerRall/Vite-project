@@ -99,7 +99,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             product_id: plan.dodoProductId,
             quantity: 1,
           }],
-          return_url: `${window.location.origin}/dashboard`,
+          return_url: `${window.location.origin}/account`,
         }),
       });
 
@@ -134,7 +134,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       onClose();
       
       // Redirect to DodoPayments checkout
-      // User will complete payment and be redirected back to return_url (/dashboard)
+      // User will complete payment and be redirected back to return_url (/account)
       window.location.href = checkoutUrl;
 
     } catch (error: any) {
@@ -417,7 +417,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   <div className="grid grid-cols-2 gap-3">
                     {/* Free Minutes */}
                     <div>
-                      <div className="text-xs text-gray-600 mb-1">Free Allowance</div>
+                      <div className="text-xs text-gray-600 mb-1">Free Minutes</div>
                       <div className="text-lg font-bold text-gray-900">
                         {usageLimit && usageLimit.minutes_remaining !== null && prepaidMinutes > 0
                           ? Math.max(0, usageLimit.minutes_remaining - prepaidMinutes)

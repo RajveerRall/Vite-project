@@ -23,70 +23,80 @@ export default defineConfig({
         return html.replace(
           /<!-- ANALYTICS_PLACEHOLDER -->/g,
           `
-          <!-- Google Tag Manager -->
-          <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-          new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-          j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-          'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-          })(window,document,'script','dataLayer','GTM-TZJL7XLW');</script>
-          <!-- End Google Tag Manager -->
-
-          <!-- Google tag (gtag.js) -->
-          <script async src="https://www.googletagmanager.com/gtag/js?id=G-RDBQXF9CLH"></script>
+          <!-- Analytics loaded after page is interactive for better performance -->
           <script>
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-RDBQXF9CLH');
-          </script>
-          <!-- End Google tag (gtag.js) -->
-
-          <!-- Amplitude Analytics with Error Handling -->
-          <script>
-            // Initialize analytics object to prevent errors
-            window.analytics = window.analytics || {};
-            
-            // Load Amplitude with error handling
+            // Defer analytics loading until after page is interactive
             (function() {
-              try {
-                // Load analytics browser
-                var script1 = document.createElement('script');
-                script1.src = 'https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz';
-                script1.onload = function() {
-                  // Load session replay plugin
-                  var script2 = document.createElement('script');
-                  script2.src = 'https://cdn.amplitude.com/libs/plugin-session-replay-browser-1.8.0-min.js.gz';
-                  script2.onload = function() {
-                    // Initialize Amplitude with error handling
-                    try {
-                      if (window.amplitude && window.sessionReplay) {
-                        window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
-                        window.amplitude.init('e64dc0aea57a1070515c6b210ccbca94', {
-                          "autocapture": {
-                            "elementInteractions": true
-                          }
-                        });
-                        console.log('[Analytics] Amplitude initialized successfully');
+              function loadAnalytics() {
+                // Google Tag Manager
+                (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+                new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+                j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+                'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+                })(window,document,'script','dataLayer','GTM-TZJL7XLW');
+
+                // Amplitude Analytics with Error Handling
+                // Initialize analytics object to prevent errors
+                window.analytics = window.analytics || {};
+                
+                try {
+                  // Load analytics browser
+                  var script1 = document.createElement('script');
+                  script1.src = 'https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz';
+                  script1.onload = function() {
+                    // Load session replay plugin
+                    var script2 = document.createElement('script');
+                    script2.src = 'https://cdn.amplitude.com/libs/plugin-session-replay-browser-1.8.0-min.js.gz';
+                    script2.onload = function() {
+                      // Initialize Amplitude with error handling
+                      try {
+                        if (window.amplitude && window.sessionReplay) {
+                          window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
+                          window.amplitude.init('e64dc0aea57a1070515c6b210ccbca94', {
+                            "autocapture": {
+                              "elementInteractions": true
+                            }
+                          });
+                          console.log('[Analytics] Amplitude initialized successfully');
+                        }
+                      } catch (initError) {
+                        console.warn('[Analytics] Amplitude initialization failed:', initError);
                       }
-                    } catch (initError) {
-                      console.warn('[Analytics] Amplitude initialization failed:', initError);
-                    }
+                    };
+                    script2.onerror = function() {
+                      console.warn('[Analytics] Session replay plugin failed to load');
+                    };
+                    document.head.appendChild(script2);
                   };
-                  script2.onerror = function() {
-                    console.warn('[Analytics] Session replay plugin failed to load');
+                  script1.onerror = function() {
+                    console.warn('[Analytics] Amplitude analytics failed to load');
                   };
-                  document.head.appendChild(script2);
-                };
-                script1.onerror = function() {
-                  console.warn('[Analytics] Amplitude analytics failed to load');
-                };
-                document.head.appendChild(script1);
-              } catch (error) {
-                console.warn('[Analytics] Failed to setup Amplitude:', error);
+                  document.head.appendChild(script1);
+                } catch (error) {
+                  console.warn('[Analytics] Failed to setup Amplitude:', error);
+                }
+              }
+
+              // Load analytics after page is interactive
+              if (document.readyState === 'complete') {
+                // Page already loaded, use requestIdleCallback or setTimeout
+                if (window.requestIdleCallback) {
+                  requestIdleCallback(loadAnalytics, { timeout: 2000 });
+                } else {
+                  setTimeout(loadAnalytics, 100);
+                }
+              } else {
+                // Wait for page to be interactive
+                window.addEventListener('load', function() {
+                  if (window.requestIdleCallback) {
+                    requestIdleCallback(loadAnalytics, { timeout: 2000 });
+                  } else {
+                    setTimeout(loadAnalytics, 100);
+                  }
+                });
               }
             })();
           </script>
-          <!-- End Amplitude Analytics -->
           `
         );
       }

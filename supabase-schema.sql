@@ -818,7 +818,11 @@ BEGIN
   -- Calculate remaining minutes (include prepaid in total)
   IF v_minutes_limit > 0 THEN
     v_minutes_remaining := GREATEST(0, v_minutes_limit - v_minutes_used) + v_prepaid_minutes;
-    v_limit_exceeded := (v_minutes_limit - v_minutes_used) <= 0 AND v_prepaid_minutes <= 0;
+    -- FIXED: Treat as exceeded if remaining subscription time is less than 1 minute
+    -- This handles decimal precision issues (e.g., 0.0166 minutes = 1 second remaining)
+    -- Only consider exceeded if subscription limit is exhausted AND no prepaid minutes
+    v_limit_exceeded := ((v_minutes_limit - v_minutes_used) < 1.0 AND v_prepaid_minutes <= 0) OR 
+                        ((v_minutes_limit - v_minutes_used) <= 0 AND v_prepaid_minutes <= 0);
   ELSIF v_prepaid_minutes > 0 THEN
     -- No subscription limit, but has prepaid
     v_minutes_remaining := v_prepaid_minutes;
@@ -1082,7 +1086,10 @@ BEGIN
     v_subscription_minutes_used := v_subscription_seconds_used / 60.0;
     v_subscription_minutes_to_add := v_subscription_to_consume / 60.0;
     
-    IF (v_subscription_minutes_used + v_subscription_minutes_to_add) > v_minutes_limit THEN
+    -- FIXED: Block if adding usage would exceed limit OR leave less than 1 minute remaining
+    -- This prevents edge cases where tiny remaining amounts (like 0.0166 minutes = 1 second) allow continued usage
+    IF (v_subscription_minutes_used + v_subscription_minutes_to_add) > v_minutes_limit OR
+       (v_minutes_limit - (v_subscription_minutes_used + v_subscription_minutes_to_add)) < 1.0 THEN
       RAISE EXCEPTION 'TTS_USAGE_LIMIT_EXCEEDED' USING 
         MESSAGE = 'TTS usage limit exceeded. Please upgrade your subscription.',
         DETAIL = format('Current subscription usage: %s minutes, Limit: %s minutes, Prepaid remaining: %s minutes', 

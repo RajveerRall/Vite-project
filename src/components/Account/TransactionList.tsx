@@ -99,7 +99,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ limit = 50 }) 
   const downloadInvoice = (paymentId: string | null) => {
     if (!paymentId) return;
     // Link to DodoPayments invoice page (if available)
-    const dodoBaseUrl = import.meta.env.VITE_DODO_BASE_URL || 'https://test.dodopayments.com';
+    const dodoBaseUrl = import.meta.env.VITE_DODO_BASE_URL || 'https://live.dodopayments.com';
     const invoiceUrl = `${dodoBaseUrl}/payments/${paymentId}`;
     window.open(invoiceUrl, '_blank');
   };

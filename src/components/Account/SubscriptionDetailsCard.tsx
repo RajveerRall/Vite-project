@@ -111,7 +111,7 @@ export const SubscriptionDetailsCard: React.FC<SubscriptionDetailsCardProps> = (
             <p className="text-sm text-gray-600 mb-4">Perfect for getting started</p>
             <div className="flex items-center gap-3 text-sm mb-4">
               <Calendar className="w-4 h-4 text-gray-400" />
-              <span className="text-gray-600">Free Allowance:</span>
+              <span className="text-gray-600">Free Minutes:</span>
               <span className="font-semibold text-gray-900">
                 {freePlanMinutes} / month
               </span>

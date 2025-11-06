@@ -394,10 +394,12 @@ export class TTSUsageTracker {
         throw fetchError;
       }
     } else if (sessionId) {
-      // Anonymous user - use REST API
+      // Anonymous user - use REST API (no auth token needed - RLS allows anonymous access)
       const url = `${supabaseUrl}/rest/v1/rpc/record_anonymous_tts_usage`;
       
-      const accessToken = await getAccessToken(5000);
+      // ✅ FIXED: Anonymous users don't have access tokens - use anon key only
+      // The RLS policies allow "Anyone can insert/update" for anonymous usage
+      // The anon key in 'apikey' header is sufficient for public RLS policies
       
       // Add timeout
       const controller = new AbortController();
@@ -408,7 +410,8 @@ export class TTSUsageTracker {
           method: 'POST',
           headers: {
             'apikey': supabaseAnonKey,
-            'Authorization': `Bearer ${accessToken}`,
+            // ✅ FIXED: No Authorization header needed for anonymous users
+            // The anon key in 'apikey' header is sufficient for public RLS policies
             'Content-Type': 'application/json',
             'Prefer': 'return=representation',
           },

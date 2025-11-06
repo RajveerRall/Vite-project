@@ -309,6 +309,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
     
     try {
+      // ✅ FIXED: Clear anonymous session on sign out
+      try {
+        const { clearAnonymousSession } = await import('../utils/anonymousSession');
+        clearAnonymousSession();
+        console.log('[AuthContext] Cleared anonymous session');
+      } catch (err) {
+        console.warn('[AuthContext] Failed to clear anonymous session:', err);
+      }
+      
       // IMPORTANT: Sign out from Supabase BEFORE reloading
       // This ensures the session is cleared before page reload
       const { supabase } = await import('../lib/supabase');
@@ -401,6 +410,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               // This event can fire for session expiry, not just user action
               console.log('[AuthContext] SIGNED_OUT event - not setting explicit flag');
             } else if (nextUser) {
+              // ✅ FIXED: Check if user explicitly signed out before processing conversion
+              // Read from localStorage directly to get the current value (not stale closure)
+              const explicitlySignedOut = localStorage.getItem(SIGN_OUT_FLAG_KEY) === 'true';
+              if (explicitlySignedOut) {
+                console.log('[AuthContext] User explicitly signed out - skipping anonymous session conversion and DodoPayments setup');
+                // Clear user state since user wants to stay signed out
+                setUser(null);
+                // Don't process conversion - user wants to stay signed out
+                return; // Exit early - don't process conversion
+              }
+              
               // User signed in - clear the flag (only reached if hasExplicitlySignedOut was false)
               // This means it was an explicit sign-in (not auto-triggered) or the flag was already cleared
               localStorage.removeItem(SIGN_OUT_FLAG_KEY);

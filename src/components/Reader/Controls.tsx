@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useFullCastUsage } from '../../hooks/useFullCastUsage';
+import { useSubscription } from '../../context/SubscriptionContext';
+import { useToast } from '../../context/ToastContext';
 import { trackEvent } from '../../lib/analytics';
 import { UsageLimitModal } from '../UsageLimitModal';
 import { UsageWarningToast } from '../UsageWarningToast';
@@ -86,6 +88,8 @@ const Controls: React.FC<ControlsProps> = ({
   anonymousLimit
 }) => {
   const { usedMinutes: fcUsed, totalMinutes: fcTotal } = useFullCastUsage();
+  const { isLimitExceeded } = useSubscription();
+  const { addToast } = useToast();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Calculate chapter progress percentage
@@ -113,11 +117,30 @@ const Controls: React.FC<ControlsProps> = ({
     readButtonTitle = 'Read aloud (select text or from start of page)';
   }
 
-  // Check if TTS is disabled due to anonymous limit
-  const isDisabledDueToLimit = anonymousLimit?.isLimitReached || false;
+  // Check if TTS is disabled due to limit (anonymous or authenticated)
+  const isDisabledDueToLimit = anonymousLimit?.isLimitReached || isLimitExceeded || false;
   if (isDisabledDueToLimit) {
-    readButtonTitle = 'Free limit reached. Please sign up to continue.';
+    if (anonymousLimit?.isLimitReached) {
+      readButtonTitle = 'Free limit reached. Please sign up to continue.';
+    } else if (isLimitExceeded) {
+      readButtonTitle = 'TTS usage limit reached. Please upgrade your subscription to continue.';
+    }
   }
+
+  // Handle read aloud button click - show toast if disabled due to anonymous limit
+  const handleReadAloudClick = () => {
+    // If disabled due to anonymous limit, show toast
+    if (isDisabledDueToLimit && anonymousLimit?.isLimitReached) {
+      addToast('Sign up to listen for free', 'info');
+      return;
+    }
+    // If disabled due to authenticated limit, don't do anything (button will be disabled)
+    if (isDisabledDueToLimit && isLimitExceeded) {
+      return;
+    }
+    // Otherwise, proceed with normal TTS
+    onReadAloud();
+  };
 
   // Show Full Cast controls when Full Cast is active
   if (fullCastActive) {
@@ -226,7 +249,7 @@ const Controls: React.FC<ControlsProps> = ({
 
           {/* Main Play/Pause Button */}
           <button
-            onClick={onReadAloud}
+            onClick={handleReadAloudClick}
             className={`p-3 md:p-4 rounded-full transition-all duration-200 ${
               isDisabledDueToLimit
                 ? 'bg-gray-300 cursor-not-allowed text-gray-500'
@@ -236,7 +259,7 @@ const Controls: React.FC<ControlsProps> = ({
             }`}
             aria-label={readButtonTitle}
             title={readButtonTitle}
-            disabled={(isProcessing && !isReading && !isPaused) || isDisabledDueToLimit}
+            disabled={isProcessing && !isReading && !isPaused}
           >
             {isProcessing && !isReading && !isPaused ? (
               <Loader2 size={22} className="animate-spin md:text-[26px]" />
@@ -319,13 +342,13 @@ const Controls: React.FC<ControlsProps> = ({
       <div className="flex items-center gap-x-2 flex-shrink-0">
         {/* Read Aloud Button */}
         <button
-          onClick={onReadAloud}
+          onClick={handleReadAloudClick}
           className={`control-button flex items-center gap-2 px-3 py-2 ${
             isDisabledDueToLimit ? 'opacity-50 cursor-not-allowed' : ''
           }`}
           aria-label={readButtonTitle}
           title={readButtonTitle}
-          disabled={(isProcessing && !isReading && !isPaused) || isDisabledDueToLimit}
+          disabled={isProcessing && !isReading && !isPaused}
         >
           <Headphones size={20} />
           <span className="button-text text-sm font-medium">Read Aloud</span>
@@ -395,8 +418,6 @@ const Controls: React.FC<ControlsProps> = ({
             anonymousLimit.setShowLimitModal(false);
             setShowAuthModal(true);
           }}
-          usedMinutes={anonymousLimit.usedMinutes}
-          limitMinutes={anonymousLimit.limitMinutes}
         />
       )}
     </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Toast } from '../../context/ToastContext';
+import { CheckCircle2, XCircle, Info, X } from 'lucide-react';
 
 interface ToastProps {
   toast: Toast;
@@ -11,50 +12,66 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
   const getToastStyles = () => {
     switch (toast.type) {
       case 'error':
-        return 'bg-red-500 text-white border-red-600';
+        return {
+          container: 'bg-red-50 border-2 border-red-200',
+          text: 'text-red-900',
+          icon: 'text-red-600',
+          close: 'text-red-400 hover:text-red-600'
+        };
       case 'success':
-        return 'bg-green-500 text-white border-green-600';
+        return {
+          container: 'bg-green-50 border-2 border-green-200',
+          text: 'text-green-900',
+          icon: 'text-green-600',
+          close: 'text-green-400 hover:text-green-600'
+        };
       case 'info':
       default:
-        return 'bg-blue-500 text-white border-blue-600';
+        return {
+          container: 'bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200',
+          text: 'text-gray-900',
+          icon: 'text-blue-600',
+          close: 'text-gray-400 hover:text-gray-600'
+        };
     }
   };
 
   const getIcon = () => {
+    const styles = getToastStyles();
     switch (toast.type) {
       case 'error':
-        return '❌';
+        return <XCircle className={`w-5 h-5 ${styles.icon}`} />;
       case 'success':
-        return '✅';
+        return <CheckCircle2 className={`w-5 h-5 ${styles.icon}`} />;
       case 'info':
       default:
-        return 'ℹ️';
+        return <Info className={`w-5 h-5 ${styles.icon}`} />;
     }
   };
 
+  const styles = getToastStyles();
+
   return (
     <div
-      className={`max-w-sm w-full rounded-lg shadow-lg border-l-4 ${getToastStyles()} p-4 transform transition-all duration-300 ease-in-out`}
+      className={`max-w-sm w-full rounded-lg shadow-xl ${styles.container} p-4 transform transition-all duration-300 ease-in-out`}
       style={{
         animation: 'slideInRight 0.3s ease-out',
       }}
     >
       <div className="flex items-start">
         <div className="flex-shrink-0">
-          <span className="text-lg">{getIcon()}</span>
+          {getIcon()}
         </div>
         <div className="ml-3 flex-1">
-          <p className="text-sm font-medium text-white">{toast.message}</p>
+          <p className={`text-sm font-medium ${styles.text}`}>{toast.message}</p>
         </div>
         <div className="ml-4 flex-shrink-0">
           <button
             onClick={() => onRemove(toast.id)}
-            className="inline-flex text-white hover:text-gray-200 focus:outline-none focus:text-gray-200 transition ease-in-out duration-150"
+            className={`inline-flex ${styles.close} focus:outline-none transition ease-in-out duration-150`}
           >
             <span className="sr-only">Close</span>
-            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
+            <X className="h-5 w-5" />
           </button>
         </div>
       </div>

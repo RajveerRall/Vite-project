@@ -284,7 +284,8 @@ export async function fetchSubscriptionInfo(userId: string): Promise<Subscriptio
 }
 
 /**
- * Fetch usage limit info using direct REST API calls
+ * Fetch usage limit info using check_tts_usage_limit RPC function
+ * This ensures free tier limit (360 minutes) is applied dynamically for users without subscriptions
  * Bypasses Supabase client to avoid hanging issues
  */
 export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | null> {
@@ -296,89 +297,134 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
     console.log('[SubscriptionService] Getting access token for usage limit...');
     const accessToken = await getAccessToken();
     
-    // Fetch profile using REST API
-    console.log('[SubscriptionService] Fetching profile for usage limit via REST API...');
-    const profileDataArray = await fetchWithRestAPI(
-      'profiles',
-      'tts_minutes_limit,tts_minutes_used,subscription_minutes_used,last_reset_date,prepaid_minutes,subscription_id',
-      { id: userId },
-      accessToken
-    );
+    // Call check_tts_usage_limit RPC function instead of reading directly from profiles
+    // This ensures free tier limit (360 minutes) is applied dynamically
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
-    if (!profileDataArray || profileDataArray.length === 0) {
-      throw new Error('Profile not found');
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
     }
     
-    const profileData = profileDataArray[0];
+    const url = `${supabaseUrl}/rest/v1/rpc/check_tts_usage_limit`;
     
-    // Get subscription period end if subscription exists
-    let currentPeriodEnd: string | null = null;
-    if (profileData?.subscription_id) {
-      console.log('[SubscriptionService] Fetching subscription period end via REST API...');
-      const subDataArray = await fetchWithRestAPI(
-        'subscriptions',
-        'current_period_end',
-        { id: profileData.subscription_id },
-        accessToken
-      );
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify({ p_user_id: userId }),
+        signal: controller.signal,
+      });
       
-      currentPeriodEnd = subDataArray?.[0]?.current_period_end || null;
-    }
-    
-    const duration = Date.now() - startTime;
-    console.log(`[SubscriptionService] Usage limit REST API fetch completed in ${duration}ms`);
-    
-    // Calculate values
-    const minutesLimit = profileData?.tts_minutes_limit || 0;
-    const subscriptionSecondsUsed = profileData?.subscription_minutes_used || 0;
-    const subscriptionMinutesUsed = Math.ceil(subscriptionSecondsUsed / 60);
-    const prepaidMinutes = profileData?.prepaid_minutes || 0;
-    const lastResetDate = profileData?.last_reset_date || null;
-    
-    // Calculate total minutes used from tts_minutes_used (includes both prepaid and subscription usage)
-    const totalSecondsUsed = profileData?.tts_minutes_used || 0;
-    const totalMinutesUsed = Math.ceil(totalSecondsUsed / 60);
-    
-    // Calculate remaining minutes (subscription remaining + prepaid)
-    let minutesRemaining: number | null = null;
-    if (minutesLimit > 0) {
-      const subscriptionRemaining = Math.max(0, minutesLimit - subscriptionMinutesUsed);
-      minutesRemaining = subscriptionRemaining + prepaidMinutes;
-    } else if (prepaidMinutes > 0) {
-      minutesRemaining = prepaidMinutes;
-    }
-    
-    // Check if limit exceeded
-    const limitExceeded = minutesLimit > 0 && subscriptionMinutesUsed >= minutesLimit && prepaidMinutes === 0;
-    
-    // Check if reset needed
-    let needsReset = false;
-    if (currentPeriodEnd && lastResetDate) {
-      const periodEndDate = new Date(currentPeriodEnd);
-      const resetDate = new Date(lastResetDate);
-      const now = new Date();
-      if (resetDate < periodEndDate && now >= periodEndDate) {
-        needsReset = true;
+      clearTimeout(timeoutId);
+      
+      // Handle 401 - try to refresh token
+      if (response.status === 401) {
+        console.log('[SubscriptionService] Limit check token expired (401), attempting refresh...');
+        const { supabase } = await import('../../lib/supabase');
+        const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+        
+        if (sessionError || !session?.access_token) {
+          throw new Error('Session expired. Please sign in again.');
+        }
+        
+        console.log('[SubscriptionService] Limit check token refreshed, retrying...');
+        
+        // Retry with new token
+        const retryController = new AbortController();
+        const retryTimeoutId = setTimeout(() => retryController.abort(), 10000);
+        
+        try {
+          const retryResponse = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'apikey': supabaseAnonKey,
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation',
+            },
+            body: JSON.stringify({ p_user_id: userId }),
+            signal: retryController.signal,
+          });
+          
+          clearTimeout(retryTimeoutId);
+          
+          if (!retryResponse.ok) {
+            const errorText = await retryResponse.text();
+            throw new Error(`HTTP ${retryResponse.status}: ${errorText || retryResponse.statusText}`);
+          }
+          
+          const limitData = await retryResponse.json();
+          
+          const duration = Date.now() - startTime;
+          console.log(`[SubscriptionService] Usage limit RPC call completed in ${duration}ms`);
+          
+          // Map RPC response to UsageLimitInfo format
+          const result: UsageLimitInfo = {
+            has_limit: limitData.has_limit ?? false,
+            minutes_limit: limitData.minutes_limit ?? 0,
+            prepaid_minutes: limitData.prepaid_minutes ?? 0,
+            subscription_minutes_used: limitData.subscription_minutes_used ?? 0,
+            minutes_used: limitData.minutes_used ?? 0,
+            minutes_remaining: limitData.minutes_remaining ?? null,
+            limit_exceeded: limitData.limit_exceeded ?? false,
+            needs_reset: limitData.needs_reset ?? false,
+            last_reset_date: limitData.last_reset_date ?? null,
+            current_period_end: limitData.current_period_end ?? null,
+          };
+          
+          console.log('[SubscriptionService] Calculated usage limit:', result);
+          return result;
+          
+        } catch (retryError: any) {
+          clearTimeout(retryTimeoutId);
+          throw retryError;
+        }
       }
-    } else if (!lastResetDate) {
-      needsReset = true;
-    }
-    
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+      }
+      
+      const limitData = await response.json();
+      
+      const duration = Date.now() - startTime;
+      console.log(`[SubscriptionService] Usage limit RPC call completed in ${duration}ms`);
+      
+      // Map RPC response to UsageLimitInfo format
     const result: UsageLimitInfo = {
-      has_limit: minutesLimit > 0 || prepaidMinutes > 0,
-      minutes_limit: minutesLimit,
-      prepaid_minutes: prepaidMinutes,
-      subscription_minutes_used: subscriptionMinutesUsed,
-      minutes_used: totalMinutesUsed, // Use total usage (prepaid + subscription) instead of just subscription
-      minutes_remaining: minutesRemaining,
-      limit_exceeded: limitExceeded,
-      needs_reset: needsReset,
-      last_reset_date: lastResetDate,
-      current_period_end: currentPeriodEnd,
+        has_limit: limitData.has_limit ?? false,
+        minutes_limit: limitData.minutes_limit ?? 0,
+        prepaid_minutes: limitData.prepaid_minutes ?? 0,
+        subscription_minutes_used: limitData.subscription_minutes_used ?? 0,
+        minutes_used: limitData.minutes_used ?? 0,
+        minutes_remaining: limitData.minutes_remaining ?? null,
+        limit_exceeded: limitData.limit_exceeded ?? false,
+        needs_reset: limitData.needs_reset ?? false,
+        last_reset_date: limitData.last_reset_date ?? null,
+        current_period_end: limitData.current_period_end ?? null,
     };
     
     console.log('[SubscriptionService] Calculated usage limit:', result);
     return result;
+      
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Request timeout after 10s');
+      }
+      throw fetchError;
+    }
+    
   } catch (error: any) {
     console.error('[SubscriptionService] Exception fetching usage limit:', {
       error,

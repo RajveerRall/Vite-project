@@ -54,18 +54,17 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       if (!contentElement) return;
 
       const images = contentElement.querySelectorAll('img[data-epub-src]');
-      images.forEach((img: HTMLImageElement) => {
-        const epubSrc = img.getAttribute('data-epub-src');
+      images.forEach((img) => {
+        const imageElement = img as HTMLImageElement;
+        const epubSrc = imageElement.getAttribute('data-epub-src');
         if (!epubSrc) return;
         
         // Restore dimensions from cache immediately to prevent layout shift
         const cachedDimensions = imageDimensionsCache.get(epubSrc);
         if (cachedDimensions) {
-          img.style.width = `${cachedDimensions.width}px`;
-          img.style.height = `${cachedDimensions.height}px`;
-          img.style.aspectRatio = `${cachedDimensions.width} / ${cachedDimensions.height}`;
-          img.style.minWidth = `${cachedDimensions.width}px`;
-          img.style.minHeight = `${cachedDimensions.height}px`;
+          imageElement.style.width = `${cachedDimensions.width}px`;
+          imageElement.style.height = `${cachedDimensions.height}px`;
+          imageElement.style.aspectRatio = `${cachedDimensions.width} / ${cachedDimensions.height}`;
         }
       });
     });
@@ -87,45 +86,42 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 
       // First pass: Restore dimensions and blob URLs for images
       // This prevents layout shift when React re-renders
-      images.forEach((img: HTMLImageElement) => {
-        const epubSrc = img.getAttribute('data-epub-src');
+      images.forEach((img) => {
+        const imageElement = img as HTMLImageElement;
+        const epubSrc = imageElement.getAttribute('data-epub-src');
         if (!epubSrc) return;
         
-        const src = img.getAttribute('src') || img.src;
+        const src = imageElement.getAttribute('src') || imageElement.src;
         
         // Restore blob URL from cache if image has about:blank
         if (!src || src === 'about:blank' || !src.startsWith('blob:')) {
           const cachedBlobUrl = imageBlobUrlCache.get(epubSrc);
           if (cachedBlobUrl) {
-            img.src = cachedBlobUrl;
+            imageElement.src = cachedBlobUrl;
           }
         }
         
         // If image has a blob URL (either restored or already present), restore its dimensions
-        const currentSrc = img.getAttribute('src') || img.src;
+        const currentSrc = imageElement.getAttribute('src') || imageElement.src;
         if (currentSrc && currentSrc.startsWith('blob:')) {
           const cachedDimensions = imageDimensionsCache.get(epubSrc);
           if (cachedDimensions) {
-            img.style.width = `${cachedDimensions.width}px`;
-            img.style.height = `${cachedDimensions.height}px`;
-            img.style.aspectRatio = `${cachedDimensions.width} / ${cachedDimensions.height}`;
-            img.style.minWidth = `${cachedDimensions.width}px`;
-            img.style.minHeight = `${cachedDimensions.height}px`;
-          } else if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+            imageElement.style.width = `${cachedDimensions.width}px`;
+            imageElement.style.height = `${cachedDimensions.height}px`;
+            imageElement.style.aspectRatio = `${cachedDimensions.width} / ${cachedDimensions.height}`;
+          } else if (imageElement.naturalWidth > 0 && imageElement.naturalHeight > 0) {
             // Image is loaded but not cached, cache it now
             imageDimensionsCache.set(epubSrc, {
-              width: img.naturalWidth,
-              height: img.naturalHeight
+              width: imageElement.naturalWidth,
+              height: imageElement.naturalHeight
             });
             // Also cache blob URL if not already cached
             if (!imageBlobUrlCache.has(epubSrc)) {
               imageBlobUrlCache.set(epubSrc, currentSrc);
             }
-            img.style.width = `${img.naturalWidth}px`;
-            img.style.height = `${img.naturalHeight}px`;
-            img.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
-            img.style.minWidth = `${img.naturalWidth}px`;
-            img.style.minHeight = `${img.naturalHeight}px`;
+            imageElement.style.width = `${imageElement.naturalWidth}px`;
+            imageElement.style.height = `${imageElement.naturalHeight}px`;
+            imageElement.style.aspectRatio = `${imageElement.naturalWidth} / ${imageElement.naturalHeight}`;
           }
         }
       });
@@ -135,10 +131,11 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       // - Have src="about:blank"
       // - Don't start with blob:
       // - Have a blob URL but failed to load (check img.complete && img.naturalWidth === 0)
-      const imagesToProcess = Array.from(images).filter((img: HTMLImageElement) => {
+      const imagesToProcess = Array.from(images).filter((img) => {
+        const imageElement = img as HTMLImageElement;
         // Re-check src after first pass (it might have been restored from cache)
-        const src = img.getAttribute('src') || img.src;
-        const epubSrc = img.getAttribute('data-epub-src');
+        const src = imageElement.getAttribute('src') || imageElement.src;
+        const epubSrc = imageElement.getAttribute('data-epub-src');
         
         // Must have epubSrc to process
         if (!epubSrc || epubSrc === 'about:blank') return false;
@@ -147,7 +144,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         const needsProcessing = !src || src === 'about:blank' || !src.startsWith('blob:');
         
         // If it has a blob URL, check if it's still valid by checking if image has loaded
-        if (!needsProcessing && img.complete && img.naturalWidth === 0) {
+        if (!needsProcessing && imageElement.complete && imageElement.naturalWidth === 0) {
           // Image failed to load, needs reprocessing
           return true;
         }
@@ -158,7 +155,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       console.log('[ReaderContent] Image processing check:', {
         totalImages: images.length,
         imagesToProcess: imagesToProcess.length,
-        sampleImageSrc: images[0] ? (images[0].getAttribute('src') || images[0].src) : 'none',
+        sampleImageSrc: images[0] ? ((images[0] as HTMLImageElement).getAttribute('src') || (images[0] as HTMLImageElement).src) : 'none',
         sampleEpubSrc: images[0] ? images[0].getAttribute('data-epub-src') : 'none',
       });
 
@@ -180,8 +177,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 
         // Process images in parallel
         await Promise.all(
-          imagesToProcess.map(async (img: HTMLImageElement) => {
-            const epubSrc = img.getAttribute('data-epub-src');
+          imagesToProcess.map(async (img) => {
+            const imageElement = img as HTMLImageElement;
+            const epubSrc = imageElement.getAttribute('data-epub-src');
             if (!epubSrc || epubSrc === 'about:blank') return;
 
             try {
@@ -191,22 +189,18 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
               // If we have cached dimensions, apply them BEFORE changing src
               // This prevents layout shift when the image reloads
               if (cachedDimensions) {
-                img.style.width = `${cachedDimensions.width}px`;
-                img.style.height = `${cachedDimensions.height}px`;
-                img.style.aspectRatio = `${cachedDimensions.width} / ${cachedDimensions.height}`;
-                img.style.minWidth = `${cachedDimensions.width}px`;
-                img.style.minHeight = `${cachedDimensions.height}px`;
+                imageElement.style.width = `${cachedDimensions.width}px`;
+                imageElement.style.height = `${cachedDimensions.height}px`;
+                imageElement.style.aspectRatio = `${cachedDimensions.width} / ${cachedDimensions.height}`;
               } else {
                 // If no cached dimensions, try to get them from the current image
                 // This handles the case where image was already loaded but cache was cleared
-                const currentWidth = img.naturalWidth || img.width || img.offsetWidth;
-                const currentHeight = img.naturalHeight || img.height || img.offsetHeight;
+                const currentWidth = imageElement.naturalWidth || imageElement.width || imageElement.offsetWidth;
+                const currentHeight = imageElement.naturalHeight || imageElement.height || imageElement.offsetHeight;
                 if (currentWidth > 0 && currentHeight > 0) {
-                  img.style.width = `${currentWidth}px`;
-                  img.style.height = `${currentHeight}px`;
-                  img.style.aspectRatio = `${currentWidth} / ${currentHeight}`;
-                  img.style.minWidth = `${currentWidth}px`;
-                  img.style.minHeight = `${currentHeight}px`;
+                  imageElement.style.width = `${currentWidth}px`;
+                  imageElement.style.height = `${currentHeight}px`;
+                  imageElement.style.aspectRatio = `${currentWidth} / ${currentHeight}`;
                 }
               }
 
@@ -215,35 +209,33 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
                 const blobUrl = URL.createObjectURL(imageBlob);
                 
                 // Set up load handler to cache dimensions and blob URL
-                img.onload = () => {
+                imageElement.onload = () => {
                   // Cache dimensions and blob URL for future use
-                  if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                  if (imageElement.naturalWidth > 0 && imageElement.naturalHeight > 0) {
                     imageDimensionsCache.set(epubSrc, {
-                      width: img.naturalWidth,
-                      height: img.naturalHeight
+                      width: imageElement.naturalWidth,
+                      height: imageElement.naturalHeight
                     });
                     
                     // Cache the blob URL so it can be restored when HTML has about:blank
                     imageBlobUrlCache.set(epubSrc, blobUrl);
                     
                     // Ensure dimensions are set (in case they weren't cached before)
-                    img.style.width = `${img.naturalWidth}px`;
-                    img.style.height = `${img.naturalHeight}px`;
-                    img.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
-                    img.style.minWidth = `${img.naturalWidth}px`;
-                    img.style.minHeight = `${img.naturalHeight}px`;
+                    imageElement.style.width = `${imageElement.naturalWidth}px`;
+                    imageElement.style.height = `${imageElement.naturalHeight}px`;
+                    imageElement.style.aspectRatio = `${imageElement.naturalWidth} / ${imageElement.naturalHeight}`;
                   }
-                  img.style.opacity = '1';
+                  imageElement.style.opacity = '1';
                 };
                 
-                img.onerror = () => {
+                imageElement.onerror = () => {
                   console.warn(`Image failed to load: ${epubSrc}`);
-                  img.style.opacity = '0.5';
+                  imageElement.style.opacity = '0.5';
                 };
                 
                 // Set src after dimensions are preserved
-                img.src = blobUrl;
-                img.style.opacity = cachedDimensions ? '1' : '0'; // Fade in if no cached dimensions
+                imageElement.src = blobUrl;
+                imageElement.style.opacity = cachedDimensions ? '1' : '0'; // Fade in if no cached dimensions
               }
             } catch (e) {
               console.error(`Error loading image ${epubSrc}:`, e);
