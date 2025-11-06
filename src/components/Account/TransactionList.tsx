@@ -96,12 +96,58 @@ export const TransactionList: React.FC<TransactionListProps> = ({ limit = 50 }) 
     return paymentId.slice(-8).toUpperCase();
   };
 
-  const downloadInvoice = (paymentId: string | null) => {
+  const downloadInvoice = async (paymentId: string | null) => {
     if (!paymentId) return;
-    // Link to DodoPayments invoice page (if available)
-    const dodoBaseUrl = import.meta.env.VITE_DODO_BASE_URL || 'https://live.dodopayments.com';
-    const invoiceUrl = `${dodoBaseUrl}/payments/${paymentId}`;
-    window.open(invoiceUrl, '_blank');
+    
+    try {
+      // Get access token
+      const { getAccessToken } = await import('../../lib/authToken');
+      const accessToken = await getAccessToken(5000);
+      
+      // Call Edge Function to download invoice
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const invoiceEndpoint = `${supabaseUrl}/functions/v1/subscriptions`;
+      
+      const response = await fetch(invoiceEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          action: 'download-invoice',
+          payment_id: paymentId,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = 'Failed to download invoice';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorMessage;
+        } catch {
+          // Use errorText as-is if not JSON
+        }
+        throw new Error(errorMessage);
+      }
+      
+      // Get PDF blob from response
+      const pdfBlob = await response.blob();
+      
+      // Create download link and trigger download
+      const url = window.URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice-${paymentId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('[TransactionList] Failed to download invoice:', error);
+      alert(`Failed to download invoice: ${error.message || 'Unknown error'}`);
+    }
   };
 
   const formatBillingPeriod = (transaction: PrepaidTransaction) => {

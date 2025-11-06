@@ -87,9 +87,12 @@ serve(async (req) => {
         case 'get-customer-payments':
           return await handleGetCustomerPayments(supabase, body)
 
+        case 'download-invoice':
+          return await handleDownloadInvoice(supabase, user, body, req)
+
         default:
           return new Response(
-            JSON.stringify({ error: 'Invalid action. Valid actions: create-user, cancel, cancel-subscription, change-plan, checkout, get-customer-by-email, get-subscription-by-id, get-customer-payments' }),
+            JSON.stringify({ error: 'Invalid action. Valid actions: create-user, cancel, cancel-subscription, change-plan, checkout, get-customer-by-email, get-subscription-by-id, get-customer-payments, download-invoice' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
       }
@@ -1132,6 +1135,101 @@ async function handleGetCustomerPayments(supabase: any, body: any) {
 
   } catch (error: any) {
     console.error('[Subscriptions] Get customer payments error:', error)
+    return new Response(
+      JSON.stringify({ error: error.message || 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+}
+
+async function handleDownloadInvoice(supabase: any, user: any, body: any, req: Request) {
+  try {
+    const { payment_id } = body
+
+    if (!payment_id) {
+      return new Response(
+        JSON.stringify({ error: 'payment_id is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const dodoApiKey = Deno.env.get('DODO_PAYMENTS_API_KEY')
+    const dodoEnv = Deno.env.get('DODO_ENV') || 'test_mode'
+
+    if (!dodoApiKey) {
+      return new Response(
+        JSON.stringify({ error: 'Payment gateway not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Initialize DodoPayments SDK
+    let dodoPaymentsClient: any
+    try {
+      if (typeof DodoPayments === 'function') {
+        dodoPaymentsClient = new DodoPayments({
+          bearerToken: dodoApiKey,
+          environment: dodoEnv as 'test_mode' | 'live_mode',
+        })
+      } else if ((DodoPayments as any)?.default && typeof (DodoPayments as any).default === 'function') {
+        dodoPaymentsClient = new (DodoPayments as any).default({
+          bearerToken: dodoApiKey,
+          environment: dodoEnv as 'test_mode' | 'live_mode',
+        })
+      } else {
+        throw new Error('DodoPayments SDK not available')
+      }
+    } catch (initError: any) {
+      console.error('[Subscriptions] SDK initialization failed:', initError)
+      return new Response(
+        JSON.stringify({ error: 'SDK initialization failed' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Fetch invoice PDF using SDK
+    try {
+      console.log('[Subscriptions] Fetching invoice for payment:', payment_id)
+      
+      const invoiceResponse = await dodoPaymentsClient.invoices.payments.retrieve(payment_id)
+      
+      // Handle both Response object and object with blob() method
+      let pdfBlob: Blob
+      if (invoiceResponse instanceof Response) {
+        // If SDK returns Response directly, get blob from it
+        pdfBlob = await invoiceResponse.blob()
+      } else if (invoiceResponse && typeof (invoiceResponse as any).blob === 'function') {
+        // If SDK returns object with blob() method
+        pdfBlob = await (invoiceResponse as any).blob()
+      } else {
+        throw new Error('Invalid invoice response format - expected Response or object with blob() method')
+      }
+      
+      console.log('[Subscriptions] Invoice fetched successfully, size:', pdfBlob.size)
+
+      // Return PDF with proper headers
+      return new Response(pdfBlob, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="invoice-${payment_id}.pdf"`,
+        },
+      })
+    } catch (invoiceError: any) {
+      console.error('[Subscriptions] Error fetching invoice:', {
+        message: invoiceError?.message,
+        error: invoiceError?.toString(),
+        stack: invoiceError?.stack,
+      })
+      
+      return new Response(
+        JSON.stringify({ error: `Failed to fetch invoice: ${invoiceError?.message || 'Unknown error'}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+  } catch (error: any) {
+    console.error('[Subscriptions] Download invoice error:', error)
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

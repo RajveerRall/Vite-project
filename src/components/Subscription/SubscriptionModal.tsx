@@ -171,7 +171,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     if (!isFreeTierUser) return null;
 
     return (
-      <div className="border-2 border-amber-500 bg-amber-50 rounded-lg p-6">
+      <div className="border-2 border-amber-500 bg-amber-50 rounded-lg p-6 max-w-sm">
         {/* Current Plan Badge */}
         <div className="flex justify-between items-start mb-2">
           <h3 className="text-xl font-bold text-gray-900">Free</h3>
@@ -250,7 +250,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     return (
       <div
         key={plan.id}
-        className={`border-2 rounded-lg p-6 ${
+        className={`border-2 rounded-lg p-6 max-w-sm ${
           isCurrentPlan
             ? 'border-amber-500 bg-amber-50'
             : 'border-gray-200 hover:border-amber-300 transition-colors'
@@ -310,8 +310,8 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-auto max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-900">
@@ -326,7 +326,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 lg:p-8">
           {/* Current Plan Info Banner */}
           {hasActiveSubscription && (
             <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
@@ -536,12 +536,16 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           {/* Add-ons Section - One-time packs always visible */}
           {getOneTimePacks().length > 0 && (
             <div className="mb-8">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Add-ons</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Purchase additional minutes that never expire. These work alongside your subscription.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {getOneTimePacks().map(renderPlanCard)}
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Add-ons</h3>
+                <p className="text-sm text-gray-600 max-w-2xl mx-auto">
+                  Purchase additional minutes that never expire. These work alongside your subscription.
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <div className="grid grid-cols-1 gap-4 max-w-md w-full justify-items-center">
+                  {getOneTimePacks().map(renderPlanCard)}
+                </div>
               </div>
             </div>
           )}
@@ -549,14 +553,18 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           {/* Subscription Plans Section */}
           {getSubscriptionPlans().length > 0 && (
             <div className="mb-8">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                {hasActiveSubscription ? 'Available Plans' : 'Subscription Plans'}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Free Plan Card - Always show first if user is on free tier */}
-                {renderFreePlanCard()}
-                {/* Subscription Plans */}
-                {getSubscriptionPlans().map(renderPlanCard)}
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {hasActiveSubscription ? 'Available Plans' : 'Subscription Plans'}
+                </h3>
+              </div>
+              <div className="flex justify-center">
+                <div className="grid grid-cols-1 gap-4 max-w-md w-full justify-items-center">
+                  {/* Free Plan Card - Always show first if user is on free tier */}
+                  {renderFreePlanCard()}
+                  {/* Subscription Plans */}
+                  {getSubscriptionPlans().map(renderPlanCard)}
+                </div>
               </div>
             </div>
           )}
