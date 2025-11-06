@@ -7,6 +7,7 @@ import { createAdaptivePlaybackStrategy } from '../services/tts/strategies/Adapt
 import { IPlaybackStrategy } from '../services/tts/strategies/IPlaybackStrategy';
 import { createTTSChunkService } from '../services/tts/TTSChunkService';
 import { getUsageTracker, initializeUsageTracking } from '../services/tts/index';
+import { highlightChunkInHtml, highlightTextInHtml } from '../utils/htmlHighlight';
 
 // Helper: split text into sentence chunks
 function splitTextIntoChunks(text: string): string[] {
@@ -462,7 +463,8 @@ export const useReaderTTS = ({
       return;
     }
 
-    setCurrentChunkIndex(index);
+    // Don't set currentChunkIndex here - it will be set when audio actually starts playing
+    // This ensures the highlight updates exactly when audio starts, not when playChunk is called
     setIsSpeaking(true); 
     setIsPaused(false); 
     setHasFinishedPlayback(false);
@@ -516,6 +518,9 @@ export const useReaderTTS = ({
       const handlePlay = () => {
         playStartTimeRef.current[index] = Date.now();
         console.log(`[playChunk] Audio started playing chunk #${index}`);
+        // Update currentChunkIndex when audio actually starts playing
+        // This ensures highlight is synchronized with audio playback
+        setCurrentChunkIndex(index);
       };
       
       const handleEnded = async () => {
@@ -756,6 +761,9 @@ export const useReaderTTS = ({
       onPlay: (chunkIndex: number) => {
         playStartTimeRef.current[chunkIndex] = Date.now();
         console.log(`[Strategy] Audio started playing chunk #${chunkIndex}`);
+        // Update currentChunkIndex when audio actually starts playing
+        // This ensures highlight is synchronized with audio playback
+        setCurrentChunkIndex(chunkIndex);
       },
       onChunkComplete: (chunkIndex: number) => {
         // Handle seamless auto-advance
@@ -1186,30 +1194,94 @@ export const useReaderTTS = ({
       if (currentPageText && currentChunkIndex < chunks.length) {
         const currentChunk = chunks[currentChunkIndex];
         if (currentChunk) {
-          // Find the current chunk in the full text and highlight it
-          const chunkIndex = currentPageText.indexOf(currentChunk);
-          if (chunkIndex !== -1) {
-            const escapeHtml = (str: string) =>
-              str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-            const before = escapeHtml(currentPageText.substring(0, chunkIndex));
-            const highlight = escapeHtml(currentChunk);
-            const after = escapeHtml(currentPageText.substring(chunkIndex + currentChunk.length));
-
-            const highlightedHtml = `${before}<span class="tts-highlight">${highlight}</span>${after}`;
-            setHighlightedContent(highlightedHtml);
-            console.log(`[DEBUG] Updated highlightedContent for chunk ${currentChunkIndex}:`, {
-              chunkIndex,
-              chunkLength: currentChunk.length,
-              chunkPreview: currentChunk.substring(0, 50),
-              highlightedContentLength: highlightedHtml.length,
-              hasHighlightSpan: highlightedHtml.includes('<span class="tts-highlight">')
+          // Extract blob URLs from actual DOM before highlighting
+          // This ensures images have blob URLs even if HTML string has about:blank
+          const contentElement = document.querySelector('.epub-content');
+          const blobUrlMap = new Map<string, string>();
+          
+          if (contentElement) {
+            const images = contentElement.querySelectorAll('img[data-epub-src]');
+            console.log(`[useReaderTTS] Extracting blob URLs from DOM: found ${images.length} images`);
+            images.forEach((imgElement) => {
+              const img = imgElement as HTMLImageElement;
+              const epubSrc = img.getAttribute('data-epub-src');
+              const src = img.getAttribute('src') || img.src;
+              if (epubSrc && src && src.startsWith('blob:')) {
+                blobUrlMap.set(epubSrc, src);
+                console.log(`[useReaderTTS] Extracted blob URL for ${epubSrc}: ${src.substring(0, 50)}...`);
+              } else {
+                console.warn(`[useReaderTTS] Image ${epubSrc} does not have blob URL, src: ${src}`);
+              }
             });
+            console.log(`[useReaderTTS] Extracted ${blobUrlMap.size} blob URLs from DOM`);
+          } else {
+            console.warn('[useReaderTTS] Content element not found for blob URL extraction');
           }
+          
+          // Use HTML highlighting to preserve images and other HTML elements
+          // Content-based matching finds chunks directly in HTML by text content
+          // Pass blobUrlMap to ensure images have blob URLs from actual DOM
+          
+          // Debug: Check images in input HTML
+          const inputImgRegex = /<img[^>]*>/gi;
+          const inputImgMatches = currentContent.match(inputImgRegex) || [];
+          const inputImageInfo = inputImgMatches.map(img => {
+            const srcMatch = img.match(/src=["']([^"']+)["']/i);
+            const epubSrcMatch = img.match(/data-epub-src=["']([^"']+)["']/i);
+            return {
+              fullTag: img.substring(0, 150),
+              src: srcMatch ? srcMatch[1] : 'NO SRC',
+              epubSrc: epubSrcMatch ? epubSrcMatch[1] : 'NO EPUB-SRC'
+            };
+          });
+          console.log(`[useReaderTTS] Input HTML images (currentContent):`, {
+            count: inputImgMatches.length,
+            images: inputImageInfo
+          });
+          
+          const highlightedHtml = highlightChunkInHtml(
+            currentContent,
+            currentPageText,
+            currentChunk,
+            blobUrlMap,
+            currentChunkIndex,
+            chunks
+          );
+          
+          // Debug: Check images in output HTML
+          const outputImgRegex = /<img[^>]*>/gi;
+          const outputImgMatches = highlightedHtml.match(outputImgRegex) || [];
+          const outputImageInfo = outputImgMatches.map(img => {
+            const srcMatch = img.match(/src=["']([^"']+)["']/i);
+            const epubSrcMatch = img.match(/data-epub-src=["']([^"']+)["']/i);
+            return {
+              fullTag: img.substring(0, 150),
+              src: srcMatch ? srcMatch[1] : 'NO SRC',
+              epubSrc: epubSrcMatch ? epubSrcMatch[1] : 'NO EPUB-SRC'
+            };
+          });
+          console.log(`[useReaderTTS] Output HTML images (highlightedHtml):`, {
+            count: outputImgMatches.length,
+            images: outputImageInfo,
+            imagesRemoved: inputImgMatches.length - outputImgMatches.length
+          });
+          
+          setHighlightedContent(highlightedHtml);
+          console.log(`[DEBUG] Updated highlightedContent for chunk ${currentChunkIndex}:`, {
+            chunkIndex: currentChunkIndex,
+            chunkLength: currentChunk.length,
+            chunkPreview: currentChunk.substring(0, 50),
+            highlightedContentLength: highlightedHtml.length,
+            hasHighlightSpan: highlightedHtml.includes('<span class="tts-highlight">'),
+            hasImages: highlightedHtml.includes('<img'),
+            blobUrlsExtracted: blobUrlMap.size,
+            inputImageCount: inputImgMatches.length,
+            outputImageCount: outputImgMatches.length
+          });
         }
       }
     }
-  }, [currentChunkIndex, chunks, saveResumeIndex, currentPageText]);
+  }, [currentChunkIndex, chunks, saveResumeIndex, currentPageText, currentContent]);
 
   // === Monitor anonymous limit and stop TTS if exceeded during playback ===
   useEffect(() => {
@@ -1233,19 +1305,37 @@ export const useReaderTTS = ({
         return;
       }
 
+      // Extract blob URLs from actual DOM before highlighting
+      // This ensures images have blob URLs even if HTML string has about:blank
+      const contentElement = document.querySelector('.epub-content');
+      const blobUrlMap = new Map<string, string>();
+      
+      if (contentElement) {
+        const images = contentElement.querySelectorAll('img[data-epub-src]');
+        images.forEach((imgElement) => {
+          const img = imgElement as HTMLImageElement;
+          const epubSrc = img.getAttribute('data-epub-src');
+          const src = img.getAttribute('src') || img.src;
+          if (epubSrc && src && src.startsWith('blob:')) {
+            blobUrlMap.set(epubSrc, src);
+          }
+        });
+      }
+
       // For resume, we'll highlight the beginning of the text since we don't know the exact chunk
+      // Use HTML highlighting to preserve images and other HTML elements
+      // Pass blobUrlMap to ensure images have blob URLs from actual DOM
       const highlightLength = Math.min(100, currentPageText.length);
       const start = loadedIndex;
       const end = Math.min(start + highlightLength, currentPageText.length);
 
-      const escapeHtml = (str: string) =>
-        str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-      const before = escapeHtml(currentPageText.substring(0, start));
-      const highlight = escapeHtml(currentPageText.substring(start, end));
-      const after = escapeHtml(currentPageText.substring(end));
-
-      const highlightedHtml = `${before}<span class="tts-highlight">${highlight}</span>${after}`;
+      const highlightedHtml = highlightTextInHtml(
+        currentContent,
+        currentPageText,
+        start,
+        end,
+        blobUrlMap
+      );
       setHighlightedContent(highlightedHtml);
     };
 
@@ -1405,17 +1495,20 @@ export const useReaderTTS = ({
     setIsProcessing(false);
     setHasFinishedPlayback(false);
     
-    // Set the target chunk
-    setCurrentChunkIndex(safeChunkIndex);
+    // Don't set currentChunkIndex here - let onPlay callback set it when audio actually starts
+    // This ensures highlight is synchronized with audio playback, not with the seek action
     setResumeIndex(null); // Clear resume so it starts fresh
     
     // Activate TTS intent and start playback
     ttsIntentActiveRef.current = true;
     
     // Start playback from target chunk
-    setTimeout(() => {
-      playChunk(safeChunkIndex);
-    }, 150);
+    // Use requestAnimationFrame to ensure state updates are processed before playChunk
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        playChunk(safeChunkIndex);
+      }, 50); // Reduced delay since we're not setting currentChunkIndex here
+    });
     
     addToast?.(`Starting from ${Math.round(clampedPercentage)}% of chapter`, 'success');
   }, [chunks, readerInstanceId, addToast, haltPlayback, playChunk]);

@@ -164,8 +164,8 @@ const Library: React.FC = () => {
           {/* Full-width background - breaks out of max-w-5xl container */}
           <div className="absolute left-1/2 -translate-x-1/2 w-screen -top-8 sm:-top-12 bottom-0">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              {/* Gradient overlay for readability */}
-              <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/60 to-white/85 z-10"></div>
+              {/* Gradient overlay for readability and depth with glassy blur effect */}
+              <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/50 to-gray-900/40 z-10" style={{ backdropFilter: 'blur(2px)' }}></div>
               
               {/* Book covers sprite - optimized single image */}
               <div 
@@ -184,8 +184,8 @@ const Library: React.FC = () => {
           <div className="relative z-20">
         {/* Hero title */}
             <section className="pt-6">
-              <div className="max-w-4xl mx-auto text-center bg-white/60 backdrop-blur-sm rounded-lg border border-gray-200/70 shadow-sm px-4 sm:px-5 py-4 edge-fade">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 whitespace-nowrap" style={{ fontFamily: "'Roboto Flex', sans-serif" }}>
+              <div className="max-w-4xl mx-auto text-center">
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{ fontFamily: "'Source Sans 3', sans-serif" }}>
                   AI Narrator to read aloud your ebooks
                 </h1>
                 <p className="mt-2 sm:mt-3 text-base sm:text-lg text-gray-700 max-w-3xl mx-auto">
@@ -247,7 +247,7 @@ const Library: React.FC = () => {
           <section className="user-library-section mt-16 border-t-2 border-amber-200 pt-10 pb-8 bg-gradient-to-b from-amber-50/30 to-transparent rounded-t-xl">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-900 to-amber-700 bg-clip-text text-transparent">
+                <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-900 to-amber-700 bg-clip-text text-transparent" style={{ fontFamily: "'Source Sans 3', sans-serif" }}>
                   {isAuthenticated ? "Your Cloud Library" : "Your Current Library"}
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">Your personal collection of ebooks</p>

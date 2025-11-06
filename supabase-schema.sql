@@ -992,6 +992,8 @@ DECLARE
   v_subscription_minutes_used NUMERIC := 0;
   v_subscription_minutes_to_add NUMERIC := 0;
   v_needs_reset BOOLEAN;
+  v_subscription_id UUID;
+  v_has_active_subscription BOOLEAN := FALSE;
 BEGIN
   -- Validate inputs
   IF p_seconds IS NULL OR p_seconds <= 0 THEN
@@ -1021,14 +1023,48 @@ BEGIN
     COALESCE(prepaid_minutes, 0),
     COALESCE(subscription_minutes_used, 0),
     COALESCE(tts_minutes_used, 0),
-    COALESCE(tts_minutes_limit, 0)
+    COALESCE(tts_minutes_limit, 0),
+    p.subscription_id
   INTO 
     v_prepaid_minutes,
     v_subscription_seconds_used,
     v_seconds_used,
-    v_minutes_limit
-  FROM profiles
-  WHERE id = v_user_id;
+    v_minutes_limit,
+    v_subscription_id
+  FROM profiles p
+  WHERE p.id = v_user_id;
+  
+  -- Defensive check: If user has active subscription but limit is 0, try to fix it
+  IF v_subscription_id IS NOT NULL THEN
+    -- Check if user has an active subscription
+    SELECT EXISTS(
+      SELECT 1 FROM subscriptions s
+      WHERE s.id = v_subscription_id
+        AND s.status IN ('active', 'trial')
+    ) INTO v_has_active_subscription;
+    
+    -- If limit is 0 but user has active subscription, try to get limit from product
+    IF v_minutes_limit = 0 AND v_has_active_subscription THEN
+      SELECT COALESCE(p.tts_minutes_included, 0)
+      INTO v_minutes_limit
+      FROM subscriptions s
+      JOIN products p ON p.gateway_product_id = s.plan_id
+      WHERE s.id = v_subscription_id
+        AND s.status IN ('active', 'trial')
+      LIMIT 1;
+      
+      -- If we found a valid limit, update the profile
+      IF v_minutes_limit > 0 THEN
+        UPDATE profiles
+        SET tts_minutes_limit = v_minutes_limit
+        WHERE id = v_user_id;
+        
+        RAISE WARNING 'Fixed tts_minutes_limit for user %: was 0, now %', v_user_id, v_minutes_limit;
+      ELSE
+        RAISE WARNING 'User % has active subscription but tts_minutes_limit is 0 and product not found', v_user_id;
+      END IF;
+    END IF;
+  END IF;
 
   -- Convert prepaid to seconds for consumption
   v_prepaid_seconds := v_prepaid_minutes * 60;

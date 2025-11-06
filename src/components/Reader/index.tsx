@@ -427,6 +427,7 @@ const Reader: React.FC = () => {
           showNavigationArrows={showNavigationArrows}
           showPrevArrow={showPrevArrow}
           showNextArrow={showNextArrow}
+          fontSize={fontSize}
           contentRef={readerMainRef}
         />
         

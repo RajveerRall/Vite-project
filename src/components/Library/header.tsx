@@ -207,13 +207,21 @@ const Header: React.FC = () => {
                   <div className="flex items-center gap-x-2 text-sm text-gray-700">
                     <span className="font-medium">
                       {usageLimit ? (
-                        // Use subscription_minutes_used from usageLimit, display with limit + prepaid
-                        `${usageLimit.minutes_used}/${usageLimit.minutes_limit + (usageLimit.prepaid_minutes || 0)} min`
+                        // Show remaining minutes converted to hours (e.g., "4.3 hrs")
+                        usageLimit.minutes_remaining !== null && usageLimit.minutes_remaining > 0
+                          ? `${(usageLimit.minutes_remaining / 60).toFixed(1)} hrs`
+                          : '0 hrs'
                       ) : subscriptionInfo?.profile ? (
-                        // Fallback: show usage from subscriptionInfo if usageLimit not loaded yet
-                        `${subscriptionInfo.profile.subscription_minutes_used 
-                          ? Math.ceil(subscriptionInfo.profile.subscription_minutes_used / 60)
-                          : Math.ceil((subscriptionInfo.profile.tts_minutes_used || 0) / 60)}/${(subscriptionInfo.profile.tts_minutes_limit || 0) + (subscriptionInfo.profile.prepaid_minutes || 0)} min`
+                        // Fallback: calculate from profile data
+                        (() => {
+                          const subscriptionLimit = subscriptionInfo.profile.tts_minutes_limit || 0;
+                          const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used 
+                            ? Math.ceil(subscriptionInfo.profile.subscription_minutes_used / 60)
+                            : Math.ceil((subscriptionInfo.profile.tts_minutes_used || 0) / 60);
+                          const prepaidMinutes = subscriptionInfo.profile.prepaid_minutes || 0;
+                          const remaining = Math.max(0, (subscriptionLimit - subscriptionUsed) + prepaidMinutes);
+                          return remaining > 0 ? `${(remaining / 60).toFixed(1)} hrs` : '0 hrs';
+                        })()
                       ) : subscriptionLoading ? (
                         'Loading...'
                       ) : (
@@ -425,11 +433,21 @@ const Header: React.FC = () => {
                   <div className="flex items-center gap-x-2">
                     <span className="text-sm font-medium text-gray-700">
                       {usageLimit ? (
-                        `${usageLimit.minutes_used}/${usageLimit.minutes_limit + (usageLimit.prepaid_minutes || 0)} min`
+                        // Show remaining minutes converted to hours (e.g., "4.3 hrs")
+                        usageLimit.minutes_remaining !== null && usageLimit.minutes_remaining > 0
+                          ? `${(usageLimit.minutes_remaining / 60).toFixed(1)} hrs`
+                          : '0 hrs'
                       ) : subscriptionInfo?.profile ? (
-                        `${subscriptionInfo.profile.subscription_minutes_used 
-                          ? Math.ceil(subscriptionInfo.profile.subscription_minutes_used / 60)
-                          : Math.ceil((subscriptionInfo.profile.tts_minutes_used || 0) / 60)}/${(subscriptionInfo.profile.tts_minutes_limit || 0) + (subscriptionInfo.profile.prepaid_minutes || 0)} min`
+                        // Fallback: calculate from profile data
+                        (() => {
+                          const subscriptionLimit = subscriptionInfo.profile.tts_minutes_limit || 0;
+                          const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used 
+                            ? Math.ceil(subscriptionInfo.profile.subscription_minutes_used / 60)
+                            : Math.ceil((subscriptionInfo.profile.tts_minutes_used || 0) / 60);
+                          const prepaidMinutes = subscriptionInfo.profile.prepaid_minutes || 0;
+                          const remaining = Math.max(0, (subscriptionLimit - subscriptionUsed) + prepaidMinutes);
+                          return remaining > 0 ? `${(remaining / 60).toFixed(1)} hrs` : '0 hrs';
+                        })()
                       ) : subscriptionLoading ? (
                         '…'
                       ) : (

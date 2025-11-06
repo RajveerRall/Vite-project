@@ -649,39 +649,39 @@
   }
 }
 
-/* Controls component theme adaptation */
+/* Controls component theme adaptation - Amber theme to match hero section */
 .theme-light .control-button {
-  background-color: #f9fafb;
-  border-color: #e5e7eb;
-  color: #374151;
+  background-color: #92400e;
+  border-color: #92400e;
+  color: #ffffff;
 }
 
 .theme-dark .control-button {
-  background-color: #374151;
-  border-color: #4b5563;
-  color: #e2e8f0;
+  background-color: #92400e;
+  border-color: #92400e;
+  color: #ffffff;
 }
 
 .theme-sepia .control-button {
-  background-color: #faf7ed;
-  border-color: #e6d4b1;
-  color: #3c2e26;
+  background-color: #92400e;
+  border-color: #92400e;
+  color: #ffffff;
 }
 
 /* Control button hover states */
 .theme-light .control-button:hover:not(:disabled) {
-  background-color: #f3f4f6;
-  border-color: #d1d5db;
+  background-color: #78350f;
+  border-color: #78350f;
 }
 
 .theme-dark .control-button:hover:not(:disabled) {
-  background-color: #4b5563;
-  border-color: #6b7280;
+  background-color: #78350f;
+  border-color: #78350f;
 }
 
 .theme-sepia .control-button:hover:not(:disabled) {
-  background-color: #f3f0e1;
-  border-color: #d4c399;
+  background-color: #78350f;
+  border-color: #78350f;
 }
 
 /* Active control buttons (all themes keep amber) */

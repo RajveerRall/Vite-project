@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useBook } from '../../context/BookContext';
+import { useAuth } from '../../context/AuthContext';
 import { getReaderState, saveReaderState, clearReaderState } from '../../utils/readerState';
 import { trackEvent } from '../../lib/analytics';
 import Reader from './index';
@@ -15,6 +16,7 @@ const ReaderWrapper: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { isAuthenticated } = useAuth();
   
   const { 
     books, 
@@ -34,6 +36,7 @@ const ReaderWrapper: React.FC = () => {
   const [restorationMethod, setRestorationMethod] = useState<string>('');
   const restorationAttemptedRef = useRef<string | null>(null); // Track which bookId we've attempted to restore
   const booksLengthRef = useRef(books.length); // Track books.length to detect meaningful changes
+  const waitingForSyncRef = useRef<boolean>(false); // Track if we're waiting for cloud sync
 
   useEffect(() => {
     // Update books length ref
@@ -62,6 +65,15 @@ const ReaderWrapper: React.FC = () => {
       // This is especially important when user signs in and books are being downloaded from cloud
       if (isSyncingFromCloud && !isReading) {
         console.log('[ReaderWrapper] Cloud sync in progress, waiting for books to download...', { isSyncingFromCloud, bookId });
+        setLoading(true);
+        return;
+      }
+      
+      // CRITICAL: If we have a bookId but books array is empty, wait for books to load
+      // This prevents "book not found" redirect when refreshing the page
+      // Exception: default book check is handled separately below
+      if (bookId && books.length === 0 && bookId !== 'default-book-1984' && !isReading) {
+        console.log('[ReaderWrapper] Waiting for books to load before restoration...', { bookId, booksCount: books.length, isInitialLoadComplete });
         setLoading(true);
         return;
       }
@@ -104,16 +116,71 @@ const ReaderWrapper: React.FC = () => {
         const book = books.find(b => b.id === bookId);
         
         if (!book) {
+          // Enhanced debugging to see what books are actually loaded
+          const bookIds = books.map(b => ({ 
+            id: b.id, 
+            title: b.title, 
+            isDownloading: (b as any).isDownloading 
+          }));
           console.error('[ReaderWrapper] Book not found in local library:', bookId);
+          console.log('[ReaderWrapper Debug] Looking for bookId:', bookId);
+          console.log('[ReaderWrapper Debug] Available book IDs:', bookIds);
           console.log('[ReaderWrapper Debug] Books array during book not found:', books);
           console.log('[ReaderWrapper Debug] isInitialLoadComplete:', isInitialLoadComplete);
+          console.log('[ReaderWrapper Debug] isSyncingFromCloud:', isSyncingFromCloud);
           console.log('[ReaderWrapper Debug] isClosing:', isClosing);
-          // Track error for analytics
+          
+          // Check if book might be downloading (placeholder book)
+          const downloadingBook = books.find(b => (b as any).isDownloading && b.id === bookId);
+          if (downloadingBook) {
+            console.log('[ReaderWrapper] Book is still downloading, waiting for download to complete...');
+            setLoading(true);
+            // The useEffect will re-run when the book finishes downloading (books.length will change)
+            return;
+          }
+          
+          // CRITICAL FIX: If authenticated and book not found locally, wait for cloud sync
+          // The book might exist in cloud storage but hasn't been downloaded yet
+          // Cloud sync starts after isInitialLoadComplete, so we need to wait for it
+          if (isAuthenticated && !waitingForSyncRef.current) {
+            // Check if sync is in progress or about to start
+            if (isSyncingFromCloud) {
+              console.log('[ReaderWrapper] Book not found locally, but cloud sync is in progress. Waiting for sync to complete...');
+              waitingForSyncRef.current = true;
+              setLoading(true);
+              return;
+            }
+            
+            // If initial load just completed, sync might start soon - wait a bit
+            // This handles the race condition where sync starts after restoration check
+            if (isInitialLoadComplete && !isSyncingFromCloud) {
+              console.log('[ReaderWrapper] Book not found locally, but user is authenticated. Waiting briefly for cloud sync to potentially start...');
+              waitingForSyncRef.current = true;
+              setLoading(true);
+              // Give sync a chance to start (it starts right after isInitialLoadComplete)
+              // The useEffect will re-run when sync starts (isSyncingFromCloud becomes true)
+              // or when books update after sync completes
+              setTimeout(() => {
+                waitingForSyncRef.current = false; // Reset after timeout to allow retry
+              }, 3000); // Wait up to 3 seconds for sync to start
+              return;
+            }
+          }
+          
+          // Track error for analytics (before resetting flag)
+          const wasWaitingForSync = waitingForSyncRef.current;
           trackEvent('reader_restoration_error', {
             method: 'url',
             error: 'book_not_found',
-            book_id: bookId
+            book_id: bookId,
+            available_book_ids: bookIds.map(b => b.id),
+            books_count: books.length,
+            is_authenticated: isAuthenticated,
+            was_waiting_for_sync: wasWaitingForSync
           });
+          
+          // Reset waiting flag if we're giving up
+          waitingForSyncRef.current = false;
           // Clear any stale saved state and redirect with toast
           try { clearReaderState(); } catch {}
           addToast('Unable to open book: This book is not in your library yet. Please sync or try again.', 'error');
@@ -239,15 +306,24 @@ const ReaderWrapper: React.FC = () => {
     if (books.length > 0 || bookContextLoading === false || (isReading && currentBook?.id === bookId)) {
       restoreReaderState();
     }
-  }, [bookId, books.length, location.search, isClosing, isInitialLoadComplete, isReading, currentBook?.id, bookContextLoading, isSyncingFromCloud]); // Optimized dependencies
+  }, [bookId, books.length, location.search, isClosing, isInitialLoadComplete, isReading, currentBook?.id, bookContextLoading, isSyncingFromCloud, isAuthenticated]); // Optimized dependencies
   
   // Reset restoration ref when navigating to a different book
   useEffect(() => {
     if (restorationAttemptedRef.current !== bookId) {
       console.log('[ReaderWrapper] BookId changed, resetting restoration flag');
       restorationAttemptedRef.current = null;
+      waitingForSyncRef.current = false; // Also reset sync waiting flag
     }
   }, [bookId]);
+  
+  // Reset sync waiting flag when sync completes and books are updated
+  useEffect(() => {
+    if (!isSyncingFromCloud && waitingForSyncRef.current) {
+      console.log('[ReaderWrapper] Cloud sync completed, resetting sync waiting flag');
+      waitingForSyncRef.current = false;
+    }
+  }, [isSyncingFromCloud, books.length]);
 
   // Show loading while BookContext is loading books
   if (bookContextLoading) {

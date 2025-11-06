@@ -375,7 +375,7 @@
   /* === APPLY YOUR DESIRED GLOBAL/DESKTOP STYLES HERE === */
   font-family: "Your Desired Font", sans-serif; /* e.g., Arial, Verdana */
   line-height: 1.8; /* e.g., your preferred line height */
-  font-size: 16px; /* e.g., your preferred base font size */
+  font-size: 16px; /* Default fallback - will be overridden by inline style */
   
   max-width: 800px;
   width: 100%;
@@ -411,7 +411,7 @@
   text-align: justify;
   font-family: "Your Desired Font", sans-serif !important; /* Add !important */
   line-height: 1.8 !important; /* Add !important & your desired value */
-  font-size: 16px !important; /* Add !important & your desired value, if you set one */
+  /* font-size removed - inherits from parent .epub-content inline style */
 }
 
 
@@ -435,6 +435,13 @@
   display: block;
   margin-left: auto;
   margin-right: auto;
+  /* Prevent layout shift during image load/reload */
+  object-fit: contain;
+  /* Smooth transition for opacity changes */
+  transition: opacity 0.2s ease;
+  /* Ensure images maintain their space even when loading */
+  min-width: 0;
+  min-height: 0;
 }
 
 /* Search highlighting */

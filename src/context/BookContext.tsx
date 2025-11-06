@@ -14,6 +14,7 @@ import { getDOMParser } from './book/domParser';
 import { processHtmlContent, extractTextFromHtml, cleanEpubContent, deepCleanEpubContent } from '../utils/textExtraction';
 import { BookData, TOCItem } from '@/types/books'; // Ensure BookData includes all necessary fields like lastChapter
 import { useAuth } from "./AuthContext";
+import { imageBlobUrlCache, imageDimensionsCache } from '../utils/imageCache';
 // import { supabase, uploadFile, deleteFile, getFileUrl, type BookRecord } from '../lib/supabase'; // Switch to dynamic import
 // import { generateUUID } from '../lib/utils'; // Phase 2: No longer needed directly (handled by hooks)
 import { registerAdapter, getAdapterForFile } from './book/formats';
@@ -535,10 +536,22 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
               try {
                 const imageBlob = await zipToUse.file(epubSrc)?.async('blob');
                 if (imageBlob) {
-                  img.src = URL.createObjectURL(imageBlob);
+                  const blobUrl = URL.createObjectURL(imageBlob);
+                  img.src = blobUrl;
+                  
+                  // Cache blob URL and dimensions for future use
+                  imageBlobUrlCache.set(epubSrc, blobUrl);
+                  
                   // Fade in the image smoothly once it loads
                   img.onload = () => {
                     img.style.opacity = '1';
+                    // Cache dimensions when image loads
+                    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                      imageDimensionsCache.set(epubSrc, {
+                        width: img.naturalWidth,
+                        height: img.naturalHeight
+                      });
+                    }
                   };
                   img.onerror = () => {
                     console.warn(`Image failed to load from blob URL: ${epubSrc}`);

@@ -358,6 +358,70 @@ async function handleSubscriptionUpdated(eventData) {
       return { success: false, error: 'Subscription not found' };
     }
     
+    // Get product to refresh tts_minutes_limit (similar to handleSubscriptionCreated)
+    let productId = subscription.product_id || subscription.product?.id;
+    
+    // If product_id not in event, get it from subscription record
+    if (!productId) {
+      const { data: existingSub } = await supabase
+        .from('subscriptions')
+        .select('plan_id')
+        .eq('payment_gateway_subscription_id', subscriptionId)
+        .single();
+      
+      if (existingSub) {
+        productId = existingSub.plan_id;
+      }
+    }
+    
+    let ttsMinutesIncluded = 0;
+    
+    if (productId) {
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('tts_minutes_included')
+        .eq('gateway_product_id', productId)
+        .single();
+      
+      if (productError || !product) {
+        console.warn('[Webhook] Product not found for subscription update:', {
+          productId,
+          error: productError?.message,
+        });
+      } else {
+        ttsMinutesIncluded = product.tts_minutes_included || 0;
+        console.log(`[Webhook] Found product minutes limit: ${ttsMinutesIncluded}`);
+      }
+    }
+    
+    // Update profile with subscription_id and tts_minutes_limit (if we have it)
+    const profileUpdateData = {
+      subscription_id: subscriptionRecord.id,
+      updated_at: new Date().toISOString()
+    };
+    
+    // Only update tts_minutes_limit if we successfully fetched it and subscription is active
+    if (ttsMinutesIncluded > 0 && (mappedStatus === 'active' || mappedStatus === 'trial')) {
+      profileUpdateData.tts_minutes_limit = ttsMinutesIncluded;
+    } else if (mappedStatus === 'cancelled' || mappedStatus === 'inactive') {
+      // Reset limit to 0 if subscription is cancelled/inactive
+      profileUpdateData.tts_minutes_limit = 0;
+    }
+    
+    const { error: profileUpdateError } = await supabase
+      .from('profiles')
+      .update(profileUpdateData)
+      .eq('id', subscriptionRecord.user_id);
+    
+    if (profileUpdateError) {
+      console.error('[Webhook] Error updating profile:', {
+        error: profileUpdateError.message,
+        userId: subscriptionRecord.user_id,
+      });
+    } else {
+      console.log(`[Webhook] Updated profile ${subscriptionRecord.user_id} with limit: ${ttsMinutesIncluded}`);
+    }
+    
     // If subscription period changed, reset usage if needed
     if (subscriptionRecord.user_id && status === 'active') {
       try {
@@ -377,6 +441,7 @@ async function handleSubscriptionUpdated(eventData) {
     console.log('[Webhook] ✅ Successfully updated subscription:', {
       subscriptionId: subscriptionRecord.id,
       status: mappedStatus,
+      ttsMinutesLimit: ttsMinutesIncluded,
     });
     
     return { success: true };

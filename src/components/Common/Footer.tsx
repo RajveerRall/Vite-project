@@ -8,8 +8,8 @@ const Footer: React.FC = () => {
       {/* Full-width background - breaks out of max-w-4xl container */}
       <div className="absolute left-1/2 -translate-x-1/2 w-screen top-0 bottom-0">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Gradient overlay for readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-white/70 via-white/60 to-white/85 z-10"></div>
+          {/* Gradient overlay for readability with glassy blur effect and linear shadow */}
+          <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/50 to-gray-900/40 z-10" style={{ backdropFilter: 'blur(2px)' }}></div>
           
           {/* Book covers sprite - optimized single image */}
           <div 

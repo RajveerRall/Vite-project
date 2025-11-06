@@ -11,17 +11,41 @@
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
+  position: relative;
+  overflow: hidden;
   
-  /* Default Appearance (non-active) */
-  background-color: var(--control-button-bg, #f9fafb);
-  border: 1px solid var(--control-button-border, #e5e7eb);
-  color: var(--control-button-text, #374151);
+  /* Default Appearance (non-active) - Amber theme to match hero section */
+  background-color: var(--control-button-bg, #92400e);
+  border: 1px solid var(--control-button-border, #92400e);
+  color: var(--control-button-text, #ffffff);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1), 0 8px 12px -4px rgba(146, 64, 14, 0.3);
+}
+
+.control-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 0%, transparent 50%, rgba(0, 0, 0, 0.3) 100%);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.control-button > * {
+  position: relative;
+  z-index: 2;
 }
 
 /* --- HOVER STATE --- */
 .control-button:hover:not(:disabled) {
-  border-color: var(--control-button-hover-border, #d1d5db);
-  background-color: var(--control-button-hover-bg, #f3f4f6);
+  border-color: var(--control-button-hover-border, #78350f);
+  background-color: var(--control-button-hover-bg, #78350f);
+  box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.1), 0 10px 16px -4px rgba(146, 64, 14, 0.4);
+  transform: translateY(-1px);
+}
+
+.control-button:hover:not(:disabled)::before {
+  background: linear-gradient(to bottom, transparent 0%, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
 }
 
 /* --- DISABLED STATE --- */
@@ -38,9 +62,21 @@
   background-color: var(--control-button-active-bg, #92400e);
   border-color: var(--control-button-active-border, #92400e);
   color: var(--control-button-active-text, #f8fafc);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1), 0 8px 12px -4px rgba(146, 64, 14, 0.3);
 }
+
+.control-button.active::before {
+  background: linear-gradient(to bottom, transparent 0%, transparent 50%, rgba(0, 0, 0, 0.3) 100%);
+}
+
 .control-button.active:hover:not(:disabled) {
   background-color: var(--control-button-active-hover-bg, #78350f);
+  box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.1), 0 10px 16px -4px rgba(146, 64, 14, 0.4);
+  transform: translateY(-1px);
+}
+
+.control-button.active:hover:not(:disabled)::before {
+  background: linear-gradient(to bottom, transparent 0%, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
 }
 
 /* --- STOP BUTTON (RED THEME) --- */
@@ -48,10 +84,21 @@
   background-color: var(--control-button-stop-bg, #fef2f2);
   border-color: var(--control-button-stop-border, #fecaca);
   color: var(--control-button-stop-text, #b91c1c);
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -2px rgba(0, 0, 0, 0.05);
 }
+
+.control-button.stop-button::before {
+  background: linear-gradient(to bottom, transparent 0%, transparent 50%, rgba(0, 0, 0, 0.1) 100%);
+}
+
 .control-button.stop-button:hover:not(:disabled) {
   background-color: var(--control-button-stop-hover-bg, #fee2e2);
   border-color: var(--control-button-stop-hover-border, #fca5a5);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -2px rgba(0, 0, 0, 0.08);
+}
+
+.control-button.stop-button:hover:not(:disabled)::before {
+  background: linear-gradient(to bottom, transparent 0%, transparent 50%, rgba(0, 0, 0, 0.15) 100%);
 }
 
 /* --- Page Counter --- */
@@ -62,13 +109,13 @@
   text-align: center;
 }
 
-/* Light Theme (Default) */
+/* Light Theme (Default) - Amber theme to match hero section */
 :root {
-  --control-button-bg: #f9fafb;
-  --control-button-border: #e5e7eb;
-  --control-button-text: #374151;
-  --control-button-hover-border: #d1d5db;
-  --control-button-hover-bg: #f3f4f6;
+  --control-button-bg: #92400e;
+  --control-button-border: #92400e;
+  --control-button-text: #ffffff;
+  --control-button-hover-border: #78350f;
+  --control-button-hover-bg: #78350f;
   --control-button-active-bg: #92400e;
   --control-button-active-border: #92400e;
   --control-button-active-text: #f8fafc;
@@ -81,13 +128,13 @@
   --page-info-color: #4b5563;
 }
 
-/* Dark Theme */
+/* Dark Theme - Amber theme for Read Aloud button */
 .theme-dark {
-  --control-button-bg: #374151;
-  --control-button-border: #4b5563;
-  --control-button-text: #e2e8f0;
-  --control-button-hover-border: #6b7280;
-  --control-button-hover-bg: #4b5563;
+  --control-button-bg: #92400e;
+  --control-button-border: #92400e;
+  --control-button-text: #ffffff;
+  --control-button-hover-border: #78350f;
+  --control-button-hover-bg: #78350f;
   --control-button-active-bg: #92400e;
   --control-button-active-border: #92400e;
   --control-button-active-text: #f8fafc;
@@ -100,13 +147,13 @@
   --page-info-color: #9ca3af;
 }
 
-/* Sepia Theme */
+/* Sepia Theme - Amber theme for Read Aloud button */
 .theme-sepia {
-  --control-button-bg: #faf7ed;
-  --control-button-border: #e6d4b1;
-  --control-button-text: #3c2e26;
-  --control-button-hover-border: #d4c399;
-  --control-button-hover-bg: #f3f0e1;
+  --control-button-bg: #92400e;
+  --control-button-border: #92400e;
+  --control-button-text: #ffffff;
+  --control-button-hover-border: #78350f;
+  --control-button-hover-bg: #78350f;
   --control-button-active-bg: #92400e;
   --control-button-active-border: #92400e;
   --control-button-active-text: #f8fafc;

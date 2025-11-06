@@ -68,6 +68,7 @@ export function useReaderUI({
   const [showPrevArrow, setShowPrevArrow] = useState<boolean>(false);
   const [showNextArrow, setShowNextArrow] = useState<boolean>(false);
   const arrowsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isManualShowRef = useRef<boolean>(false); // Track if arrows were manually shown via click
 
   // Progressive enhancement state
   const [isEnhanced, setIsEnhanced] = useState<boolean>(false);
@@ -109,6 +110,11 @@ export function useReaderUI({
 
   // Check if we're at the end of a chapter and show arrows accordingly
   const checkChapterEnd = useCallback(() => {
+    // Don't override manual arrow display (when user clicks to show arrows)
+    if (isManualShowRef.current) {
+      return;
+    }
+
     if (!contentRef.current || !toc || toc.length === 0 || !htmlFiles || htmlFiles.length === 0) {
       setShowNavigationArrows(false);
       setShowPrevArrow(false);
@@ -203,14 +209,42 @@ export function useReaderUI({
   // Navigation arrows handlers
   const handlePageClick = useCallback(() => {
     // Keep the old behavior for manual page clicks
-    setShowNavigationArrows(true);
+    // Mark as manually shown to prevent checkChapterEnd from overriding
+    isManualShowRef.current = true;
+    
+    // Check if there are prev/next chapters available to show appropriate arrows
+    if (toc && toc.length > 0 && htmlFiles && htmlFiles.length > 0) {
+      const currentChapter = findChapterForPage(currentPageDisplay, toc, htmlFiles);
+      if (currentChapter) {
+        const nextChapter = findNextChapter(currentChapter, toc);
+        const prevChapter = findPrevChapter(currentChapter, toc);
+        
+        setShowNavigationArrows(true);
+        setShowPrevArrow(!!prevChapter);
+        setShowNextArrow(!!nextChapter);
+      } else {
+        // If we can't find current chapter, show arrows anyway (fallback)
+        setShowNavigationArrows(true);
+        setShowPrevArrow(true);
+        setShowNextArrow(true);
+      }
+    } else {
+      // Fallback: show arrows if we don't have chapter info
+      setShowNavigationArrows(true);
+      setShowPrevArrow(true);
+      setShowNextArrow(true);
+    }
+    
     if (arrowsTimeoutRef.current) {
       clearTimeout(arrowsTimeoutRef.current);
     }
     arrowsTimeoutRef.current = setTimeout(() => {
       setShowNavigationArrows(false);
+      setShowPrevArrow(false);
+      setShowNextArrow(false);
+      isManualShowRef.current = false; // Reset flag after timeout so checkChapterEnd can control again
     }, NAVIGATION_ARROWS_TIMEOUT);
-  }, []);
+  }, [toc, htmlFiles, currentPageDisplay]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
