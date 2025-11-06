@@ -56,6 +56,61 @@ async function fetchWithRestAPI(
     
     clearTimeout(timeoutId);
     
+    // Handle 401 - try to refresh token and retry
+    if (response.status === 401) {
+      console.log('[REST API] Token expired (401), attempting refresh...');
+      try {
+        const { supabase } = await import('../../lib/supabase');
+        const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+        
+        if (sessionError || !session?.access_token) {
+          throw new Error('Failed to refresh session');
+        }
+        
+        console.log('[REST API] Token refreshed, retrying request...');
+        
+        // Retry with new token
+        const retryController = new AbortController();
+        const retryTimeoutId = setTimeout(() => {
+          retryController.abort();
+        }, timeoutMs);
+        
+        try {
+          const retryResponse = await fetch(fullUrl, {
+            method: 'GET',
+            headers: {
+              'apikey': supabaseAnonKey,
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation',
+            },
+            signal: retryController.signal,
+          });
+          
+          clearTimeout(retryTimeoutId);
+          
+          if (!retryResponse.ok) {
+            const errorText = await retryResponse.text();
+            console.error(`[REST API] Error ${retryResponse.status} after refresh for ${table}:`, errorText);
+            throw new Error(`HTTP ${retryResponse.status}: ${errorText || retryResponse.statusText}`);
+          }
+          
+          const data = await retryResponse.json();
+          console.log(`[REST API] Success after refresh for ${table}:`, Array.isArray(data) ? `${data.length} row(s)` : 'single object');
+          return Array.isArray(data) ? data : [data];
+        } catch (retryError: any) {
+          clearTimeout(retryTimeoutId);
+          if (retryError.name === 'AbortError') {
+            throw new Error(`Request timeout after ${timeoutMs}ms`);
+          }
+          throw retryError;
+        }
+      } catch (refreshError: any) {
+        console.error('[REST API] Token refresh failed:', refreshError);
+        throw new Error('Session expired. Please sign in again.');
+      }
+    }
+    
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[REST API] Error ${response.status} for ${table}:`, errorText);
@@ -81,6 +136,7 @@ export interface SubscriptionInfo {
   profile: {
     tts_minutes_limit: number;
     tts_minutes_used: number;
+    subscription_minutes_used?: number;
     last_reset_date: string | null;
     prepaid_minutes?: number;
   };
@@ -107,6 +163,7 @@ export interface UsageLimitInfo {
   has_limit: boolean;
   minutes_limit: number;
   prepaid_minutes?: number;
+  subscription_minutes_used?: number;
   minutes_used: number;
   minutes_remaining: number | null;
   limit_exceeded: boolean;
@@ -133,7 +190,7 @@ export async function fetchSubscriptionInfo(userId: string): Promise<Subscriptio
     console.log('[SubscriptionService] Fetching profile via REST API...');
     const profileDataArray = await fetchWithRestAPI(
       'profiles',
-      'tts_minutes_limit,tts_minutes_used,last_reset_date,prepaid_minutes,subscription_id',
+      'tts_minutes_limit,tts_minutes_used,subscription_minutes_used,last_reset_date,prepaid_minutes,subscription_id',
       { id: userId },
       accessToken
     );
@@ -192,6 +249,7 @@ export async function fetchSubscriptionInfo(userId: string): Promise<Subscriptio
       profile: {
         tts_minutes_limit: profileData?.tts_minutes_limit || 0,
         tts_minutes_used: profileData?.tts_minutes_used || 0,
+        subscription_minutes_used: profileData?.subscription_minutes_used || 0,
         last_reset_date: profileData?.last_reset_date || null,
         prepaid_minutes: profileData?.prepaid_minutes || 0,
       },
@@ -242,7 +300,7 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
     console.log('[SubscriptionService] Fetching profile for usage limit via REST API...');
     const profileDataArray = await fetchWithRestAPI(
       'profiles',
-      'tts_minutes_limit,tts_minutes_used,last_reset_date,prepaid_minutes,subscription_id',
+      'tts_minutes_limit,tts_minutes_used,subscription_minutes_used,last_reset_date,prepaid_minutes,subscription_id',
       { id: userId },
       accessToken
     );
@@ -272,22 +330,26 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
     
     // Calculate values
     const minutesLimit = profileData?.tts_minutes_limit || 0;
-    const secondsUsed = profileData?.tts_minutes_used || 0;
-    const minutesUsed = Math.ceil(secondsUsed / 60);
+    const subscriptionSecondsUsed = profileData?.subscription_minutes_used || 0;
+    const subscriptionMinutesUsed = Math.ceil(subscriptionSecondsUsed / 60);
     const prepaidMinutes = profileData?.prepaid_minutes || 0;
     const lastResetDate = profileData?.last_reset_date || null;
+    
+    // Calculate total minutes used from tts_minutes_used (includes both prepaid and subscription usage)
+    const totalSecondsUsed = profileData?.tts_minutes_used || 0;
+    const totalMinutesUsed = Math.ceil(totalSecondsUsed / 60);
     
     // Calculate remaining minutes (subscription remaining + prepaid)
     let minutesRemaining: number | null = null;
     if (minutesLimit > 0) {
-      const subscriptionRemaining = Math.max(0, minutesLimit - minutesUsed);
+      const subscriptionRemaining = Math.max(0, minutesLimit - subscriptionMinutesUsed);
       minutesRemaining = subscriptionRemaining + prepaidMinutes;
     } else if (prepaidMinutes > 0) {
       minutesRemaining = prepaidMinutes;
     }
     
     // Check if limit exceeded
-    const limitExceeded = minutesLimit > 0 && minutesUsed >= minutesLimit && prepaidMinutes === 0;
+    const limitExceeded = minutesLimit > 0 && subscriptionMinutesUsed >= minutesLimit && prepaidMinutes === 0;
     
     // Check if reset needed
     let needsReset = false;
@@ -303,10 +365,11 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
     }
     
     const result: UsageLimitInfo = {
-      has_limit: minutesLimit > 0,
+      has_limit: minutesLimit > 0 || prepaidMinutes > 0,
       minutes_limit: minutesLimit,
       prepaid_minutes: prepaidMinutes,
-      minutes_used: minutesUsed,
+      subscription_minutes_used: subscriptionMinutesUsed,
+      minutes_used: totalMinutesUsed, // Use total usage (prepaid + subscription) instead of just subscription
       minutes_remaining: minutesRemaining,
       limit_exceeded: limitExceeded,
       needs_reset: needsReset,

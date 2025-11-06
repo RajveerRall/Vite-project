@@ -155,20 +155,43 @@ export async function getUserSafely(timeoutMs: number = 5000): Promise<{ user: a
 }
 
 /**
- * Get access token - convenience wrapper
- * Tries localStorage first, then falls back to getSession()
+ * Get access token - tries localStorage first, then falls back to getSession()
+ * This avoids hanging on getSession() if possible
+ * Token refresh is handled by SubscriptionService when 401 errors occur
  */
 export async function getAccessToken(timeoutMs: number = 5000): Promise<string> {
+  // Try localStorage first (fast, no async call)
   const tokenFromStorage = getAccessTokenFromStorage();
   if (tokenFromStorage) {
+    console.log('[authToken] Using token from localStorage');
     return tokenFromStorage;
   }
   
-  const { session } = await getSessionSafely(timeoutMs);
-  if (!session?.access_token) {
-    throw new Error('No access token available');
-  }
+  // Fallback to getSession() with timeout if token not in localStorage
+  console.log('[authToken] Token not in localStorage, trying getSession()...');
   
-  return session.access_token;
+  try {
+    const { supabase } = await import('./supabase');
+    const sessionPromise = supabase.auth.getSession();
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`getSession() timeout after ${timeoutMs}ms`)), timeoutMs);
+    });
+    
+    const result = await Promise.race([
+      sessionPromise,
+      timeoutPromise
+    ]);
+    
+    const { data, error } = result as any;
+    if (error || !data?.session?.access_token) {
+      throw new Error('No active session. Please sign in.');
+    }
+    
+    console.log('[authToken] Got session from getSession()');
+    return data.session.access_token;
+  } catch (error: any) {
+    console.error('[authToken] Failed to get access token:', error);
+    throw new Error(`Failed to get access token: ${error?.message || 'Unknown error'}`);
+  }
 }
 

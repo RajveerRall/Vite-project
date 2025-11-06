@@ -593,7 +593,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   subscription_id UUID,
   customer_id TEXT, -- Payment gateway customer ID (e.g., Stripe customer ID)
   tts_minutes_limit INTEGER DEFAULT 0,
-  tts_minutes_used INTEGER DEFAULT 0,
+  tts_minutes_used INTEGER DEFAULT 0, -- Total usage (subscription + prepaid) in seconds
+  subscription_minutes_used INTEGER DEFAULT 0, -- Subscription usage only in seconds
   last_reset_date TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -755,7 +756,7 @@ DECLARE
   v_user_id UUID;
   v_minutes_limit INTEGER;
   v_minutes_used INTEGER;
-  v_seconds_used INTEGER;
+  v_subscription_seconds_used INTEGER;
   v_prepaid_minutes INTEGER := 0;
   v_last_reset_date TIMESTAMP WITH TIME ZONE;
   v_current_period_end TIMESTAMP WITH TIME ZONE;
@@ -775,13 +776,13 @@ BEGIN
   -- Fetch user's subscription and limit info (including prepaid)
   SELECT 
     p.tts_minutes_limit,
-    p.tts_minutes_used,
+    COALESCE(p.subscription_minutes_used, 0),
     COALESCE(p.prepaid_minutes, 0),
     p.last_reset_date,
     s.current_period_end
   INTO 
     v_minutes_limit,
-    v_seconds_used,
+    v_subscription_seconds_used,
     v_prepaid_minutes,
     v_last_reset_date,
     v_current_period_end
@@ -791,18 +792,18 @@ BEGIN
 
   -- If profile doesn't exist, create it with default limits
   IF v_minutes_limit IS NULL THEN
-    INSERT INTO profiles (id, tts_minutes_limit, tts_minutes_used, prepaid_minutes)
-    VALUES (v_user_id, 0, 0, 0)
+    INSERT INTO profiles (id, tts_minutes_limit, tts_minutes_used, subscription_minutes_used, prepaid_minutes)
+    VALUES (v_user_id, 0, 0, 0, 0)
     ON CONFLICT (id) DO NOTHING;
     
-    SELECT tts_minutes_limit, tts_minutes_used, COALESCE(prepaid_minutes, 0), last_reset_date
-    INTO v_minutes_limit, v_seconds_used, v_prepaid_minutes, v_last_reset_date
+    SELECT tts_minutes_limit, COALESCE(subscription_minutes_used, 0), COALESCE(prepaid_minutes, 0), last_reset_date
+    INTO v_minutes_limit, v_subscription_seconds_used, v_prepaid_minutes, v_last_reset_date
     FROM profiles
     WHERE id = v_user_id;
   END IF;
 
-  -- Convert seconds to minutes
-  v_minutes_used := COALESCE(v_seconds_used, 0) / 60;
+  -- Convert subscription seconds to minutes
+  v_minutes_used := COALESCE(v_subscription_seconds_used, 0) / 60;
 
   -- Check if reset is needed based on subscription period
   IF v_current_period_end IS NOT NULL AND v_last_reset_date IS NOT NULL THEN
@@ -832,6 +833,7 @@ BEGIN
     'has_limit', v_minutes_limit > 0 OR v_prepaid_minutes > 0,
     'minutes_limit', v_minutes_limit,
     'prepaid_minutes', v_prepaid_minutes,
+    'subscription_minutes_used', v_minutes_used,
     'minutes_used', v_minutes_used,
     'minutes_remaining', v_minutes_remaining,
     'limit_exceeded', v_limit_exceeded,
@@ -860,9 +862,10 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'User ID is required');
   END IF;
 
-  -- Reset usage in profiles
+  -- Reset subscription usage and total usage, but keep prepaid_minutes unchanged
   UPDATE profiles
   SET 
+    subscription_minutes_used = 0,
     tts_minutes_used = 0,
     last_reset_date = NOW(),
     updated_at = NOW()
@@ -870,10 +873,10 @@ BEGIN
 
   -- If profile doesn't exist, create it
   IF NOT FOUND THEN
-    INSERT INTO profiles (id, tts_minutes_limit, tts_minutes_used, last_reset_date)
-    VALUES (v_user_id, 0, 0, NOW())
+    INSERT INTO profiles (id, tts_minutes_limit, tts_minutes_used, subscription_minutes_used, last_reset_date)
+    VALUES (v_user_id, 0, 0, 0, NOW())
     ON CONFLICT (id) DO UPDATE
-    SET tts_minutes_used = 0, last_reset_date = NOW();
+    SET subscription_minutes_used = 0, tts_minutes_used = 0, last_reset_date = NOW();
   END IF;
 
   RETURN jsonb_build_object(
@@ -980,6 +983,7 @@ DECLARE
   v_minutes_limit INTEGER;
   v_minutes_used INTEGER;
   v_seconds_used INTEGER;
+  v_subscription_seconds_used INTEGER;
   v_prepaid_minutes INTEGER := 0;
   v_prepaid_seconds INTEGER := 0;
   v_prepaid_to_consume INTEGER := 0;
@@ -1009,15 +1013,18 @@ BEGIN
     PERFORM reset_user_tts_usage(v_user_id, 'period_reset');
     v_minutes_used := 0;
     v_seconds_used := 0;
+    v_subscription_seconds_used := 0;
   END IF;
 
-  -- Get current balances (prepaid in minutes, used in seconds)
+  -- Get current balances (prepaid in minutes, subscription used in seconds, total used in seconds)
   SELECT 
     COALESCE(prepaid_minutes, 0),
+    COALESCE(subscription_minutes_used, 0),
     COALESCE(tts_minutes_used, 0),
     COALESCE(tts_minutes_limit, 0)
   INTO 
     v_prepaid_minutes,
+    v_subscription_seconds_used,
     v_seconds_used,
     v_minutes_limit
   FROM profiles
@@ -1035,8 +1042,8 @@ BEGIN
 
   -- Check subscription limit only if prepaid exhausted
   IF v_subscription_to_consume > 0 AND v_minutes_limit > 0 THEN
-    -- Calculate subscription minutes used (excluding prepaid consumption)
-    v_subscription_minutes_used := v_seconds_used / 60.0;
+    -- Calculate subscription minutes used (from subscription_minutes_used field)
+    v_subscription_minutes_used := v_subscription_seconds_used / 60.0;
     v_subscription_minutes_to_add := v_subscription_to_consume / 60.0;
     
     IF (v_subscription_minutes_used + v_subscription_minutes_to_add) > v_minutes_limit THEN
@@ -1093,12 +1100,13 @@ BEGIN
                   updated_at = now();
   END IF;
 
-  -- Update profiles table atomically with prepaid consumption
+  -- Update profiles table atomically with prepaid consumption and subscription tracking
   IF v_event_inserted OR p_event_id IS NULL THEN
     UPDATE profiles 
     SET 
       prepaid_minutes = v_prepaid_remaining,
-      tts_minutes_used = tts_minutes_used + p_seconds,  -- Still track total in seconds for historical tracking
+      subscription_minutes_used = subscription_minutes_used + v_subscription_to_consume,  -- Only increment subscription usage
+      tts_minutes_used = tts_minutes_used + p_seconds,  -- Keep total for historical tracking
       updated_at = NOW()
     WHERE id = v_user_id;
   END IF;

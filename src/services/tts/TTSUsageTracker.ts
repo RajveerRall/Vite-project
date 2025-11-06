@@ -163,6 +163,67 @@ export class TTSUsageTracker {
         
         clearTimeout(timeoutId);
         
+        // Handle 401 - try to refresh token and retry
+        if (response.status === 401) {
+          console.log('[TTS Usage] Limit check token expired (401), attempting refresh...');
+          try {
+            const { supabase } = await import('../../lib/supabase');
+            const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+            
+            if (sessionError || !session?.access_token) {
+              console.warn('[TTS Usage] Limit check refresh failed, allowing usage');
+              return { allowed: true }; // Fail open
+            }
+            
+            console.log('[TTS Usage] Limit check token refreshed, retrying...');
+            
+            // Retry with new token
+            const retryController = new AbortController();
+            const retryTimeoutId = setTimeout(() => retryController.abort(), 5000);
+            
+            try {
+              const retryResponse = await fetch(url, {
+                method: 'POST',
+                headers: {
+                  'apikey': supabaseAnonKey,
+                  'Authorization': `Bearer ${session.access_token}`,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'return=representation',
+                },
+                body: JSON.stringify({ p_user_id: userId }),
+                signal: retryController.signal,
+              });
+              
+              clearTimeout(retryTimeoutId);
+              
+              if (!retryResponse.ok) {
+                console.warn('[TTS Usage] Limit check failed after refresh, allowing usage:', retryResponse.status);
+                return { allowed: true }; // Fail open
+              }
+              
+              const data = await retryResponse.json();
+              
+              if (data?.limit_exceeded) {
+                return {
+                  allowed: false,
+                  reason: `Usage limit exceeded. ${data.minutes_used}/${data.minutes_limit} minutes used.`,
+                };
+              }
+              
+              return { allowed: true };
+            } catch (retryError: any) {
+              clearTimeout(retryTimeoutId);
+              if (retryError.name !== 'AbortError') {
+                console.warn('[TTS Usage] Limit check retry error, allowing usage:', retryError.message);
+              }
+              return { allowed: true }; // Fail open
+            }
+          } catch (refreshError: any) {
+            console.warn('[TTS Usage] Limit check refresh error, allowing usage:', refreshError.message);
+            return { allowed: true }; // Fail open
+          }
+        }
+        
         if (!response.ok) {
           console.warn('[TTS Usage] Limit check failed, allowing usage:', response.status);
           return { allowed: true }; // Fail open
@@ -188,32 +249,6 @@ export class TTSUsageTracker {
     } catch (error) {
       console.warn('[TTS Usage] Error checking limit, allowing usage:', error);
       return { allowed: true }; // Fail open
-    }
-  }
-
-  /**
-   * Send usage event to DodoPayments (for authenticated users with customer_id)
-   */
-  private async sendToDodoPayments(
-    customerId: string,
-    minutesUsed: number,
-    source: string
-  ): Promise<void> {
-    try {
-      const { getDodoPaymentsService } = await import('../subscription/DodoPaymentsService');
-      const dodoService = getDodoPaymentsService();
-
-      if (!dodoService.isServiceEnabled()) {
-        return; // Silently skip if DodoPayments not configured
-      }
-
-      await dodoService.sendUsageEvent(customerId, minutesUsed, {
-        source,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.warn('[TTS Usage] Failed to send to DodoPayments (non-critical):', error);
-      // Don't throw - DodoPayments failure shouldn't break TTS
     }
   }
 
@@ -274,6 +309,70 @@ export class TTSUsageTracker {
         
         clearTimeout(timeoutId);
         
+        // Handle 401 - try to refresh token and retry
+        if (response.status === 401) {
+          console.log('[TTS Usage] Token expired (401), attempting refresh...');
+          try {
+            const { supabase } = await import('../../lib/supabase');
+            const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+            
+            if (sessionError || !session?.access_token) {
+              throw new Error('Failed to refresh session');
+            }
+            
+            console.log('[TTS Usage] Token refreshed, retrying request...');
+            
+            // Retry with new token
+            const retryController = new AbortController();
+            const retryTimeoutId = setTimeout(() => retryController.abort(), 10000);
+            
+            try {
+              const retryResponse = await fetch(url, {
+                method: 'POST',
+                headers: {
+                  'apikey': supabaseAnonKey,
+                  'Authorization': `Bearer ${session.access_token}`,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'return=representation',
+                },
+                body: JSON.stringify({
+                  p_user_id: userId,
+                  p_seconds: seconds,
+                  p_source: source,
+                  p_event_id: eventId,
+                }),
+                signal: retryController.signal,
+              });
+              
+              clearTimeout(retryTimeoutId);
+              
+              if (!retryResponse.ok) {
+                const errorText = await retryResponse.text();
+                console.error(`[TTS Usage] HTTP ${retryResponse.status} after refresh:`, errorText);
+                
+                if (errorText.includes('TTS_USAGE_LIMIT_EXCEEDED') || errorText.includes('limit exceeded')) {
+                  const limitError = new Error(errorText);
+                  (limitError as any).code = 'TTS_USAGE_LIMIT_EXCEEDED';
+                  throw limitError;
+                }
+                throw new Error(`Failed to record usage after refresh: ${errorText}`);
+              }
+              
+              // Success after refresh
+              return;
+            } catch (retryError: any) {
+              clearTimeout(retryTimeoutId);
+              if (retryError.name === 'AbortError') {
+                throw new Error('Usage tracking request timeout after refresh');
+              }
+              throw retryError;
+            }
+          } catch (refreshError: any) {
+            console.error('[TTS Usage] Token refresh failed:', refreshError);
+            throw new Error('Session expired. Please sign in again.');
+          }
+        }
+        
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`[TTS Usage] HTTP ${response.status}:`, errorText);
@@ -285,82 +384,6 @@ export class TTSUsageTracker {
             throw limitError;
           }
           throw new Error(`Failed to record usage: ${errorText}`);
-        }
-        
-        // Success - continue with DodoPayments if needed
-        // Send to DodoPayments if customer_id exists
-        // Only bill for overage beyond included subscription minutes (prepaid already consumed)
-        try {
-          const { supabase } = await import('../../lib/supabase');
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('customer_id')
-            .eq('id', userId)
-            .single();
-
-          if (profile?.customer_id) {
-            // Get usage data AFTER increment to check for billable overage
-            // Use REST API for check_tts_usage_limit as well
-            const checkUrl = `${supabaseUrl}/rest/v1/rpc/check_tts_usage_limit`;
-            const checkController = new AbortController();
-            const checkTimeoutId = setTimeout(() => checkController.abort(), 5000);
-            
-            try {
-              const checkResponse = await fetch(checkUrl, {
-                method: 'POST',
-                headers: {
-                  'apikey': supabaseAnonKey,
-                  'Authorization': `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json',
-                  'Prefer': 'return=representation',
-                },
-                body: JSON.stringify({ p_user_id: userId }),
-                signal: checkController.signal,
-              });
-              
-              clearTimeout(checkTimeoutId);
-              
-              if (checkResponse.ok) {
-                const usageData = await checkResponse.json();
-
-                if (usageData && usageData.minutes_limit > 0) {
-                  // Calculate billable minutes: only subscription usage that exceeds the included limit
-                  // Prepaid was already consumed first by increment_tts_usage, so we only check subscription overage
-                  const subscriptionUsage = usageData.minutes_used || 0;
-                  const includedMinutes = usageData.minutes_limit || 0;
-                  const newMinutes = seconds / 60;
-                  
-                  // Calculate what portion of this usage event is billable
-                  // If subscription usage now exceeds included, bill the overage portion
-                  const previousUsage = subscriptionUsage - newMinutes;
-                  const previousOverage = Math.max(0, previousUsage - includedMinutes);
-                  const currentOverage = Math.max(0, subscriptionUsage - includedMinutes);
-                  const billableIncrement = Math.max(0, currentOverage - previousOverage);
-                  
-                  // Only send to DodoPayments if there's billable overage from this increment
-                  if (billableIncrement > 0) {
-                    this.sendToDodoPayments(profile.customer_id, billableIncrement, source).catch((err) => {
-                      console.warn('[TTS Usage] DodoPayments send failed (non-critical):', err);
-                    });
-                  }
-                  // If no billable increment, usage is covered by prepaid/included, no billing needed
-                } else {
-                  // No limit or can't get usage data: fallback - send all minutes
-                  // DodoPayments should handle included minutes on their side for subscriptions
-                  const minutesUsed = seconds / 60;
-                  this.sendToDodoPayments(profile.customer_id, minutesUsed, source).catch((err) => {
-                    console.warn('[TTS Usage] DodoPayments send failed (non-critical):', err);
-                  });
-                }
-              }
-            } catch (checkError) {
-              // Ignore usage check errors for DodoPayments - non-critical
-              console.warn('[TTS Usage] Failed to check usage for DodoPayments:', checkError);
-            }
-          }
-        } catch (dodoError) {
-          // Ignore DodoPayments errors - non-critical
-          console.warn('[TTS Usage] Failed to send to DodoPayments:', dodoError);
         }
         
       } catch (fetchError: any) {

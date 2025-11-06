@@ -48,7 +48,11 @@ export const UsageStatsCard: React.FC<UsageStatsCardProps> = ({
   }
 
   const subscriptionMinutes = subscriptionInfo?.product?.tts_minutes_included || 0;
-  const subscriptionMinutesUsed = Math.ceil((subscriptionInfo?.profile?.tts_minutes_used || 0) / 60);
+  // Use subscription_minutes_used from usageLimit if available, otherwise fallback to profile data
+  const subscriptionMinutesUsed = usageLimit?.subscription_minutes_used ?? 
+    (subscriptionInfo?.profile?.subscription_minutes_used 
+      ? Math.ceil(subscriptionInfo.profile.subscription_minutes_used / 60)
+      : Math.ceil((subscriptionInfo?.profile?.tts_minutes_used || 0) / 60)); // Fallback to old calculation
   const subscriptionMinutesRemaining = Math.max(
     0,
     subscriptionMinutes - subscriptionMinutesUsed

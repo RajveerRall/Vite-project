@@ -13,8 +13,9 @@ export const useReadingProgress = (contentRef: RefObject<HTMLElement>, currentPa
     const element = contentRef.current;
     if (!element) return;
     
-    // Find the actual scrollable element (epub-content or reader-main)
-    const scrollableElement = element.querySelector('.epub-content') as HTMLElement || element;
+    // Use the element directly since scrolling is now handled by .reader-main
+    // .epub-content is no longer scrollable (overflow: visible)
+    const scrollableElement = element; // element is already .reader-main
     
     const handleScroll = throttle(() => {
       const scrollTop = scrollableElement.scrollTop;

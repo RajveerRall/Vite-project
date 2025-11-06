@@ -76,7 +76,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from "../../context/AuthContext";
 import { AuthForm } from "../Auth/AuthForm";
-import { useTTSUsage } from "../../hooks/useTTSUsage";
 import { useFullCastUsage } from "../../hooks/useFullCastUsage";
 import { useAnonymousUsageLimit } from "../../hooks/useAnonymousUsageLimit";
 import { useSubscription } from "../../context/SubscriptionContext";
@@ -88,10 +87,17 @@ const Header: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showAccountDrawer, setShowAccountDrawer] = useState(false);
-  const { usedMinutes, totalMinutes, loading: usageLoading, refresh } = useTTSUsage();
   const { usedMinutes: fcUsed, totalMinutes: fcTotal, loading: fcLoading, refresh: fcRefresh } = useFullCastUsage();
   const anonymousLimit = useAnonymousUsageLimit();
-  const { isSubscribed, minutesRemaining, usageLimit, subscriptionInfo } = useSubscription();
+  const { 
+    isSubscribed, 
+    minutesRemaining, 
+    usageLimit, 
+    subscriptionInfo,
+    loading: subscriptionLoading,
+    refreshUsageLimit,
+    refreshSubscription
+  } = useSubscription();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const accountDrawerRef = useRef<HTMLDivElement>(null);
@@ -201,25 +207,30 @@ const Header: React.FC = () => {
                   <div className="flex items-center gap-x-2 text-sm text-gray-700">
                     <span className="font-medium">
                       {usageLimit ? (
-                        `${Math.ceil((subscriptionInfo?.profile?.tts_minutes_used || 0) / 60)}/${usageLimit.minutes_limit + (usageLimit.prepaid_minutes || 0)} min`
+                        // Use subscription_minutes_used from usageLimit, display with limit + prepaid
+                        `${usageLimit.minutes_used}/${usageLimit.minutes_limit + (usageLimit.prepaid_minutes || 0)} min`
                       ) : subscriptionInfo?.profile ? (
                         // Fallback: show usage from subscriptionInfo if usageLimit not loaded yet
-                        `${Math.ceil((subscriptionInfo.profile.tts_minutes_used || 0) / 60)}/${(subscriptionInfo.profile.tts_minutes_limit || 0) + (subscriptionInfo.profile.prepaid_minutes || 0)} min`
-                      ) : usageLoading ? (
-                        'Usage: …'
-                      ) : totalMinutes > 0 ? (
-                        `Usage: ${usedMinutes ?? 0}/${totalMinutes} min`
+                        `${subscriptionInfo.profile.subscription_minutes_used 
+                          ? Math.ceil(subscriptionInfo.profile.subscription_minutes_used / 60)
+                          : Math.ceil((subscriptionInfo.profile.tts_minutes_used || 0) / 60)}/${(subscriptionInfo.profile.tts_minutes_limit || 0) + (subscriptionInfo.profile.prepaid_minutes || 0)} min`
+                      ) : subscriptionLoading ? (
+                        'Loading...'
                       ) : (
-                        `Usage: ${usedMinutes ?? 0} min`
+                        'No data'
                       )}
                     </span>
                     <button 
-                      onClick={() => refresh()}
+                      onClick={() => {
+                        // Refresh SubscriptionContext which both header and account page use
+                        refreshUsageLimit();
+                        refreshSubscription();
+                      }}
                       className="text-gray-500 hover:text-gray-700 transition-colors"
                       title="Refresh usage data"
-                      disabled={usageLoading}
+                      disabled={subscriptionLoading}
                     >
-                      <RefreshCw className={`h-4 w-4 ${usageLoading ? 'animate-spin' : ''}`} />
+                      <RefreshCw className={`h-4 w-4 ${subscriptionLoading ? 'animate-spin' : ''}`} />
                     </button>
                   </div>
                 )}
@@ -413,18 +424,29 @@ const Header: React.FC = () => {
                   <span className="text-sm font-medium text-gray-700">TTS Usage</span>
                   <div className="flex items-center gap-x-2">
                     <span className="text-sm font-medium text-gray-700">
-                      {usageLoading ? '…' : `${usedMinutes ?? 0}/${totalMinutes} min`}
+                      {usageLimit ? (
+                        `${usageLimit.minutes_used}/${usageLimit.minutes_limit + (usageLimit.prepaid_minutes || 0)} min`
+                      ) : subscriptionInfo?.profile ? (
+                        `${subscriptionInfo.profile.subscription_minutes_used 
+                          ? Math.ceil(subscriptionInfo.profile.subscription_minutes_used / 60)
+                          : Math.ceil((subscriptionInfo.profile.tts_minutes_used || 0) / 60)}/${(subscriptionInfo.profile.tts_minutes_limit || 0) + (subscriptionInfo.profile.prepaid_minutes || 0)} min`
+                      ) : subscriptionLoading ? (
+                        '…'
+                      ) : (
+                        'No data'
+                      )}
                     </span>
                     <button 
                       onClick={() => {
-                        refresh();
+                        refreshUsageLimit();
+                        refreshSubscription();
                         setShowMobileMenu(false);
                       }}
                       className="text-gray-500 hover:text-gray-700 transition-colors"
                       title="Refresh usage data"
-                      disabled={usageLoading}
+                      disabled={subscriptionLoading}
                     >
-                      <RefreshCw className="h-4 w-4" />
+                      <RefreshCw className={`h-4 w-4 ${subscriptionLoading ? 'animate-spin' : ''}`} />
                     </button>
                   </div>
                 </div>

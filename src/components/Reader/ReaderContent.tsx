@@ -15,6 +15,8 @@ export interface ReaderContentProps {
   
   // UI state
   showNavigationArrows: boolean;
+  showPrevArrow?: boolean;
+  showNextArrow?: boolean;
   
   // Refs
   contentRef: React.RefObject<HTMLDivElement>;
@@ -30,6 +32,8 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   onPageClick,
   onChapterNavigation,
   showNavigationArrows,
+  showPrevArrow = false,
+  showNextArrow = false,
   contentRef,
 }) => {
   return (
@@ -47,23 +51,27 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 
       {showNavigationArrows && (
         <>
-          <button
-            onClick={() => onChapterNavigation('prev')}
-            className="chapter-nav-arrow chapter-nav-arrow-left"
-            aria-label="Previous chapter"
-            title="Previous chapter"
-          >
-            <ChevronLeft className="w-8 h-8" />
-          </button>
+          {showPrevArrow && (
+            <button
+              onClick={() => onChapterNavigation('prev')}
+              className="chapter-nav-arrow chapter-nav-arrow-left"
+              aria-label="Previous chapter"
+              title="Previous chapter"
+            >
+              <ChevronLeft className="w-8 h-8" />
+            </button>
+          )}
 
-          <button
-            onClick={() => onChapterNavigation('next')}
-            className="chapter-nav-arrow chapter-nav-arrow-right"
-            aria-label="Next chapter"
-            title="Next chapter"
-          >
-            <ChevronRight className="w-8 h-8" />
-          </button>
+          {showNextArrow && (
+            <button
+              onClick={() => onChapterNavigation('next')}
+              className="chapter-nav-arrow chapter-nav-arrow-right"
+              aria-label="Next chapter"
+              title="Next chapter"
+            >
+              <ChevronRight className="w-8 h-8" />
+            </button>
+          )}
         </>
       )}
     </div>

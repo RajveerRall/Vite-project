@@ -21,7 +21,7 @@ import { SubscriptionModal } from '../../components/Subscription/SubscriptionMod
 import { User, Calendar, Mail } from 'lucide-react';
 
 export const AccountPage: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, authInitialized } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -32,19 +32,22 @@ export const AccountPage: React.FC = () => {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/');
+    // Only run this logic after the auth state has been confirmed
+    if (authInitialized) {
+      if (!isAuthenticated) {
+        navigate('/'); // Redirect if not logged in
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [authInitialized, isAuthenticated, navigate]);
 
   useEffect(() => {
-    if (isAuthenticated && user?.id) {
+    // Fetch data only after auth is initialized and user is authenticated
+    if (authInitialized && isAuthenticated && user?.id) {
       const fetchData = async () => {
         setLoading(true);
         setError(null);
         try {
           console.log('[AccountPage] Starting data fetch...');
-          console.log('[AccountPage] Skipping session check - token will be read from storage');
           
           // Fetch subscription info (token is retrieved inside the service)
           console.log('[AccountPage] Fetching subscription info...');
@@ -70,10 +73,8 @@ export const AccountPage: React.FC = () => {
         }
       };
       fetchData();
-    } else if (!isAuthenticated) {
-      setLoading(false);
     }
-  }, [isAuthenticated, user?.id, navigate]);
+  }, [authInitialized, isAuthenticated, user?.id]);
 
   // Handle subscription success redirect from DodoPayments
   useEffect(() => {
@@ -111,10 +112,37 @@ export const AccountPage: React.FC = () => {
     }
   }, [searchParams, setSearchParams, user?.id]);
 
-  if (!isAuthenticated || !user) {
+  // Listen for usage updates to refresh data automatically
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+
+    const handleUsageUpdate = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && !detail.isAnonymous) {
+        // Refresh data when usage is tracked
+        console.log('[AccountPage] Usage updated, refreshing data...');
+        setTimeout(async () => {
+          try {
+            const subInfo = await fetchSubscriptionInfo(user.id);
+            setSubscriptionInfo(subInfo);
+            const usageInfo = await fetchUsageLimit(user.id);
+            setUsageLimit(usageInfo);
+          } catch (err) {
+            console.error('[AccountPage] Failed to refresh after usage update:', err);
+          }
+        }, 500);
+      }
+    };
+
+    window.addEventListener('tts-usage-updated', handleUsageUpdate);
+    return () => window.removeEventListener('tts-usage-updated', handleUsageUpdate);
+  }, [isAuthenticated, user?.id]);
+
+  // Show loading state while auth is being initialized
+  if (!authInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Redirecting to sign in...</div>
+        <div className="text-lg text-gray-600 animate-pulse">Initializing Session...</div>
       </div>
     );
   }

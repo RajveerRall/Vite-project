@@ -15,6 +15,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
+  authInitialized: boolean; // Track if auth state has been determined
   checkExistingSession: () => Promise<void>; // For session checks only
   resetSignOutState: () => void; // Reset the explicit sign out flag
   hasExplicitlySignedOut: boolean; // Track if user explicitly signed out
@@ -296,54 +297,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     isSigningOutRef.current = true;
     
-    // ============================================================================
-    // INSTANT LOGOUT: Clear local state and reload immediately
-    // No waiting for Supabase or IndexedDB cleanup - user sees instant logout
-    // ============================================================================
-    console.log('[AuthContext] Starting instant sign out...');
+    console.log('[AuthContext] Starting sign out...');
     
-    // CRITICAL: Set flag in localStorage BEFORE page reload
+    // CRITICAL: Set flag in localStorage BEFORE signing out
     localStorage.setItem(SIGN_OUT_FLAG_KEY, 'true');
     setHasExplicitlySignedOut(true);
     
     // IMMEDIATE: Clear local auth state (no waiting)
     setUser(null);
     setAuthInitialized(false);
-    setLoading(false); // Clear loading state immediately
+    setLoading(false);
     
-    console.log('[AuthContext] Local state cleared, reloading page instantly...');
-    
-    // IMMEDIATE: Reload page - user sees instant logout
-    // Background cleanup will be attempted but won't block the reload
-    window.location.reload();
-    
-    // ============================================================================
-    // BACKGROUND CLEANUP: Fire-and-forget (doesn't block logout)
-    // These will be interrupted by reload, but that's fine - cleanup is optional
-    // ============================================================================
-    // Note: This code may not execute due to immediate reload, but that's intentional
-    // The page reload will clear Supabase session state automatically
-    (async () => {
-      try {
-        const { supabase } = await import('../lib/supabase');
-        
-        // Attempt Supabase sign-out (fire-and-forget, don't wait)
-        supabase.auth.signOut().catch((error) => {
-          console.warn('[AuthContext] Background Supabase signOut failed (non-critical):', error);
-        });
-        
-        // Attempt book cleanup (fire-and-forget, don't wait)
-        clearBooksOnSignOut().catch((error) => {
-          console.warn('[AuthContext] Background book cleanup failed (non-critical):', error);
-        });
-      } catch (error) {
-        // Ignore errors - page is reloading anyway
-        console.warn('[AuthContext] Background cleanup error (non-critical):', error);
+    try {
+      // IMPORTANT: Sign out from Supabase BEFORE reloading
+      // This ensures the session is cleared before page reload
+      const { supabase } = await import('../lib/supabase');
+      const { error: signOutError } = await supabase.auth.signOut();
+      
+      if (signOutError) {
+        console.error('[AuthContext] Supabase signOut error:', signOutError);
+        // Continue with logout even if Supabase signOut fails
+      } else {
+        console.log('[AuthContext] Successfully signed out from Supabase');
       }
-    })();
-    
-    // Reset guard (may not execute due to reload, but safe to have)
-    isSigningOutRef.current = false;
+      
+      // Attempt book cleanup (fire-and-forget, don't wait)
+      clearBooksOnSignOut().catch((error) => {
+        console.warn('[AuthContext] Background book cleanup failed (non-critical):', error);
+      });
+      
+      // Now reload after Supabase session is cleared
+      console.log('[AuthContext] Session cleared, reloading page...');
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('[AuthContext] Error during sign out:', error);
+      // Still reload even if there's an error - flag is set so user stays logged out
+      window.location.reload();
+    } finally {
+      // Reset guard (may not execute due to reload, but safe to have)
+      isSigningOutRef.current = false;
+    }
   };
 
   // *** REMOVED: Auto-initialization on mount to prevent auto-sign-in ***
@@ -353,8 +347,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Subscribe to Supabase auth state changes so UI stays in sync (Google, email, etc.)
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
+    
     (async () => {
       try {
+        // First, get initial session to determine auth state immediately
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+
+        // Check if user explicitly signed out before processing session
+        const explicitlySignedOut = localStorage.getItem(SIGN_OUT_FLAG_KEY) === 'true';
+        if (explicitlySignedOut && initialSession?.user) {
+          // User explicitly signed out - clear the session
+          console.log('[AuthContext] Explicit sign-out detected, clearing session...');
+          await supabase.auth.signOut();
+          setUser(null);
+          setAuthInitialized(true);
+          return; // Exit early - don't process session
+        }
+
+        if (initialSession?.user) {
+          setUser(initialSession.user);
+        }
+        // Mark as initialized after initial check
+        setAuthInitialized(true);
+        
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
           // Wrap entire callback in try-catch to prevent crashes
           try {
@@ -432,11 +447,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // This prevents the entire app from crashing if something goes wrong
             console.error('[AuthContext] Error in onAuthStateChange callback:', error);
             // Don't throw - keep the app running even if auth state change fails
+            setAuthInitialized(true); // Still mark as initialized even on error
           }
         });
         unsubscribe = () => subscription.unsubscribe();
       } catch (error) {
         console.error('[AuthContext] Failed to subscribe to auth state changes:', error);
+        setAuthInitialized(true); // Mark as initialized even if subscription fails
       }
     })();
     return () => {
@@ -462,6 +479,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signInWithGoogle,
     signOut,
     isAuthenticated: !!user,
+    authInitialized, // Expose authInitialized state
     checkExistingSession, // Expose this for manual session checks
     resetSignOutState, // Expose this for resetting sign out state
     hasExplicitlySignedOut, // Expose this for BookContext to check

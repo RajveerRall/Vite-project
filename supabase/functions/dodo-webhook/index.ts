@@ -638,25 +638,60 @@ async function handlePaymentEvent(eventData: any, supabase: any) {
 
   // Handle prepaid balance update (only for prepaid purchases, not subscription renewals)
   if (isPrepaid && !isSubscriptionRenewal && minutesAmount > 0) {
+    console.log(`[Webhook] Attempting to update prepaid balance:`, {
+      profileId,
+      minutesAmount,
+      currentBalance: 'fetching...'
+    });
+    
+    // Validate profileId before proceeding
+    if (!profileId) {
+      console.error(`[Webhook] Cannot update prepaid_minutes - profileId is null/undefined`);
+      throw new Error(`Profile ID is required for prepaid balance update`);
+    }
+    
     // Get current prepaid balance
-    const { data: currentProfile } = await supabase
+    const { data: currentProfile, error: fetchError } = await supabase
       .from('profiles')
       .select('prepaid_minutes')
       .eq('id', profileId)
       .single()
 
-    const newBalance = (currentProfile?.prepaid_minutes || 0) + minutesAmount
+    if (fetchError) {
+      console.error(`[Webhook] Failed to fetch current profile for prepaid update:`, fetchError);
+      throw fetchError; // Re-throw to fail the webhook so it retries
+    }
+
+    if (!currentProfile) {
+      console.error(`[Webhook] Profile not found for prepaid update:`, profileId);
+      throw new Error(`Profile not found: ${profileId}`);
+    }
+
+    const currentBalance = currentProfile?.prepaid_minutes || 0;
+    const newBalance = currentBalance + minutesAmount;
+
+    console.log(`[Webhook] Updating prepaid balance:`, {
+      profileId,
+      currentBalance,
+      minutesAmount,
+      newBalance
+    });
 
     // Update prepaid_minutes
-    await supabase
+    const { error: updateError } = await supabase
       .from('profiles')
       .update({
         prepaid_minutes: newBalance,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', profileId)
+      .eq('id', profileId);
 
-    console.log(`[Webhook] Updated prepaid balance: +${minutesAmount} minutes (new balance: ${newBalance})`)
+    if (updateError) {
+      console.error(`[Webhook] Failed to update prepaid_minutes:`, updateError);
+      throw updateError; // Re-throw to fail the webhook so it retries
+    }
+
+    console.log(`[Webhook] ✅ Successfully updated prepaid balance: +${minutesAmount} minutes (new balance: ${newBalance})`);
   } else if (isPrepaid && !isSubscriptionRenewal && minutesAmount === 0) {
     console.warn(`[Webhook] Prepaid purchase detected but minutesAmount is 0. Product: ${eventData.product_id}, Metadata:`, eventData.metadata)
   }

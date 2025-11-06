@@ -144,7 +144,7 @@
   flex: 1;
   display: flex;
   overflow: hidden;
-  position: relative;
+  position: relative; /* Needed for absolute positioning of indicators */
   background-color: transparent; /* Remove grey background */
   max-width: 100vw; /* Prevent horizontal overflow */
 }
@@ -170,14 +170,11 @@
   /* Ensure content fills available space */
   justify-content: flex-start;
   
-  /* Hide scrollbar but keep scrolling functionality */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* Internet Explorer 10+ */
-}
-
-/* Hide scrollbar for WebKit browsers (Chrome, Safari, Edge) */
-.reader-main::-webkit-scrollbar {
-  display: none;
+  /* Scrollbar will be visible on this container */
+  
+  /* Mobile smooth scrolling */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain; /* Prevent pull-to-refresh on mobile */
 }
 
 /* Bottom Controls Styling */
@@ -365,10 +362,12 @@
 
 
 .epub-content {
-  flex: 1;
-  overflow-y: auto;
+  /* Remove flex: 1 to allow natural height expansion */
+  /* Remove overflow-y: auto - parent container handles scrolling */
+  overflow: visible; /* Explicitly prevent scrolling on this element */
+  overflow-y: visible; /* Ensure vertical overflow is visible */
   padding: 2rem;
-  background-color: #fff;
+  background-color: var(--reader-content-bg, #FAF8F0);
   margin: 1rem;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -383,15 +382,12 @@
   
   /* Ensure proper spacing without excessive height */
   min-height: auto; /* Remove fixed height constraint */
-  
-  /* Hide scrollbar but keep scrolling functionality */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* Internet Explorer 10+ */
 }
 
-/* Hide scrollbar for WebKit browsers (Chrome, Safari, Edge) */
-.epub-content::-webkit-scrollbar {
-  display: none;
+/* Ensure no scrollbar on epub-content even if global styles apply */
+.reader .epub-content {
+  overflow: visible;
+  overflow-y: visible;
 }
 
 /* .epub-content h1, 
@@ -510,6 +506,7 @@
     max-width: 100%; /* Ensure content doesn't overflow on mobile */
     word-wrap: break-word; /* Prevent long words from causing overflow */
     overflow-x: hidden; /* Prevent horizontal scrolling */
+    overflow-y: visible; /* Ensure vertical overflow is visible - parent handles scrolling */
   }
   
   /* Mobile adjustments for short content */

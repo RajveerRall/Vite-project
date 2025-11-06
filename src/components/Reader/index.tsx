@@ -13,6 +13,7 @@ import { useReaderSettings } from '../../hooks/useReaderSettings';
 import { useReaderTTS } from '../../hooks/useReaderTTS';
 import { useReadingProgress } from '../../hooks/useReadingProgress';
 import { useAutoScroll } from '../../hooks/useAutoScroll';
+import { useAutoScrollToNextPage } from '../../hooks/useAutoScrollToNextPage';
 // Phase 1: Import new hooks
 import { useFullCast, useReaderNavigation, useReaderUI, useMobileDetection } from '../../hooks/reader';
 // Phase 3: Import extracted components
@@ -44,6 +45,7 @@ const Reader: React.FC = () => {
     isPageLoading,
     currentChapterTitle,
     totalPages,
+    htmlFiles,
   } = useBook();
   
   // Ref for reading progress tracking
@@ -76,7 +78,13 @@ const Reader: React.FC = () => {
     return () => window.removeEventListener('tts-limit-exceeded', handleLimitExceeded);
   }, [refreshUsageLimit]);
   
-  const uiState = useReaderUI(currentBook);
+  const uiState = useReaderUI({
+    currentBook,
+    toc,
+    currentPageDisplay,
+    htmlFiles,
+    contentRef: readerMainRef,
+  });
   const {
     isVideoModalOpen,
     selectedTextForVideo,
@@ -85,6 +93,8 @@ const Reader: React.FC = () => {
     showFeatureHighlight,
     closeFeatureHighlight,
     showNavigationArrows,
+    showPrevArrow,
+    showNextArrow,
     handlePageClick,
     isEnhanced,
   } = uiState;
@@ -343,6 +353,26 @@ const Reader: React.FC = () => {
     handleCloseBook: handleCloseBookCB,
     handleChapterNavigation,
   } = navigation;
+  
+  // Detect if current book is PDF for auto-scroll feature
+  const isPdfBook = React.useMemo(() => {
+    if (!currentBook?.file) return false;
+    const fileName = currentBook.file.name.toLowerCase();
+    const fileType = currentBook.file.type.toLowerCase();
+    return fileName.endsWith('.pdf') || fileType === 'application/pdf';
+  }, [currentBook]);
+  
+  // Auto-scroll to next/previous page when reaching bottom/top (for PDFs and similar formats)
+  useAutoScrollToNextPage({
+    enabled: isPdfBook, // Enable for PDFs
+    contentRef: readerMainRef,
+    currentPage: currentPageDisplay,
+    totalPages: totalPages,
+    nextPage: handleNextPage,
+    prevPage: handlePrevPage,
+    isPageLoading: isPageLoading,
+    threshold: 20, // Trigger when within 20px of bottom/top
+  });
 
   const handleCreateVideo = useCallback(() => {
     const selection = window.getSelection();
@@ -391,12 +421,15 @@ const Reader: React.FC = () => {
 
         <ReaderContent
           content={currentContent}
-          highlightedContent={ttsHighlightedContent}
+          highlightedContent={isPdfBook ? undefined : ttsHighlightedContent}
           onPageClick={handlePageClick}
           onChapterNavigation={handleChapterNavigation}
           showNavigationArrows={showNavigationArrows}
+          showPrevArrow={showPrevArrow}
+          showNextArrow={showNextArrow}
           contentRef={readerMainRef}
         />
+        
       {isPlayModeVisible && (
         useKokoroTTS ? (
           <SimplePlayMode currentPageContent={currentPageText} onClose={togglePlayMode} />
