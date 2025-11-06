@@ -25,8 +25,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     price: 0.99,
     currency: 'usd',
     type: 'one-time',
-    dodoProductId: 'pdt_5M8Lxkn2sPl8QFLdvcQWM',
-    checkoutUrl: 'https://test.checkout.dodopayments.com/buy/pdt_5M8Lxkn2sPl8QFLdvcQWM?quantity=1',
+    dodoProductId: 'pdt_DPzwTqAAvyzaIjITvPdS7',
+    checkoutUrl: 'https://test.checkout.dodopayments.com/buy/pdt_DPzwTqAAvyzaIjITvPdS7?quantity=1',
     description: 'Get 8 hours of premium TTS experience. Read at your pace and pay for only what you use. Minutes never expire and can be used anytime.',
   },
   {
@@ -36,8 +36,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     price: 5.00,
     currency: 'usd',
     type: 'subscription',
-    dodoProductId: 'pdt_c782nCjrKrVYEVe26983x',
-    checkoutUrl: 'https://test.checkout.dodopayments.com/buy/pdt_c782nCjrKrVYEVe26983x?quantity=1',
+    dodoProductId: 'pdt_8iMQz734nklbq88QlyCBm',
+    checkoutUrl: 'https://test.checkout.dodopayments.com/buy/pdt_8iMQz734nklbq88QlyCBm?quantity=1',
     description: '50 hours of premium text-to-speech narration every month for $5. Enjoy high-quality AI voices, seamless playback, and all premium features. Best for daily readers who want reliable access to narrated books.',
   },
 ] as const;

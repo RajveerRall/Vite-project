@@ -354,14 +354,14 @@ async function handleCheckout(supabase: any, user: any, body: any, req: Request)
     // Detect if this is a one-time pack purchase
     // Product ID to minutes mapping (from subscription-plans config)
     const PRODUCT_MINUTES_MAP: Record<string, number> = {
-      'pdt_5M8Lxkn2sPl8QFLdvcQWM': 480, // 8 hours one-time pack ($0.99)
-      'pdt_c782nCjrKrVYEVe26983x': 3000, // 50 hours monthly subscription ($5.00) - for reference
+      'pdt_DPzwTqAAvyzaIjITvPdS7': 480, // 8 hours one-time pack ($0.99)
+      'pdt_8iMQz734nklbq88QlyCBm': 3000, // 50 hours monthly subscription ($5.00) - for reference
     }
 
     const firstProductId = product_cart[0]?.product_id
     const isOneTimePack = firstProductId && 
                           PRODUCT_MINUTES_MAP[firstProductId] && 
-                          firstProductId !== 'pdt_c782nCjrKrVYEVe26983x' // Exclude subscription product
+                          firstProductId !== 'pdt_8iMQz734nklbq88QlyCBm' // Exclude subscription product
 
     // Prepare checkout metadata with user context and IP
     const checkoutMetadata: Record<string, any> = {
