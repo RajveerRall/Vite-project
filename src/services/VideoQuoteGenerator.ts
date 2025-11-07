@@ -538,18 +538,28 @@ export class VideoQuoteGenerator {
   }
 
   /**
-   * Get supported MIME type for video recording
+   * Get supported MIME type for video recording with audio support
    */
   private getSupportedMimeType(): string {
+    // Prioritize codecs that support audio recording
+    // Order matters: try audio-capable codecs first
     const types = [
-      'video/mp4; codecs=h264',
-      'video/webm; codecs=vp9',
-      'video/webm; codecs=vp8',
-      'video/webm'
+      'video/webm; codecs=vp9,opus',  // VP9 with Opus audio - best for WebM
+      'video/webm; codecs=vp8,opus',  // VP8 with Opus audio
+      'video/webm; codecs=vp9',       // VP9 (may support audio in some browsers)
+      'video/mp4; codecs=h264',       // H.264 (widely supported, may need AAC for audio)
+      'video/webm; codecs=vp8',       // VP8 video only - NO AUDIO SUPPORT (skip this)
+      'video/webm'                     // Generic WebM (fallback)
     ];
 
     for (const type of types) {
       if (MediaRecorder.isTypeSupported(type)) {
+        // Skip VP8 without opus - it cannot record audio tracks
+        if (type === 'video/webm; codecs=vp8' && !type.includes('opus')) {
+          console.warn(`[VideoQuoteGenerator] Skipping ${type} - does not support audio recording`);
+          continue;
+        }
+        
         console.log(`[VideoQuoteGenerator] Using MIME type: ${type}`);
         return type;
       }
