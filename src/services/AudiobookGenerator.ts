@@ -158,7 +158,7 @@ export class AudiobookGenerator {
         currentAction: `Generating audio for: ${chapter.title}`
       });
       
-      const audioBlob = await this.generateChapterAudio(chapter, options);
+      const audioBlob = await this.generateChapterAudio(chapter, options, onProgress);
       const duration = await this.getAudioDuration(audioBlob);
       
       onProgress?.(100);
@@ -428,7 +428,11 @@ export class AudiobookGenerator {
     }
     
     console.log(`[AudiobookGenerator] Successfully extracted ${chapters.length} chapters`);
-    return chapters;
+    
+    // Remove common prefixes from chapters
+    const cleanedChapters = this.removeCommonPrefixes(chapters);
+    
+    return cleanedChapters;
     
     } catch (error) {
       console.error('[AudiobookGenerator] Error extracting chapters from EPUB:', error);
@@ -436,6 +440,57 @@ export class AudiobookGenerator {
     }
   }
   
+  /**
+   * Remove common prefixes that appear at the start of multiple chapters
+   * Uses the same logic as useEpubExtraction hook - character-by-character comparison with majority rule
+   */
+  private removeCommonPrefixes(chapters: Chapter[]): Chapter[] {
+    if (chapters.length < 2) return chapters;
+    
+    const minLength = Math.min(...chapters.map(ch => ch.content.length));
+    
+    // Debug: log first few characters of each chapter
+    console.log('[AudiobookGenerator] First 50 chars of first 5 chapters:');
+    for (let i = 0; i < Math.min(5, chapters.length); i++) {
+      const preview = chapters[i].content.substring(0, 50).replace(/\n/g, '\\n');
+      console.log(`  Chapter ${i + 1}: "${preview}..."`);
+    }
+    
+    // Find the longest exact character-by-character match that appears in MOST chapters
+    // Use "majority rule": if 70% of chapters match, consider it common
+    const majorityThreshold = Math.ceil(chapters.length * 0.7);
+    let commonPrefixLength = 0;
+    
+    for (let i = 0; i < minLength; i++) {
+      const char = chapters[0].content[i];
+      const matchesCount = chapters.filter(ch => ch.content[i] === char).length;
+      
+      if (matchesCount >= majorityThreshold) {
+        commonPrefixLength = i + 1;
+      } else {
+        break;
+      }
+    }
+    
+    console.log(`[AudiobookGenerator] Found common prefix of ${commonPrefixLength} characters (appears in majority of chapters)`);
+    
+    // If no common prefix found, return unchanged
+    if (commonPrefixLength === 0) {
+      console.log('[AudiobookGenerator] No common prefix found');
+      return chapters;
+    }
+    
+    // Remove the exact common prefix from all chapters
+    const removedPrefix = chapters[0].content.substring(0, commonPrefixLength);
+    console.log(`[AudiobookGenerator] Removing ${commonPrefixLength} character prefix from ALL chapters:`);
+    console.log(`[AudiobookGenerator] "${removedPrefix}"`);
+    
+    return chapters.map(chapter => ({
+      ...chapter,
+      content: chapter.content.substring(commonPrefixLength).trim()
+    }));
+  }
+
   /**
    * Get more accurate duration estimate based on TTS settings
    */
@@ -464,7 +519,7 @@ export class AudiobookGenerator {
   /**
    * Generate audio for a single chapter using Kokoro TTS
    */
-  private async generateChapterAudio(chapter: Chapter, options: AudiobookOptions): Promise<Blob> {
+  private async generateChapterAudio(chapter: Chapter, options: AudiobookOptions, onProgress?: (progress: number) => void): Promise<Blob> {
     console.log(`[AudiobookGenerator] Generating audio for chapter: ${chapter.title}`);
     
     // Use KokoroTTSService directly - same as the working offline TTS
@@ -472,13 +527,26 @@ export class AudiobookGenerator {
     
     try {
       // Initialize with the selected voice
+      // Model loading takes 0-30% of overall progress
       await captureService.initialize((progress) => {
-        console.log(`[AudiobookGenerator] Kokoro initialization progress: ${progress}%`);
+        const overallProgress = Math.round((progress / 100) * 30);
+        console.log(`[AudiobookGenerator] Kokoro initialization progress: ${overallProgress}%`);
+        onProgress?.(overallProgress);
       }, options.voice);
       
       // Use the new generateAudioStream method to capture audio
+      // Chunk generation takes 30-100% of overall progress
       console.log(`[AudiobookGenerator] Generating audio stream for chapter: ${chapter.title}`);
-      const audioBlob = await captureService.generateAudioStream(chapter.content, options.voice);
+      const audioBlob = await captureService.generateAudioStream(
+        chapter.content, 
+        options.voice,
+        (chunkProgress) => {
+          // Map chunk progress (0-100%) to overall progress (30-100%)
+          const overallProgress = 30 + Math.round((chunkProgress / 100) * 70);
+          console.log(`[AudiobookGenerator] Audio generation progress: ${overallProgress}% (chunk: ${chunkProgress}%)`);
+          onProgress?.(overallProgress);
+        }
+      );
       
       console.log(`[AudiobookGenerator] Successfully generated audio: ${audioBlob.size} bytes`);
       return audioBlob;

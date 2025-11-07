@@ -494,10 +494,17 @@ async function handlePaymentEvent(eventData: any, supabase: any) {
 
   const isSubscriptionRenewal = !!eventData.subscription_id
   
+  // Extract product_id from multiple possible locations
+  // DodoPayments may send product_id in different places depending on event type
+  const productId = eventData.product_id || 
+                    eventData.metadata?.product_id || 
+                    metadata.product_id ||
+                    null
+  
   // Product ID to minutes mapping (fallback if metadata doesn't have minutes)
   const PRODUCT_MINUTES_MAP: Record<string, number> = {
-    'pdt_5M8Lxkn2sPl8QFLdvcQWM': 480, // 8 hours one-time pack ($0.99)
-    'pdt_c782nCjrKrVYEVe26983x': 3000, // 50 hours monthly subscription ($5.00) - for reference
+    'pdt_DPzwTqAAvyzaIjITvPdS7': 480, // 8 hours one-time pack ($0.99) - NEW ID
+    'pdt_8iMQz734nklbq88QlyCBm': 3000, // 50 hours monthly subscription ($5.00) - NEW ID
   }
   
   // Detect prepaid purchases: check metadata first, then fallback to no subscription_id
@@ -508,7 +515,9 @@ async function handlePaymentEvent(eventData: any, supabase: any) {
   console.log('[Webhook] Payment analysis:', {
     isSubscriptionRenewal,
     isPrepaid,
-    productId: eventData.product_id,
+    productId: productId, // Use extracted productId
+    productIdFromEvent: eventData.product_id,
+    productIdFromMetadata: eventData.metadata?.product_id || metadata.product_id,
     metadataType: metadata.type,
     productType: metadata.product_type,
     metadataMinutes: metadata.minutes,
@@ -518,11 +527,11 @@ async function handlePaymentEvent(eventData: any, supabase: any) {
   let planName = null
   let productMinutes = 0
   
-  if (eventData.product_id) {
+  if (productId) { // Use extracted productId instead of eventData.product_id
     const { data: product } = await supabase
       .from('products')
       .select('name, tts_minutes_included')
-      .eq('gateway_product_id', eventData.product_id)
+      .eq('gateway_product_id', productId)
       .single()
     
     if (product) {
@@ -535,7 +544,7 @@ async function handlePaymentEvent(eventData: any, supabase: any) {
         const dodoBaseUrl = Deno.env.get('DODO_BASE_URL') || 'https://test.dodopayments.com'
         
         if (dodoApiKey) {
-          const productResponse = await fetch(`${dodoBaseUrl}/products/${eventData.product_id}`, {
+          const productResponse = await fetch(`${dodoBaseUrl}/products/${productId}`, {
             headers: {
               'Authorization': `Bearer ${dodoApiKey}`,
               'Content-Type': 'application/json',
@@ -558,7 +567,7 @@ async function handlePaymentEvent(eventData: any, supabase: any) {
             await supabase
               .from('products')
               .upsert({
-                gateway_product_id: eventData.product_id,
+                gateway_product_id: productId, // Use extracted productId
                 name: planName || 'Unknown Product',
                 description: productData.description || null,
                 tts_minutes_included: productMinutes,
@@ -596,7 +605,7 @@ async function handlePaymentEvent(eventData: any, supabase: any) {
                    metadata.minutes_amount || 
                    metadata.quantity || 
                    productMinutes ||
-                   PRODUCT_MINUTES_MAP[eventData.product_id] || // Fallback to hardcoded map
+                   (productId ? PRODUCT_MINUTES_MAP[productId] : 0) || // Use extracted productId
                    0
     
     console.log('[Webhook] Prepaid minutes calculation:', {
@@ -605,8 +614,8 @@ async function handlePaymentEvent(eventData: any, supabase: any) {
       metadataMinutesAmount: metadata.minutes_amount,
       metadataQuantity: metadata.quantity,
       productMinutes,
-      productId: eventData.product_id,
-      mapMinutes: PRODUCT_MINUTES_MAP[eventData.product_id],
+      productId: productId, // Use extracted productId
+      mapMinutes: productId ? PRODUCT_MINUTES_MAP[productId] : null,
       finalMinutes: minutesAmount,
     })
   } else if (isSubscriptionRenewal) {
@@ -620,7 +629,7 @@ async function handlePaymentEvent(eventData: any, supabase: any) {
     transaction_type: transactionType,
     minutes_amount: minutesAmount,
     payment_id: paymentId,
-    product_id: eventData.product_id,
+    product_id: productId, // Use extracted productId instead of eventData.product_id
     metadata: {
       amount: eventData.total_amount || eventData.amount || 0,
       currency: eventData.currency || 'USD',
@@ -693,7 +702,7 @@ async function handlePaymentEvent(eventData: any, supabase: any) {
 
     console.log(`[Webhook] ✅ Successfully updated prepaid balance: +${minutesAmount} minutes (new balance: ${newBalance})`);
   } else if (isPrepaid && !isSubscriptionRenewal && minutesAmount === 0) {
-    console.warn(`[Webhook] Prepaid purchase detected but minutesAmount is 0. Product: ${eventData.product_id}, Metadata:`, eventData.metadata)
+    console.warn(`[Webhook] Prepaid purchase detected but minutesAmount is 0. Product: ${productId}, Metadata:`, eventData.metadata)
   }
 }
 

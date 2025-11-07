@@ -32,6 +32,37 @@ const EpubToAudiobook: React.FC = () => {
       }
     }
   };
+
+  // Extract the first meaningful line from chapter content
+  const getFirstLinePreview = (content: string, maxLength: number = 120): string => {
+    if (!content || content.trim().length === 0) {
+      return 'No content available';
+    }
+
+    // Split by newlines and find first non-empty line
+    const lines = content.split(/\r?\n/);
+    let firstLine = '';
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.length > 0) {
+        firstLine = trimmed;
+        break;
+      }
+    }
+
+    // If no line found, use the content itself (might be single line)
+    if (!firstLine) {
+      firstLine = content.trim();
+    }
+
+    // Truncate if too long
+    if (firstLine.length > maxLength) {
+      return firstLine.substring(0, maxLength).trim() + '...';
+    }
+
+    return firstLine;
+  };
   
   // Use the new audiobook generation hook
   const { 
@@ -303,11 +334,14 @@ const EpubToAudiobook: React.FC = () => {
                       <div key={chapter.index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                         <div className="flex-1">
                           <h4 className="font-medium text-gray-900 text-sm">
-                            {chapter.title}
+                            {index + 1}
                           </h4>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {chapter.content.length} characters • ~{formatDuration(chapter.estimatedDuration)} estimated
-                        </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {getFirstLinePreview(chapter.content)}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {chapter.content.length} characters • ~{formatDuration(chapter.estimatedDuration)} estimated
+                          </p>
                           {hasError && (
                             <p className="text-xs text-red-600 mt-1">
                               Error: {hasError}

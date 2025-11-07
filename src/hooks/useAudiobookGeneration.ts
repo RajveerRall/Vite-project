@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import { AudiobookGenerator, AudiobookOptions, AudiobookProgress, Chapter, ChapterAudio } from '../services/AudiobookGenerator';
+import { useToast } from '../context/ToastContext';
+import { playNotificationSound } from '../utils/soundNotification';
 
 export interface UseAudiobookGeneration {
   isInitializing: boolean;
@@ -24,6 +26,7 @@ export function useAudiobookGeneration(): UseAudiobookGeneration {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [chapterAudios, setChapterAudios] = useState<ChapterAudio[]>([]);
   const [generator] = useState(() => new AudiobookGenerator());
+  const { addToast } = useToast();
 
   const extractChapters = useCallback(async (epubFile: File): Promise<void> => {
     setIsInitializing(true);
@@ -103,6 +106,14 @@ export function useAudiobookGeneration(): UseAudiobookGeneration {
           : ca
       ));
 
+      // Show success toast and play notification sound
+      addToast('Chapter audio generated successfully!', 'success');
+      
+      // Play notification sound (errors are handled silently)
+      playNotificationSound().catch(err => {
+        console.warn('[useAudiobookGeneration] Failed to play notification sound:', err);
+      });
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(errorMessage);
@@ -156,7 +167,7 @@ export function useAudiobookGeneration(): UseAudiobookGeneration {
     const url = URL.createObjectURL(chapterAudio.audioBlob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${chapterAudio.title.replace(/[^a-zA-Z0-9]/g, '_')}.m4a`;
+    a.download = `${chapterAudio.title.replace(/[^a-zA-Z0-9]/g, '_')}.wav`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

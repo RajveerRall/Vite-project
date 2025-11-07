@@ -21,7 +21,6 @@ export class KokoroTTSService {
   private tts: any = null;
   private audioContext: AudioContext | null = null;
   private splitter: TextSplitterStream | null = null;
-  private stream: any = null;
   private audioQueue: AudioBuffer[] = [];
   private currentAudioSource: AudioBufferSourceNode | null = null;
   private abortController: AbortController | null = null;
@@ -36,14 +35,53 @@ export class KokoroTTSService {
   private onError: ErrorCallback | null = null;
   private onPlaybackComplete: CompletionCallback | null = null;
   
-  // Audio generation callbacks
-  private resolveAudioGeneration: ((audioBlob: Blob) => void) | null = null;
-  private rejectAudioGeneration: ((error: Error) => void) | null = null;
-  
   constructor() {
     this.audioContext = new AudioContext();
   }
   
+  /**
+   * Check if WebGPU is actually available and functional
+   */
+  private async verifyWebGPUSupport(): Promise<boolean> {
+    if (typeof navigator === 'undefined' || !('gpu' in navigator)) {
+      return false;
+    }
+    
+    try {
+      // Try to actually request a WebGPU adapter
+      const gpu = navigator.gpu as any;
+      const adapter = await gpu.requestAdapter({
+        powerPreference: 'high-performance' // Prefer dedicated GPU
+      });
+      
+      if (!adapter) {
+        console.warn('[KokoroTTSService] WebGPU adapter request returned null');
+        return false;
+      }
+      
+      // Log adapter info for debugging
+      try {
+        const info = await adapter.requestAdapterInfo?.();
+        if (info) {
+          console.log('[KokoroTTSService] WebGPU adapter info:', {
+            vendor: info.vendor,
+            architecture: info.architecture,
+            device: info.device,
+            description: info.description
+          });
+        }
+      } catch (infoError) {
+        // requestAdapterInfo might not be available in all browsers
+        console.log('[KokoroTTSService] WebGPU adapter obtained, but adapter info not available');
+      }
+      
+      return true;
+    } catch (error) {
+      console.warn('[KokoroTTSService] WebGPU adapter request failed:', error);
+      return false;
+    }
+  }
+
   /**
    * Initialize the TTS engine
    */
@@ -63,8 +101,8 @@ export class KokoroTTSService {
 
       console.log("Initializing Kokoro TTS...");
 
-      // Check for WebGPU support
-      const supportsWebGPU = 'gpu' in navigator;
+      // Check for WebGPU support with actual adapter verification
+      const supportsWebGPU = await this.verifyWebGPUSupport();
       console.log("WebGPU supported:", supportsWebGPU);
 
       // Initialize Kokoro TTS
@@ -72,19 +110,20 @@ export class KokoroTTSService {
       progressCallback(30);
 
       // Automatically choose the best device/dtype combination
+      // Use fp32 for both WebGPU and WASM to ensure voice parameter works correctly
       let device: "webgpu" | "wasm" | "cpu";
       let dtype: "fp32" | "fp16" | "q8" | "q4" | "q4f16";
-      
+
       if (supportsWebGPU) {
         device = "webgpu";
         dtype = "fp32";
-        console.log(`[KokoroTTSService] Auto-detected WebGPU support: Using WebGPU + fp32 (best quality)`);
+        console.log(`[KokoroTTSService] Auto-detected WebGPU support: Using WebGPU + fp32 (best performance)`);
       } else {
         device = "wasm";
-        dtype = "q8";
-        console.log(`[KokoroTTSService] No WebGPU support: Using WASM + q8 (compatible)`);
+        dtype = "fp32"; // Use fp32 for consistency and voice parameter support (slower but better quality)
+        console.log(`[KokoroTTSService] No WebGPU support: Using WASM + fp32 (slower but compatible)`);
       }
-      
+
       console.log(`[KokoroTTSService] Initializing with device: ${device}, dtype: ${dtype}`);
       
       this.tts = await KokoroTTS.from_pretrained(model_id, {
@@ -105,6 +144,51 @@ export class KokoroTTSService {
       });
 
       console.log("Kokoro TTS model loaded successfully");
+      
+      // Verify what execution provider is actually being used
+      try {
+        console.log('[KokoroTTSService] Requested device:', device);
+        console.log('[KokoroTTSService] Requested dtype:', dtype);
+        
+        // Try to access ONNX Runtime session info if available
+        if (this.tts?.model?.session) {
+          const session = this.tts.model.session;
+          console.log('[KokoroTTSService] ONNX Runtime session found');
+          
+          // Check if we can access execution providers
+          if (session?.executionProviders) {
+            console.log('[KokoroTTSService] Active execution providers:', session.executionProviders);
+          }
+          
+          // Try to get input/output names as a way to verify session is working
+          try {
+            const inputNames = session.inputNames || [];
+            const outputNames = session.outputNames || [];
+            console.log('[KokoroTTSService] Session inputs:', inputNames.length, 'outputs:', outputNames.length);
+          } catch (e) {
+            // Ignore if not accessible
+          }
+        }
+        
+        // Check if kokoro-js exposes device info
+        if (this.tts?.device !== undefined) {
+          console.log('[KokoroTTSService] Actual device in use (from TTS instance):', this.tts.device);
+        }
+        
+        // Check for any device-related properties
+        const ttsKeys = Object.keys(this.tts || {});
+        const deviceRelatedKeys = ttsKeys.filter(key => 
+          key.toLowerCase().includes('device') || 
+          key.toLowerCase().includes('gpu') ||
+          key.toLowerCase().includes('execution')
+        );
+        if (deviceRelatedKeys.length > 0) {
+          console.log('[KokoroTTSService] Device-related properties found:', deviceRelatedKeys);
+        }
+      } catch (err) {
+        console.warn('[KokoroTTSService] Could not verify execution provider:', err);
+      }
+      
       this.modelLoaded = true;
       progressCallback(100);
     } catch (error: unknown) {
@@ -164,147 +248,173 @@ export class KokoroTTSService {
   }
 
   /**
-   * Generate audio using streaming approach (same as playText but captures audio instead of playing)
+   * Generate audio using generate() method (same approach as working AudiobookGenerator)
+   * This is more reliable than streaming for file generation
    */
-  public async generateAudioStream(text: string, voice?: string): Promise<Blob> {
+  public async generateAudioStream(text: string, voice?: string, progressCallback?: (progress: number) => void): Promise<Blob> {
     if (!this.tts || !this.modelLoaded) {
       throw new Error('TTS model not loaded. Call initialize() first.');
     }
     
     try {
-      console.log(`[KokoroTTSService] Generating audio stream with voice: ${voice || this.selectedVoice}`);
+      console.log(`[KokoroTTSService] Generating audio with voice: ${voice || this.selectedVoice}`);
       
       // Store the voice if provided
       if (voice) {
         this.selectedVoice = voice;
       }
       
-      // Capture audio chunks instead of playing them
-      const audioChunks: Blob[] = [];
-      
-      // Create a new abort controller
-      this.abortController = new AbortController();
-      const signal = this.abortController.signal;
-      
-      // Create a new splitter and stream
-      const splitter = new TextSplitterStream();
-      this.splitter = splitter;
-      
-      // Set up the stream (same as playText)
-      console.log(`[KokoroTTSService] Using voice: ${this.selectedVoice}`);
-      const stream = this.tts.stream(splitter);
-      this.stream = stream;
-      
-      // Process the stream to capture audio
-      (async () => {
-        try {
-          let fullText = '';
-          
-          for await (const chunk of stream) {
-            // Check if we've been aborted
-            if (signal.aborted) break;
-            
-            // Extract text and audio from the chunk
-            const { text, audio } = chunk as TTSAudioChunk;
-            console.log("Received chunk:", { text, hasAudio: !!audio });
-            
-            // Update fullText for internal tracking
-            fullText += text;
-            
-            if (!audio) {
-              console.warn("No audio in chunk");
-              continue;
-            }
-            
-            try {
-              // Handle Kokoro's audio format and capture instead of playing
-              let audioBlob: Blob;
-              if (audio.toBlob && typeof audio.toBlob === 'function') {
-                console.log("Using toBlob method");
-                audioBlob = await audio.toBlob();
-              }
-              else if (audio.toWav && typeof audio.toWav === 'function') {
-                console.log("Using toWav method");
-                const wavData = audio.toWav();
-                audioBlob = new Blob([wavData], { type: 'audio/wav' });
-              }
-              else if (audio.audio && audio.sampling_rate) {
-                console.log("Using raw audio data");
-                // Convert raw audio to blob
-                const audioBuffer = this.createAudioBufferFromRaw(audio.audio, audio.sampling_rate);
-                const wavBlob = this.audioBufferToWav(audioBuffer);
-                audioBlob = wavBlob;
-              }
-              else {
-                console.error("Unrecognized audio format:", audio);
-                continue;
-              }
-              
-              // Store the audio chunk instead of playing it
-              audioChunks.push(audioBlob);
-              console.log(`[KokoroTTSService] Captured audio chunk: ${audioBlob.size} bytes`);
-              
-            } catch (audioError) {
-              console.error("Error processing audio chunk:", audioError);
-            }
-          }
-          
-          // Signal completion
-          if (!signal.aborted) {
-            console.log(`[KokoroTTSService] Stream processing complete. Captured ${audioChunks.length} chunks`);
-            // Combine audio chunks and resolve
-            if (audioChunks.length > 0) {
-              const combinedBlob = await this.combineAudioBlobs(audioChunks);
-              this.resolveAudioGeneration?.(combinedBlob);
-            } else {
-              this.rejectAudioGeneration?.(new Error('No audio chunks generated'));
-            }
-          }
-        } catch (error: unknown) {
-          if (!signal.aborted) {
-            console.error('Error processing TTS stream:', error);
-            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-            this.rejectAudioGeneration?.(new Error(`Error generating audio: ${errorMsg}`));
-          }
-        }
-      })();
-      
-      // Feed the text to the stream with intelligent chunking
+      // Use the same approach as AudiobookGenerator - split into chunks and generate each
       const cleanText = this.preprocessText(text);
       const chunks = this.splitTextIntoOptimalChunks(cleanText);
       
-      console.log(`Splitting text into ${chunks.length} optimal chunks`);
+      console.log(`[KokoroTTSService] Splitting text into ${chunks.length} chunks for generation`);
       
-      for (const chunk of chunks) {
-        if (signal.aborted) break;
-        splitter.push(chunk);
-        console.log(`Pushed chunk to stream (${chunk.length} chars):`, chunk.substring(0, 50) + '...');
+      const audioChunks: Blob[] = [];
+      
+      // Generate audio for each chunk sequentially using generate() method
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        console.log(`[KokoroTTSService] Generating chunk ${i + 1}/${chunks.length} (${chunk.length} chars)`);
         
-        // Add a small delay to prevent GPU overload
-        // Longer delay for larger chunks to give GPU time to process
-        const delay = Math.min(100, Math.max(20, chunk.length / 10));
-        await new Promise(resolve => setTimeout(resolve, delay));
+        try {
+          // Check if voice needs to be set on the instance first
+          const voiceToUse = voice || this.selectedVoice;
+          console.log(`[KokoroTTSService] Generating chunk ${i + 1} with voice: "${voiceToUse}"`);
+          
+          // Try setting voice on instance first (if method exists)
+          let audio;
+          if (this.tts.setVoice && typeof this.tts.setVoice === 'function') {
+            console.log(`[KokoroTTSService] setVoice() method found - setting voice on instance: "${voiceToUse}"`);
+            this.tts.setVoice(voiceToUse);
+            // Call generate without voice parameter (voice already set on instance)
+            audio = await this.tts.generate(chunk);
+            console.log(`[KokoroTTSService] Called generate() without voice parameter (voice set on instance)`);
+          } else {
+            // Use generate() method with voice parameter (standard approach)
+            console.log(`[KokoroTTSService] No setVoice() method - calling generate() with voice parameter: "${voiceToUse}"`);
+            audio = await this.tts.generate(chunk, {
+              voice: voiceToUse as any,
+            });
+          }
+          
+          // Log audio object structure for debugging
+          console.log(`[KokoroTTSService] generate() returned audio object:`, {
+            hasAudio: !!audio.audio,
+            hasSamplingRate: !!audio.sampling_rate,
+            hasToBlob: !!(audio.toBlob && typeof audio.toBlob === 'function'),
+            hasToWav: !!(audio.toWav && typeof audio.toWav === 'function'),
+            audioLength: audio.audio ? (audio.audio as Float32Array).length : 0,
+            samplingRate: audio.sampling_rate,
+            keys: Object.keys(audio)
+          });
+          
+          // Convert audio to Blob - always convert to WAV format for consistency
+          let audioBlob: Blob;
+          
+          // Prefer raw audio data to ensure we have proper WAV format
+          if (audio.audio && audio.sampling_rate) {
+            // Check if audio data has actual content (not all zeros)
+            const audioData = audio.audio as Float32Array;
+            const audioArray = Array.from(audioData);
+            const hasContent = audioArray.some((sample: number) => Math.abs(sample) > 0.001);
+            if (!hasContent) {
+              console.warn(`[KokoroTTSService] Warning: Chunk ${i + 1} appears to be silent (all zeros or near-zero)`);
+            }
+            
+            // Calculate amplitude statistics (efficient for large arrays)
+            let maxAmplitude = 0;
+            let minAmplitude = Infinity;
+            let sumAmplitude = 0;
+            for (let j = 0; j < audioArray.length; j++) {
+              const abs = Math.abs(audioArray[j] as number);
+              if (abs > maxAmplitude) maxAmplitude = abs;
+              if (abs < minAmplitude) minAmplitude = abs;
+              sumAmplitude += abs;
+            }
+            const avgAmplitude = sumAmplitude / audioArray.length;
+            
+            console.log(`[KokoroTTSService] Chunk ${i + 1} raw audio stats: min=${minAmplitude.toFixed(6)}, max=${maxAmplitude.toFixed(6)}, avg=${avgAmplitude.toFixed(6)}`);
+            
+            if (maxAmplitude < 0.001) {
+              console.warn(`[KokoroTTSService] Warning: Chunk ${i + 1} has very low amplitude (max=${maxAmplitude})`);
+            }
+            
+            // Use raw audio data - most reliable for WAV conversion
+            const audioBuffer = this.createAudioBufferFromRaw(audio.audio, audio.sampling_rate);
+            
+            // Validate buffer has content (efficient calculation)
+            const channelData = audioBuffer.getChannelData(0);
+            let bufferMaxAmplitude = 0;
+            let bufferMinAmplitude = Infinity;
+            for (let j = 0; j < channelData.length; j++) {
+              const abs = Math.abs(channelData[j]);
+              if (abs > bufferMaxAmplitude) bufferMaxAmplitude = abs;
+              if (abs < bufferMinAmplitude) bufferMinAmplitude = abs;
+            }
+            
+            console.log(`[KokoroTTSService] Chunk ${i + 1} buffer stats: min=${bufferMinAmplitude.toFixed(6)}, max=${bufferMaxAmplitude.toFixed(6)}`);
+            
+            audioBlob = this.audioBufferToWav(audioBuffer);
+            console.log(`[KokoroTTSService] Used raw audio data - ${audioBlob.size} bytes (${audioBuffer.length} samples at ${audioBuffer.sampleRate}Hz)`);
+          } else if (audio.toWav && typeof audio.toWav === 'function') {
+            // Use toWav() method if available
+            const wavData = audio.toWav();
+            audioBlob = new Blob([wavData], { type: 'audio/wav' });
+            console.log(`[KokoroTTSService] Used toWav() method - ${audioBlob.size} bytes`);
+          } else if (audio.toBlob && typeof audio.toBlob === 'function') {
+            // toBlob() might return different format, so decode and re-encode as WAV
+            const blob = await audio.toBlob();
+            console.log(`[KokoroTTSService] toBlob() returned ${blob.size} bytes, type: ${blob.type}`);
+            
+            // Decode and re-encode as WAV to ensure proper format
+            const arrayBuffer = await blob.arrayBuffer();
+            const audioContext = new AudioContext();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            audioBlob = this.audioBufferToWav(audioBuffer);
+            audioContext.close();
+            console.log(`[KokoroTTSService] Converted to WAV - ${audioBlob.size} bytes (${audioBuffer.length} samples at ${audioBuffer.sampleRate}Hz)`);
+          } else {
+            console.error('[KokoroTTSService] Audio object structure:', {
+              hasAudio: !!audio.audio,
+              hasSamplingRate: !!audio.sampling_rate,
+              hasToBlob: !!(audio.toBlob && typeof audio.toBlob === 'function'),
+              hasToWav: !!(audio.toWav && typeof audio.toWav === 'function'),
+              keys: Object.keys(audio)
+            });
+            throw new Error('Unrecognized audio format - no valid conversion method found');
+          }
+          
+          // Validate the blob has content
+          if (!audioBlob || audioBlob.size === 0) {
+            throw new Error('Generated audio blob is empty');
+          }
+          
+          audioChunks.push(audioBlob);
+          console.log(`[KokoroTTSService] Generated chunk ${i + 1}/${chunks.length}: ${audioBlob.size} bytes`);
+          
+          // Report progress: calculate percentage based on chunks completed
+          if (progressCallback) {
+            const progress = Math.round(((i + 1) / chunks.length) * 100);
+            progressCallback(progress);
+          }
+        } catch (error) {
+          console.error(`[KokoroTTSService] Error generating chunk ${i + 1}:`, error);
+          throw error;
+        }
       }
       
-      // Close the stream
-      console.log("Closing text splitter stream");
-      splitter.close();
+      // Combine all audio chunks
+      if (audioChunks.length === 0) {
+        throw new Error('No audio chunks generated');
+      }
       
-      // Wait for audio generation to complete
-      return new Promise<Blob>((resolve, reject) => {
-        this.resolveAudioGeneration = resolve;
-        this.rejectAudioGeneration = reject;
-        
-        // Set a timeout to prevent hanging
-        setTimeout(() => {
-          if (this.resolveAudioGeneration) {
-            reject(new Error('Audio generation timeout'));
-          }
-        }, 60000); // 60 second timeout
-      });
+      console.log(`[KokoroTTSService] Combining ${audioChunks.length} audio chunks`);
+      const combinedBlob = await this.combineAudioBlobs(audioChunks);
       
+      return combinedBlob;
     } catch (error: unknown) {
-      console.error('Error starting audio generation:', error);
+      console.error('Error generating audio:', error);
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to generate audio: ${errorMsg}`);
     }
@@ -336,7 +446,7 @@ export class KokoroTTSService {
       // Set up the stream (voice will be handled in generate method)
       console.log(`[KokoroTTSService] Using voice: ${this.selectedVoice}`);
       const stream = this.tts.stream(splitter);
-      this.stream = stream;
+      // Note: stream is created but not used in current implementation (using generate() instead)
       
       // // Process the stream
       // (async () => {
@@ -607,15 +717,6 @@ export class KokoroTTSService {
       this.currentAudioSource = null;
     }
     
-    // if (this.splitter) {
-    //   this.splitter.close();
-    //   this.splitter = null;
-    // }
-    
-    // this.stream = null;
-    // this.audioQueue = [];
-
-
     if (this.splitter) {
       try {
         this.splitter.close();
@@ -626,7 +727,6 @@ export class KokoroTTSService {
       this.splitter = null;
     }
     
-    this.stream = null;
     this.audioQueue = [];
   }
   
@@ -704,8 +804,11 @@ export class KokoroTTSService {
     const channelData = audioBuffer.getChannelData(0);
     let offset = 44;
     for (let i = 0; i < length; i++) {
+      // Clamp sample to [-1, 1] range
       const sample = Math.max(-1, Math.min(1, channelData[i]));
-      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      // Convert to 16-bit signed integer: multiply by 32767 and round
+      const int16Sample = Math.round(sample * 32767);
+      view.setInt16(offset, int16Sample, true);
       offset += 2;
     }
     
@@ -738,6 +841,25 @@ export class KokoroTTSService {
       for (let i = 0; i < audioBlobs.length; i++) {
         const blob = audioBlobs[i];
         const arrayBuffer = await blob.arrayBuffer();
+        
+        // Validate WAV header before decoding
+        if (arrayBuffer.byteLength >= 12) {
+          const view = new DataView(arrayBuffer);
+          const riff = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
+          const wave = String.fromCharCode(view.getUint8(8), view.getUint8(9), view.getUint8(10), view.getUint8(11));
+          
+          if (riff !== 'RIFF' || wave !== 'WAVE') {
+            console.error(`[KokoroTTSService] Invalid WAV header in chunk ${i + 1}: RIFF=${riff}, WAVE=${wave}`);
+            throw new Error(`Invalid WAV format in chunk ${i + 1}`);
+          }
+          
+          // Read sample rate from WAV header
+          if (arrayBuffer.byteLength >= 28) {
+            const wavSampleRate = view.getUint32(24, true);
+            console.log(`[KokoroTTSService] Chunk ${i + 1} WAV header sample rate: ${wavSampleRate}Hz`);
+          }
+        }
+        
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
         
         audioBuffers.push(audioBuffer);
@@ -746,9 +868,27 @@ export class KokoroTTSService {
         // Use the sample rate from the first buffer
         if (i === 0) {
           sampleRate = audioBuffer.sampleRate;
+          console.log(`[KokoroTTSService] Using sample rate: ${sampleRate}Hz for combined audio`);
         }
         
-        console.log(`[KokoroTTSService] Decoded chunk ${i + 1}: ${audioBuffer.length} samples at ${audioBuffer.sampleRate}Hz`);
+        // Validate audio has content (efficient calculation)
+        const channelData = audioBuffer.getChannelData(0);
+        let maxAmplitude = 0;
+        let minAmplitude = Infinity;
+        let sumAmplitude = 0;
+        for (let j = 0; j < channelData.length; j++) {
+          const abs = Math.abs(channelData[j]);
+          if (abs > maxAmplitude) maxAmplitude = abs;
+          if (abs < minAmplitude) minAmplitude = abs;
+          sumAmplitude += abs;
+        }
+        const avgAmplitude = sumAmplitude / channelData.length;
+        
+        console.log(`[KokoroTTSService] Decoded chunk ${i + 1}: ${audioBuffer.length} samples at ${audioBuffer.sampleRate}Hz, amplitude: min=${minAmplitude.toFixed(6)}, max=${maxAmplitude.toFixed(6)}, avg=${avgAmplitude.toFixed(6)}`);
+        
+        if (maxAmplitude < 0.001) {
+          console.warn(`[KokoroTTSService] Warning: Decoded chunk ${i + 1} has very low amplitude (max=${maxAmplitude})`);
+        }
       }
       
       // Create combined audio buffer
@@ -771,13 +911,32 @@ export class KokoroTTSService {
         console.log(`[KokoroTTSService] Copied ${buffer.length} samples to combined buffer`);
       }
       
+      // Validate combined audio has content (efficient calculation)
+      let combinedMaxAmplitude = 0;
+      let combinedMinAmplitude = Infinity;
+      let combinedSumAmplitude = 0;
+      for (let j = 0; j < combinedChannelData.length; j++) {
+        const abs = Math.abs(combinedChannelData[j]);
+        if (abs > combinedMaxAmplitude) combinedMaxAmplitude = abs;
+        if (abs < combinedMinAmplitude) combinedMinAmplitude = abs;
+        combinedSumAmplitude += abs;
+      }
+      const combinedAvgAmplitude = combinedSumAmplitude / combinedChannelData.length;
+      
+      console.log(`[KokoroTTSService] Combined audio stats: min=${combinedMinAmplitude.toFixed(6)}, max=${combinedMaxAmplitude.toFixed(6)}, avg=${combinedAvgAmplitude.toFixed(6)}`);
+      
+      if (combinedMaxAmplitude < 0.001) {
+        console.error(`[KokoroTTSService] ERROR: Combined audio is silent or has no content!`);
+        throw new Error('Combined audio has no audible content - all samples are near zero');
+      }
+      
       // Convert combined buffer to WAV blob
       const wavBlob = this.audioBufferToWav(combinedBuffer);
       
       // Close audio context
       audioContext.close();
       
-      console.log(`[KokoroTTSService] Successfully combined audio: ${wavBlob.size} bytes`);
+      console.log(`[KokoroTTSService] Successfully combined audio: ${wavBlob.size} bytes, ${totalLength} samples at ${sampleRate}Hz`);
       return wavBlob;
       
     } catch (error) {
