@@ -188,7 +188,7 @@ const Header: React.FC = () => {
                 {(!isSubscribed || (minutesRemaining !== null && minutesRemaining < 10)) && (
                   <button
                     onClick={() => setShowSubscriptionModal(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full transition-colors font-medium text-sm shadow-md"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-full transition-colors font-medium text-sm shadow-md"
                   >
                     <Sparkles className="w-4 h-4" />
                     Upgrade Now
@@ -345,7 +345,7 @@ const Header: React.FC = () => {
                 {(!isSubscribed || (minutesRemaining !== null && minutesRemaining < 10)) && (
                   <button
                     onClick={() => setShowSubscriptionModal(true)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full transition-colors font-medium text-xs shadow-md"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-800 hover:bg-amber-900 text-white rounded-full transition-colors font-medium text-xs shadow-md"
                   >
                     <Sparkles className="w-3 h-3" />
                     Upgrade
@@ -420,7 +420,7 @@ const Header: React.FC = () => {
                       setShowSubscriptionModal(true);
                       setShowMobileMenu(false);
                     }}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-colors font-medium text-sm shadow-md"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-800 hover:bg-amber-900 text-white rounded-lg transition-colors font-medium text-sm shadow-md"
                   >
                     <Sparkles className="w-4 h-4" />
                     Upgrade Plan
