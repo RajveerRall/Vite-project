@@ -239,7 +239,7 @@ def get_ffprobe_path():
 def detect_gpu_encoder():
     """
     Detect available hardware encoder.
-    Returns: 'nvenc' (NVIDIA), 'qsv' (Intel), or 'cpu' (fallback)
+    Returns: 'nvenc' (NVIDIA), 'amf' (AMD), 'qsv' (Intel), or 'cpu' (fallback)
     """
     ffmpeg = get_ffmpeg_path()
     
@@ -269,6 +269,22 @@ def detect_gpu_encoder():
                 print("⚠ NVIDIA NVENC test timed out")
             except Exception as e:
                 print(f"⚠ NVIDIA NVENC test failed: {e}")
+        
+        # Check for AMD AMF
+        if 'h264_amf' in encoders:
+            try:
+                test = subprocess.run(
+                    [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
+                     '-c:v', 'h264_amf', '-f', 'null', '-'],
+                    capture_output=True, timeout=15
+                )
+                if test.returncode == 0:
+                    print("✓ AMD AMF hardware encoder detected")
+                    return 'amf'
+            except subprocess.TimeoutExpired:
+                print("⚠ AMD AMF test timed out")
+            except Exception as e:
+                print(f"⚠ AMD AMF test failed: {e}")
         
         # Check for Intel QuickSync
         if 'h264_qsv' in encoders:
@@ -321,6 +337,14 @@ def create_video_with_ffmpeg_direct(frames_dir, audio_path, width, height, fps, 
             '-preset', 'p4',  # NVENC preset (p1=fastest, p7=slowest)
             '-cq', str(crf),  # Constant quality (similar to CRF)
             '-b:v', '0',      # Use CQ mode
+        ])
+    elif GPU_ENCODER == 'amf':
+        cmd.extend([
+            '-c:v', 'h264_amf',
+            '-quality', 'balanced',  # speed, balanced, or quality
+            '-rc', 'cqp',  # Constant quantizer parameter mode
+            '-qmin', str(crf),
+            '-qmax', str(crf),
         ])
     elif GPU_ENCODER == 'qsv':
         cmd.extend([
@@ -429,6 +453,14 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
             '-preset', 'p4',  # NVENC preset (p1=fastest, p7=slowest)
             '-cq', str(crf),  # Constant quality (similar to CRF)
             '-b:v', '0',      # Use CQ mode
+        ])
+    elif GPU_ENCODER == 'amf':
+        cmd.extend([
+            '-c:v', 'h264_amf',
+            '-quality', 'balanced',  # speed, balanced, or quality
+            '-rc', 'cqp',  # Constant quantizer parameter mode
+            '-qmin', str(crf),
+            '-qmax', str(crf),
         ])
     elif GPU_ENCODER == 'qsv':
         cmd.extend([
