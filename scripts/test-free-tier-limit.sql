@@ -208,3 +208,5 @@ LIMIT 10;
 -- - Logic to check subscription status
 -- - Logic to apply 360 minutes if no active subscription and limit is 0
 
+
+

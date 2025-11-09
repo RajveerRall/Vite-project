@@ -1251,92 +1251,97 @@ export const useReaderTTS = ({
       setHasFinishedPlayback(false);
       
       // Update highlighted content to show current chunk
+      // DEFER heavy DOM/HTML processing to avoid blocking next chunk playback
       if (currentPageText && currentChunkIndex < chunks.length) {
         const currentChunk = chunks[currentChunkIndex];
         if (currentChunk) {
-          // Extract blob URLs from actual DOM before highlighting
-          // This ensures images have blob URLs even if HTML string has about:blank
-          const contentElement = document.querySelector('.epub-content');
-          const blobUrlMap = new Map<string, string>();
-          
-          if (contentElement) {
-            const images = contentElement.querySelectorAll('img[data-epub-src]');
-            console.log(`[useReaderTTS] Extracting blob URLs from DOM: found ${images.length} images`);
-            images.forEach((imgElement) => {
-              const img = imgElement as HTMLImageElement;
-              const epubSrc = img.getAttribute('data-epub-src');
-              const src = img.getAttribute('src') || img.src;
-              if (epubSrc && src && src.startsWith('blob:')) {
-                blobUrlMap.set(epubSrc, src);
-                console.log(`[useReaderTTS] Extracted blob URL for ${epubSrc}: ${src.substring(0, 50)}...`);
-              } else {
-                console.warn(`[useReaderTTS] Image ${epubSrc} does not have blob URL, src: ${src}`);
-              }
+          // Use requestAnimationFrame to defer heavy work and let audio start first
+          // This prevents blocking the next chunk from starting immediately
+          requestAnimationFrame(() => {
+            // Extract blob URLs from actual DOM before highlighting
+            // This ensures images have blob URLs even if HTML string has about:blank
+            const contentElement = document.querySelector('.epub-content');
+            const blobUrlMap = new Map<string, string>();
+            
+            if (contentElement) {
+              const images = contentElement.querySelectorAll('img[data-epub-src]');
+              console.log(`[useReaderTTS] Extracting blob URLs from DOM: found ${images.length} images`);
+              images.forEach((imgElement) => {
+                const img = imgElement as HTMLImageElement;
+                const epubSrc = img.getAttribute('data-epub-src');
+                const src = img.getAttribute('src') || img.src;
+                if (epubSrc && src && src.startsWith('blob:')) {
+                  blobUrlMap.set(epubSrc, src);
+                  console.log(`[useReaderTTS] Extracted blob URL for ${epubSrc}: ${src.substring(0, 50)}...`);
+                } else {
+                  console.warn(`[useReaderTTS] Image ${epubSrc} does not have blob URL, src: ${src}`);
+                }
+              });
+              console.log(`[useReaderTTS] Extracted ${blobUrlMap.size} blob URLs from DOM`);
+            } else {
+              console.warn('[useReaderTTS] Content element not found for blob URL extraction');
+            }
+            
+            // Use HTML highlighting to preserve images and other HTML elements
+            // Content-based matching finds chunks directly in HTML by text content
+            // Pass blobUrlMap to ensure images have blob URLs from actual DOM
+            
+            // Debug: Check images in input HTML
+            const inputImgRegex = /<img[^>]*>/gi;
+            const inputImgMatches = currentContent.match(inputImgRegex) || [];
+            const inputImageInfo = inputImgMatches.map(img => {
+              const srcMatch = img.match(/src=["']([^"']+)["']/i);
+              const epubSrcMatch = img.match(/data-epub-src=["']([^"']+)["']/i);
+              return {
+                fullTag: img.substring(0, 150),
+                src: srcMatch ? srcMatch[1] : 'NO SRC',
+                epubSrc: epubSrcMatch ? epubSrcMatch[1] : 'NO EPUB-SRC'
+              };
             });
-            console.log(`[useReaderTTS] Extracted ${blobUrlMap.size} blob URLs from DOM`);
-          } else {
-            console.warn('[useReaderTTS] Content element not found for blob URL extraction');
-          }
-          
-          // Use HTML highlighting to preserve images and other HTML elements
-          // Content-based matching finds chunks directly in HTML by text content
-          // Pass blobUrlMap to ensure images have blob URLs from actual DOM
-          
-          // Debug: Check images in input HTML
-          const inputImgRegex = /<img[^>]*>/gi;
-          const inputImgMatches = currentContent.match(inputImgRegex) || [];
-          const inputImageInfo = inputImgMatches.map(img => {
-            const srcMatch = img.match(/src=["']([^"']+)["']/i);
-            const epubSrcMatch = img.match(/data-epub-src=["']([^"']+)["']/i);
-            return {
-              fullTag: img.substring(0, 150),
-              src: srcMatch ? srcMatch[1] : 'NO SRC',
-              epubSrc: epubSrcMatch ? epubSrcMatch[1] : 'NO EPUB-SRC'
-            };
-          });
-          console.log(`[useReaderTTS] Input HTML images (currentContent):`, {
-            count: inputImgMatches.length,
-            images: inputImageInfo
-          });
-          
-          const highlightedHtml = highlightChunkInHtml(
-            currentContent,
-            currentPageText,
-            currentChunk,
-            blobUrlMap,
-            currentChunkIndex,
-            chunks
-          );
-          
-          // Debug: Check images in output HTML
-          const outputImgRegex = /<img[^>]*>/gi;
-          const outputImgMatches = highlightedHtml.match(outputImgRegex) || [];
-          const outputImageInfo = outputImgMatches.map(img => {
-            const srcMatch = img.match(/src=["']([^"']+)["']/i);
-            const epubSrcMatch = img.match(/data-epub-src=["']([^"']+)["']/i);
-            return {
-              fullTag: img.substring(0, 150),
-              src: srcMatch ? srcMatch[1] : 'NO SRC',
-              epubSrc: epubSrcMatch ? epubSrcMatch[1] : 'NO EPUB-SRC'
-            };
-          });
-          console.log(`[useReaderTTS] Output HTML images (highlightedHtml):`, {
-            count: outputImgMatches.length,
-            images: outputImageInfo,
-            imagesRemoved: inputImgMatches.length - outputImgMatches.length
-          });
-          
-          setHighlightedContent(highlightedHtml);
-          console.log(`[DEBUG] Updated highlightedContent for chunk ${currentChunkIndex}:`, {
-            chunkIndex: currentChunkIndex,
-            chunkLength: currentChunk.length,
-            chunkPreview: currentChunk.substring(0, 50),
-            highlightedContentLength: highlightedHtml.length,
-            hasHighlightSpan: highlightedHtml.includes('<span class="tts-highlight">'),
-            hasImages: highlightedHtml.includes('<img'),
-            blobUrlsExtracted: blobUrlMap.size,
-            inputImageCount: inputImgMatches.length,
-            outputImageCount: outputImgMatches.length
+            console.log(`[useReaderTTS] Input HTML images (currentContent):`, {
+              count: inputImgMatches.length,
+              images: inputImageInfo
+            });
+            
+            const highlightedHtml = highlightChunkInHtml(
+              currentContent,
+              currentPageText,
+              currentChunk,
+              blobUrlMap,
+              currentChunkIndex,
+              chunks
+            );
+            
+            // Debug: Check images in output HTML
+            const outputImgRegex = /<img[^>]*>/gi;
+            const outputImgMatches = highlightedHtml.match(outputImgRegex) || [];
+            const outputImageInfo = outputImgMatches.map(img => {
+              const srcMatch = img.match(/src=["']([^"']+)["']/i);
+              const epubSrcMatch = img.match(/data-epub-src=["']([^"']+)["']/i);
+              return {
+                fullTag: img.substring(0, 150),
+                src: srcMatch ? srcMatch[1] : 'NO SRC',
+                epubSrc: epubSrcMatch ? epubSrcMatch[1] : 'NO EPUB-SRC'
+              };
+            });
+            console.log(`[useReaderTTS] Output HTML images (highlightedHtml):`, {
+              count: outputImgMatches.length,
+              images: outputImageInfo,
+              imagesRemoved: inputImgMatches.length - outputImgMatches.length
+            });
+            
+            setHighlightedContent(highlightedHtml);
+            console.log(`[DEBUG] Updated highlightedContent for chunk ${currentChunkIndex}:`, {
+              chunkIndex: currentChunkIndex,
+              chunkLength: currentChunk.length,
+              chunkPreview: currentChunk.substring(0, 50),
+              highlightedContentLength: highlightedHtml.length,
+              hasHighlightSpan: highlightedHtml.includes('<span class="tts-highlight">'),
+              hasImages: highlightedHtml.includes('<img'),
+              blobUrlsExtracted: blobUrlMap.size,
+              inputImageCount: inputImgMatches.length,
+              outputImageCount: outputImgMatches.length
+            });
           });
         }
       }
