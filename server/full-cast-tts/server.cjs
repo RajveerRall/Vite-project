@@ -1,8 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-// Load .env from this server directory regardless of process.cwd()
-require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+// Load .env from this server directory unless already loaded by portable-launcher
+// In pkg bundles, portable-launcher handles .env loading from executable directory
+if (!process.env.DOTENV_CONFIG_PATH && !process.pkg) {
+  require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+} else if (process.pkg && !process.env.DOTENV_CONFIG_PATH) {
+  // In pkg bundle, try to load from executable directory if not already loaded
+  const execDir = path.dirname(process.execPath);
+  const envPath = path.join(execDir, '.env');
+  const fs = require('fs');
+  if (fs.existsSync(envPath)) {
+    require('dotenv').config({ path: envPath });
+  }
+}
 
 // Prioritize vendor package (contains our JSON format updates)
 let Modular;
@@ -123,6 +134,13 @@ function previewStr(s, max = 200) {
 
 const PORT = process.env.FULL_CAST_TTS_PORT || 4001;
 
+// Helper function to normalize localhost URLs to 127.0.0.1 to avoid IPv6 resolution issues
+function normalizeLocalhostUrl(url) {
+  if (!url) return url;
+  // Replace localhost with 127.0.0.1 to force IPv4
+  return url.replace(/localhost/g, '127.0.0.1');
+}
+
 // Build API keys from env once
 const ENV_KEYS = {
   // OpenAI
@@ -132,10 +150,10 @@ const ENV_KEYS = {
   // Cartesia (disabled in this pipeline)
   cartesia: process.env.CARTESIA_API_KEY || process.env.VITE_CARTESIA_API_KEY,
   // MsEdge (self-hosted)
-  msedgeBaseUrl: process.env.MSEDGE_BASE_URL || process.env.VITE_MSEDGE_BASE_URL,
+  msedgeBaseUrl: normalizeLocalhostUrl(process.env.MSEDGE_BASE_URL || process.env.VITE_MSEDGE_BASE_URL),
   msedgeApiKey: process.env.MSEDGE_API_KEY || process.env.VITE_MSEDGE_API_KEY,
-  // Kokoro
-  kokoroApiUrl: process.env.KOKORO_API_URL || process.env.VITE_KOKORO_API_URL,
+  // Kokoro - normalize localhost to 127.0.0.1 to avoid IPv6 resolution issues
+  kokoroApiUrl: normalizeLocalhostUrl(process.env.KOKORO_API_URL || process.env.VITE_KOKORO_API_URL),
   kokoroApiKey: process.env.KOKORO_API_KEY || process.env.VITE_KOKORO_API_KEY,
 };
 

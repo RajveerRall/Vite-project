@@ -10,6 +10,7 @@ interface VideoSettings {
   style: 'ereader' | 'split';
   highlightMode: 'none' | 'sentence' | 'word';  // Changed from enableHighlight boolean
   enableSceneImages: boolean;  // NEW: Toggle for AI-generated scene images
+  useMultiVoice: boolean;  // NEW: Toggle for multi-voice casting
 }
 
 interface VideoProgress {
@@ -24,7 +25,8 @@ const EpubToVideo: React.FC = () => {
     format: 'youtube',
     style: 'ereader',
     highlightMode: 'sentence',  // Default to sentence-level
-    enableSceneImages: false  // NEW: Scene images disabled by default
+    enableSceneImages: false,  // NEW: Scene images disabled by default
+    useMultiVoice: false  // NEW: Default to single narrator
   });
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState<VideoProgress>({
@@ -197,22 +199,25 @@ const EpubToVideo: React.FC = () => {
     
     try {
       // Step 1: Generate script with Full Cast TTS
+      const isMultiVoice = settings.useMultiVoice;
       setVideoProgress({
         stage: 'parsing',
         percentage: 20,
-        message: 'Analyzing text with Full Cast...'
+        message: isMultiVoice 
+          ? 'Analyzing text with Full Cast...' 
+          : 'Preparing text with single narrator...'
       });
 
       console.log(`[Video Generation] Sending full chapter text to Full Cast (${chapter.content.length} characters)`);
+      console.log(`[Video Generation] Mode: ${isMultiVoice ? 'Multi-voice' : 'Single narrator'}`);
       console.log(`[Video Generation] About to call requestFullCast...`);
-      console.log(`[Video Generation] Full Cast URL: ${import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001'}`);
 
       let script;
       try {
         const result = await requestFullCast(chapter.content, { 
           llm: 'gemini-2.0-flash', 
-          parser: 'chatThread', 
-          useVoiceCasting: true 
+          parser: isMultiVoice ? 'chatThread' : 'singleNarrator',
+          useVoiceCasting: isMultiVoice
         });
         script = result.script;
         console.log(`[Video Generation] requestFullCast completed successfully`);
@@ -228,7 +233,14 @@ const EpubToVideo: React.FC = () => {
       console.log(`[Video Generation] Received ${script.length} script lines from Full Cast`);
 
       // Step 1.5: Start scene analysis in parallel (if enabled)
-      const FULL_CAST_TTS_URL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
+      // Use portable config if available
+      let FULL_CAST_TTS_URL = 'http://localhost:4001';
+      try {
+        const { portableConfig } = await import('../config/portable');
+        FULL_CAST_TTS_URL = portableConfig.fullCastTtsUrl;
+      } catch (e) {
+        FULL_CAST_TTS_URL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
+      }
       let sceneAnalysisPromise: Promise<any> | null = null;
 
       console.log('[Video Generation] Checking scene images setting:', {
@@ -543,7 +555,16 @@ const EpubToVideo: React.FC = () => {
         console.log(`[Video Generation] Added ${sceneImages.length} scene images to FormData`);
       }
 
-      const response = await fetch('http://localhost:8000/generate-video', {
+      // Use portable config for video generator URL
+      let videoGeneratorUrl = 'http://localhost:8000';
+      try {
+        const { portableConfig } = await import('../config/portable');
+        videoGeneratorUrl = portableConfig.videoGeneratorUrl;
+      } catch (e) {
+        videoGeneratorUrl = import.meta.env.VITE_VIDEO_GENERATOR_URL || 'http://localhost:8000';
+      }
+      
+      const response = await fetch(`${videoGeneratorUrl}/generate-video`, {
         method: 'POST',
         body: formData
       });
@@ -866,6 +887,30 @@ const EpubToVideo: React.FC = () => {
                   </label>
                   <p className="text-xs text-gray-500 mt-1">
                     Automatically adds atmospheric background images to your video
+                  </p>
+                </div>
+
+                {/* Multi-Voice Casting Toggle */}
+                <div>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={settings.useMultiVoice}
+                      onChange={(e) => {
+                        console.log('[Settings] useMultiVoice checkbox changed to:', e.target.checked);
+                        setSettings(prev => ({
+                          ...prev,
+                          useMultiVoice: e.target.checked
+                        }));
+                      }}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm text-gray-700">
+                      Multi-Voice Casting
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Enable to assign different voices to different characters. Disable for single narrator mode.
                   </p>
                 </div>
               </div>

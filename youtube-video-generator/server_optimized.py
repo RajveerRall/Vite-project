@@ -21,10 +21,21 @@ def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
-# CORS for your frontend
+# CORS configuration - allow localhost on common ports and all localhost for portable mode
+CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:5174",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5174",
+    "http://localhost:*",  # Allow any localhost port
+    "http://127.0.0.1:*",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,6 +44,15 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {"message": "Optimized YouTube Video Generator with Smart Frame Generation is running!"}
+
+@app.get("/health")
+async def health():
+    """Health check endpoint for launcher/Electron"""
+    return {
+        "status": "healthy",
+        "service": "video-generator",
+        "version": "1.0.0"
+    }
 
 @app.post("/generate-video")
 async def generate_video(
@@ -223,35 +243,49 @@ def detect_gpu_encoder():
     """
     ffmpeg = get_ffmpeg_path()
     
-    # Check for NVIDIA NVENC
+    # Check available encoders first
     try:
         result = subprocess.run(
             [ffmpeg, '-hide_banner', '-encoders'],
             capture_output=True, text=True, timeout=5
         )
+        if result.returncode != 0:
+            print("⚠ Could not list FFmpeg encoders")
+            return 'cpu'
         encoders = result.stdout
         
+        # Check for NVIDIA NVENC
         if 'h264_nvenc' in encoders:
-            # Verify NVENC actually works
-            test = subprocess.run(
-                [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
-                 '-c:v', 'h264_nvenc', '-f', 'null', '-'],
-                capture_output=True, timeout=10
-            )
-            if test.returncode == 0:
-                print("✓ NVIDIA NVENC hardware encoder detected")
-                return 'nvenc'
+            try:
+                test = subprocess.run(
+                    [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
+                     '-c:v', 'h264_nvenc', '-f', 'null', '-'],
+                    capture_output=True, timeout=15
+                )
+                if test.returncode == 0:
+                    print("✓ NVIDIA NVENC hardware encoder detected")
+                    return 'nvenc'
+            except subprocess.TimeoutExpired:
+                print("⚠ NVIDIA NVENC test timed out")
+            except Exception as e:
+                print(f"⚠ NVIDIA NVENC test failed: {e}")
         
+        # Check for Intel QuickSync
         if 'h264_qsv' in encoders:
-            # Verify QuickSync works
-            test = subprocess.run(
-                [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
-                 '-c:v', 'h264_qsv', '-f', 'null', '-'],
-                capture_output=True, timeout=10
-            )
-            if test.returncode == 0:
-                print("✓ Intel QuickSync hardware encoder detected")
-                return 'qsv'
+            try:
+                test = subprocess.run(
+                    [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
+                     '-c:v', 'h264_qsv', '-f', 'null', '-'],
+                    capture_output=True, timeout=15
+                )
+                if test.returncode == 0:
+                    print("✓ Intel QuickSync hardware encoder detected")
+                    return 'qsv'
+            except subprocess.TimeoutExpired:
+                print("⚠ Intel QuickSync test timed out")
+            except Exception as e:
+                print(f"⚠ Intel QuickSync test failed: {e}")
+                
     except Exception as e:
         print(f"GPU detection failed: {e}")
     
@@ -2909,6 +2943,28 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
 
 if __name__ == "__main__":
     import uvicorn
-    print("Starting Optimized YouTube Video Generator with Smart Frame Generation...")
-    print("API docs available at: http://localhost:8000/docs")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import argparse
+    import multiprocessing
+    
+    # Required for PyInstaller on Windows with multiprocessing
+    multiprocessing.freeze_support()
+    
+    parser = argparse.ArgumentParser(description='Video Generator Server')
+    parser.add_argument('--port', type=int, default=8000, help='Port to run the server on (default: 8000)')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
+    
+    # Use parse_known_args to ignore multiprocessing internal arguments
+    # Worker processes will have --multiprocessing-fork arguments that we ignore
+    args, unknown = parser.parse_known_args()
+    
+    # Check if we're being run as a multiprocessing worker process
+    # Worker processes should not start the server
+    is_worker = any('--multiprocessing-fork' in arg for arg in unknown)
+    
+    if not is_worker:
+        # Normal server startup (main process only)
+        print("Starting Optimized YouTube Video Generator with Smart Frame Generation...")
+        print(f"API docs available at: http://localhost:{args.port}/docs")
+        print(f"Server will listen on {args.host}:{args.port}")
+        uvicorn.run(app, host=args.host, port=args.port)
+    # Worker processes will just exit here (they're spawned by Pool.map())
