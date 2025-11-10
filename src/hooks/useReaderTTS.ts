@@ -535,29 +535,6 @@ export const useReaderTTS = ({
           ? durationsBuffer.current[index]
           : (elapsed > 0 ? elapsed : Math.round((audioRef.current as any)?.duration || 0));
         
-        // ✅ CRITICAL FIX: Make usage tracking blocking - stop playback if limit exceeded
-        try {
-          await recordUsageSeconds(seconds);
-        } catch (error: any) {
-          console.error(`[playChunk] Error recording usage seconds:`, error);
-          // Stop playback if limit exceeded
-          if (error?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
-              error?.message?.includes('limit exceeded') ||
-              error?.message?.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
-            console.warn('[TTS Usage] Limit exceeded, stopping TTS playback');
-            if (handleStopTTSRef.current) {
-              handleStopTTSRef.current();
-            }
-            addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
-            window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
-              detail: { error: error.message }
-            }));
-            return; // Don't continue to next chunk
-          }
-          // For other errors (network issues, etc.), log but continue playback
-          console.warn('[TTS Usage] Non-critical error, continuing playback:', error);
-        }
-        
         // Use ref to ensure we always call the latest playChunk function
         // This fixes the stale closure issue when playChunk is recreated
         const nextChunkIndex = index + 1;
@@ -568,6 +545,8 @@ export const useReaderTTS = ({
           isAutoAdvancingRef.current = true;
           console.log(`[playChunk] Auto-advance flag set to true`);
           
+          // ✅ CRITICAL FIX: Start next chunk IMMEDIATELY, don't wait for usage tracking
+          // This eliminates the delay between chunks
           if (playChunkRef.current) {
             console.log(`[playChunk] playChunkRef.current is available, calling playChunkRef.current(${nextChunkIndex})`);
             // Don't await - fire and continue to avoid blocking
@@ -590,6 +569,28 @@ export const useReaderTTS = ({
             isAutoAdvancingRef.current = false;
             console.log(`[playChunk] Auto-advance flag cleared`);
           }, 100);
+          
+          // ✅ Track usage in BACKGROUND (non-blocking) - don't await before starting next chunk
+          // Only stop playback if limit exceeded (handled in the catch block)
+          recordUsageSeconds(seconds).catch((error: any) => {
+            console.error(`[playChunk] Error recording usage seconds:`, error);
+            // Stop playback if limit exceeded
+            if (error?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
+                error?.message?.includes('limit exceeded') ||
+                error?.message?.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
+              console.warn('[TTS Usage] Limit exceeded, stopping TTS playback');
+              if (handleStopTTSRef.current) {
+                handleStopTTSRef.current();
+              }
+              addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+              window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
+                detail: { error: error.message }
+              }));
+            } else {
+              // For other errors (network issues, etc.), log but continue playback
+              console.warn('[TTS Usage] Non-critical error, continuing playback:', error);
+            }
+          });
         } else {
           // End of chunks - playback complete
           console.log(`[playChunk] Reached end of all chunks, playback complete`);
@@ -601,6 +602,11 @@ export const useReaderTTS = ({
           
           // Call the playback complete callback
           onPlaybackComplete?.();
+          
+          // Track final chunk usage (non-blocking)
+          recordUsageSeconds(seconds).catch((error: any) => {
+            console.error(`[playChunk] Error recording final chunk usage:`, error);
+          });
         }
       };
       
