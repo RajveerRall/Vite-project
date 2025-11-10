@@ -71,6 +71,8 @@ interface UseReaderTTSProps {
 }
 
 // Constants moved to src/constants/tts.ts
+const PREFETCH_CHUNK_COUNT = 4;
+const PREFETCH_SECONDARY_OFFSET = 3;
 
 /**
  * Custom hook for managing all Text-to-Speech functionality
@@ -377,17 +379,22 @@ export const useReaderTTS = ({
 
   // === Prefetch chunks function ===
   const prefetchChunks = useCallback(async (startIndex: number) => {
-    const chunksToFetch = chunks.slice(startIndex, startIndex + 2);
+    if (chunks.length === 0) return;
+
+    const normalizedStart = Math.max(0, startIndex);
+    if (normalizedStart >= chunks.length) return;
+
+    const chunksToFetch = chunks.slice(normalizedStart, normalizedStart + PREFETCH_CHUNK_COUNT);
     if (chunksToFetch.length === 0) return;
 
-    console.log(`[Prefetch] Starting pre-fetch for chunks from index ${startIndex}`);
+    console.log(`[Prefetch] Starting pre-fetch for chunks from index ${normalizedStart}`);
 
     // Check if using seamless playback
     const strategy = playbackStrategyRef.current;
     const isSeamless = strategy && (strategy as any).getStrategyType?.() === 'seamless';
 
     for (let i = 0; i < chunksToFetch.length; i++) {
-      const chunkIndex = startIndex + i;
+      const chunkIndex = normalizedStart + i;
       if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex) continue;
 
       try {
@@ -417,6 +424,16 @@ export const useReaderTTS = ({
           continue;
         }
 
+        // If using seamless playback, pre-decode into the Web Audio queue now
+        if (isSeamless && strategy) {
+          try {
+            await strategy.prepareChunk(chunkIndex, audioBlob);
+            console.log(`[Prefetch] Pre-decoded chunk #${chunkIndex} for seamless playback`);
+          } catch (err) {
+            console.warn(`[Prefetch] Failed to pre-decode chunk #${chunkIndex} for seamless playback`, err);
+          }
+        }
+
         // Track duration for this prefetched chunk
         try {
           const headerSeconds = Number(response.headers.get('X-Audio-Duration') || 0);
@@ -428,17 +445,6 @@ export const useReaderTTS = ({
         const audioUrl = URL.createObjectURL(audioBlob);
         audioBuffer.current[chunkIndex] = audioUrl;
         bufferVoiceRef.current = selectedVoiceRef.current;
-
-        // ✅ SEAMLESS INTEGRATION: Pre-decode for Web Audio API if using seamless playback
-        if (isSeamless && strategy) {
-          try {
-            await strategy.prepareChunk(chunkIndex, audioBlob);
-            console.log(`[Prefetch] Pre-decoded chunk #${chunkIndex} for seamless playback`);
-          } catch (error) {
-            console.warn(`[Prefetch] Failed to pre-decode chunk #${chunkIndex} for seamless playback:`, error);
-            // Continue with HTML5 fallback
-          }
-        }
 
         console.log(`[Prefetch] Successfully buffered chunk #${chunkIndex} with voice ${selectedVoiceRef.current}`);
 
@@ -489,6 +495,7 @@ export const useReaderTTS = ({
           
           // Prefetch next chunks
           prefetchChunks(index + 1);
+          prefetchChunks(index + PREFETCH_SECONDARY_OFFSET);
           return; // Success - seamless playback started
         } catch (error) {
           console.warn(`[playChunk] Seamless playback failed, falling back to HTML5:`, error);
@@ -642,6 +649,7 @@ export const useReaderTTS = ({
       }
       
       prefetchChunks(index + 1);
+      prefetchChunks(index + PREFETCH_SECONDARY_OFFSET);
     };
 
     // ✅ FIX: Check if seamless is actively playing before creating HTML5 Audio
@@ -666,6 +674,7 @@ export const useReaderTTS = ({
             console.log(`[playChunk] Pre-decoded chunk #${index} from buffer for seamless playback`);
             await strategy.play(audioBlob, index);
             prefetchChunks(index + 1);
+            prefetchChunks(index + PREFETCH_SECONDARY_OFFSET);
             return; // Success - seamless playback started, no HTML5 Audio
           } catch (error) {
             console.warn(`[playChunk] Seamless playback from buffer failed, falling back to HTML5:`, error);
@@ -733,6 +742,7 @@ export const useReaderTTS = ({
             console.log(`[playChunk] Pre-decoded chunk #${index} for seamless playback`);
             await strategy.play(audioBlob, index);
             prefetchChunks(index + 1);
+            prefetchChunks(index + PREFETCH_SECONDARY_OFFSET);
             return; // Success - seamless playback started
           } catch (error) {
             console.warn(`[playChunk] Seamless playback failed, using HTML5:`, error);

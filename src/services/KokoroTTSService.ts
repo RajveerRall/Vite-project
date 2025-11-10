@@ -81,7 +81,7 @@ export class KokoroTTSService {
       return false;
     }
   }
-
+  
   /**
    * Initialize the TTS engine
    */
@@ -113,7 +113,7 @@ export class KokoroTTSService {
       // Use fp32 for both WebGPU and WASM to ensure voice parameter works correctly
       let device: "webgpu" | "wasm" | "cpu";
       let dtype: "fp32" | "fp16" | "q8" | "q4" | "q4f16";
-
+      
       if (supportsWebGPU) {
         device = "webgpu";
         dtype = "fp32";
@@ -123,7 +123,7 @@ export class KokoroTTSService {
         dtype = "fp32"; // Use fp32 for consistency and voice parameter support (slower but better quality)
         console.log(`[KokoroTTSService] No WebGPU support: Using WASM + fp32 (slower but compatible)`);
       }
-
+      
       console.log(`[KokoroTTSService] Initializing with device: ${device}, dtype: ${dtype}`);
       
       this.tts = await KokoroTTS.from_pretrained(model_id, {
@@ -341,7 +341,7 @@ export class KokoroTTSService {
             }
             
             // Use raw audio data - most reliable for WAV conversion
-            const audioBuffer = this.createAudioBufferFromRaw(audio.audio, audio.sampling_rate);
+                const audioBuffer = this.createAudioBufferFromRaw(audio.audio, audio.sampling_rate);
             
             // Validate buffer has content (efficient calculation)
             const channelData = audioBuffer.getChannelData(0);
@@ -374,7 +374,7 @@ export class KokoroTTSService {
             audioBlob = this.audioBufferToWav(audioBuffer);
             audioContext.close();
             console.log(`[KokoroTTSService] Converted to WAV - ${audioBlob.size} bytes (${audioBuffer.length} samples at ${audioBuffer.sampleRate}Hz)`);
-          } else {
+            } else {
             console.error('[KokoroTTSService] Audio object structure:', {
               hasAudio: !!audio.audio,
               hasSamplingRate: !!audio.sampling_rate,
@@ -716,7 +716,7 @@ export class KokoroTTSService {
       this.currentAudioSource.disconnect();
       this.currentAudioSource = null;
     }
-    
+
     if (this.splitter) {
       try {
         this.splitter.close();
