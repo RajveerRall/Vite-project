@@ -62,19 +62,23 @@ const MainApp: React.FC = () => {
   // Memoize GoogleOneTap to prevent re-mounts
   // Only mount if user is not authenticated AND has not explicitly signed out
   // This prevents GoogleOneTap from auto-triggering after explicit sign-out
+  // DISABLED: Google One Tap sign-in
   const googleOneTapComponent = React.useMemo(() => {
-    if (!isAuthenticated && !hasExplicitlySignedOut && !Capacitor.isNativePlatform()) {
-      return <GoogleOneTap 
-        onSuccess={handleGoogleSuccess} 
-        onError={handleGoogleError} 
-      />;
-    }
+    // Disabled Google One Tap
     return null;
+    // if (!isAuthenticated && !hasExplicitlySignedOut && !Capacitor.isNativePlatform()) {
+    //   return <GoogleOneTap 
+    //     onSuccess={handleGoogleSuccess} 
+    //     onError={handleGoogleError} 
+    //   />;
+    // }
+    // return null;
   }, [isAuthenticated, hasExplicitlySignedOut, handleGoogleSuccess, handleGoogleError]);
 
   return (
     <div className="app">
-      {googleOneTapComponent}
+      {/* Google One Tap disabled */}
+      {/* {googleOneTapComponent} */}
       {!isReaderRoute && <Header />}
       <Routes>
         {/* Main app routes */}
