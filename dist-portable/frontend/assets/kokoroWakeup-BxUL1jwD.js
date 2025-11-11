@@ -1,1 +1,0 @@
-async function r(){try{const o="http://localhost:4001",e=new AbortController;setTimeout(()=>{try{e.abort()}catch{}},2e3),fetch(`${o}/api/warmup/kokoro`,{method:"POST",signal:e.signal}).catch(()=>{}),console.log("[Kokoro Wakeup] Triggered wake-up call")}catch(o){console.log("[Kokoro Wakeup] Failed to trigger wake-up call:",o)}}export{r as triggerKokoroWakeup};
