@@ -1240,10 +1240,19 @@ export const useReaderTTS = ({
 
     const startPlayback = async () => {
       console.log(`[${readerInstanceId}][handleTTS] Starting playback from chunk ${startChunk}`);
-      setIsProcessing(true); 
-      await prefetchChunks(startChunk);
-      setIsProcessing(false);
-      playChunk(startChunk);
+      setIsProcessing(true);
+      try {
+        await prefetchChunks(startChunk);
+        playChunk(startChunk);
+      } catch (error) {
+        console.error(`[${readerInstanceId}][handleTTS] Error during startPlayback:`, error);
+        addToast('Failed to start TTS playback. Please try again.', 'error');
+        // Reset state on failure
+        ttsIntentActiveRef.current = false;
+      } finally {
+        // Ensure processing is set to false even if prefetch fails
+        setIsProcessing(false);
+      }
     };
     startPlayback();
 
