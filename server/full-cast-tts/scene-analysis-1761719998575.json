@@ -1,0 +1,90 @@
+{
+  "bookTitle": "Dungeon Crawler Carl (Matt Dinniman) (Z-Library).epub",
+  "chapter": "Chapter 1",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 13,
+  "textLength": 18243,
+  "processingTime": 15883,
+  "timestamp": "2025-10-29T06:39:58.575Z",
+  "scenes": [
+    {
+      "anchor_text": "It was a Tuesday, and the calendar had just ticked over to January 3rd. A terrible winter storm had descended on North America, and half the country was buried in snow and ice. In Seattle we didn’t have too much snow that night. But it was well below zero, which was unusually cold, even for January.",
+      "scene_description": "A wide establishing shot of Seattle on a freezing January night. The city lights are diffused through a layer of icy fog.",
+      "image_prompt": "Cinematic digital painting, a sprawling cityscape barely visible through a freezing fog, Seattle skyline with snow-dusted rooftops, winter storm atmosphere, muted tones with pops of orange from streetlights, high-angle panoramic composition, stylized realism, painterly brushwork, highly detailed, evocative, visible brushstrokes, wintery chill",
+      "mood": "bleak"
+    },
+    {
+      "anchor_text": "Me, I didn’t have a choice. Like I said, it was below freezing. I was outside. And I was wearing boxers, a leather jacket, and a pair of pink Crocs sandals that barely fit me.",
+      "scene_description": "A man stands outside in the freezing cold wearing only boxers, a leather jacket, and pink Crocs. The focus is on the biting winter air and the absurdity of his attire.",
+      "image_prompt": "Cinematic digital painting, a disoriented man shivering in the frigid air, residential street covered in a light layer of frost, nighttime scene, stylized realism, painterly brushwork, highly detailed, evocative, visible brushstrokes, low-angle composition emphasizing vulnerability, dark blues and grays, leather jacket wearing man, boxers, pink Crocs",
+      "mood": "vulnerable"
+    },
+    {
+      "anchor_text": "She jumped up on my shoulder, and she leaped out the second-story window onto the tree outside my apartment. Just like that. I’d had that window open dozens of times over the past year, and she’d never even given the window a second glance.",
+      "scene_description": "A cat leaps from a second-story window onto a snow-covered tree branch. The focus is on the cat's movement and the cold, dark environment.",
+      "image_prompt": "Cinematic digital painting, a tortoiseshell cat leaping from a window towards a snow-covered tree branch, two-story apartment building in the background, winter night, muted tones with stark contrast, painterly brushwork, highly detailed, stylized realism, evocative, visible brushstrokes, dynamic action shot, wide shot capturing the cat's trajectory and the exterior environment, light from window illuminating the scene",
+      "mood": "urgent"
+    },
+    {
+      "anchor_text": "I opened the window all the way, sending gales of ice-cold air in the previously-toasty apartment. The fuzzy, black and beige and white cat just sat there, bitching and howling so much I feared one of my neighbors might wake up and shoot her.",
+      "scene_description": "A second story apartment window is flung open, with curtains billowing outwards from the cold air, and a cat is howling loudly from a tree branch just out of reach.",
+      "image_prompt": "Cinematic digital painting, an open apartment window with curtains fluttering violently in the cold air, winter night scene, residential building exterior, muted tones, painterly brushwork, highly detailed, stylized realism, evocative, visible brushstrokes, low-angle from street level emphasizes height of the building, cold air blowing out of window",
+      "mood": "frantic"
+    },
+    {
+      "anchor_text": "I rushed down the stairs, and I jumped outside, rushing to the tree that sat between the sidewalk and the building. I immediately regretted not taking the time to put proper clothes on. The cold, windy air sunk its claws into my legs and feet.",
+      "scene_description": "A man runs towards a tree, clad only in a jacket, boxers and Crocs, the viewer sees bare legs and feet in the snow.",
+      "image_prompt": "Cinematic digital painting, Man running to a tree in freezing weather, Boxer shorts visible, Residential street covered in snow and ice, Low angle emphasizing bare legs and feet exposed to the cold, Painterly brushwork, stylized realism, visible brushstrokes, highly detailed, wide angle shot of person running towards the tree, dark color palette.",
+      "mood": "desperate"
+    },
+    {
+      "anchor_text": "The window on the first-floor apartment slid open. “What in god’s name is going on out here?” Mrs. Parsons called, sticking her head out the window. The old woman had her head wrapped in a some sort of towel, making her look like a swami. Her beady eyes focused on me. “Carl, is that you?”",
+      "scene_description": "A grumpy old woman peers out her window, her head wrapped in a towel, disturbed by the noise outside.",
+      "image_prompt": "Cinematic digital painting, A woman peering out of her window, Nighttime scene, First floor apartment, residential building, Painterly brushwork, stylized realism, visible brushstrokes, highly detailed, close up angle of the window with the woman inside, dark color palette, muted colors.",
+      "mood": "annoyed"
+    },
+    {
+      "anchor_text": "The building smashed down to the ground. I watched it happen. The seven-story apartment building was there one moment, and then it was gone. But it hadn’t disappeared. I was looking right at Mrs. Parsons when it went down.",
+      "scene_description": "A seven-story apartment building is instantly crushed into a flat plane of dirt and rubble, a few trees remaining nearby untouched.",
+      "image_prompt": "Cinematic digital painting, a building compressing into flat space, residential street, dark and overcast night, painterly brushwork, stylized realism, visible brushstrokes, highly detailed, low angle perspective, emphasizing the crushing motion, trees nearby not destroyed, dark color palette, disaster scene, muted colors",
+      "mood": "shocking"
+    },
+    {
+      "anchor_text": "Everything was gone except the trees and the bicycles in the bike racks, and Marjory Williams’s moped that was still booted by parking enforcement.",
+      "scene_description": "A street where all buildings have disappeared, but a few bicycles in a bike rack and a moped remain.",
+      "image_prompt": "Cinematic digital painting, Bicycles in a rack remaining on bare ground, Buildings all gone, dark and overcast night, residential street, painterly brushwork, stylized realism, visible brushstrokes, highly detailed, street level perspective, showing a desolate scene, dark color palette, muted colors.",
+      "mood": "desolate"
+    },
+    {
+      "anchor_text": "I looked around, the freezing weather momentarily forgotten. In the dark, overcast night, I could barely see anything. In the distance—a distance I could now see thanks to the lack of buildings—a fire burned.",
+      "scene_description": "A man stands on a bare patch of ground where his apartment building used to be, looking towards a distant fire on the horizon.",
+      "image_prompt": "Cinematic digital painting, A man looks into the distance at a fire, buildings gone leaving only bare ground, residential street, dark and overcast night, painterly brushwork, stylized realism, visible brushstrokes, highly detailed, wide angle perspective, showing the expanse of the now empty scene, dark color palette, muted colors.",
+      "mood": "lost"
+    },
+    {
+      "anchor_text": "All that remained of my building was a rectangle of churned dirt and rocks. And then I saw it, right near my feet. It was Mrs. Parson’s head. In the dark, it was hard to discern. But I immediately knew what it was.",
+      "scene_description": "Close up of a severed head lying on the churned earth, where a building once stood.",
+      "image_prompt": "Cinematic digital painting, Severed head on churned ground, Residential area, bare patch where a building was, Dark Overcast night, painterly brushwork, stylized realism, visible brushstrokes, highly detailed, close up perspective, dark color palette, muted colors, unsettling",
+      "mood": "grim"
+    },
+    {
+      "anchor_text": "It spoke in my mind. The voice was like a physical thing. A spike in my brain, scratching me. It wasn’t speaking English. But I understood the words. As the person spoke, the text also appeared floating in front of me.",
+      "scene_description": "Text appears floating in front of a man's face in a dark and desolate landscape.",
+      "image_prompt": "Cinematic digital painting, Floating text in front of a man, Dark and desolate area, residential area where all the buildings are gone, Dark overcast night, painterly brushwork, stylized realism, visible brushstrokes, highly detailed, close up angle on the man, strange non-English text, dark color palette, muted colors, surreal",
+      "mood": "bewildered"
+    },
+    {
+      "anchor_text": "Was this a dream? Had I accidentally been dosed with some sort of hallucinogen? World dungeon? What the actual hell? What did that even mean? My mind continued to race. I immediately thought of Pathfinder and Dungeons and Dragons and other games I hadn’t played since I was on active duty.",
+      "scene_description": "An extreme wide shot of the flattened city, the only remaining structures being trees, and a single character on the barren landscape, looking incredibly small and insignificant.",
+      "image_prompt": "Cinematic digital painting, Character standing in a barren landscape where a city used to be, few scattered trees, buildings all flattened and gone, Dark overcast night, painterly brushwork, stylized realism, visible brushstrokes, highly detailed, extreme wide shot perspective, dark color palette, muted colors, feeling of insignificance",
+      "mood": "insignificant"
+    },
+    {
+      "anchor_text": "Even from this distance, I could feel the warmth radiating from the brightly-lit hole in the ground. I didn’t think about it. My head still swam with all the information that had been thrown at me. The pink Crocs barely fit on my feet.",
+      "scene_description": "A brightly lit, circular hole in the ground, emanating heat, in the middle of a flattened cityscape.",
+      "image_prompt": "Cinematic digital painting, a Brightly lit circular hole in the ground, flattened city, few scattered trees, buildings all flattened and gone, Dark overcast night, painterly brushwork, stylized realism, visible brushstrokes, highly detailed, perspective looking into the hole, dark color palette, muted colors, hope",
+      "mood": "hopeful"
+    }
+  ]
+}

@@ -1,0 +1,177 @@
+/* Blog-specific styles for enhanced reading experience */
+
+/* Custom prose styles for better readability */
+.blog-prose {
+  @apply max-w-none;
+}
+
+.blog-prose h1 {
+  @apply text-3xl font-bold text-gray-900 mb-6 mt-0;
+}
+
+.blog-prose h2 {
+  @apply text-2xl font-bold text-gray-900 mb-4 mt-6;
+}
+
+.blog-prose h3 {
+  @apply text-xl font-semibold text-gray-900 mb-3 mt-4;
+}
+
+.blog-prose h4 {
+  @apply text-lg font-semibold text-gray-900 mb-2 mt-4;
+}
+
+.blog-prose p {
+  @apply text-gray-700 leading-relaxed mb-4 text-base;
+}
+
+.blog-prose a {
+  @apply text-blue-600 no-underline hover:underline transition-colors duration-200;
+}
+
+.blog-prose strong {
+  @apply text-gray-900 font-semibold;
+}
+
+.blog-prose em {
+  @apply text-gray-800 italic;
+}
+
+.blog-prose blockquote {
+  @apply border-l-4 border-blue-600 bg-blue-50 py-3 px-4 rounded-r-lg my-6 italic text-gray-700;
+}
+
+.blog-prose ul, .blog-prose ol {
+  @apply my-4 pl-6;
+}
+
+.blog-prose li {
+  @apply text-gray-700 mb-2;
+}
+
+.blog-prose code {
+  @apply bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-mono;
+}
+
+.blog-prose pre {
+  @apply bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4;
+}
+
+.blog-prose pre code {
+  @apply bg-transparent text-inherit p-0;
+}
+
+.blog-prose img {
+  @apply rounded-lg shadow-md my-6;
+}
+
+.blog-prose table {
+  @apply w-full border-collapse my-6;
+}
+
+.blog-prose th {
+  @apply bg-gray-50 text-gray-900 font-semibold p-3 border border-gray-200 text-left;
+}
+
+.blog-prose td {
+  @apply p-3 border border-gray-200 text-gray-700;
+}
+
+.blog-prose hr {
+  @apply border-gray-200 my-8;
+}
+
+/* Enhanced card hover effects */
+.blog-card {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+.blog-card:hover {
+  @apply transform -translate-y-1 shadow-lg;
+}
+
+/* FAQ Section Styles */
+.faq-section {
+  @apply mt-8 pt-6 border-t border-gray-200;
+}
+
+.faq-section h2 {
+  @apply text-2xl font-bold text-gray-900 mb-6;
+}
+
+.faq-container {
+  @apply space-y-6;
+}
+
+.faq-item {
+  @apply bg-gray-50 rounded-lg p-6 border border-gray-200;
+}
+
+.faq-question {
+  @apply text-lg font-semibold text-gray-900 mb-3 cursor-pointer;
+}
+
+.faq-answer {
+  @apply text-gray-700 leading-relaxed;
+}
+
+/* Custom loading animation */
+.blog-loading {
+  animation: blog-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes blog-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+/* Responsive typography */
+@media (max-width: 768px) {
+  .blog-prose h1 {
+    @apply text-2xl;
+  }
+  
+  .blog-prose h2 {
+    @apply text-xl;
+  }
+  
+  .blog-prose h3 {
+    @apply text-lg;
+  }
+  
+  .blog-prose p {
+    @apply text-sm;
+  }
+}
+
+/* Screen reader only class for accessibility */
+.sr-only {
+  @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+  .blog-prose h1,
+  .blog-prose h2,
+  .blog-prose h3,
+  .blog-prose h4 {
+    @apply text-gray-100;
+  }
+  
+  .blog-prose p,
+  .blog-prose li {
+    @apply text-gray-300;
+  }
+  
+  .blog-prose strong {
+    @apply text-gray-100;
+  }
+  
+  .blog-prose blockquote {
+    @apply bg-gray-800 border-blue-500 text-gray-300;
+  }
+}

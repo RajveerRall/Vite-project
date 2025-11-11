@@ -1,0 +1,163 @@
+/* src/components/Reader/Controls.css */
+
+.control-button {
+  /* Base styles for all buttons */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem; /* Space between icon and text */
+  padding: 0.5rem 0.75rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  
+  /* Default Appearance (non-active) */
+  background-color: var(--control-button-bg, #f9fafb);
+  border: 1px solid var(--control-button-border, #e5e7eb);
+  color: var(--control-button-text, #374151);
+}
+
+/* --- HOVER STATE --- */
+.control-button:hover:not(:disabled) {
+  border-color: var(--control-button-hover-border, #d1d5db);
+  background-color: var(--control-button-hover-bg, #f3f4f6);
+}
+
+/* --- DISABLED STATE --- */
+.control-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--control-button-disabled-bg, #f3f4f6);
+  border-color: var(--control-button-disabled-border, #d1d5db);
+  color: var(--control-button-disabled-text, #9ca3af);
+}
+
+/* --- ACTIVE (AMBER THEME) --- */
+.control-button.active {
+  background-color: var(--control-button-active-bg, #92400e);
+  border-color: var(--control-button-active-border, #92400e);
+  color: var(--control-button-active-text, #f8fafc);
+}
+.control-button.active:hover:not(:disabled) {
+  background-color: var(--control-button-active-hover-bg, #78350f);
+}
+
+/* --- STOP BUTTON (RED THEME) --- */
+.control-button.stop-button {
+  background-color: var(--control-button-stop-bg, #fef2f2);
+  border-color: var(--control-button-stop-border, #fecaca);
+  color: var(--control-button-stop-text, #b91c1c);
+}
+.control-button.stop-button:hover:not(:disabled) {
+  background-color: var(--control-button-stop-hover-bg, #fee2e2);
+  border-color: var(--control-button-stop-hover-border, #fca5a5);
+}
+
+/* --- Page Counter --- */
+.page-info {
+  font-size: 0.9rem;
+  color: var(--page-info-color, #4b5563);
+  min-width: 3.5rem;
+  text-align: center;
+}
+
+/* Light Theme (Default) */
+:root {
+  --control-button-bg: #f9fafb;
+  --control-button-border: #e5e7eb;
+  --control-button-text: #374151;
+  --control-button-hover-border: #d1d5db;
+  --control-button-hover-bg: #f3f4f6;
+  --control-button-active-bg: #92400e;
+  --control-button-active-border: #92400e;
+  --control-button-active-text: #f8fafc;
+  --control-button-active-hover-bg: #78350f;
+  --control-button-stop-bg: #fef2f2;
+  --control-button-stop-border: #fecaca;
+  --control-button-stop-text: #b91c1c;
+  --control-button-stop-hover-bg: #fee2e2;
+  --control-button-stop-hover-border: #fca5a5;
+  --page-info-color: #4b5563;
+}
+
+/* Dark Theme */
+.theme-dark {
+  --control-button-bg: #374151;
+  --control-button-border: #4b5563;
+  --control-button-text: #e2e8f0;
+  --control-button-hover-border: #6b7280;
+  --control-button-hover-bg: #4b5563;
+  --control-button-active-bg: #92400e;
+  --control-button-active-border: #92400e;
+  --control-button-active-text: #f8fafc;
+  --control-button-active-hover-bg: #78350f;
+  --control-button-stop-bg: #450a0a;
+  --control-button-stop-border: #7f1d1d;
+  --control-button-stop-text: #fca5a5;
+  --control-button-stop-hover-bg: #7f1d1d;
+  --control-button-stop-hover-border: #991b1b;
+  --page-info-color: #9ca3af;
+}
+
+/* Sepia Theme */
+.theme-sepia {
+  --control-button-bg: #faf7ed;
+  --control-button-border: #e6d4b1;
+  --control-button-text: #3c2e26;
+  --control-button-hover-border: #d4c399;
+  --control-button-hover-bg: #f3f0e1;
+  --control-button-active-bg: #92400e;
+  --control-button-active-border: #92400e;
+  --control-button-active-text: #f8fafc;
+  --control-button-active-hover-bg: #78350f;
+  --control-button-stop-bg: #fef2f2;
+  --control-button-stop-border: #fecaca;
+  --control-button-stop-text: #b91c1c;
+  --control-button-stop-hover-bg: #fee2e2;
+  --control-button-stop-hover-border: #fca5a5;
+  --page-info-color: #8b6914;
+}
+
+/* Controls Container Layout Fixes */
+.reader-controls {
+  /* Ensure proper overflow handling */
+  overflow: visible;
+  /* Allow flex wrapping if needed */
+  flex-wrap: wrap;
+  /* Ensure minimum width for controls */
+  min-width: 0;
+}
+
+/* Ensure buttons don't get cut off */
+.control-button {
+  /* Prevent button text from being cut off */
+  white-space: nowrap;
+  /* Ensure button has proper sizing */
+  flex-shrink: 0;
+}
+
+/* Stop button specific styling */
+.stop-button {
+  /* Ensure stop button is always visible */
+  position: relative;
+  z-index: 10;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  .reader-controls {
+    /* Reduce gaps on mobile */
+    gap: 0.5rem;
+  }
+  
+  .control-button {
+    /* Smaller padding on mobile */
+    padding: 0.375rem 0.75rem;
+  }
+  
+  .button-text {
+    /* Smaller text on mobile */
+    font-size: 0.875rem;
+  }
+}

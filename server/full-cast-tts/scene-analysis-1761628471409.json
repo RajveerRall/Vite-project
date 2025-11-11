@@ -1,0 +1,30 @@
+{
+  "bookTitle": "The Way of Kings.epub",
+  "chapter": "74: GHOSTBLOOD",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 3,
+  "textLength": 5457,
+  "processingTime": 4609,
+  "timestamp": "2025-10-28T05:14:31.409Z",
+  "scenes": [
+    {
+      "anchor_text": "Shallan rubbed her eyes. She’d read through Jasnah’s notes—at least the most important ones. Those alone had made a large stack. She still sat in the alcove, though they’d sent a parshman to get her a blanket to wrap around herself, covering up the hospital robe.\nHer eyes burned from the night spent crying, then reading. She was exhausted. And yet she also felt alive.",
+      "scene_description": "Shallan, exhausted but invigorated, sits surrounded by a mountain of notes, wrapped in a blanket.",
+      "image_prompt": "Digital gouache illustration, Shallan sitting small and wrapped in a blanket, dimly lit alcove overflowing with stacks of handwritten notes, minimalist, visible and expressive brushstrokes, painterly style, muted tones with a single light source highlighting Shallan's face, uncluttered composition focused on the figure and the notes",
+      "mood": "determined"
+    },
+    {
+      "anchor_text": "“We’ve nurtured the parshmen. We’ve integrated them into every part of our society. We depend on them, never realizing that we’ve harnessed a highstorm waiting to explode. The accounts from the Shattered Plains speak of these Parshendi’s ability to communicate among themselves, allowing them to sing their songs in unison when far apart. Their minds are connected, like spanreeds. Do you realize what that means?”",
+      "scene_description": "An abstract representation of the hidden threat posed by the seemingly docile parshmen.",
+      "image_prompt": "Expressive abstract painting, latent threat and suppressed energy, muted grays and browns overlaid with crackling crimson lines, chaotic and jagged marks over calm horizontal strokes",
+      "mood": "ominous"
+    },
+    {
+      "anchor_text": "She set the sheet down. On it was a symbol of three diamonds in a pattern, overlapping one another.\nIt was the same symbol that Nan Balat had shown her weeks ago. The symbol worn by Luesh, her father’s steward, the man who had known how to use the Soulcaster. The symbol worn by the men who had come, pressuring her family to return it. The men who had been financing Shallan’s father in his bid to become highprince.",
+      "scene_description": "The Ghostblood symbol of overlapping diamonds is revealed, representing hidden connections and danger.",
+      "image_prompt": "Ink and wash painting, stark white sheet of paper displaying the Ghostblood symbol (three overlapping diamonds), minimalist setting, visible and expressive brushstrokes, painterly style, dark shadows emphasizing the symbol's starkness, uncluttered composition focused on the symbol",
+      "mood": "foreboding"
+    }
+  ]
+}

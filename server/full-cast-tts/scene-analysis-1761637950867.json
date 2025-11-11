@@ -1,0 +1,30 @@
+{
+  "bookTitle": "The Way of Kings.epub",
+  "chapter": "Endnote",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 1,
+  "textLength": 1257,
+  "processingTime": 3764,
+  "timestamp": "2025-10-28T07:52:30.867Z",
+  "scenes": [
+    {
+      "anchor_text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.”",
+      "scene_description": "A visualization of the ketek, showcasing the dying storms illuminating the silence above and below.",
+      "image_prompt": "Cinematic digital painting, dying storms illuminating the sky, a vast, desolate landscape with swirling storm clouds above and below, epic fantasy landscape, muted color palette, dramatic lighting with strong contrasts, wide-angle composition emphasizing scale and depth, no character reference",
+      "mood": "eerie"
+    },
+    {
+      "anchor_text": "The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note.",
+      "scene_description": "A dying Herdazian man uttering the Ketek. Focus is on the surrounding environment of a simple camp.",
+      "image_prompt": "Cinematic digital painting, A dying Herdazian man uttering words, a simple Herdazian camp scene in a rocky, windswept landscape, earthy tones, low lighting from a dying campfire, slightly high angle focusing on the overall camp setting, Herdazian man: weathered face, emaciated, wearing worn Herdazian clothing",
+      "mood": "melancholy"
+    },
+    {
+      "anchor_text": "We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms.",
+      "scene_description": "A visual interpretation of the silence above and below the storms, a vast and mysterious landscape with layered storm formations.",
+      "image_prompt": "Cinematic digital painting, layered storm formations with a distinct sense of silence above and below, a surreal and otherworldly landscape, muted blues and grays, ethereal lighting with pockets of intense light breaking through the clouds, panoramic composition emphasizing the vastness and mystery of the scene, no character reference",
+      "mood": "mysterious"
+    }
+  ]
+}

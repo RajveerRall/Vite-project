@@ -1,0 +1,30 @@
+{
+  "bookTitle": "The Way of Kings.epub",
+  "chapter": "Endnote",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 1,
+  "textLength": 1257,
+  "processingTime": 5888,
+  "timestamp": "2025-10-28T16:01:54.464Z",
+  "scenes": [
+    {
+      "anchor_text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.”\nThe above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward  but is also divisible into five distinct smaller sections, each of which makes a complete thought.",
+      "scene_description": "A landscape featuring a storm dying down, revealing the silence of the sky above. The landscape hints at a world where such storms are illuminating forces.",
+      "image_prompt": "Cinematic digital painting, Dying storm with dissipating lightning illuminating vast rocky plains, a desolate alien landscape under a swirling, diminishing storm, STYLE_atmospheric narrative, epic illustration, Painterly brushwork, muted colors, dramatic lighting, visible brushstrokes, Ominous and ethereal, Wide angle, panoramic view capturing the scale of the landscape and the fading storm, no characters present",
+      "mood": "Ethereal"
+    },
+    {
+      "anchor_text": "Because of the difficulty in constructing a ketek, the structure was once considered the highest and most impressive form of all Vorin poetry.\nThe fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note.",
+      "scene_description": "A dimly lit interior featuring scholars examining an archaic text, possibly related to the ketek. The room suggests a place of quiet study and reverence for knowledge.",
+      "image_prompt": "Cinematic digital painting, Ardents studying ancient text, library filled with towering shelves of dusty books and scrolls, Vorin monastery interior, muted tones, dramatic contrasts, atmospheric narrative, Painterly brushwork, stylized realism, highly detailed, visible brushstrokes, Warm light from oil lamps casting long shadows, High-angle shot emphasizing the vastness of the library, No distinct characters visible, focus on the environment",
+      "mood": "Reverent"
+    },
+    {
+      "anchor_text": "We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms.\n—Joshor, Head of His Majesty’s Silent Gatherers, Tanatanev 1173",
+      "scene_description": "A king contemplates a distant, silhouetted storm on a balcony overlooking his city. The scene conveys the king's isolation and the weight of his responsibilities in understanding the enigmatic storm's meaning.",
+      "image_prompt": "Cinematic digital painting, King silhouetted on a balcony overlooking his city, distant storm on the horizon, city lights twinkling below, monumental architecture in the background, atmospheric narrative, epic illustration, Painterly brushwork, stylized realism, highly detailed, visible brushstrokes, Dramatic backlighting from the city creating a strong silhouette, Long shot emphasizing the distance and the king's isolation, Character silhouette",
+      "mood": "Contemplative"
+    }
+  ]
+}

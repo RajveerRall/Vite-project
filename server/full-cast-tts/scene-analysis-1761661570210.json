@@ -1,0 +1,30 @@
+{
+  "bookTitle": "The Way of Kings.epub",
+  "chapter": "Endnote",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 1,
+  "textLength": 1257,
+  "processingTime": 5891,
+  "timestamp": "2025-10-28T14:26:10.210Z",
+  "scenes": [
+    {
+      "anchor_text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.”",
+      "scene_description": "A dying storm illuminates the landscape, with the silence of the highstorm above and the silence of the plains below captured in a single, evocative image.",
+      "image_prompt": "Cinematic digital painting, a highstorm dying over vast plains, roiling clouds with lightning illuminating the land below, a sense of stillness and fading energy, atmospheric narrative, painterly brushwork, highly detailed, dramatic lighting with contrasting shadows, wide panoramic composition, muted blues and grays with flashes of vibrant lightning",
+      "mood": "serene"
+    },
+    {
+      "anchor_text": "The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note.",
+      "scene_description": "A dying Herdazian lies on a cot, surrounded by simple, worn furnishings, as after-storm light penetrates his dim room, the image should reflect the poignant intersection of the simple environment and the complex words spoken within it.",
+      "image_prompt": "Cinematic digital painting, a Herdazian on his deathbed in a modest room, simple cot and worn table nearby, light streaming through a small window, illuminating dust motes, atmospheric narrative, painterly brushwork, highly detailed, soft, diffused lighting, interior shot from a corner, muted browns and grays with hints of natural light, Herdazian: elderly, weathered face, lying weakly on the cot",
+      "mood": "poignant"
+    },
+    {
+      "anchor_text": "We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms.",
+      "scene_description": "A scholar sits at a large desk in a lofty library or study, surrounded by shelves of books. Light streams in from a high window. The composition symbolizes the vastness of knowledge and the contemplation of mysteries.",
+      "image_prompt": "Cinematic digital painting, a scholar deeply engrossed in thought at a large desk, surrounded by towering bookshelves filled with ancient texts, a grand library setting with arched windows, atmospheric narrative, painterly brushwork, highly detailed, dramatic lighting with sunbeams filtering through the windows, wide-angle composition conveying the vastness of the library, muted browns and golds with splashes of color from book bindings",
+      "mood": "contemplative"
+    }
+  ]
+}

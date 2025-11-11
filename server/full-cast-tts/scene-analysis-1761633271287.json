@@ -1,0 +1,30 @@
+{
+  "bookTitle": "The Way of Kings.epub",
+  "chapter": "Endnote",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 1,
+  "textLength": 1257,
+  "processingTime": 3239,
+  "timestamp": "2025-10-28T06:34:31.287Z",
+  "scenes": [
+    {
+      "anchor_text": "“Above silence, the illuminating storms—dying storms— illuminate the silence above.”",
+      "scene_description": "An abstract depiction of the poem's central theme: the interplay of silence and storm, above and below.",
+      "image_prompt": "Abstract watercolor, the essence of 'illuminating silence', harmonious blend of dark blues and muted grays with bright flashes of white and yellow, soft, blended washes with calm, horizontal strokes to represent the silence, contrasted with short, energetic strokes for the storms",
+      "mood": "enigmatic"
+    },
+    {
+      "anchor_text": "The fact that this one was uttered by an illiterate, dying Herdazian in a language he barely spoke should be of particular note.",
+      "scene_description": "A dying Herdazian figure, his features obscured, uttering a profound poem.",
+      "image_prompt": "Expressive brush painting, gaunt face, faint illumination, sparse clothing, visible brushstrokes, painterly style, stylized realism, muted tones with dramatic contrasts, uncluttered composition focused on the face",
+      "mood": "revelatory"
+    },
+    {
+      "anchor_text": "We leave it to His Majesty’s mind, on a strong day, to puzzle out the meaning of why the storms might be important, and what the poem may mean by indicating that there is silence both above and below said storms.",
+      "scene_description": "The King contemplating the poem. Abstract illustration of puzzle/contemplation.",
+      "image_prompt": "Abstract watercolor, perplexity, clashing colors with harsh lines creating a sense of confusion, soft, blended washes with chaotic and jagged marks",
+      "mood": "pensive"
+    }
+  ]
+}

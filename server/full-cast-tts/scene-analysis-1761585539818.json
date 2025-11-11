@@ -1,0 +1,26 @@
+{
+  "bookTitle": "Test Book",
+  "chapter": "Test Chapter",
+  "bookTheme": "sci-fi",
+  "colorPalette": "cool blues and neon greens",
+  "maxScenes": 2,
+  "textLength": 186,
+  "processingTime": 3684,
+  "timestamp": "2025-10-27T17:18:59.818Z",
+  "scenes": [
+    {
+      "anchor_text": "The machine hummed softly as it processed the data. Lights flickered across the control panel in patterns only the operator understood. Each beep signaled another successful calculation.",
+      "scene_description": "A vast machine processes data with rhythmic beeps and flickering lights across its complex control panel.",
+      "image_prompt": "Cinematic digital painting, a colossal data processing machine humming, massive server room filled with blinking lights and intricate cabling, sci-fi, technology, vast scale, neon highlights, cool blues and greens, glowing panels, ominous ambience, eye-level composition establishing scale, no characters visible",
+      "mood": "technological",
+      "duration_seconds": 8
+    },
+    {
+      "anchor_text": "The machine hummed softly as it processed the data. Lights flickered across the control panel in patterns only the operator understood. Each beep signaled another successful calculation.",
+      "scene_description": "A scientist analyzing the readout from a complex control panel, bathed in the glow of the machine's data stream.",
+      "image_prompt": "Cinematic digital painting, an operator analyzing data streams on a control panel, dimly lit laboratory dominated by advanced technology, sci-fi, analytical, focused, blues and greens, stark contrasts, high angle view overlooking the operator and panel, scientist silhouette visible against the panel glow, Scientist: Androgynous figure in a lab coat, head partially obscured by console, average build",
+      "mood": "intense",
+      "duration_seconds": 9
+    }
+  ]
+}
