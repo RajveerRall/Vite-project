@@ -320,7 +320,9 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
           'Content-Type': 'application/json',
           'Prefer': 'return=representation',
         },
-        body: JSON.stringify({ p_user_id: userId }),
+        // Do not pass p_user_id in the body.
+        // The function uses auth.uid() which is derived from the JWT in the Authorization header.
+        body: JSON.stringify({}),
         signal: controller.signal,
       });
       
@@ -351,7 +353,7 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
               'Content-Type': 'application/json',
               'Prefer': 'return=representation',
             },
-            body: JSON.stringify({ p_user_id: userId }),
+            body: JSON.stringify({}),
             signal: retryController.signal,
           });
           
@@ -687,4 +689,3 @@ export async function changeSubscriptionPlan(
     return { success: false, error: error?.message || 'Unknown error' };
   }
 }
-
