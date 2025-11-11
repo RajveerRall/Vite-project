@@ -167,59 +167,54 @@ export class TTSUsageTracker {
         if (response.status === 401) {
           console.log('[TTS Usage] Limit check token expired (401), attempting refresh...');
           try {
-            const { supabase } = await import('../../lib/supabase');
-            const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+            const { supabase } = await import('../../lib/supabase'); // Keep this import
+            const { data: { session }, error: sessionError } = await supabase.auth.refreshSession(); // This is the correct way
             
             if (sessionError || !session?.access_token) {
-              console.warn('[TTS Usage] Limit check refresh failed, allowing usage');
-              return { allowed: true }; // Fail open
+              throw new Error('Failed to refresh session');
             }
-            
+
             console.log('[TTS Usage] Limit check token refreshed, retrying...');
-            
+
             // Retry with new token
             const retryController = new AbortController();
             const retryTimeoutId = setTimeout(() => retryController.abort(), 5000);
-            
-            try {
-              const retryResponse = await fetch(url, {
-                method: 'POST',
-                headers: {
-                  'apikey': supabaseAnonKey,
-                  'Authorization': `Bearer ${session.access_token}`,
-                  'Content-Type': 'application/json',
-                  'Prefer': 'return=representation',
-                },
-                body: JSON.stringify({ p_user_id: userId }),
-                signal: retryController.signal,
-              });
-              
-              clearTimeout(retryTimeoutId);
-              
-              if (!retryResponse.ok) {
-                console.warn('[TTS Usage] Limit check failed after refresh, allowing usage:', retryResponse.status);
-                return { allowed: true }; // Fail open
-              }
-              
-              const data = await retryResponse.json();
-              
-              if (data?.limit_exceeded) {
-                return {
-                  allowed: false,
-                  reason: `Usage limit exceeded. ${data.minutes_used}/${data.minutes_limit} minutes used.`,
-                };
-              }
-              
-              return { allowed: true };
-            } catch (retryError: any) {
-              clearTimeout(retryTimeoutId);
-              if (retryError.name !== 'AbortError') {
-                console.warn('[TTS Usage] Limit check retry error, allowing usage:', retryError.message);
-              }
+
+            const retryResponse = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'apikey': supabaseAnonKey,
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation',
+              },
+              body: JSON.stringify({ p_user_id: userId }),
+              signal: retryController.signal,
+            });
+
+            clearTimeout(retryTimeoutId);
+
+            if (!retryResponse.ok) {
+              console.warn('[TTS Usage] Limit check failed after refresh, allowing usage:', retryResponse.status);
               return { allowed: true }; // Fail open
             }
-          } catch (refreshError: any) {
-            console.warn('[TTS Usage] Limit check refresh error, allowing usage:', refreshError.message);
+
+            const data = await retryResponse.json();
+
+            if (data?.limit_exceeded) {
+              return {
+                allowed: false,
+                reason: `Usage limit exceeded. ${data.minutes_used}/${data.minutes_limit} minutes used.`,
+              };
+            }
+
+            return { allowed: true };
+
+          } catch (refreshOrRetryError: any) {
+            // This single catch block handles both refresh and retry errors
+            if (refreshOrRetryError.name !== 'AbortError') {
+              console.warn('[TTS Usage] Token refresh or retry failed, allowing usage:', refreshOrRetryError.message);
+            }
             return { allowed: true }; // Fail open
           }
         }
@@ -244,12 +239,11 @@ export class TTSUsageTracker {
         if (fetchError.name !== 'AbortError') {
           console.warn('[TTS Usage] Limit check error, allowing usage:', fetchError.message);
         }
-        return { allowed: true }; // Fail open
       }
     } catch (error) {
       console.warn('[TTS Usage] Error checking limit, allowing usage:', error);
-      return { allowed: true }; // Fail open
     }
+    return { allowed: true }; // Fail open by default
   }
 
   /**
@@ -326,6 +320,10 @@ export class TTSUsageTracker {
             const retryController = new AbortController();
             const retryTimeoutId = setTimeout(() => retryController.abort(), 10000);
             
+            if (!session?.access_token) {
+              throw new Error('Failed to refresh session, new access token not found.');
+            }
+
             try {
               const retryResponse = await fetch(url, {
                 method: 'POST',
@@ -452,12 +450,11 @@ export class TTSUsageTracker {
     source: string = 'reader',
     callbacks?: UsageTrackingCallbacks
   ): Promise<void> {
-    // TEMPORARILY DISABLED FOR TESTING - Remove this comment block to re-enable
     // Skip tracking if disabled in development
-    // if (!isTrackingEnabled()) {
-    //   console.log('[TTS Usage] Tracking disabled in development - skipping usage recording');
-    //   return;
-    // }
+    if (!isTrackingEnabled()) {
+      console.log('[TTS Usage] Tracking disabled in development - skipping usage recording');
+      return;
+    }
 
     // Validation
     const validation = this.validateEvent(seconds, source);
