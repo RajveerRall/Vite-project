@@ -540,6 +540,11 @@ export class TTSUsageTracker {
    */
   updateUserId(userId: string | undefined): void {
     this.userId = userId;
+    // ✅ NEW: If a user logs in, immediately try to process any queued events
+    // This helps clear the queue for events that were triggered before the user ID was set.
+    if (userId) {
+      this.processQueue().catch(err => console.warn('[TTS Usage] Error processing queue after user update:', err));
+    }
   }
 
   /**

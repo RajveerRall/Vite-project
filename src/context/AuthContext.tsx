@@ -231,6 +231,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           auth_event: 'sign_in',
           timestamp: new Date().toISOString()
         });
+
+        // ✅ NEW: Re-initialize usage tracking with the new user ID
+        // This ensures the tracker is aware of the authenticated user immediately
+        try {
+          const { initializeUsageTracking } = await import('../services/tts/index');
+          await initializeUsageTracking(data.user.id);
+          console.log('[AuthContext] Re-initialized usage tracking for user:', data.user.id);
+        } catch (trackingError) {
+          console.warn('[AuthContext] Failed to re-initialize usage tracking on sign-in:', trackingError);
+        }
       }
     } catch (error) {
       console.error('Sign in failed:', error);
