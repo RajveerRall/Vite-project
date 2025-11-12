@@ -378,14 +378,13 @@ export const useReaderTTS = ({
   }, [selectedVoice, isSpeaking, isPaused, isProcessing, clearAudioBuffer, readerInstanceId]);
 
   // === Prefetch chunks function ===
-  const prefetchChunks = useCallback(async (startIndex: number, countOverride?: number) => {
+  const prefetchChunks = useCallback(async (startIndex: number) => {
     if (chunks.length === 0) return;
 
     const normalizedStart = Math.max(0, startIndex);
     if (normalizedStart >= chunks.length) return;
 
-    const count = Math.max(1, countOverride ?? PREFETCH_CHUNK_COUNT);
-    const chunksToFetch = chunks.slice(normalizedStart, normalizedStart + count);
+    const chunksToFetch = chunks.slice(normalizedStart, normalizedStart + PREFETCH_CHUNK_COUNT);
     if (chunksToFetch.length === 0) return;
 
     console.log(`[Prefetch] Starting pre-fetch for chunks from index ${normalizedStart}`);
@@ -1241,21 +1240,10 @@ export const useReaderTTS = ({
 
     const startPlayback = async () => {
       console.log(`[${readerInstanceId}][handleTTS] Starting playback from chunk ${startChunk}`);
-      setIsProcessing(true);
-      // Prepare only the starting chunk; don't block longer than a short timeout
-      const prepareTimeout = new Promise<void>((resolve) => setTimeout(resolve, 2500));
-      try {
-        await Promise.race([prefetchChunks(startChunk, 1 as any), prepareTimeout]);
-      } catch (e) {
-        console.warn('[handleTTS] Initial prefetch failed, attempting to start playback anyway:', e);
-      } finally {
-        setIsProcessing(false);
-      }
-      // Start playback immediately
+      setIsProcessing(true); 
+      await prefetchChunks(startChunk);
+      setIsProcessing(false);
       playChunk(startChunk);
-      // Background prefetch for seamlessness
-      void prefetchChunks(startChunk + 1);
-      void prefetchChunks(startChunk + PREFETCH_SECONDARY_OFFSET);
     };
     startPlayback();
 

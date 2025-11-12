@@ -38,7 +38,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
       status: fullCastStatus,
       buffered: fullCastBuffered,
     });
-    onFullCastPause?.();
+    // onFullCastPause();
   };
 
   const handleFullCastResume = () => {
@@ -46,7 +46,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
       status: fullCastStatus,
       buffered: fullCastBuffered,
     });
-    onFullCastResume?.();
+    // onFullCastResume();
   };
 
   return (
@@ -56,11 +56,9 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
         <div className="px-4 py-3">
           <Controls
             {...controlsProps}
-            fullCastStatus={fullCastStatus}
-            fullCastBuffered={fullCastBuffered}
             onFullCastStop={handleFullCastStop}
-            onFullCastPause={onFullCastPause ? handleFullCastPause : undefined}
-            onFullCastResume={onFullCastResume ? handleFullCastResume : undefined}
+            onFullCastPause={handleFullCastPause}
+            onFullCastResume={handleFullCastResume}
           />
         </div>
       </div>
@@ -70,11 +68,9 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
         <div className="px-6 py-3">
           <Controls
             {...controlsProps}
-            fullCastStatus={fullCastStatus}
-            fullCastBuffered={fullCastBuffered}
             onFullCastStop={handleFullCastStop}
-            onFullCastPause={onFullCastPause ? handleFullCastPause : undefined}
-            onFullCastResume={onFullCastResume ? handleFullCastResume : undefined}
+            onFullCastPause={handleFullCastPause}
+            onFullCastResume={handleFullCastResume}
           />
         </div>
       </div>
