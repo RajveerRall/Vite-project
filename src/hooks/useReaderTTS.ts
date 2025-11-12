@@ -414,7 +414,24 @@ export const useReaderTTS = ({
           params.set('rate', speedParam);
         }
         
-        let response = await fetch(`${apiUrl}?${params.toString()}`);
+        // Add timeout protection to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
+        
+        let response;
+        try {
+          response = await fetch(`${apiUrl}?${params.toString()}`, {
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === 'AbortError') {
+            console.warn(`[Prefetch] TTS request timeout for chunk #${chunkIndex} after 30 seconds`);
+            continue; // Skip this chunk and continue with next
+          }
+          throw fetchError; // Re-throw other errors
+        }
         
         if (!response.ok) continue;
 
@@ -713,7 +730,23 @@ export const useReaderTTS = ({
           params.set('rate', speedParam);
         }
         
-        let response = await fetch(`${apiUrlForPlay}?${params.toString()}`);
+        // Add timeout protection to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
+        
+        let response;
+        try {
+          response = await fetch(`${apiUrlForPlay}?${params.toString()}`, {
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === 'AbortError') {
+            throw new Error('TTS request timeout after 30 seconds');
+          }
+          throw fetchError; // Re-throw other errors
+        }
         
         if (!response.ok) throw new Error(`Failed to fetch TTS audio: ${response.statusText}`);
 

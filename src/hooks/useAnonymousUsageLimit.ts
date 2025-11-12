@@ -56,9 +56,16 @@ export function useAnonymousUsageLimit(): AnonymousUsageLimit | null {
       const { supabase } = await import('../lib/supabase');
       const sessionId = getAnonymousSessionId();
       
-      const { data, error } = await supabase.rpc('get_anonymous_usage', {
+      // Add timeout protection to prevent hanging (5 seconds)
+      const rpcPromise = supabase.rpc('get_anonymous_usage', {
         p_session_id: sessionId
       });
+      
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Anonymous usage RPC timeout after 5 seconds')), 5000);
+      });
+      
+      const { data, error } = await Promise.race([rpcPromise, timeoutPromise]);
       
       if (error) throw error;
       
@@ -70,8 +77,14 @@ export function useAnonymousUsageLimit(): AnonymousUsageLimit | null {
         remainingMinutes: Math.floor((limitSeconds - totalSeconds) / 60),
         percentageUsed: ((totalSeconds / limitSeconds) * 100).toFixed(1) + '%'
       });
-    } catch (err) {
-      console.error('[AnonymousUsageLimit] Failed to fetch usage:', err);
+    } catch (err: any) {
+      // Handle timeout gracefully - don't block TTS if usage check fails
+      if (err?.message?.includes('timeout')) {
+        console.warn('[AnonymousUsageLimit] Usage check timeout, allowing TTS to proceed');
+        // Don't set usedSeconds, keep current state
+      } else {
+        console.error('[AnonymousUsageLimit] Failed to fetch usage:', err);
+      }
     } finally {
       setIsLoading(false);
     }

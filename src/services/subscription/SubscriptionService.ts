@@ -4,12 +4,35 @@
  * Uses direct REST API calls to bypass problematic client abstraction
  */
 
-import { supabase } from '../../lib/supabase';
 import { getAccessToken } from '../../lib/authToken';
 import { getDodoPaymentsService } from './DodoPaymentsService';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+/**
+ * Refresh session with timeout protection
+ * Prevents hanging when Supabase auth is slow or unresponsive
+ */
+async function refreshSessionWithTimeout(timeoutMs: number = 7000) {
+  const { supabase } = await import('../../lib/supabase');
+  
+  const refreshPromise = supabase.auth.refreshSession();
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('Session refresh timeout after 7 seconds')), timeoutMs);
+  });
+  
+  try {
+    const result = await Promise.race([refreshPromise, timeoutPromise]);
+    return result;
+  } catch (error: any) {
+    if (error.message?.includes('timeout')) {
+      console.error('[SubscriptionService] Session refresh timeout');
+      throw new Error('Session refresh timeout. Please try again.');
+    }
+    throw error;
+  }
+}
 
 /**
  * Direct REST API fetch - bypasses Supabase client entirely
@@ -60,8 +83,7 @@ async function fetchWithRestAPI(
     if (response.status === 401) {
       console.log('[REST API] Token expired (401), attempting refresh...');
       try {
-        const { supabase } = await import('../../lib/supabase');
-        const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+        const { data: { session }, error: sessionError } = await refreshSessionWithTimeout(7000);
         
         if (sessionError || !session?.access_token) {
           throw new Error('Failed to refresh session');
@@ -331,8 +353,7 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
       // Handle 401 - try to refresh token
       if (response.status === 401) {
         console.log('[SubscriptionService] Limit check token expired (401), attempting refresh...');
-        const { supabase } = await import('../../lib/supabase');
-        const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+        const { data: { session }, error: sessionError } = await refreshSessionWithTimeout(7000);
         
         if (sessionError || !session?.access_token) {
           throw new Error('Session expired. Please sign in again.');
