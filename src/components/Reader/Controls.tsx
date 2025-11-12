@@ -90,8 +90,7 @@ const Controls: React.FC<ControlsProps> = ({
   const { usedMinutes: fcUsed, totalMinutes: fcTotal } = useFullCastUsage();
   const { isLimitExceeded } = useSubscription();
   const { addToast } = useToast();
-  // Auth modal trigger used in UsageLimitModal onSignIn flow below
-  const [, setShowAuthModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Calculate chapter progress percentage
   const chapterProgress = totalChunks > 0 && currentChunkIndex !== null 
@@ -128,24 +127,8 @@ const Controls: React.FC<ControlsProps> = ({
     }
   }
 
-  // Simple action lock + debounce to avoid double-execution
-  const [actionLock, setActionLock] = useState(false);
-  const lastActionRef = React.useRef(0);
-  const withLock = async (fn: () => Promise<void> | void) => {
-    if (actionLock) return;
-    const now = Date.now();
-    if (now - lastActionRef.current < 250) return;
-    lastActionRef.current = now;
-    setActionLock(true);
-    try {
-      await fn();
-    } finally {
-      setActionLock(false);
-    }
-  };
-
   // Handle read aloud button click - show toast if disabled due to anonymous limit
-  const handleReadAloudClick = () => withLock(async () => {
+  const handleReadAloudClick = () => {
     // If disabled due to anonymous limit, show toast
     if (isDisabledDueToLimit && anonymousLimit?.isLimitReached) {
       addToast('Sign up to listen for free', 'info');
@@ -157,7 +140,7 @@ const Controls: React.FC<ControlsProps> = ({
     }
     // Otherwise, proceed with normal TTS
     onReadAloud();
-  });
+  };
 
   // Show Full Cast controls when Full Cast is active
   if (fullCastActive) {
@@ -276,7 +259,7 @@ const Controls: React.FC<ControlsProps> = ({
             }`}
             aria-label={readButtonTitle}
             title={readButtonTitle}
-            disabled={(isProcessing && !isReading && !isPaused) || actionLock}
+            disabled={isProcessing && !isReading && !isPaused}
           >
             {isProcessing && !isReading && !isPaused ? (
               <Loader2 size={22} className="animate-spin md:text-[26px]" />

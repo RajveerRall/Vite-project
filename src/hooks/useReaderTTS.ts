@@ -110,10 +110,6 @@ export const useReaderTTS = ({
   
   // Initialize chunk service for pre-decoding
   const chunkServiceRef = useRef(createTTSChunkService(readerInstanceId)).current;
-  // Session token to invalidate stale async completions
-  const playSessionIdRef = useRef(0);
-  // Track in-flight network requests to abort on stop
-  const inflightControllersRef = useRef<AbortController[]>([]);
   // === TTS Playback States ===
   const [chunks, setChunks] = useState<string[]>([]);
   const [currentChunkIndex, setCurrentChunkIndex] = useState<number | null>(null);
@@ -403,9 +399,6 @@ export const useReaderTTS = ({
       if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex) continue;
 
       try {
-        // Create abort controller for this request
-        const controller = new AbortController();
-        inflightControllersRef.current.push(controller);
         const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
         const textChunk = chunksToFetch[i];
         const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
@@ -422,7 +415,7 @@ export const useReaderTTS = ({
           params.set('rate', speedParam);
         }
         
-        let response = await fetch(`${apiUrl}?${params.toString()}`, { signal: controller.signal });
+        let response = await fetch(`${apiUrl}?${params.toString()}`);
         
         if (!response.ok) continue;
 
@@ -514,7 +507,6 @@ export const useReaderTTS = ({
 
     // HTML5 Audio fallback (original implementation)
     const playAudio = (audioUrl: string) => {
-      const sessionIdSnapshot = playSessionIdRef.current;
       // Clean up previous audio element if it exists
       if (audioRef.current) {
         // Remove all event listeners to prevent stale handlers
@@ -535,7 +527,6 @@ export const useReaderTTS = ({
       
       // Set up event handlers BEFORE setting src (more reliable)
       const handlePlay = () => {
-        if (sessionIdSnapshot !== playSessionIdRef.current) return;
         playStartTimeRef.current[index] = Date.now();
         console.log(`[playChunk] Audio started playing chunk #${index}`);
         // Update currentChunkIndex when audio actually starts playing
@@ -544,7 +535,6 @@ export const useReaderTTS = ({
       };
       
       const handleEnded = async () => {
-        if (sessionIdSnapshot !== playSessionIdRef.current) return;
         console.log(`[playChunk] Audio ended for chunk #${index}, advancing to chunk #${index + 1}`);
         
         // Calculate usage seconds
@@ -629,7 +619,6 @@ export const useReaderTTS = ({
       };
       
       const handleError = (e: Event) => {
-        if (sessionIdSnapshot !== playSessionIdRef.current) return;
         console.error(`[${readerInstanceId}][playChunk] Audio playback error:`, e);
         setIsSpeaking(false); 
         setIsPaused(false); 
@@ -709,9 +698,6 @@ export const useReaderTTS = ({
         const textChunk = chunks[index];
         const ttsApiUrlForPlay = import.meta.env.VITE_TTS_API_URL || '';
         const apiUrlForPlay = ttsApiUrlForPlay ? `${ttsApiUrlForPlay}/api/tts` : '/api/tts';
-        // Create abort controller for this network play fetch
-        const controller = new AbortController();
-        inflightControllersRef.current.push(controller);
         
         // Build query parameters with voice and speed
         const params = new URLSearchParams({
@@ -728,7 +714,7 @@ export const useReaderTTS = ({
           params.set('rate', speedParam);
         }
         
-        let response = await fetch(`${apiUrlForPlay}?${params.toString()}`, { signal: controller.signal });
+        let response = await fetch(`${apiUrlForPlay}?${params.toString()}`);
         
         if (!response.ok) throw new Error(`Failed to fetch TTS audio: ${response.statusText}`);
 
@@ -1027,18 +1013,6 @@ export const useReaderTTS = ({
 
   // === Handle user clicking the STOP button ===
   const handleStopTTS = useCallback(() => {
-    // Invalidate current session so late events do nothing
-    playSessionIdRef.current += 1;
-
-    // Abort all in-flight fetches
-    try {
-      inflightControllersRef.current.forEach(c => {
-        try { c.abort(); } catch {}
-      });
-    } finally {
-      inflightControllersRef.current = [];
-    }
-
     haltPlayback();
     clearResumeIndex();
     ttsIntentActiveRef.current = false;
@@ -1051,9 +1025,6 @@ export const useReaderTTS = ({
 
   // === Handle main TTS button pressed ===
   const handleTTS = useCallback(async (selectedTextOverride?: string | any) => {
-    // Start a new session
-    playSessionIdRef.current += 1;
-    const sessionId = playSessionIdRef.current;
     // Check anonymous limit BEFORE starting TTS
     if (anonymousLimit) {
       const canUseTTS = await anonymousLimit.checkLimit();
@@ -1281,15 +1252,10 @@ export const useReaderTTS = ({
         setIsProcessing(false);
       }
       // Start playback immediately
-      // Guard against session invalidation
-      if (sessionId === playSessionIdRef.current) {
-        playChunk(startChunk);
-      }
+      playChunk(startChunk);
       // Background prefetch for seamlessness
-      if (sessionId === playSessionIdRef.current) {
-        void prefetchChunks(startChunk + 1);
-        void prefetchChunks(startChunk + PREFETCH_SECONDARY_OFFSET);
-      }
+      void prefetchChunks(startChunk + 1);
+      void prefetchChunks(startChunk + PREFETCH_SECONDARY_OFFSET);
     };
     startPlayback();
 
