@@ -55,10 +55,10 @@ export function useAnonymousUsageLimit(): AnonymousUsageLimit | null {
     try {
       const { supabase } = await import('../lib/supabase');
       const sessionId = getAnonymousSessionId();
-      
-      const { data, error } = await supabase.rpc('get_anonymous_usage', {
-        p_session_id: sessionId
-      });
+      // Add a timeout guard to avoid indefinite hanging
+      const rpcPromise = supabase.rpc('get_anonymous_usage', { p_session_id: sessionId });
+      const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('anonymous usage RPC timeout')), 5000));
+      const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
       
       if (error) throw error;
       
@@ -70,8 +70,8 @@ export function useAnonymousUsageLimit(): AnonymousUsageLimit | null {
         remainingMinutes: Math.floor((limitSeconds - totalSeconds) / 60),
         percentageUsed: ((totalSeconds / limitSeconds) * 100).toFixed(1) + '%'
       });
-    } catch (err) {
-      console.error('[AnonymousUsageLimit] Failed to fetch usage:', err);
+    } catch (err: any) {
+      console.error('[AnonymousUsageLimit] Failed to fetch usage:', err?.message || err);
     } finally {
       setIsLoading(false);
     }

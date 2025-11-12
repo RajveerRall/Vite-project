@@ -61,7 +61,12 @@ async function fetchWithRestAPI(
       console.log('[REST API] Token expired (401), attempting refresh...');
       try {
         const { supabase } = await import('../../lib/supabase');
-        const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+        // Add timeout wrapper around refreshSession to avoid hanging
+        const refreshWithTimeout = (ms = 7000) => Promise.race([
+          supabase.auth.refreshSession(),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('refreshSession timeout')), ms))
+        ]);
+        const { data: { session }, error: sessionError } = await refreshWithTimeout();
         
         if (sessionError || !session?.access_token) {
           throw new Error('Failed to refresh session');
@@ -332,7 +337,11 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
       if (response.status === 401) {
         console.log('[SubscriptionService] Limit check token expired (401), attempting refresh...');
         const { supabase } = await import('../../lib/supabase');
-        const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+        const refreshWithTimeout = (ms = 7000) => Promise.race([
+          supabase.auth.refreshSession(),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('refreshSession timeout')), ms))
+        ]);
+        const { data: { session }, error: sessionError } = await refreshWithTimeout();
         
         if (sessionError || !session?.access_token) {
           throw new Error('Session expired. Please sign in again.');
