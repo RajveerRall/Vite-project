@@ -5907,6 +5907,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, ImageDraw, ImageFont
 import subprocess
+from renderers.split_layout import calculate_split_geometry, create_split_scroll_frame
 import uuid
 import os
 import tempfile
@@ -5952,7 +5953,9 @@ async def generate_video(
     style: str = Form("ereader"),  # "ereader", "subtitle", or "minimal"
     highlight_mode: str = Form("sentence"),  # Changed from enable_highlight
     scene_images_metadata: str = Form("[]"),  # NEW: JSON array of scene prompts
-    scene_image_files: List[UploadFile] = File([])  # NEW: Actual image files from frontend
+    scene_image_files: List[UploadFile] = File([]),  # NEW: Actual image files from frontend
+    scene_layout: str = Form("overlay"),  # NEW: "overlay" | "split"
+    image_side: str = Form("left")        # NEW: "left" | "right"
 ):
     """
     Generate video with smart frame generation using multiple audio chunks
@@ -5969,6 +5972,8 @@ async def generate_video(
         format: Video format - "youtube" (1920x1080 horizontal) or "mobile" (1080x1920 vertical)
         style: Video style - "ereader" (book-like), "subtitle" (modern), or "minimal" (clean)
         highlight_mode: Highlighting mode - "none", "sentence", or "word"
+        scene_layout: Layout mode - "overlay" (default) or "split" (image + text columns)
+        image_side: For split layout, which side the image appears on ("left" or "right")
     
     Returns:
         Video file with smooth scrolling text
@@ -6054,7 +6059,9 @@ async def generate_video(
             author, actual_duration, srt_data, temp_dir, format, style,
             highlight_mode_value,  # Pass mode instead of boolean
             scene_images,  # NEW: Scene image metadata
-            scene_image_paths  # NEW: Scene image file paths
+            scene_image_paths,  # NEW: Scene image file paths
+            scene_layout=scene_layout,
+            image_side=image_side
         )
         
         # Read the video file content before cleanup
@@ -6123,7 +6130,7 @@ def get_ffprobe_path():
 def detect_gpu_encoder():
     """
     Detect available hardware encoder.
-    Returns: 'nvenc' (NVIDIA), 'qsv' (Intel), or 'cpu' (fallback)
+    Returns: 'nvenc' (NVIDIA), 'qsv' (Intel), 'amf' (AMD), or 'cpu' (fallback)
     """
     ffmpeg = get_ffmpeg_path()
     
@@ -6156,14 +6163,35 @@ def detect_gpu_encoder():
             if test.returncode == 0:
                 print("✓ Intel QuickSync hardware encoder detected")
                 return 'qsv'
+        
+        # Check for AMD AMF (Windows)
+        if 'h264_amf' in encoders:
+            test = subprocess.run(
+                [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
+                 '-c:v', 'h264_amf', '-f', 'null', '-'],
+                capture_output=True, timeout=10
+            )
+            if test.returncode == 0:
+                print("✓ AMD AMF hardware encoder detected")
+                return 'amf'
     except Exception as e:
         print(f"GPU detection failed: {e}")
     
     print("⚠ No hardware encoder detected, using CPU (slower)")
     return 'cpu'
 
-# Cache the result
-GPU_ENCODER = detect_gpu_encoder()
+# Lazy GPU encoder detection (avoid doing it in worker processes)
+GPU_ENCODER = "cpu"
+GPU_PROBED = False
+def get_gpu_encoder():
+    global GPU_ENCODER, GPU_PROBED
+    if not GPU_PROBED:
+        try:
+            GPU_ENCODER = detect_gpu_encoder()
+        except Exception:
+            GPU_ENCODER = "cpu"
+        GPU_PROBED = True
+    return GPU_ENCODER
 
 def create_video_with_ffmpeg_direct(frames_dir, audio_path, width, height, fps, num_frames, total_duration, crf):
     """
@@ -6171,7 +6199,8 @@ def create_video_with_ffmpeg_direct(frames_dir, audio_path, width, height, fps, 
     """
     output_path = os.path.join(tempfile.gettempdir(), f"output_{uuid.uuid4().hex}.mp4")
     
-    print(f"Encoding video with FFmpeg ({GPU_ENCODER} encoder):")
+    encoder = get_gpu_encoder()
+    print(f"Encoding video with FFmpeg ({encoder} encoder):")
     print(f"  Input: {num_frames} frames at {fps} fps")
     print(f"  Duration: {total_duration:.2f}s")
     
@@ -6185,18 +6214,27 @@ def create_video_with_ffmpeg_direct(frames_dir, audio_path, width, height, fps, 
     ]
     
     # Add encoder-specific options
-    if GPU_ENCODER == 'nvenc':
+    if encoder == 'nvenc':
         cmd.extend([
             '-c:v', 'h264_nvenc',
             '-preset', 'p4',  # NVENC preset (p1=fastest, p7=slowest)
             '-cq', str(crf),  # Constant quality (similar to CRF)
             '-b:v', '0',      # Use CQ mode
         ])
-    elif GPU_ENCODER == 'qsv':
+    elif encoder == 'qsv':
         cmd.extend([
             '-c:v', 'h264_qsv',
             '-preset', 'fast',
             '-global_quality', str(crf),
+        ])
+    elif encoder == 'amf':
+        cmd.extend([
+            '-c:v', 'h264_amf',
+            '-quality', 'balanced',  # options: speed, balanced, quality
+            '-rc', 'cqp',            # constant QP mode
+            '-qp_i', str(crf),
+            '-qp_p', str(crf),
+            '-qp_b', str(crf),
         ])
     else:  # CPU fallback
         cmd.extend([
@@ -6217,11 +6255,11 @@ def create_video_with_ffmpeg_direct(frames_dir, audio_path, width, height, fps, 
     
     try:
         subprocess.run(cmd, check=True, capture_output=True, timeout=300)
-        print(f"✓ Video encoded successfully with {GPU_ENCODER}")
+        print(f"✓ Video encoded successfully with {encoder}")
         return output_path
     except subprocess.CalledProcessError as e:
         # If hardware encoding fails, fallback to CPU
-        if GPU_ENCODER != 'cpu':
+        if encoder != 'cpu':
             print(f"⚠ Hardware encoding failed, falling back to CPU")
             return create_video_with_ffmpeg_direct_cpu_fallback(
                 frames_dir, audio_path, width, height, fps, num_frames, total_duration, crf
@@ -6278,7 +6316,8 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
     # Calculate input framerate (keyframes per second)
     input_fps = num_keyframes / total_duration
     
-    print(f"Encoding video with FFmpeg (with interpolation, {GPU_ENCODER} encoder):")
+    encoder = get_gpu_encoder()
+    print(f"Encoding video with FFmpeg (with interpolation, {encoder} encoder):")
     print(f"  Input: {num_keyframes} key frames at {input_fps:.2f} fps")
     print(f"  Output: {target_fps} fps (simple interpolation)")
     
@@ -6293,18 +6332,27 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
     ]
     
     # Add encoder-specific options based on available GPU
-    if GPU_ENCODER == 'nvenc':
+    if encoder == 'nvenc':
         cmd.extend([
             '-c:v', 'h264_nvenc',
             '-preset', 'p4',  # NVENC preset (p1=fastest, p7=slowest)
             '-cq', str(crf),  # Constant quality (similar to CRF)
             '-b:v', '0',      # Use CQ mode
         ])
-    elif GPU_ENCODER == 'qsv':
+    elif encoder == 'qsv':
         cmd.extend([
             '-c:v', 'h264_qsv',
             '-preset', 'fast',
             '-global_quality', str(crf),
+        ])
+    elif encoder == 'amf':
+        cmd.extend([
+            '-c:v', 'h264_amf',
+            '-quality', 'balanced',  # options: speed, balanced, quality
+            '-rc', 'cqp',            # constant QP mode
+            '-qp_i', str(crf),
+            '-qp_p', str(crf),
+            '-qp_b', str(crf),
         ])
     else:  # CPU fallback
         cmd.extend([
@@ -6325,7 +6373,7 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
     
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=300)
-        print(f"✓ Video encoded successfully with {GPU_ENCODER}")
+        print(f"✓ Video encoded successfully with {encoder}")
         print(f"Video created: {output_path}")
         
         shutil.rmtree(frames_dir)
@@ -6335,7 +6383,7 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
         
     except subprocess.CalledProcessError as e:
         # If hardware encoding fails, fallback to CPU
-        if GPU_ENCODER != 'cpu':
+        if encoder != 'cpu':
             print(f"⚠ Hardware encoding failed, falling back to CPU")
             return create_video_with_ffmpeg_interpolated_cpu_fallback(
                 frames_dir, audio_path, width, height, target_fps, num_keyframes, total_duration, crf
@@ -7370,7 +7418,7 @@ def wrap_text_pillow(text, font, max_width):
     
     return lines
 
-def precompute_text_layout(text, width, height, preserve_paragraphs=False):
+def precompute_text_layout(text, width, height, preserve_paragraphs=False, max_text_width_override=None):
     """
     Pre-compute all text positions for continuous paragraph flow.
     Multiple sentences can appear on the same line naturally (like real paragraphs).
@@ -7383,6 +7431,8 @@ def precompute_text_layout(text, width, height, preserve_paragraphs=False):
     container_padding = int(width * 0.08)
     effective_width = width - (2 * container_padding)
     max_width = effective_width - (2 * padding)
+    if max_text_width_override is not None:
+        max_width = max_text_width_override
     
     # Split into sentences but keep them for mapping
     sentences = split_into_sentences(text)
@@ -7861,8 +7911,8 @@ def calculate_scene_timings(scene_images: list, srt_entries: list,
     scene_timings = []
     
     if USE_PARALLEL:
-        print(f"Preprocessing {len(tasks)} scene images in parallel with up to {cpu_count() - 1} workers...")
-        num_workers = max(1, cpu_count() - 1)
+        num_workers = min(10, max(1, cpu_count() - 1))
+        print(f"Preprocessing {len(tasks)} scene images in parallel with {num_workers} workers...")
         
         with Pool(processes=num_workers) as pool:
             # Process all scenes in parallel
@@ -8366,17 +8416,28 @@ def generate_frame_worker(args):
         # Unpack arguments - remove use_pipe_mode
         (frame_idx, current_time, scroll_y, srt_entries, layout, 
          book_title, chapter_title, author, width, height, highlight_mode,
-         srt_to_sentence_map, scene_timings, frames_dir) = args
+         srt_to_sentence_map, scene_timings, frames_dir, scene_layout, image_side) = args
         
         # Generate frame
-        frame, _ = create_scroll_frame(
-            layout, scroll_y, current_time, srt_entries,
-            book_title, chapter_title, author,
-            width, height, highlight_mode,
-            srt_to_sentence_map,
-            None,  # last_highlighted_sentence_id (not needed in parallel)
-            scene_timings
-        )
+        if scene_layout == "split":
+            frame, _ = create_split_scroll_frame(
+                layout, scroll_y, current_time, srt_entries,
+                book_title, chapter_title, author,
+                width, height, highlight_mode,
+                srt_to_sentence_map,
+                None,  # last_highlighted_sentence_id (not needed in parallel)
+                scene_timings,
+                image_side=image_side
+            )
+        else:
+            frame, _ = create_scroll_frame(
+                layout, scroll_y, current_time, srt_entries,
+                book_title, chapter_title, author,
+                width, height, highlight_mode,
+                srt_to_sentence_map,
+                None,  # last_highlighted_sentence_id (not needed in parallel)
+                scene_timings
+            )
         
         # Save frame to disk
         frame_path = os.path.join(frames_dir, f"frame_{frame_idx:06d}.png")
@@ -8392,7 +8453,9 @@ def generate_smart_scroll_frames(
     book_title, chapter_title, author,
     width, height, highlight_mode, fps=30,
     srt_to_sentence_map=None,  # Sequential mapping to prevent duplicate highlights
-    scene_timings=None  # NEW: Scene image timings for overlay
+    scene_timings=None,  # NEW: Scene image timings for overlay
+    scene_layout="overlay",
+    image_side="left"
 ):
     """
     Generate key frames at SRT boundaries + regular intervals for accurate highlighting.
@@ -8408,14 +8471,14 @@ def generate_smart_scroll_frames(
             key_frame_times.add(entry['start'])
             key_frame_times.add(entry['end'])
         
-        # Add frames every 0.1s for smoother scrolling (10 fps intervals)
-        interval = 0.1
+        # Add frames every 0.25s for smoother scrolling with fewer frames (4 fps intervals)
+        interval = 0.25
         current_time = 0.0
         while current_time <= total_duration:
             key_frame_times.add(current_time)
             current_time += interval
         
-        print(f"Generating {len(key_frame_times)} key frames (SRT boundaries + 0.1s intervals) for {total_duration:.2f}s video")
+        print(f"Generating {len(key_frame_times)} key frames (SRT boundaries + {interval}s intervals) for {total_duration:.2f}s video")
     else:
         # Fallback to fixed intervals if no SRT or highlighting disabled
         interval_seconds = 2.5
@@ -8433,7 +8496,8 @@ def generate_smart_scroll_frames(
     USE_PARALLEL = len(key_frame_times) > 100
     
     if USE_PARALLEL:
-        print(f"Using parallel processing with up to {cpu_count() - 1} workers")
+        max_workers = min(10, max(1, cpu_count() - 1))
+        print(f"Using parallel processing with {max_workers} workers")
         
         # Pre-compute all tasks
         tasks = []
@@ -8441,7 +8505,7 @@ def generate_smart_scroll_frames(
         
         for idx, current_time in enumerate(key_frame_times):
             # Calculate scroll position based on current sentence (static page with smart scroll)
-            if srt_entries and highlight_mode != 'none':
+            if srt_entries:
                 scroll_y = calculate_static_page_scroll(
                     current_time, srt_entries, srt_to_sentence_map, layout, height, previous_scroll
                 )
@@ -8457,12 +8521,12 @@ def generate_smart_scroll_frames(
             task_args = (
                 idx, current_time, scroll_y, srt_entries, layout,
                 book_title, chapter_title, author, width, height, highlight_mode,
-                srt_to_sentence_map, scene_timings, frames_dir
+                srt_to_sentence_map, scene_timings, frames_dir, scene_layout, image_side
             )
             tasks.append(task_args)
         
         # Parallel processing
-        num_workers = max(1, cpu_count() - 1)
+        num_workers = max_workers
         print(f"Generating {len(tasks)} frames in parallel with {num_workers} workers...")
         
         with Pool(processes=num_workers) as pool:
@@ -8488,7 +8552,7 @@ def generate_smart_scroll_frames(
         
         for idx, current_time in enumerate(key_frame_times):
             # Calculate scroll position based on current sentence (static page with smart scroll)
-            if srt_entries and highlight_mode != 'none':
+            if srt_entries:
                 scroll_y = calculate_static_page_scroll(
                     current_time, srt_entries, srt_to_sentence_map, layout, height, previous_scroll
                 )
@@ -8501,14 +8565,25 @@ def generate_smart_scroll_frames(
                 )
             
             # Generate frame with highlighting check at this exact time
-            frame, last_highlighted_sentence_id = create_scroll_frame(
-                layout, scroll_y, current_time, srt_entries,
-                book_title, chapter_title, author,
-                width, height, highlight_mode,
-                srt_to_sentence_map,  # Pass the mapping
-                last_highlighted_sentence_id,  # NEW: Pass previous highlight
-                scene_timings  # NEW: Pass scene timings
-            )
+            if scene_layout == "split":
+                frame, last_highlighted_sentence_id = create_split_scroll_frame(
+                    layout, scroll_y, current_time, srt_entries,
+                    book_title, chapter_title, author,
+                    width, height, highlight_mode,
+                    srt_to_sentence_map,  # Pass the mapping
+                    last_highlighted_sentence_id,  # NEW: Pass previous highlight
+                    scene_timings,  # NEW: Pass scene timings
+                    image_side=image_side
+                )
+            else:
+                frame, last_highlighted_sentence_id = create_scroll_frame(
+                    layout, scroll_y, current_time, srt_entries,
+                    book_title, chapter_title, author,
+                    width, height, highlight_mode,
+                    srt_to_sentence_map,  # Pass the mapping
+                    last_highlighted_sentence_id,  # NEW: Pass previous highlight
+                    scene_timings  # NEW: Pass scene timings
+                )
             
             # Save frame with sequential numbering
             frame_path = os.path.join(frames_dir, f"frame_{idx:06d}.png")
@@ -8788,7 +8863,7 @@ def generate_ereader_key_frames(pages, duration, width, height, fps, temp_dir, c
     
     return frames_dir, len(unique_moments), unique_moments
 
-def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title, author, duration, srt_data, temp_dir, video_format="youtube", style="ereader", highlight_mode="sentence", scene_images=None, scene_image_paths=None):
+def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title, author, duration, srt_data, temp_dir, video_format="youtube", style="ereader", highlight_mode="sentence", scene_images=None, scene_image_paths=None, scene_layout="overlay", image_side="left"):
     """
     Create video with smooth scrolling instead of page transitions
     """
@@ -8805,10 +8880,24 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
         width, height = 1920, 1080
         fps = 30
     
+    # Compute split geometry and text wrapping override if needed
+    max_text_width_override = None
+    image_col_w = None
+    if scene_layout == "split":
+        geo = calculate_split_geometry(width, height, image_side)
+        image_col_w = geo["image_w"]
+        text_col_w = geo["text_w"]
+        text_container_padding = int(text_col_w * 0.08)
+        max_text_width_override = text_col_w - (2 * text_container_padding) - (2 * 120)
+
     # NEW: Pre-compute text layout (all lines with Y positions)
     print("Pre-computing text layout...")
     preserve_paragraphs = (highlight_mode == 'none')
-    layout = precompute_text_layout(text, width, height, preserve_paragraphs=preserve_paragraphs)
+    layout = precompute_text_layout(
+        text, width, height,
+        preserve_paragraphs=preserve_paragraphs,
+        max_text_width_override=max_text_width_override
+    )
     print(f"Pre-computed {len(layout['lines'])} wrapped lines, total height: {layout['total_height']}px")
     
     # Parse SRT if provided (regardless of highlight mode) so scene images and timing can work in no-highlight mode
@@ -8816,9 +8905,9 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
     if srt_entries:
         print(f"Parsed {len(srt_entries)} SRT entries")
     
-    # Create similarity-based SRT-to-sentence mapping for accurate highlighting
+    # Create similarity-based SRT-to-sentence mapping (used for scrolling even in no-highlight)
     srt_to_sentence_map = None
-    if highlight_mode == 'sentence' and srt_entries and layout['lines']:
+    if srt_entries and layout['lines']:
         print("Creating similarity-based SRT-to-sentence mapping (difflib)...")
         srt_to_sentence_map = create_srt_to_sentence_map(srt_entries, layout['lines'])
     
@@ -8826,9 +8915,10 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
     scene_timings = []
     if scene_images and srt_entries:
         print("Calculating scene image timings using anchor_text matching...")
+        target_w = image_col_w if (scene_layout == "split" and image_col_w is not None) else width
         scene_timings = calculate_scene_timings(
             scene_images, srt_entries, scene_image_paths or {}, duration,
-            width, height  # Pass dimensions for preprocessing
+            target_w, height  # Pass dimensions for preprocessing
         )
         print(f"✓ Preprocessed and prepared {len(scene_timings)} scene images for video overlay")
     
@@ -8839,7 +8929,9 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
         width, height, highlight_mode,
         fps,
         srt_to_sentence_map,
-        scene_timings
+        scene_timings,
+        scene_layout=scene_layout,
+        image_side=image_side
     )
     
     # STEP 2: Encode video using the correct interpolation method

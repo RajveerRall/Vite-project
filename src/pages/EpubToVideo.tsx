@@ -453,7 +453,10 @@ const EpubToVideo: React.FC = () => {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 scenes,
-                videoFormat: settings.format
+                videoFormat: settings.format,
+                // Inform image generator about split layout so it chooses a column-friendly ratio
+                sceneLayout: settings.style === 'split' ? 'split' : 'overlay',
+                imageAspect: settings.style === 'split' ? '3:4' : undefined
               })
             });
 
@@ -536,6 +539,9 @@ const EpubToVideo: React.FC = () => {
       formData.append('format', settings.format);
       formData.append('style', settings.style);
       formData.append('highlight_mode', settings.highlightMode);
+      // New split layout controls for Python backend
+      formData.append('scene_layout', settings.style === 'split' ? 'split' : 'overlay');
+      formData.append('image_side', 'left'); // change to 'right' to flip columns
 
       // Add scene images if available
       if (sceneImages.length > 0) {

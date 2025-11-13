@@ -1178,17 +1178,6 @@ app.post('/api/generate-scene-images', async (req, res) => {
       apiKey: process.env.GEMINI_API_KEY,
     });
     
-    // Determine aspect ratio based on video format
-    const aspectRatio = videoFormat === 'mobile' ? '9:16' : '16:9';
-    console.log(`[generate-scene-images] Using aspect ratio: ${aspectRatio}`);
-    
-    const config = {
-      responseModalities: ['IMAGE', 'TEXT'],
-      imageConfig: {
-        aspectRatio: aspectRatio
-      }
-    };
-    
     const model = 'gemini-2.5-flash-image';
     const generatedImages = [];
     const timestamp = Date.now();
@@ -1210,10 +1199,28 @@ app.post('/api/generate-scene-images', async (req, res) => {
             parts: [{ text: scene.image_prompt }]
           }
         ];
-        
+
+        // Determine aspect ratio based on video format AND layout, allowing override
+        const sceneLayout = String(req.body.sceneLayout || 'overlay').toLowerCase();
+        let aspectRatio = req.body.imageAspect; // optional explicit override (e.g., '3:4','4:5','16:9','9:16')
+        if (!aspectRatio) {
+          if (videoFormat === 'mobile') {
+            aspectRatio = '9:16';            // vertical video
+          } else if (sceneLayout === 'split') {
+            aspectRatio = '3:4';             // column-friendly for split layout in 16:9
+          } else {
+            aspectRatio = '16:9';            // default overlay background
+          }
+        }
+        const cfg = {
+          responseModalities: ['IMAGE', 'TEXT'],
+          imageConfig: { aspectRatio }
+        };
+        console.log(`[generate-scene-images] Using aspect ratio: ${aspectRatio} (layout=${sceneLayout}, format=${videoFormat})`);
+
         const response = await ai.models.generateContentStream({
           model,
-          config,
+          config: cfg,
           contents,
         });
         
