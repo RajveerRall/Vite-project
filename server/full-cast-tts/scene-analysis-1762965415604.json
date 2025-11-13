@@ -1,0 +1,18 @@
+{
+  "bookTitle": "_OceanofPDF.com_The_Way_of_Kings_-_Brandon_Sanderson.epub",
+  "chapter": "Endnote",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 1,
+  "textLength": 1290,
+  "processingTime": 3094,
+  "timestamp": "2025-11-12T16:36:55.604Z",
+  "scenes": [
+    {
+      "anchor_text": "ENDNOTE“Above silence, the illuminating storms—dying storms— illuminate the silence above.”The above sample is noteworthy as it is a ketek, a complex form of holy Vorin poem. The ketek not only reads the same forward and backward  but is also divisible into five distinct smaller sections, each of which makes a complete thought.",
+      "scene_description": "A dying Herdazian man mutters the ketek as stormlight illuminates the landscape, highlighting a desolate and ancient stone structure. The structure appears to be weathered by ages of storms, hinting at the poem's deeper meaning.",
+      "image_prompt": "Cinematic digital painting, Herdazian man reciting poetry as Stormlight briefly illuminates him, desolate windswept plains with crumbling stone ruins of an ancient temple complex in the distance, atmospheric fantasy, muted colors with bursts of light, dramatic backlight casting long shadows, wide shot emphasizing the environment, Herdazian Man: gaunt, weather-beaten face, ragged clothing",
+      "mood": "desolate"
+    }
+  ]
+}

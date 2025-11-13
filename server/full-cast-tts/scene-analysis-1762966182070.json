@@ -1,0 +1,72 @@
+{
+  "bookTitle": "pg2500-images.epub",
+  "chapter": "THE SON OF THE BRAHMAN",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": 10,
+  "textLength": 14948,
+  "processingTime": 17943,
+  "timestamp": "2025-11-12T16:49:42.070Z",
+  "scenes": [
+    {
+      "anchor_text": "In the shade of the house, in the sunshine of the riverbank near the boats, in\nthe shade of the Sal-wood forest, in the shade of the fig tree is where\nSiddhartha grew up, the handsome son of the Brahman, the young falcon, together\nwith his friend Govinda, son of a Brahman.",
+      "scene_description": "Siddhartha and Govinda, as young boys, play near the riverbank and boats, bathed in sunlight filtering through the trees. The environment emphasizes the natural beauty and serenity of their upbringing.",
+      "image_prompt": "Cinematic digital painting, two young boys playing near boats on a sun-drenched riverbank, Lush riverbank with boats, shaded by Sal-wood forest and fig trees, Indian landscape, vibrant yet muted, dappled sunlight, wide-angle composition capturing the expanse of the river and forest, Siddhartha: handsome boy, son of a Brahman; Govinda: Siddhartha's friend, also son of a Brahman",
+      "mood": "serene"
+    },
+    {
+      "anchor_text": "The sun tanned his light shoulders\nby the banks of the river when bathing, performing the sacred ablutions, the\nsacred offerings. In the mango grove, shade poured into his black eyes, when\nplaying as a boy, when his mother sang, when the sacred offerings were made,",
+      "scene_description": "Young Siddhartha bathes in the river, performing sacred ablutions as the sun tans his shoulders. A mango grove provides shade, filtering sunlight onto the scene, creating a peaceful and spiritual atmosphere.",
+      "image_prompt": "Cinematic digital painting, A young boy bathing in a river performing sacred ablutions, Riverbank scene with a mango grove in the background, sunlight filtering through the leaves, Ancient India, spiritual, dappled sunlight, medium shot showing the boy and the riverbank, Siddhartha: handsome boy, light shoulders",
+      "mood": "peaceful"
+    },
+    {
+      "anchor_text": "For a long\ntime, Siddhartha had been partaking in the discussions of the wise men,\npractising debate with Govinda, practising with Govinda the art of reflection,\nthe service of meditation. He already knew how to speak the Om silently,",
+      "scene_description": "Siddhartha and Govinda sit in contemplation under the shade of a large tree, practicing meditation. The surrounding environment is quiet and contemplative, fostering an atmosphere of deep thought and reflection.",
+      "image_prompt": "Cinematic digital painting, Two young men meditating under a large Banyan tree, a tranquil grove with dappled sunlight, Ancient India, spiritual, calm lighting, close-up showing the expressions of concentration, Siddhartha and Govinda",
+      "mood": "contemplative"
+    },
+    {
+      "anchor_text": "Dreams and restless thoughts came into his mind, flowing from the water\nof the river, sparkling from the stars of the night, melting from the beams of\nthe sun, dreams came to him and a restlessness of the soul, fuming from the\nsacrifices, breathing forth from the verses of the Rig-Veda, being infused into\nhim, drop by drop, from the teachings of the old Brahmans.",
+      "scene_description": "A wide shot of Siddhartha, lying awake at night, as dreams and restless thoughts swirl around him like the river's current and starlight. This captures his inner turmoil and the influence of teachings.",
+      "image_prompt": "Cinematic digital painting, A young man lying awake at night with swirling ethereal visions surrounding him, riverside location under a star-filled night sky, Ancient India, mystical, dark and dreamy lighting, wide shot conveying a sense of vastness, Siddhartha",
+      "mood": "restless"
+    },
+    {
+      "anchor_text": "Siddhartha had started to nurse discontent in himself, he had started to feel\nthat the love of his father and the love of his mother, and also the love of\nhis friend, Govinda, would not bring him joy for ever and ever, would not nurse\nhim, feed him, satisfy him.",
+      "scene_description": "Siddhartha sits alone in a courtyard. The architecture and surroundings are beautiful, but Siddhartha seems detached. The beauty of his environment contrasts with the internal discontent he feels.",
+      "image_prompt": "Cinematic digital painting, a young man sitting alone in a beautifully decorated courtyard, traditional Indian architecture with intricate carvings, muted color palette with strong contrast, wide shot establishing the scene, Siddhartha",
+      "mood": "discontent"
+    },
+    {
+      "anchor_text": "Often he spoke to himself from a Chandogya-Upanishad the words: “Truly,\nthe name of the Brahman is satyam—verily, he who knows such a thing, will\nenter the heavenly world every day.” Often, it seemed near, the heavenly\nworld, but never he had reached it completely, never he had quenched the\nultimate thirst.",
+      "scene_description": "Siddhartha sits alone reading an ancient text by candlelight. The room is dark, but the candlelight highlights the text and illuminates Siddhartha's focused expression.",
+      "image_prompt": "Cinematic digital painting, A young man reading an ancient text by candlelight in a dimly lit room, simple room with ancient scrolls, muted tones with golden candlelight, close-up focusing on his face and the text, Siddhartha",
+      "mood": "yearning"
+    },
+    {
+      "anchor_text": "They went to the Banyan tree, they sat down, Siddhartha right here, Govinda\ntwenty paces away. While putting himself down, ready to speak the Om,\nSiddhartha repeated murmuring the verse:\nOm is the bow, the arrow is soul, The Brahman is the arrow’s target, That\none should incessantly hit.",
+      "scene_description": "Siddhartha and Govinda sit beneath a sprawling Banyan tree, preparing for meditation. The image emphasizes the size and age of the tree, symbolizing wisdom and tradition, while capturing the quiet intensity of their practice.",
+      "image_prompt": "Cinematic digital painting, Two young men meditating under a massive Banyan tree, Ancient Indian landscape, Spiritual, soft diffused light, medium shot showing both figures and the tree, Siddhartha and Govinda",
+      "mood": "introspective"
+    },
+    {
+      "anchor_text": "Thus sat he, wrapped up in contemplation, thinking Om, his soul\nsent after the Brahman as an arrow.\nOnce, Samanas had travelled through Siddhartha’s town, ascetics on a\npilgrimage, three skinny, withered men, neither old nor young, with dusty and\nbloody shoulders, almost naked, scorched by the sun, surrounded by loneliness,",
+      "scene_description": "Siddhartha sits in deep meditation under the Banyan tree, seemingly lifeless, while a vision of Samanas appears in the background, hinting at his future path.",
+      "image_prompt": "Cinematic digital painting, Siddhartha deep in meditation with a faint vision of three emaciated Samanas in the background, Under the banyan tree, Ancient India, Spiritual, ethereal lighting, medium shot combining present and vision, Siddhartha, Samanas",
+      "mood": "transcendent"
+    },
+    {
+      "anchor_text": "Siddhartha entered the chamber, where his father was sitting on a mat of bast,\nand stepped behind his father and remained standing there, until his father\nfelt that someone was standing behind him.",
+      "scene_description": "Siddhartha stands behind his father in a dimly lit chamber, waiting to announce his decision. The setting is austere, emphasizing the gravity of the moment.",
+      "image_prompt": "Cinematic digital painting, A young man standing behind his seated father in a sparsely furnished chamber, a dimly lit room with a simple mat, Ancient Indian, tense atmosphere, low-key lighting, medium shot, Siddhartha, Brahman",
+      "mood": "tense"
+    },
+    {
+      "anchor_text": "As he slowly left on stiff legs in the first light of day the still quiet town,\na shadow rose near the last hut, who had crouched there, and joined the\npilgrim—Govinda.\n“You have come,” said Siddhartha and smiled.",
+      "scene_description": "Siddhartha, leaving the quiet town at dawn, is joined by Govinda. The scene captures the beginning of their journey, with the first light of day illuminating their path.",
+      "image_prompt": "Cinematic digital painting, Two young men walking away from a quiet town at dawn, a simple, rural town with small huts in the early morning light, Ancient India, hopeful yet somber, dawn lighting, long shot establishing the journey, Siddhartha and Govinda",
+      "mood": "hopeful"
+    }
+  ]
+}
