@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Upload, Settings, FileText, Video, Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/Common/SEO';
@@ -19,6 +19,16 @@ interface VideoProgress {
   message: string;
 }
 
+interface QueueItem {
+  id: string;
+  chapterIndex: number;
+  chapterTitle: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  progress: VideoProgress;
+  error?: string;
+  estimatedDuration: number;
+}
+
 const EpubToVideo: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [settings, setSettings] = useState<VideoSettings>({
@@ -28,13 +38,10 @@ const EpubToVideo: React.FC = () => {
     enableSceneImages: false,  // NEW: Scene images disabled by default
     useMultiVoice: false  // NEW: Default to single narrator
   });
-  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
-  const [videoProgress, setVideoProgress] = useState<VideoProgress>({
-    stage: 'idle',
-    percentage: 0,
-    message: ''
-  });
-  const [videoError, setVideoError] = useState<string | null>(null);
+  // Queue state
+  const [videoQueue, setVideoQueue] = useState<QueueItem[]>([]);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+  const [currentProcessingId, setCurrentProcessingId] = useState<string | null>(null);
 
   // Use the EPUB extraction hook (no TTS initialization)
   const { 
@@ -187,28 +194,132 @@ const EpubToVideo: React.FC = () => {
     }
   }, [uploadedFile, extractChapters, chapters.length]);
 
-  const handleGenerateVideo = useCallback(async (chapterIndex: number) => {
-    console.log(`[Video Generation] Button clicked for chapter index: ${chapterIndex}`);
-    
+  // Add chapter to queue
+  const addToQueue = useCallback((chapterIndex: number) => {
     const chapter = chapters.find(c => c.index === chapterIndex);
+    if (!chapter) {
+      console.error('[Queue] Chapter not found:', chapterIndex);
+      return;
+    }
+
+    const queueItem: QueueItem = {
+      id: `${Date.now()}-${chapterIndex}`,
+      chapterIndex,
+      chapterTitle: chapter.title,
+      status: 'queued',
+      progress: { stage: 'idle', percentage: 0, message: '' },
+      estimatedDuration: chapter.estimatedDuration
+    };
+
+    setVideoQueue(prev => [...prev, queueItem]);
+    console.log(`[Queue] Added "${chapter.title}" to queue`);
+  }, [chapters]);
+
+  // Process queue sequentially
+  const processQueue = useCallback(async () => {
+    if (isProcessingQueue) {
+      console.log('[Queue] Already processing, skipping');
+      return;
+    }
+
+    setIsProcessingQueue(true);
+    console.log('[Queue] Starting queue processing');
+
+    try {
+      while (true) {
+        // Find next queued item
+        const nextItem = videoQueue.find(item => item.status === 'queued');
+        
+        if (!nextItem) {
+          console.log('[Queue] No more items to process');
+          break;
+        }
+
+        console.log(`[Queue] Processing: ${nextItem.chapterTitle}`);
+        setCurrentProcessingId(nextItem.id);
+
+        // Mark as processing
+        setVideoQueue(prev => prev.map(item => 
+          item.id === nextItem.id 
+            ? { ...item, status: 'processing' as const }
+            : item
+        ));
+
+        try {
+          // Generate video for this item
+          await generateVideoForQueueItem(nextItem);
+          
+          // Mark as completed
+          console.log(`[Queue] ✓ Completed: ${nextItem.chapterTitle}`);
+          setVideoQueue(prev => prev.map(item => 
+            item.id === nextItem.id 
+              ? { 
+                  ...item, 
+                  status: 'completed' as const,
+                  progress: { stage: 'complete', percentage: 100, message: 'Complete!' }
+                }
+              : item
+          ));
+
+        } catch (error) {
+          // Mark as failed - STOP processing queue
+          console.error(`[Queue] ✗ Failed: ${nextItem.chapterTitle}`, error);
+          setVideoQueue(prev => prev.map(item => 
+            item.id === nextItem.id 
+              ? { 
+                  ...item, 
+                  status: 'failed' as const,
+                  error: error instanceof Error ? error.message : String(error),
+                  progress: { stage: 'idle', percentage: 0, message: 'Failed' }
+                }
+              : item
+          ));
+          
+          // STOP processing on failure
+          console.log('[Queue] Stopped due to failure');
+          break;
+        }
+      }
+    } finally {
+      setIsProcessingQueue(false);
+      setCurrentProcessingId(null);
+      console.log('[Queue] Queue processing ended');
+    }
+  }, [videoQueue, isProcessingQueue]);
+
+  // Auto-start queue when items are added
+  useEffect(() => {
+    const hasQueuedItems = videoQueue.some(item => item.status === 'queued');
+    if (hasQueuedItems && !isProcessingQueue) {
+      console.log('[Queue] Auto-starting queue processing');
+      processQueue();
+    }
+  }, [videoQueue, isProcessingQueue, processQueue]);
+
+  // Generate video for a specific queue item
+  const generateVideoForQueueItem = useCallback(async (queueItem: QueueItem) => {
+    const chapter = chapters.find(c => c.index === queueItem.chapterIndex);
     
     if (!chapter || !chapter.content) {
-      console.error('[Video Generation] Chapter not found or no content:', { chapterIndex, chapter });
-      alert('Chapter content not available');
-      return;
+      throw new Error('Chapter content not available');
     }
 
     console.log(`[Video Generation] Starting video generation for chapter: ${chapter.title}`);
     console.log(`[Video Generation] Chapter content length: ${chapter.content.length}`);
 
-    setIsGeneratingVideo(true);
-    setVideoError(null);
-    setVideoProgress({ stage: 'idle', percentage: 0, message: '' });
+    // Helper to update this specific queue item's progress
+    const updateProgress = (progress: VideoProgress) => {
+      setVideoQueue(prev => prev.map(item => 
+        item.id === queueItem.id 
+          ? { ...item, progress }
+          : item
+      ));
+    };
     
     try {
       // Step 1: Generate script with Full Cast TTS
       const isMultiVoice = settings.useMultiVoice;
-      setVideoProgress({
+      updateProgress({
         stage: 'parsing',
         percentage: 20,
         message: isMultiVoice 
@@ -288,7 +399,7 @@ const EpubToVideo: React.FC = () => {
       }
 
       // Step 2: Generate audio for each script line with SRT (batched parallel processing)
-      setVideoProgress({
+      updateProgress({
         stage: 'audio',
         percentage: 50,
         message: 'Preparing audio generation...'
@@ -390,7 +501,7 @@ const EpubToVideo: React.FC = () => {
         // Update progress after each batch completes
         completedTasks += batchResults.length;
         const audioProgress = 50 + (completedTasks / ttsTasks.length) * 30;
-        setVideoProgress({
+        updateProgress({
           stage: 'audio',
           percentage: Math.round(audioProgress),
           message: `Generating audio ${completedTasks}/${ttsTasks.length}...`
@@ -453,7 +564,7 @@ const EpubToVideo: React.FC = () => {
       let sceneImageFiles: File[] = [];
 
       if (settings.enableSceneImages && sceneAnalysisPromise) {
-        setVideoProgress({
+        updateProgress({
           stage: 'audio',
           percentage: 75,
           message: 'Generating scene images...'
@@ -515,7 +626,7 @@ const EpubToVideo: React.FC = () => {
       console.log(`  - Scene images: ${sceneImages.length}`);
 
       // Step 3: Send to Python server for video generation
-      setVideoProgress({
+      updateProgress({
         stage: 'video',
         percentage: 80,
         message: 'Generating video...'
@@ -600,7 +711,7 @@ const EpubToVideo: React.FC = () => {
       }
 
       // Step 4: Download the generated video
-      setVideoProgress({
+      updateProgress({
         stage: 'complete',
         percentage: 100,
         message: 'Video generated successfully!'
@@ -619,9 +730,7 @@ const EpubToVideo: React.FC = () => {
       console.log('[Video Generation] Video generated and downloaded successfully');
     } catch (error) {
       console.error('[Video Generation] Failed:', error);
-      setVideoError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setIsGeneratingVideo(false);
+      throw error; // Re-throw to mark queue item as failed
     }
   }, [chapters, uploadedFile, settings]);
 
@@ -742,80 +851,146 @@ const EpubToVideo: React.FC = () => {
               )}
             </div>
 
-            {/* Chapters List */}
+            {/* Chapters List with Queue */}
             {chapters.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <FileText className="w-5 h-5 mr-2 text-red-800" />
-                  Chapters ({chapters.length})
-                </h3>
-                
-                <div className="space-y-3">
-                  {chapters.map((chapter) => {
-                    return (
-                      <div key={chapter.index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 text-sm">
-                            {chapter.title}
-                          </h4>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {chapter.content.length} characters • ~{formatDuration(chapter.estimatedDuration)} estimated
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {chapter.content.substring(0, 100)}...
-                          </p>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => {
-                              console.log('[Video Generation] Button onClick triggered');
-                              console.log('[Video Generation] Current state:', { isGeneratingVideo, chapterIndex: chapter.index });
-                              handleGenerateVideo(chapter.index);
-                            }}
-                            disabled={isGeneratingVideo}
-                            className="flex items-center px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Generate video from chapter"
-                          >
-                            {isGeneratingVideo ? (
-                              <>
-                                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                {videoProgress.message || 'Generating...'}
-                              </>
-                            ) : (
-                              <>
-                                <Video className="w-3 h-3 mr-1" />
-                                Generate Video
-                              </>
-                            )}
-                          </button>
-                        </div>
-                        
-                        {/* Video Generation Progress */}
-                        {isGeneratingVideo && videoProgress.percentage > 0 && (
-                          <div className="mt-3 w-full">
-                            <div className="w-full bg-gray-200 rounded-full h-1.5">
-                              <div 
-                                className="bg-red-600 h-1.5 rounded-full transition-all duration-300"
-                                style={{ width: `${videoProgress.percentage}%` }}
-                              />
+              <div className="space-y-6">
+                {/* Chapters List */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <FileText className="w-5 h-5 mr-2 text-red-800" />
+                    Chapters ({chapters.length})
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    {chapters.map((chapter) => {
+                      const queueItem = videoQueue.find(item => item.chapterIndex === chapter.index);
+                      const isInQueue = !!queueItem;
+                      const isProcessing = queueItem?.status === 'processing';
+                      
+                      return (
+                        <div key={chapter.index} className="border border-gray-200 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 text-sm">
+                                {chapter.title}
+                              </h4>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {chapter.content.length} characters • ~{formatDuration(chapter.estimatedDuration)}
+                              </p>
                             </div>
-                            <p className="text-xs text-gray-600 mt-1">
-                              {videoProgress.message}
-                            </p>
+                            
+                            <div className="flex items-center space-x-2">
+                              {!isInQueue ? (
+                                <button
+                                  onClick={() => addToQueue(chapter.index)}
+                                  disabled={isProcessingQueue}
+                                  className="flex items-center px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs disabled:opacity-50"
+                                >
+                                  <Video className="w-3 h-3 mr-1" />
+                                  Add to Queue
+                                </button>
+                              ) : (
+                                <span className={`px-3 py-1 rounded-md text-xs font-medium ${
+                                  queueItem.status === 'queued' ? 'bg-gray-200 text-gray-700' :
+                                  queueItem.status === 'processing' ? 'bg-blue-200 text-blue-700' :
+                                  queueItem.status === 'completed' ? 'bg-green-200 text-green-700' :
+                                  'bg-red-200 text-red-700'
+                                }`}>
+                                  {queueItem.status === 'queued' && '⏳ Queued'}
+                                  {queueItem.status === 'processing' && '⚙️ Processing'}
+                                  {queueItem.status === 'completed' && '✓ Complete'}
+                                  {queueItem.status === 'failed' && '✗ Failed'}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        )}
-
-                        {/* Video Generation Error */}
-                        {videoError && (
-                          <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-                            {videoError}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                          
+                          {/* Progress Bar */}
+                          {isProcessing && queueItem.progress.percentage > 0 && (
+                            <div className="mt-3">
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${queueItem.progress.percentage}%` }}
+                                />
+                              </div>
+                              <p className="text-xs text-gray-600 mt-1">
+                                {queueItem.progress.message}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* Error Message */}
+                          {queueItem?.status === 'failed' && queueItem.error && (
+                            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                              {queueItem.error}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
+
+                {/* Queue Summary Panel */}
+                {videoQueue.length > 0 && (
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Queue Status
+                    </h3>
+                    
+                    <div className="grid grid-cols-4 gap-4 text-center">
+                      <div>
+                        <div className="text-2xl font-bold text-gray-700">
+                          {videoQueue.filter(i => i.status === 'queued').length}
+                        </div>
+                        <div className="text-xs text-gray-500">Queued</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-blue-600">
+                          {videoQueue.filter(i => i.status === 'processing').length}
+                        </div>
+                        <div className="text-xs text-gray-500">Processing</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">
+                          {videoQueue.filter(i => i.status === 'completed').length}
+                        </div>
+                        <div className="text-xs text-gray-500">Completed</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-red-600">
+                          {videoQueue.filter(i => i.status === 'failed').length}
+                        </div>
+                        <div className="text-xs text-gray-500">Failed</div>
+                      </div>
+                    </div>
+                    
+                    {isProcessingQueue && (
+                      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center">
+                          <Loader2 className="w-4 h-4 text-blue-600 mr-2 animate-spin" />
+                          <span className="text-blue-800 font-medium text-sm">
+                            Processing queue... ({videoQueue.filter(i => i.status === 'completed').length}/{videoQueue.length} complete)
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Clear Queue Button */}
+                    <button
+                      onClick={() => {
+                        if (confirm('Clear all queue items?')) {
+                          setVideoQueue([]);
+                        }
+                      }}
+                      disabled={isProcessingQueue}
+                      className="mt-4 w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm disabled:opacity-50"
+                    >
+                      Clear Queue
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

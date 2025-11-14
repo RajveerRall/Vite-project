@@ -5983,15 +5983,16 @@ def calculate_optimal_workers(num_tasks=None, frame_complexity='medium'):
         available_gb = memory.available / (1024 ** 3)
         
         # Estimate memory per worker based on frame complexity
-        # Frame generation with Pillow can use 100-500MB per worker
+        # Frame generation with Pillow typically uses 100-300MB per worker
+        # Previous estimates were too conservative
         memory_per_worker = {
-            'low': 0.15,      # 150MB - small frames, no scene images
-            'medium': 0.3,    # 300MB - typical 1920x1080 with text
-            'high': 0.6       # 600MB - large frames with scene images/overlays
-        }.get(frame_complexity, 0.3)
+            'low': 0.08,      # 80MB - small frames, no scene images
+            'medium': 0.15,   # 150MB - typical 1920x1080 with text
+            'high': 0.25      # 250MB - large frames with scene images/overlays
+        }.get(frame_complexity, 0.15)
         
-        # Reserve 2GB for system and FFmpeg encoding
-        usable_gb = max(1, available_gb - 2)
+        # Reserve 0.5GB for system and FFmpeg encoding (was 2GB, too conservative)
+        usable_gb = max(0.5, available_gb - 0.5)
         memory_based_workers = int(usable_gb / memory_per_worker)
     except Exception as e:
         # Fallback if memory check fails
