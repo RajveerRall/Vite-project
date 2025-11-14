@@ -114,11 +114,19 @@ const EpubToVideo: React.FC = () => {
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type === 'application/epub+zip') {
-      setUploadedFile(file);
-      reset(); // Reset any previous state
-    } else {
-      alert('Please upload a valid EPUB file.');
+    if (file) {
+      // Check both MIME type and file extension for better compatibility
+      // Some browsers/systems report EPUB with different MIME types or empty string
+      const isValidEpub = 
+        file.type === 'application/epub+zip' || 
+        file.name.toLowerCase().endsWith('.epub');
+      
+      if (isValidEpub) {
+        setUploadedFile(file);
+        reset(); // Reset any previous state
+      } else {
+        alert('Please upload a valid EPUB file.');
+      }
     }
   }, [reset]);
 
