@@ -6133,50 +6133,75 @@ def detect_gpu_encoder():
     Returns: 'nvenc' (NVIDIA), 'qsv' (Intel), 'amf' (AMD), or 'cpu' (fallback)
     """
     ffmpeg = get_ffmpeg_path()
-    
-    # Check for NVIDIA NVENC
+
+    # Environment override to skip probing
+    try:
+        forced = os.environ.get('FORCE_ENCODER', '').strip().lower()
+    except Exception:
+        forced = ''
+    if forced in ('nvenc', 'qsv', 'amf', 'cpu'):
+        print(f"FORCE_ENCODER={forced} set, skipping GPU probe")
+        return forced
+
+    # List encoders once (independent of individual probe errors)
     try:
         result = subprocess.run(
             [ffmpeg, '-hide_banner', '-encoders'],
-            capture_output=True, text=True, timeout=5
+            capture_output=True, text=True, timeout=10
         )
         encoders = result.stdout
-        
-        if 'h264_nvenc' in encoders:
-            # Verify NVENC actually works
+    except Exception as e:
+        print(f"Encoder list failed: {e}")
+        encoders = ''
+
+    # Try NVENC first
+    if 'h264_nvenc' in encoders:
+        try:
             test = subprocess.run(
                 [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
                  '-c:v', 'h264_nvenc', '-f', 'null', '-'],
-                capture_output=True, timeout=10
+                capture_output=True, timeout=20
             )
             if test.returncode == 0:
                 print("✓ NVIDIA NVENC hardware encoder detected")
                 return 'nvenc'
-        
-        if 'h264_qsv' in encoders:
-            # Verify QuickSync works
+        except subprocess.TimeoutExpired:
+            print("NVENC probe timed out, continuing to next encoder")
+        except Exception as e:
+            print(f"NVENC probe failed: {e}")
+
+    # Then QSV
+    if 'h264_qsv' in encoders:
+        try:
             test = subprocess.run(
-                [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
+                [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=128x128:d=0.5',
                  '-c:v', 'h264_qsv', '-f', 'null', '-'],
-                capture_output=True, timeout=10
+                capture_output=True, timeout=20
             )
             if test.returncode == 0:
                 print("✓ Intel QuickSync hardware encoder detected")
                 return 'qsv'
-        
-        # Check for AMD AMF (Windows)
-        if 'h264_amf' in encoders:
+        except subprocess.TimeoutExpired:
+            print("QSV probe timed out, skipping QSV")
+        except Exception as e:
+            print(f"QSV probe failed: {e}")
+
+    # Then AMF
+    if 'h264_amf' in encoders:
+        try:
             test = subprocess.run(
                 [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
                  '-c:v', 'h264_amf', '-f', 'null', '-'],
-                capture_output=True, timeout=10
+                capture_output=True, timeout=20
             )
             if test.returncode == 0:
                 print("✓ AMD AMF hardware encoder detected")
                 return 'amf'
-    except Exception as e:
-        print(f"GPU detection failed: {e}")
-    
+        except subprocess.TimeoutExpired:
+            print("AMF probe timed out, skipping AMF")
+        except Exception as e:
+            print(f"AMF probe failed: {e}")
+
     print("⚠ No hardware encoder detected, using CPU (slower)")
     return 'cpu'
 
@@ -6317,6 +6342,9 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
     input_fps = num_keyframes / total_duration
     
     encoder = get_gpu_encoder()
+    # If CPU fallback, reduce work for long encodes
+    if encoder == 'cpu' and target_fps > 24:
+        target_fps = 24
     print(f"Encoding video with FFmpeg (with interpolation, {encoder} encoder):")
     print(f"  Input: {num_keyframes} key frames at {input_fps:.2f} fps")
     print(f"  Output: {target_fps} fps (simple interpolation)")
@@ -6327,8 +6355,9 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
         '-framerate', str(input_fps),  # Input framerate (key frames)
         '-i', os.path.join(frames_dir, 'frame_%06d.png'),
         '-i', audio_path,
-        # Simple frame rate conversion (much faster than minterpolate)
-        '-vf', f'fps={target_fps}',
+        # CFR output timestamps (avoid -vsync/-vf conflicts on ffmpeg 8)
+        '-fps_mode', 'cfr',
+        '-r', str(target_fps),
     ]
     
     # Add encoder-specific options based on available GPU
@@ -6365,14 +6394,17 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
     cmd.extend([
         '-c:a', 'aac',
         '-pix_fmt', 'yuv420p',
-        '-t', str(total_duration),  # Set explicit duration to match audio
+        '-map', '0:v:0',
+        '-map', '1:a:0',
+        '-shortest',                 # end when shortest input ends
+        '-movflags', '+faststart',   # moov at start for player compatibility
         output_path
     ])
     
     print(f"Running FFmpeg: {' '.join(cmd[:10])}...")
     
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=300)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=900)
         print(f"✓ Video encoded successfully with {encoder}")
         print(f"Video created: {output_path}")
         
@@ -6413,20 +6445,24 @@ def create_video_with_ffmpeg_interpolated_cpu_fallback(frames_dir, audio_path, w
         '-framerate', str(input_fps),
         '-i', os.path.join(frames_dir, 'frame_%06d.png'),
         '-i', audio_path,
-        '-vf', f'fps={target_fps}',
+        '-fps_mode', 'cfr',
+        '-r', str(target_fps),
         '-c:v', 'libx264',
         '-c:a', 'aac',
         '-pix_fmt', 'yuv420p',
         '-crf', str(crf),
         '-preset', 'fast',
-        '-t', str(total_duration),
+        '-map', '0:v:0',
+        '-map', '1:a:0',
+        '-shortest',
+        '-movflags', '+faststart',
         output_path
     ]
     
     print(f"Running FFmpeg (CPU): {' '.join(cmd[:10])}...")
     
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=300)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=900)
         print("✓ Video encoded successfully with CPU")
         print(f"Video created: {output_path}")
         
@@ -7605,6 +7641,25 @@ def calculate_static_page_scroll(current_time, srt_entries, srt_map, layout, vie
     
     return scroll_y
 
+# Step-scroll tuning constants
+STEP_SECONDS = 12.0
+STEP_TRANSITION_SECONDS = 0.0
+BASE_KEYFRAME_INTERVAL = 0.5
+STEP_PAGE_FRACTION = 0.8  # fraction of viewport scrolled per step (e.g., 0.8 = 80% of screen height)
+
+# Per-layout scrolling configuration
+# Split screen defaults to step scrolling; fullscreen (no-highlight) defaults to linear.
+SPLIT_SCROLL_MODE = 'step'      # 'step' or 'linear'
+FULL_SCROLL_MODE  = 'linear'    # 'linear' or 'step'
+
+SPLIT_BASE_KEYFRAME_INTERVAL = 0.5
+FULL_BASE_KEYFRAME_INTERVAL  = 0.5
+
+SPLIT_STEP_SECONDS = 12.0
+SPLIT_STEP_TRANSITION_SECONDS = 0.0  # set >0 for easing at step boundaries
+FULL_STEP_SECONDS = 12.0
+FULL_STEP_TRANSITION_SECONDS = 0.0   # set >0 for easing at step boundaries
+
 def calculate_scroll_position(current_time, total_duration, total_content_height, viewport_height):
     """
     Calculate smooth scroll position based on time.
@@ -7612,15 +7667,60 @@ def calculate_scroll_position(current_time, total_duration, total_content_height
     (Legacy function - kept for compatibility)
     """
     # Progress through video (0.0 to 1.0)
-    progress = min(current_time / total_duration, 1.0)
-    
-    # Maximum scroll distance
-    max_scroll = max(total_content_height - viewport_height + 240, 0)  # +240 for header/footer
-    
+    safe_total = float(total_duration or 1e-6)
+    progress = min(max(current_time / safe_total, 0.0), 1.0)
+
+    # Maximum scroll distance (exact, no extra margin)
+    max_scroll = max(float(total_content_height) - float(viewport_height), 0.0)
+
     # Linear scroll
     scroll_y = progress * max_scroll
-    
+
     return scroll_y
+
+def calculate_step_scroll(current_time, total_duration, total_content_height, viewport_height, step_seconds=STEP_SECONDS, transition_duration=STEP_TRANSITION_SECONDS):
+    """
+    Step-wise scroll: every `step_seconds`, scroll up by a fixed fraction of the screen.
+    If transition_duration > 0, ease within the last transition window before the step.
+    """
+    try:
+        steps = int(max(current_time, 0.0) // float(step_seconds))
+        next_step_time = (steps + 1) * float(step_seconds)
+        time_since_step = current_time - (steps * float(step_seconds))
+    except Exception:
+        steps = 0
+        next_step_time = float(step_seconds)
+        time_since_step = current_time
+
+    max_scroll = max(float(total_content_height) - float(viewport_height), 0.0)
+    # Dynamic step so we don't reach max on the very first step with short content
+    expected_steps = max(1, int(float(total_duration) // float(step_seconds)))
+    base_step = float(viewport_height) * float(STEP_PAGE_FRACTION)
+    ideal_step = max_scroll / float(expected_steps) if expected_steps > 0 else base_step
+    step_pixels = min(base_step, ideal_step if ideal_step > 0 else base_step)
+    max_scroll = max(float(total_content_height) - float(viewport_height), 0.0)
+
+    # Current scroll position (before transition)
+    current_scroll = min(steps * step_pixels, max_scroll)
+
+    # If within the transition window before the next step, ease between positions
+    if time_since_step >= (float(step_seconds) - float(transition_duration)) and current_time < next_step_time:
+        transition_start = next_step_time - float(transition_duration)
+        transition_progress = (current_time - transition_start) / float(transition_duration)
+        transition_progress = max(0.0, min(1.0, transition_progress))
+
+        # Ease-in-out (quadratic) for smooth acceleration/deceleration
+        if transition_progress < 0.5:
+            eased = 2.0 * transition_progress * transition_progress
+        else:
+            eased = 1.0 - ((-2.0 * transition_progress + 2.0) ** 2) / 2.0
+
+        next_scroll = min((steps + 1) * step_pixels, max_scroll)
+        scroll_y = current_scroll + max(0.0, (next_scroll - current_scroll)) * eased
+    else:
+        scroll_y = current_scroll
+
+    return min(scroll_y, max_scroll)
 
 def parse_srt_entries(srt_data):
     """Parse SRT data into structured entries."""
@@ -8462,31 +8562,65 @@ def generate_smart_scroll_frames(
     """
     frames_dir = tempfile.mkdtemp()
     
-    # Generate key frames at SRT boundaries + regular intervals
-    key_frame_times = set([0.0, total_duration])
-    
-    if srt_entries and highlight_mode != 'none':
-        # Add key frames at each SRT entry boundary for accurate highlighting
-        for entry in srt_entries:
-            key_frame_times.add(entry['start'])
-            key_frame_times.add(entry['end'])
-        
-        # Add frames every 0.25s for smoother scrolling with fewer frames (4 fps intervals)
-        interval = 0.25
-        current_time = 0.0
-        while current_time <= total_duration:
-            key_frame_times.add(current_time)
-            current_time += interval
-        
-        print(f"Generating {len(key_frame_times)} key frames (SRT boundaries + {interval}s intervals) for {total_duration:.2f}s video")
+    # Generate key frames
+    key_frame_times = set([0.0, float(total_duration)])
+
+    # For split layout or when highlighting is disabled (fullscreen), use per-layout keyframes
+    if scene_layout == "split":
+        interval = SPLIT_BASE_KEYFRAME_INTERVAL  # seconds; tweak for smoothness/perf tradeoff
+        t = 0.0
+        while t <= float(total_duration):
+            key_frame_times.add(round(t, 3))
+            t += interval
+
+        # Add extra keyframes around step boundaries if using step mode
+        if SPLIT_SCROLL_MODE == 'step':
+            step_time = SPLIT_STEP_SECONDS
+            while step_time <= float(total_duration):
+                for delta in (-1.0, 0.0, 1.0):
+                    candidate = round(step_time + delta, 3)
+                    if 0.0 <= candidate <= float(total_duration):
+                        key_frame_times.add(candidate)
+                step_time += SPLIT_STEP_SECONDS
+
+        print(f"Generating {len(key_frame_times)} key frames (split every {interval}s{' + step transitions' if SPLIT_SCROLL_MODE == 'step' else ''}) for {total_duration:.2f}s video")
+    elif highlight_mode == 'none':
+        interval = FULL_BASE_KEYFRAME_INTERVAL  # seconds
+        t = 0.0
+        while t <= float(total_duration):
+            key_frame_times.add(round(t, 3))
+            t += interval
+
+        # Add extra keyframes around step boundaries if using step mode
+        if FULL_SCROLL_MODE == 'step':
+            step_time = FULL_STEP_SECONDS
+            while step_time <= float(total_duration):
+                for delta in (-1.0, 0.0, 1.0):
+                    candidate = round(step_time + delta, 3)
+                    if 0.0 <= candidate <= float(total_duration):
+                        key_frame_times.add(candidate)
+                step_time += FULL_STEP_SECONDS
+
+        print(f"Generating {len(key_frame_times)} key frames (fullscreen every {interval}s{' + step transitions' if FULL_SCROLL_MODE == 'step' else ''}) for {total_duration:.2f}s video")
     else:
-        # Fallback to fixed intervals if no SRT or highlighting disabled
-        interval_seconds = 2.5
-        current_time = 0.0
-        while current_time <= total_duration:
-            key_frame_times.add(current_time)
-            current_time += interval_seconds
-        print(f"Generating {len(key_frame_times)} key frames (every {interval_seconds}s) for {total_duration:.2f}s video")
+        # SRT-driven with regular intervals for overlay/highlighted modes
+        if srt_entries:
+            for entry in srt_entries:
+                key_frame_times.add(entry['start'])
+                key_frame_times.add(entry['end'])
+            interval = 0.25
+            current_time = 0.0
+            while current_time <= total_duration:
+                key_frame_times.add(current_time)
+                current_time += interval
+            print(f"Generating {len(key_frame_times)} key frames (SRT boundaries + {interval}s intervals) for {total_duration:.2f}s video")
+        else:
+            interval_seconds = 2.5
+            current_time = 0.0
+            while current_time <= total_duration:
+                key_frame_times.add(current_time)
+                current_time += interval_seconds
+            print(f"Generating {len(key_frame_times)} key frames (every {interval_seconds}s) for {total_duration:.2f}s video")
     
     # Convert to sorted list
     key_frame_times = sorted(key_frame_times)
@@ -8504,18 +8638,44 @@ def generate_smart_scroll_frames(
         previous_scroll = 0
         
         for idx, current_time in enumerate(key_frame_times):
-            # Calculate scroll position based on current sentence (static page with smart scroll)
-            if srt_entries:
-                scroll_y = calculate_static_page_scroll(
-                    current_time, srt_entries, srt_to_sentence_map, layout, height, previous_scroll
-                )
-                previous_scroll = scroll_y  # Update for next frame
+            # Per-layout scrolling: split vs fullscreen (no-highlight); else SRT/overlay logic
+            if scene_layout == "split":
+                if SPLIT_SCROLL_MODE == 'step':
+                    scroll_y = calculate_step_scroll(
+                        current_time, total_duration,
+                        layout['total_height'], height,
+                        step_seconds=SPLIT_STEP_SECONDS, transition_duration=SPLIT_STEP_TRANSITION_SECONDS
+                    )
+                else:  # linear
+                    scroll_y = calculate_scroll_position(
+                        current_time, total_duration,
+                        layout['total_height'], height
+                    )
+                previous_scroll = scroll_y
+            elif highlight_mode == 'none':
+                if FULL_SCROLL_MODE == 'step':
+                    scroll_y = calculate_step_scroll(
+                        current_time, total_duration,
+                        layout['total_height'], height,
+                        step_seconds=FULL_STEP_SECONDS, transition_duration=FULL_STEP_TRANSITION_SECONDS
+                    )
+                else:  # linear
+                    scroll_y = calculate_scroll_position(
+                        current_time, total_duration,
+                        layout['total_height'], height
+                    )
+                previous_scroll = scroll_y
             else:
-                # Fallback to continuous scroll if no SRT or highlighting disabled
-                scroll_y = calculate_scroll_position(
-                    current_time, total_duration,
-                    layout['total_height'], height
-                )
+                if srt_entries:
+                    scroll_y = calculate_static_page_scroll(
+                        current_time, srt_entries, srt_to_sentence_map, layout, height, previous_scroll
+                    )
+                    previous_scroll = scroll_y
+                else:
+                    scroll_y = calculate_scroll_position(
+                        current_time, total_duration,
+                        layout['total_height'], height
+                    )
             
             # Prepare task args for worker (disk mode)
             task_args = (
@@ -8551,18 +8711,44 @@ def generate_smart_scroll_frames(
         last_highlighted_sentence_id = None
         
         for idx, current_time in enumerate(key_frame_times):
-            # Calculate scroll position based on current sentence (static page with smart scroll)
-            if srt_entries:
-                scroll_y = calculate_static_page_scroll(
-                    current_time, srt_entries, srt_to_sentence_map, layout, height, previous_scroll
-                )
-                previous_scroll = scroll_y  # Update for next frame
+            # Per-layout scrolling: split vs fullscreen (no-highlight); else SRT/overlay logic
+            if scene_layout == "split":
+                if SPLIT_SCROLL_MODE == 'step':
+                    scroll_y = calculate_step_scroll(
+                        current_time, total_duration,
+                        layout['total_height'], height,
+                        step_seconds=SPLIT_STEP_SECONDS, transition_duration=SPLIT_STEP_TRANSITION_SECONDS
+                    )
+                else:  # linear
+                    scroll_y = calculate_scroll_position(
+                        current_time, total_duration,
+                        layout['total_height'], height
+                    )
+                previous_scroll = scroll_y
+            elif highlight_mode == 'none':
+                if FULL_SCROLL_MODE == 'step':
+                    scroll_y = calculate_step_scroll(
+                        current_time, total_duration,
+                        layout['total_height'], height,
+                        step_seconds=FULL_STEP_SECONDS, transition_duration=FULL_STEP_TRANSITION_SECONDS
+                    )
+                else:  # linear
+                    scroll_y = calculate_scroll_position(
+                        current_time, total_duration,
+                        layout['total_height'], height
+                    )
+                previous_scroll = scroll_y
             else:
-                # Fallback to continuous scroll if no SRT or highlighting disabled
-                scroll_y = calculate_scroll_position(
-                    current_time, total_duration,
-                    layout['total_height'], height
-                )
+                if srt_entries:
+                    scroll_y = calculate_static_page_scroll(
+                        current_time, srt_entries, srt_to_sentence_map, layout, height, previous_scroll
+                    )
+                    previous_scroll = scroll_y
+                else:
+                    scroll_y = calculate_scroll_position(
+                        current_time, total_duration,
+                        layout['total_height'], height
+                    )
             
             # Generate frame with highlighting check at this exact time
             if scene_layout == "split":
@@ -8887,8 +9073,9 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
         geo = calculate_split_geometry(width, height, image_side)
         image_col_w = geo["image_w"]
         text_col_w = geo["text_w"]
-        text_container_padding = int(text_col_w * 0.08)
-        max_text_width_override = text_col_w - (2 * text_container_padding) - (2 * 120)
+        # Minimal margins for split layout: use near-full text column width
+        side_margin = 24
+        max_text_width_override = max(0, text_col_w - (2 * side_margin))
 
     # NEW: Pre-compute text layout (all lines with Y positions)
     print("Pre-computing text layout...")

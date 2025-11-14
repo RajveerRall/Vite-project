@@ -250,6 +250,11 @@ const EpubToVideo: React.FC = () => {
 
       if (settings.enableSceneImages) {
         console.log('[Video Generation] Starting parallel scene analysis...');
+        // Derive a stable style key from book title/file name
+        const rawTitle = uploadedFile?.name || chapter.title || 'Unknown';
+        const normalized = rawTitle.toLowerCase().replace(/[^a-z0-9\-]+/g, '-').replace(/^-+|-+$/g, '');
+        const styleKey = `yoread-${normalized}`;
+
         sceneAnalysisPromise = fetch(`${FULL_CAST_TTS_URL}/api/analyze-scenes`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -260,7 +265,11 @@ const EpubToVideo: React.FC = () => {
             maxScenes: Math.ceil(chapter.content.length / 1500), // Let LLM decide optimal scene count (no hard limit)
             bookTheme: 'atmospheric narrative',
             colorPalette: 'muted tones with dramatic contrasts',
-            videoFormat: settings.format
+            videoFormat: settings.format,
+            styleKey,
+            bibleMode: 'use',
+            strictImageCompliance: true,
+            detailLevel: 'high'
           })
         })
           .then(res => res.json())
@@ -326,7 +335,7 @@ const EpubToVideo: React.FC = () => {
       }
 
       const allResults: TtsResult[] = [];
-      const batchSize = 3;
+      const batchSize = 2;
       let completedTasks = 0;
 
       for (let i = 0; i < ttsTasks.length; i += batchSize) {
@@ -456,7 +465,10 @@ const EpubToVideo: React.FC = () => {
                 videoFormat: settings.format,
                 // Inform image generator about split layout so it chooses a column-friendly ratio
                 sceneLayout: settings.style === 'split' ? 'split' : 'overlay',
-                imageAspect: settings.style === 'split' ? '3:4' : undefined
+                imageAspect: settings.style === 'split' ? '3:4' : undefined,
+                // Reuse saved anchors for consistency
+                styleKey: `yoread-${(uploadedFile?.name || chapter.title || 'Unknown').toLowerCase().replace(/[^a-z0-9\-]+/g, '-').replace(/^-+|-+$/g, '')}`,
+                useSavedReferences: true
               })
             });
 

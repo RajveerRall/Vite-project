@@ -85,7 +85,122 @@ try {
   getUsageTracker = Modular.getUsageTracker || require('@your-scope/modular-tts').getUsageTracker;
 } catch {}
 const usageTracker = typeof getUsageTracker === 'function' ? getUsageTracker() : null;
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ limit: '15mb', extended: true }));
+
+// --- Visual Bible & References: helpers/persistence ---
+const fs = require('fs');
+const crypto = require('crypto');
+
+const VISUAL_BIBLES_DIR = path.join(__dirname, 'visual-bibles');
+if (!fs.existsSync(VISUAL_BIBLES_DIR)) {
+  try { fs.mkdirSync(VISUAL_BIBLES_DIR); } catch {}
+}
+
+function hashBookTitle(bookTitle = '') {
+  return crypto.createHash('sha1').update(String(bookTitle)).digest('hex').slice(0, 16);
+}
+
+function getBiblePaths(bookTitle, styleKey) {
+  const base = styleKey ? String(styleKey).replace(/[^\w\-]+/g, '').slice(0, 64) : hashBookTitle(bookTitle);
+  return {
+    biblePath: path.join(VISUAL_BIBLES_DIR, `${base}.json`),
+    refsPath: path.join(VISUAL_BIBLES_DIR, `${base}-refs.json`),
+    keyBase: base
+  };
+}
+
+function loadJSONSafe(filePath, fallback) {
+  try {
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, 'utf8');
+      return JSON.parse(raw);
+    }
+  } catch {}
+  return fallback;
+}
+
+function saveJSONSafe(filePath, obj) {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(obj, null, 2));
+    return true;
+  } catch (e) {
+    console.warn(`[visual-bible] Failed to save ${filePath}:`, e.message);
+    return false;
+  }
+}
+
+function getOrCreateVisualBible(bookTitle, overrides, styleKey) {
+  const { biblePath, keyBase } = getBiblePaths(bookTitle, styleKey);
+  const existing = loadJSONSafe(biblePath, null);
+  if (existing) {
+    // If overrides provided, merge shallowly and persist
+    if (overrides && typeof overrides === 'object') {
+      const merged = {
+        ...existing,
+        ...overrides,
+        characterProfiles: overrides.characterProfiles || existing.characterProfiles || [],
+        locationProfiles: overrides.locationProfiles || existing.locationProfiles || [],
+        styleGuide: overrides.styleGuide || existing.styleGuide || {},
+        styleKey: overrides.styleKey || existing.styleKey || `yoread-${keyBase}`
+      };
+      saveJSONSafe(biblePath, merged);
+      return merged;
+    }
+    return existing;
+  }
+  // Create minimal scaffold
+  const fresh = {
+    styleKey: `yoread-${keyBase}`,
+    characterProfiles: [],
+    locationProfiles: [],
+    styleGuide: {
+      lens: '35mm-50mm cinematic, moderate depth of field',
+      composition: 'rule of thirds, leading lines, balanced foreground/midground/background',
+      lighting: 'moody, volumetric, soft rim light on characters'
+    }
+  };
+  // Merge any provided overrides
+  if (overrides && typeof overrides === 'object') {
+    fresh.characterProfiles = overrides.characterProfiles || fresh.characterProfiles;
+    fresh.locationProfiles = overrides.locationProfiles || fresh.locationProfiles;
+    fresh.styleGuide = overrides.styleGuide || fresh.styleGuide;
+    fresh.styleKey = overrides.styleKey || fresh.styleKey;
+  }
+  saveJSONSafe(biblePath, fresh);
+  return fresh;
+}
+
+function loadCachedRefs(styleKeyOrBookTitle) {
+  const { refsPath } = getBiblePaths(styleKeyOrBookTitle, styleKeyOrBookTitle);
+  const refs = loadJSONSafe(refsPath, []);
+  // Return as base64 inlineData for model if files still exist
+  const b64 = [];
+  refs.forEach(fp => {
+    try {
+      if (fs.existsSync(fp)) {
+        const buf = fs.readFileSync(fp);
+        b64.push({ data: buf.toString('base64'), mimeType: guessMimeByExt(fp) });
+      }
+    } catch {}
+  });
+  return b64;
+}
+
+function guessMimeByExt(filename) {
+  const ext = String(filename).toLowerCase();
+  if (ext.endsWith('.jpg') || ext.endsWith('.jpeg')) return 'image/jpeg';
+  if (ext.endsWith('.webp')) return 'image/webp';
+  return 'image/png';
+}
+
+function appendRefs(styleKeyOrBookTitle, newPaths = [], maxKeep = 3) {
+  const { refsPath } = getBiblePaths(styleKeyOrBookTitle, styleKeyOrBookTitle);
+  const prior = loadJSONSafe(refsPath, []);
+  const merged = Array.from(new Set([...prior, ...newPaths])).slice(0, maxKeep);
+  saveJSONSafe(refsPath, merged);
+  return merged;
+}
 
 // Serve generated scene images as static files
 app.use(express.static(__dirname, {
@@ -157,19 +272,24 @@ const ENV_KEYS = {
   kokoroApiKey: process.env.KOKORO_API_KEY || process.env.VITE_KOKORO_API_KEY,
 };
 
+// Preferred Gemini model (override with GEMINI_MODEL or VITE_GEMINI_MODEL)
+const GEMINI_MODEL = (process.env.GEMINI_MODEL || process.env.VITE_GEMINI_MODEL || 'gemini-2.5-pro').trim();
+// Hard-locked analysis LLM for scene analysis (text-only). Do not change via env.
+const ANALYSIS_LLM_MODEL = 'gemini-2.5-pro';
+
 // Optional: Force single provider/voice for all script lines
 const FORCE_PROVIDER = process.env.FORCE_PROVIDER || null; // e.g., 'kokoro' or 'msedge'
 const FORCE_VOICE_ID = process.env.FORCE_VOICE_ID || null; // e.g., 'am_adam' or 'bm_george'
 
 // Choose LLM (prefer Gemini)
 // Note: ModularTTS uses 'gemini-2.0-flash' as the model ID, even when configured with 'gemini-2.5-pro'
-const DEFAULT_LLM = ENV_KEYS.gemini ? 'gemini-2.0-flash' : (ENV_KEYS.openai ? 'gpt-4o' : null);
+const DEFAULT_LLM = ENV_KEYS.gemini ? GEMINI_MODEL : (ENV_KEYS.openai ? 'gpt-4o' : null);
 
 // Maintain casting memory across requests by keeping a single factory + casting manager
 const { ModularAIFactory, CastingManager, Pipeline } = Modular;
 const sharedFactory = new ModularAIFactory({
   openai: ENV_KEYS.openai ? { apiKey: ENV_KEYS.openai } : undefined,
-  gemini: ENV_KEYS.gemini ? { apiKey: ENV_KEYS.gemini, model: 'gemini-2.0-flash' } : undefined,
+  gemini: ENV_KEYS.gemini ? { apiKey: ENV_KEYS.gemini, model: GEMINI_MODEL } : undefined,
   // cartesia intentionally omitted to match pipeline (no cartesia)
   msedge: ENV_KEYS.msedgeBaseUrl ? { baseUrl: ENV_KEYS.msedgeBaseUrl, apiKey: ENV_KEYS.msedgeApiKey } : undefined,
   kokoro: ENV_KEYS.kokoroApiUrl ? { apiUrl: ENV_KEYS.kokoroApiUrl, apiKey: ENV_KEYS.kokoroApiKey } : undefined,
@@ -436,11 +556,11 @@ app.post('/api/full-cast-tts', async (req, res) => {
       gemini: (apiKeys && apiKeys.gemini) || ENV_KEYS.gemini,
       cartesia: (apiKeys && apiKeys.cartesia) || ENV_KEYS.cartesia,
     };
-    // Prefer explicit llm, else prefer OpenAI if available, else Gemini.
+    // Prefer explicit llm; else prefer configured Gemini model if available; else OpenAI.
     // If explicit llm isn't configured, gracefully fall back to the available provider.
-    let chosen = llm || (mergedKeys.openai ? 'gpt-4o' : (mergedKeys.gemini ? 'gemini-2.0-flash' : null));
+    let chosen = llm || (mergedKeys.gemini ? GEMINI_MODEL : (mergedKeys.openai ? 'gpt-4o' : null));
     if (llm === 'gpt-4o' && !mergedKeys.openai) {
-      chosen = mergedKeys.gemini ? 'gemini-2.0-flash' : null;
+      chosen = mergedKeys.gemini ? GEMINI_MODEL : null;
     } else if ((llm && llm.startsWith('gemini')) && !mergedKeys.gemini) {
       chosen = mergedKeys.openai ? 'gpt-4o' : null;
     }
@@ -913,6 +1033,61 @@ app.post('/api/tts', async (req, res) => {
       textLength: cleanText.length,
       textPreview: cleanText.substring(0, 100)
     });
+    // --- Provider fallback: try the other configured provider before failing ---
+    try {
+      let fallbackProvider = null;
+      if (selected !== 'kokoro' && ENV_KEYS.kokoroApiUrl) {
+        fallbackProvider = 'kokoro';
+      } else if (selected !== 'msedge' && ENV_KEYS.msedgeBaseUrl) {
+        fallbackProvider = 'msedge';
+      }
+      if (fallbackProvider) {
+        console.warn(`[tts] [req ${req.reqId}] Falling back to provider=${fallbackProvider}`);
+        const fbVoice =
+          (VOICE_POOL.find(v => v.provider === fallbackProvider)?.voiceId) ||
+          (fallbackProvider === 'kokoro' ? 'bm_george' : 'en-US-BrianMultilingualNeural');
+        const fb = sharedFactory.getTTS(fallbackProvider);
+        if (!fb) throw new Error(`Fallback TTS provider not configured: ${fallbackProvider}`);
+        const fbResult = await fb.synthesizeWithMetadata(cleanText, {
+          voiceId: fbVoice,
+          includeTiming: includeTiming || false,
+          includeSrt: includeSrt || false
+        });
+        // Set headers similar to primary path
+        res.setHeader('Content-Type', 'audio/mpeg');
+        try {
+          const fbDuration = fbResult.actualDurationSeconds
+            || fbResult.estimatedDurationSeconds
+            || fbResult.durationSeconds
+            || (fbResult.duration_ms ? fbResult.duration_ms / 1000 : null);
+          if (fbDuration && fbDuration > 0) {
+            res.setHeader('X-Audio-Duration', String(fbDuration));
+          }
+        } catch {}
+        if (fbResult.srtContent) {
+          const srtBase64 = Buffer.from(fbResult.srtContent, 'utf-8').toString('base64');
+          res.setHeader('X-SRT-Content', srtBase64);
+        }
+        if (fbResult.wordTimings) {
+          const timingsJson = JSON.stringify(fbResult.wordTimings);
+          res.setHeader('X-Word-Timings', Buffer.from(timingsJson).toString('base64'));
+        }
+        if (fbResult.sentenceTimings) {
+          const sentenceTimingsJson = JSON.stringify(fbResult.sentenceTimings);
+          res.setHeader('X-Sentence-Timings', Buffer.from(sentenceTimingsJson).toString('base64'));
+        }
+        // Stream fallback audio
+        fbResult.stream.on('error', (err) => {
+          console.error('[full-cast-tts] Fallback TTS stream error:', err);
+          if (!res.headersSent) res.status(500).end();
+        });
+        fbResult.stream.pipe(res);
+        return;
+      }
+    } catch (fallbackErr) {
+      console.error(`[tts] [req ${req.reqId}] Fallback provider also failed:`, fallbackErr?.message || fallbackErr);
+    }
+    // If fallback failed or wasn't available, return error
     res.status(500).json({ error: 'TTS synthesis failed' });
   }
 });
@@ -975,17 +1150,29 @@ app.get('/api/user-session', (req, res) => {
 // === Scene Analysis for Video Generation ===
 
 // Helper: Build Visual Director prompt
-function buildSceneAnalysisPrompt(text, bookTitle, bookTheme, colorPalette, maxScenes) {
-  return `You are an expert AI "Visual Director" for book illustrations. Your core mission is to analyze provided text (a chapter or passage) and generate a list of highly detailed, professional-grade image prompts. These prompts must consistently capture the atmosphere, environment, and pivotal visual moments of the narrative.
+function buildSceneAnalysisPrompt(text, bookTitle, bookTheme, colorPalette, maxScenes, visualBible, styleKey, detailLevel = 'high') {
+  return `You are an expert AI "Visual Director" for book illustrations. Your core mission is to analyze provided text (a chapter or passage) and generate a list of highly detailed, professional-grade image prompts. These prompts must consistently capture the atmosphere, environment, and pivotal visual moments of the narrative. Be explicit and information-dense.
 
 CORE DIRECTIVES:
 - Analysis Focus: Prioritize visually rich scenes, evocative environments, key actions, and unique world-building elements
 - Environmental Emphasis: The environment (landscape, cityscape, interior) is paramount
 - Characters, if present, should establish scale, perspective, or interact with the setting, not be close-up portraits
 - Generate ${maxScenes} distinct scenes spread throughout the chapter
+${detailLevel === 'high' ? `
+REQUIRED DETAIL CHECKLIST FOR EACH SCENE:
+- SETTING: Where are we? Interior/exterior, architecture/materials, era/tech level
+- TIME_OF_DAY + LIGHTING: natural/artificial sources, direction, intensity, shadows, volumetrics
+- MOOD/ATMOSPHERE: fog/dust/rain/smoke/particles; temperature of light; emotional tone
+- COMPOSITION: rule of thirds, leading lines, foreground/midground/background balance
+- CAMERA: angle (low/high/eye-level), shot scale (wide/medium), lens (e.g., 35mm, 50mm), depth of field
+- CHARACTERS: identities (names), age/build, skin/hair/eyes, posture/gesture, wardrobe silhouettes/colors
+- PROPS: specific objects referenced; counts must match text
+- ENVIRONMENT DETAILS: surfaces, motifs, signage (disallow unless in text), materials, color palette
+- BACKGROUND ELEMENTS: relevant structures/shapes; do not invent new entities
+` : ''}
 
 STRICT PROMPT STRUCTURE (for each scene's image_prompt):
-[Medium], [Subject & Action], [Setting Description], [STYLE_THEME_KEYWORDS], [LIGHTING_ATMOSPHERE], [COMPOSITION], [CHARACTER_REFERENCE]
+[Medium], [Subject & Action], [Setting Description], [STYLE_THEME_KEYWORDS + STYLE_KEY:${styleKey || ''}], [LIGHTING_ATMOSPHERE], [COMPOSITION], [CHARACTER_REFERENCE], [LOCATION_REFERENCE]
 
 PROJECT BIBLE (Apply to all prompts):
 
@@ -1001,6 +1188,21 @@ B. Thematic & Color Palette:
 C. Character Consistency:
    - If recurring characters appear across scenes, maintain consistent physical descriptions
    - Include character details in [CHARACTER_REFERENCE] section
+   - STYLE_KEY: ${styleKey || 'yoread-default'}
+   - CHARACTER_PROFILES (canonical; reuse verbatim if present across scenes):
+${visualBible?.characterProfiles ? JSON.stringify(visualBible.characterProfiles, null, 2) : '[]'}
+
+D. Location Consistency:
+   - Maintain consistent materials, motifs, props, and palette for recurring locations
+   - LOCATION_PROFILES (canonical; reuse verbatim if present across scenes):
+${visualBible?.locationProfiles ? JSON.stringify(visualBible.locationProfiles, null, 2) : '[]'}
+
+E. Style Guide (apply consistently):
+${visualBible?.styleGuide ? JSON.stringify(visualBible.styleGuide, null, 2) : JSON.stringify({
+  lens: '35mm-50mm cinematic, moderate depth of field',
+  composition: 'rule of thirds, leading lines, balanced foreground/midground/background',
+  lighting: 'moody, volumetric, soft rim light on characters'
+}, null, 2)}
 
 BOOK CONTEXT:
 - Title: ${bookTitle}
@@ -1015,21 +1217,30 @@ OUTPUT FORMAT (JSON):
   "scenes": [
     {
       "anchor_text": "[EXACT 20-100 word snippet from chapter where this scene occurs]",
-      "scene_description": "[Brief summary of visual moment]",
-      "image_prompt": "[Medium], [Subject & Action], [Setting Description], [STYLE_THEME_KEYWORDS], [LIGHTING_ATMOSPHERE], [COMPOSITION], [CHARACTER_REFERENCE if applicable]",
-      "mood": "[one-word emotional tone]"
+      "scene_description": "[${detailLevel === 'high' ? '≥180 characters, information-dense' : 'Brief'} summary: include SETTING, TIME_OF_DAY, LIGHTING, MOOD, COMPOSITION, CAMERA(LENS+ANGLE), CHARACTERS (age/build/skin/hair/eyes), WARDROBE, PROPS with exact counts, ENVIRONMENTAL DETAILS, COLOR PALETTE, BACKGROUND elements present in text/canon]",
+      "image_prompt": "[${detailLevel === 'high' ? '≥280 characters, concise comma-separated shot plan' : 'Concise shot plan'}: Medium, Subject & Action, Setting Description, STYLE_THEME_KEYWORDS + STYLE_KEY:${styleKey || ''}, LIGHTING_ATMOSPHERE, COMPOSITION, CAMERA (angle + lens + depth of field), CHARACTER_REFERENCE (reuse canonical if present), LOCATION_REFERENCE (reuse canonical if present)]",
+      "mood": "[one-word emotional tone]",
+      "elements": ["list of concrete objects/entities present (must exist in anchor_text or canonical bible)"],
+      "sourceJustification": ["for each element, short reference to anchor_text snippet or canonical profile name"]
     }
-  ]
+  ],
+  "characterProfilesDelta": [],
+  "locationProfilesDelta": []
 }
 
 CRITICAL REQUIREMENTS:
 1. **anchor_text** MUST be EXACT text from chapter (copy-paste verbatim) - used for audio sync
 2. **image_prompt** MUST follow the comma-separated structure above
-3. **scene_description** should be concise (1-2 sentences)
+3. **scene_description** ${detailLevel === 'high' ? 'must be richly descriptive (≥180 chars)' : 'should be concise (1-2 sentences)'}
 4. Focus on ENVIRONMENTAL and ATMOSPHERIC moments, not character close-ups
 5. Spread scenes evenly: beginning (0-30%), middle (30-70%), end (70-100%)
 6. Each prompt should paint a complete cinematic frame
 7. Maintain visual consistency if same locations/characters appear
+8. Reuse CHARACTER_PROFILES and LOCATION_PROFILES verbatim for recurring entities (names and attributes must not drift)
+9. Do not change hair/eye color, outfit silhouettes, emblem colors unless specified in the text
+10. Do NOT add objects/characters not explicitly present in anchor_text or the canonical Visual Bible. If a detail is not present, mark it as "unspecified" rather than inventing it.
+11. Keep counts exact (e.g., "a single door" means exactly one). Do not add signage/text unless present.
+12. If an item appears in "elements", include a corresponding justification in "sourceJustification".
 
 EXAMPLE OUTPUT:
 {
@@ -1044,6 +1255,99 @@ EXAMPLE OUTPUT:
 }`;
 }
 
+// --- Strict image compliance helpers (used by /api/analyze-scenes) ---
+function collectCanonicalNames(visualBible) {
+  const chars = (visualBible?.characterProfiles || []).map(p => (p.name || '').toLowerCase());
+  const locs  = (visualBible?.locationProfiles || []).map(p => (p.name || '').toLowerCase());
+  return { chars, locs };
+}
+
+function findExtraneousElements(scene, visualBible) {
+  try {
+    const extraneous = [];
+    const anchor = String(scene?.anchor_text || '').toLowerCase();
+    const elems = Array.isArray(scene?.elements) ? scene.elements : [];
+    const { chars, locs } = collectCanonicalNames(visualBible || {});
+    for (const el of elems) {
+      const e = String(el || '').toLowerCase();
+      if (!e) continue;
+      const inAnchor = anchor.includes(e);
+      const inCanon  = chars.includes(e) || locs.includes(e);
+      if (!inAnchor && !inCanon) extraneous.push(el);
+    }
+    return extraneous;
+  } catch {
+    return [];
+  }
+}
+
+// Build prompt to expand short scene_description/image_prompt while preserving constraints
+function buildExpandDetailsPrompt(scene, visualBible, styleKey, bookTheme, colorPalette, minDesc, minPrompt) {
+  const canonChars = (visualBible?.characterProfiles || []).map(p => p.name).filter(Boolean);
+  const canonLocs  = (visualBible?.locationProfiles || []).map(p => p.name).filter(Boolean);
+  const anchor = scene?.anchor_text || '';
+  const currentDesc = scene?.scene_description || '';
+  const currentPrompt = scene?.image_prompt || '';
+
+  return `You are the Visual Director Detail Expander.
+STYLE_KEY: ${styleKey || 'yoread-default'}
+THEME: ${bookTheme || ''}
+PALETTE: ${colorPalette || ''}
+CANON_CHARACTERS: ${JSON.stringify(canonChars)}
+CANON_LOCATIONS: ${JSON.stringify(canonLocs)}
+
+ANCHOR_TEXT:
+${anchor}
+
+CURRENT:
+scene_description: ${currentDesc}
+image_prompt: ${currentPrompt}
+
+TASK: Expand both fields with richer, concrete information while STRICTLY adhering to ANCHOR_TEXT and canonical profiles. Do NOT invent elements. No signage/text unless present.
+scene_description must be at least ${minDesc} characters and include SETTING, TIME_OF_DAY, LIGHTING, MOOD, COMPOSITION, CAMERA (angle + lens), CHARACTERS (age/build/skin/hair/eyes), WARDROBE, PROPS with exact counts, ENVIRONMENT, COLOR PALETTE, BACKGROUND elements present.
+image_prompt must be at least ${minPrompt} characters and remain a concise comma-separated shot plan: [Medium], [Subject & Action], [Setting], [STYLE_THEME + STYLE_KEY:${styleKey || ''}], [LIGHTING], [COMPOSITION], [CAMERA], [CHARACTER_REFERENCE], [LOCATION_REFERENCE].
+
+OUTPUT JSON ONLY:
+{
+  "scene_description": "...",
+  "image_prompt": "..."
+}`.trim();
+}
+
+function buildStrictRewritePrompt(scene, visualBible, styleKey) {
+  const anchor = scene?.anchor_text || '';
+  const original = scene?.image_prompt || '';
+  const elems = Array.isArray(scene?.elements) ? scene.elements : [];
+  const just = Array.isArray(scene?.sourceJustification) ? scene.sourceJustification : [];
+  return `
+You are the Visual Prompt Sanitizer.
+STYLE_KEY: ${styleKey || 'yoread-default'}
+Canonical CHARACTER_PROFILES:
+${JSON.stringify(visualBible?.characterProfiles || [], null, 2)}
+Canonical LOCATION_PROFILES:
+${JSON.stringify(visualBible?.locationProfiles || [], null, 2)}
+
+ANCHOR_TEXT (only source of truth for scene contents):
+${anchor}
+
+CURRENT IMAGE PROMPT:
+${original}
+
+CURRENT ELEMENTS:
+${JSON.stringify(elems)}
+
+CURRENT SOURCE JUSTIFICATIONS:
+${JSON.stringify(just)}
+
+TASK: Produce a revised "image_prompt" that strictly excludes any elements not present in ANCHOR_TEXT or the canonical profiles above. Keep counts exact. No text/signage unless present.
+
+OUTPUT (JSON):
+{
+  "image_prompt": "..."
+}
+`.trim();
+}
+
 // POST /api/analyze-scenes
 app.post('/api/analyze-scenes', async (req, res) => {
   const { 
@@ -1054,7 +1358,11 @@ app.post('/api/analyze-scenes', async (req, res) => {
     bookTheme = "atmospheric narrative",
     colorPalette = "muted tones with dramatic contrasts",
     videoFormat = "youtube",
-    sessionId 
+    sessionId,
+    styleKey: clientStyleKey,
+    visualBible: clientVisualBible,
+    bibleMode = 'use', // 'use' | 'create' | 'update'
+    detailLevel = 'high' // 'normal' | 'high'
   } = req.body;
   
   if (!text || !bookTitle) {
@@ -1066,13 +1374,46 @@ app.post('/api/analyze-scenes', async (req, res) => {
     console.log(`[analyze-scenes] Text length: ${text.length} chars, max scenes: ${maxScenes}`);
     console.log(`[analyze-scenes] Theme: ${bookTheme}, Palette: ${colorPalette}`);
     
-    // Build Visual Director prompt
-    const prompt = buildSceneAnalysisPrompt(text, bookTitle, bookTheme, colorPalette, maxScenes);
+    // Visual Bible: load/create/update per book/styleKey
+    const derivedKey = clientStyleKey || `yoread-${hashBookTitle(bookTitle)}`;
+    let activeBible = null;
+    if (bibleMode === 'create') {
+      activeBible = getOrCreateVisualBible(bookTitle, clientVisualBible || {}, derivedKey);
+    } else if (bibleMode === 'update') {
+      activeBible = getOrCreateVisualBible(bookTitle, clientVisualBible || {}, derivedKey);
+    } else {
+      activeBible = getOrCreateVisualBible(bookTitle, null, derivedKey);
+    }
+
+    // Build Visual Director prompt with bible/styleKey
+    const prompt = buildSceneAnalysisPrompt(text, bookTitle, bookTheme, colorPalette, maxScenes, activeBible, derivedKey, detailLevel);
     
-    // Use Gemini 2.0 Flash
-    const llm = sharedFactory.getLLM('gemini-2.0-flash');
+    // Use hard-locked Gemini model for text analysis (2.5 Pro), with safe fallback
+    // Try to resolve a Gemini LLM by several known identifiers
+    const candidateModels = [
+      ANALYSIS_LLM_MODEL,           // hard-locked preferred text model
+      GEMINI_MODEL,                 // env-configured model
+      DEFAULT_LLM,                  // default chosen at startup
+      'gemini-2.0-flash',           // common internal alias
+      'gemini'                      // generic provider id (if supported by factory)
+    ].filter(Boolean);
+
+    let llm = null;
+    for (const m of candidateModels) {
+      llm = sharedFactory.getLLM(m);
+      if (llm) {
+        if (m !== ANALYSIS_LLM_MODEL) {
+          console.warn(`[analyze-scenes] Using fallback LLM model: ${m}`);
+        } else {
+          console.log(`[analyze-scenes] Using analysis LLM model: ${m}`);
+        }
+        break;
+      }
+    }
+
     if (!llm) {
-      throw new Error('Gemini LLM not available');
+      const hasKey = !!ENV_KEYS.gemini;
+      throw new Error(`Gemini LLM not available${hasKey ? ' (model not registered)' : ' (GEMINI_API_KEY missing)'}`);
     }
     
     const startTime = Date.now();
@@ -1091,6 +1432,64 @@ app.post('/api/analyze-scenes', async (req, res) => {
     const scenesData = JSON.parse(cleanedResponse);
     
     console.log(`[analyze-scenes] Generated ${scenesData.scenes.length} scenes in ${Date.now() - startTime}ms`);
+
+    // Optional strict compliance on server-side (rewrite non-compliant prompts)
+    const strictImageCompliance = req.body.strictImageCompliance !== false;
+    let rewrites = 0;
+    if (strictImageCompliance) {
+      for (const scene of scenesData.scenes) {
+        const extra = findExtraneousElements(scene, activeBible);
+        if (extra.length > 0) {
+          try {
+            const rewritePrompt = buildStrictRewritePrompt(scene, activeBible, derivedKey);
+            const revised = await llm.execute(rewritePrompt);
+            const revisedClean = revised.trim().replace(/^```json\s*|\s*```$/g, '');
+            const revisedObj = JSON.parse(revisedClean);
+            if (revisedObj && typeof revisedObj.image_prompt === 'string' && revisedObj.image_prompt.trim()) {
+              scene.image_prompt = revisedObj.image_prompt.trim();
+              rewrites++;
+            }
+          } catch (e) {
+            console.warn('[analyze-scenes] Rewrite failed, using original image_prompt');
+          }
+        }
+      }
+      if (rewrites > 0) {
+        console.log(`[analyze-scenes] Strict compliance rewrites applied: ${rewrites}`);
+      }
+    }
+
+    // Optional post-process: expand short fields when detailLevel is 'high' (AFTER strict compliance)
+    if (detailLevel === 'high' && Array.isArray(scenesData.scenes)) {
+      let expandedCount = 0;
+      const MIN_DESC = 200;   // Raised from 160
+      const MIN_PROMPT = 300; // Raised from 240
+
+      for (const scene of scenesData.scenes) {
+        const descShort = !scene.scene_description || scene.scene_description.length < MIN_DESC;
+        const promptShort = !scene.image_prompt || scene.image_prompt.length < MIN_PROMPT;
+        if (!descShort && !promptShort) continue;
+
+        try {
+          const expandPrompt = buildExpandDetailsPrompt(scene, activeBible, derivedKey, bookTheme, colorPalette, MIN_DESC, MIN_PROMPT);
+          const expanded = await llm.execute(expandPrompt);
+          let expandedClean = expanded.trim();
+          if (expandedClean.startsWith('```json')) expandedClean = expandedClean.replace(/^```json\s*/, '').replace(/```\s*$/, '');
+          else if (expandedClean.startsWith('```')) expandedClean = expandedClean.replace(/^```\s*/, '').replace(/```\s*$/, '');
+          const obj = JSON.parse(expandedClean);
+          if (obj && typeof obj.scene_description === 'string' && typeof obj.image_prompt === 'string') {
+            if (obj.scene_description.length > (scene.scene_description?.length || 0)) scene.scene_description = obj.scene_description;
+            if (obj.image_prompt.length > (scene.image_prompt?.length || 0)) scene.image_prompt = obj.image_prompt;
+            expandedCount++;
+          }
+        } catch (e) {
+          console.warn('[analyze-scenes] Expansion pass failed for a scene:', e.message);
+        }
+      }
+      if (expandedCount > 0) {
+        console.log(`[analyze-scenes] Expanded details for ${expandedCount} scene(s) due to short outputs`);
+      }
+    }
     
     // Validate scene structure
     scenesData.scenes.forEach((scene, i) => {
@@ -1116,6 +1515,34 @@ app.post('/api/analyze-scenes', async (req, res) => {
       const { duration_seconds, ...rest } = scene;
       return rest;
     });
+
+    // Merge deltas (if present) into Visual Bible
+    try {
+      const deltaChars = Array.isArray(scenesData.characterProfilesDelta) ? scenesData.characterProfilesDelta : [];
+      const deltaLocs  = Array.isArray(scenesData.locationProfilesDelta) ? scenesData.locationProfilesDelta : [];
+
+      const byName = new Map((activeBible.characterProfiles || []).map(p => [String(p.name || '').toLowerCase(), p]));
+      for (const p of deltaChars) {
+        const key = String(p?.name || '').toLowerCase();
+        if (!key) continue;
+        if (!byName.has(key)) byName.set(key, p);
+      }
+      activeBible.characterProfiles = Array.from(byName.values());
+
+      const locByName = new Map((activeBible.locationProfiles || []).map(p => [String(p.name || '').toLowerCase(), p]));
+      for (const p of deltaLocs) {
+        const key = String(p?.name || '').toLowerCase();
+        if (!key) continue;
+        if (!locByName.has(key)) locByName.set(key, p);
+      }
+      activeBible.locationProfiles = Array.from(locByName.values());
+
+      const { biblePath } = getBiblePaths(bookTitle, derivedKey);
+      saveJSONSafe(biblePath, activeBible);
+      console.log(`[analyze-scenes] Merged deltas into Visual Bible: +${deltaChars.length} characters, +${deltaLocs.length} locations`);
+    } catch (e) {
+      console.warn('[analyze-scenes] Failed to merge profile deltas:', e.message);
+    }
     
     const outputData = {
       bookTitle,
@@ -1123,6 +1550,7 @@ app.post('/api/analyze-scenes', async (req, res) => {
       bookTheme,
       colorPalette,
       maxScenes,
+      styleKey: derivedKey,
       textLength: text.length,
       processingTime: Date.now() - startTime,
       timestamp: new Date().toISOString(),
@@ -1144,6 +1572,8 @@ app.post('/api/analyze-scenes', async (req, res) => {
         theme: bookTheme,
         palette: colorPalette,
         videoFormat: videoFormat,
+        strictImageCompliance: strictImageCompliance === true,
+        styleKey: derivedKey,
         savedToFile: path.basename(filename)
       }
     });
@@ -1161,7 +1591,7 @@ app.post('/api/analyze-scenes', async (req, res) => {
 // POST /api/generate-scene-images
 // Generates images from scene analysis prompts using Gemini Imagen
 app.post('/api/generate-scene-images', async (req, res) => {
-  const { scenes, videoFormat = 'youtube' } = req.body;
+  const { scenes, videoFormat = 'youtube', referenceImages = [], useSavedReferences = false, styleKey } = req.body;
   
   if (!Array.isArray(scenes) || scenes.length === 0) {
     return res.status(400).json({ error: 'scenes array is required' });
@@ -1169,10 +1599,9 @@ app.post('/api/generate-scene-images', async (req, res) => {
   
   try {
     console.log(`[generate-scene-images] Processing ${scenes.length} scenes for ${videoFormat} format`);
+    console.log(`[generate-scene-images] styleKey: ${styleKey || 'none'} useSavedReferences=${!!useSavedReferences} refCountIn=${(referenceImages && referenceImages.length) || 0}`);
     
     const { GoogleGenAI } = require('@google/genai');
-    const fs = require('fs');
-    const path = require('path');
     
     const ai = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY,
@@ -1182,6 +1611,30 @@ app.post('/api/generate-scene-images', async (req, res) => {
     const generatedImages = [];
     const timestamp = Date.now();
     
+    // Prepare reference images list (base64 inline)
+    const refInline = [];
+    if (useSavedReferences) {
+      const savedRefs = loadCachedRefs(styleKey || scenes?.[0]?.bookTitle || 'default');
+      savedRefs.forEach(r => refInline.push(r));
+    }
+    if (Array.isArray(referenceImages) && referenceImages.length > 0) {
+      referenceImages.forEach(b64 => {
+        if (b64 && typeof b64 === 'string') {
+          refInline.push({ data: b64, mimeType: 'image/png' });
+        } else if (b64 && typeof b64 === 'object' && b64.data) {
+          refInline.push({ data: b64.data, mimeType: b64.mimeType || 'image/png' });
+        }
+      });
+    }
+    console.log(`[generate-scene-images] Total references attached: ${refInline.length}`);
+
+    // Load Visual Bible for canon
+    const keyForBible = styleKey || scenes?.[0]?.bookTitle || 'default';
+    let activeBible = null;
+    try {
+      activeBible = getOrCreateVisualBible(keyForBible, null, keyForBible);
+    } catch {}
+
     for (let i = 0; i < scenes.length; i++) {
       const scene = scenes[i];
       if (!scene.image_prompt) {
@@ -1193,12 +1646,45 @@ app.post('/api/generate-scene-images', async (req, res) => {
         console.log(`[generate-scene-images] Generating image ${i + 1}/${scenes.length}...`);
         console.log(`[generate-scene-images] Prompt: ${scene.image_prompt.substring(0, 100)}...`);
         
-        const contents = [
-          {
-            role: 'user',
-            parts: [{ text: scene.image_prompt }]
-          }
-        ];
+        // Build conditioning preamble with anchor_text and canon
+        const canonChars = (activeBible?.characterProfiles || []).map(p => p.name).filter(Boolean);
+        const canonLocs  = (activeBible?.locationProfiles || []).map(p => p.name).filter(Boolean);
+        const requiredElems = Array.isArray(scene.elements) ? scene.elements : [];
+
+        const preamble = [
+          `STYLE_KEY: ${keyForBible}`,
+          `ANCHOR_TEXT:\n${scene.anchor_text || ''}`,
+          `SCENE_DESCRIPTION:\n${scene.scene_description || ''}`,
+          `CANONICAL_CHARACTERS: ${JSON.stringify(canonChars)}`,
+          `CANONICAL_LOCATIONS: ${JSON.stringify(canonLocs)}`,
+          `RENDERING_GUIDELINES:`,
+          `- Depict ONLY elements explicitly present in ANCHOR_TEXT or canonical profiles above.`,
+          `- Include these concrete elements: ${requiredElems.join(', ')}`,
+          `- No signage/text unless explicitly stated in ANCHOR_TEXT.`,
+          `- Keep exact counts (e.g., "a single door" = one door).`,
+          `- Do NOT invent props, characters, or background elements.`
+        ].join('\n');
+
+        const contents = [];
+        // 1. Prepend reference images if any
+        if (refInline.length > 0) {
+          refInline.forEach(ref => {
+            contents.push({
+              role: 'user',
+              parts: [{ inlineData: { mimeType: ref.mimeType || 'image/png', data: ref.data } }]
+            });
+          });
+        }
+        // 2. Conditioning preamble (anchor_text + canon + constraints)
+        contents.push({
+          role: 'user',
+          parts: [{ text: preamble }]
+        });
+        // 3. Final image instruction
+        contents.push({
+          role: 'user',
+          parts: [{ text: scene.image_prompt }]
+        });
 
         // Determine aspect ratio based on video format AND layout, allowing override
         const sceneLayout = String(req.body.sceneLayout || 'overlay').toLowerCase();
@@ -1281,6 +1767,15 @@ app.post('/api/generate-scene-images', async (req, res) => {
     }
     
     console.log(`[generate-scene-images] Generated ${generatedImages.length}/${scenes.length} images`);
+    // Persist a small set of anchors for future runs
+    if (generatedImages.length > 0) {
+      const anchorPaths = generatedImages.slice(0, 3).map(img => img.filepath).filter(Boolean);
+      if (anchorPaths.length > 0) {
+        const keyForRefs = styleKey || scenes?.[0]?.bookTitle || 'default';
+        appendRefs(keyForRefs, anchorPaths, 3);
+        console.log(`[generate-scene-images] Saved ${anchorPaths.length} anchor references for key ${keyForRefs}`);
+      }
+    }
     
     res.json({
       success: true,
@@ -1295,6 +1790,61 @@ app.post('/api/generate-scene-images', async (req, res) => {
       error: 'Image generation failed', 
       details: error.message 
     });
+  }
+});
+
+// --- Visual Bible Admin Endpoints (inspect/update) ---
+// GET /api/visual-bible?styleKey=...&bookTitle=...
+app.get('/api/visual-bible', (req, res) => {
+  try {
+    const styleKey = req.query.styleKey;
+    const bookTitle = req.query.bookTitle;
+    if (!styleKey && !bookTitle) {
+      return res.status(400).json({ error: 'styleKey or bookTitle is required' });
+    }
+    const { biblePath } = getBiblePaths(bookTitle || styleKey, styleKey);
+    const bible = loadJSONSafe(biblePath, null);
+    if (!bible) return res.status(404).json({ error: 'Visual Bible not found' });
+    res.json({ styleKey: bible.styleKey, bible });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch visual bible' });
+  }
+});
+
+// POST /api/visual-bible { styleKey?, bookTitle?, merge?: boolean, visualBible: { ... } }
+app.post('/api/visual-bible', (req, res) => {
+  try {
+    const { styleKey, bookTitle, merge = true, visualBible } = req.body || {};
+    if (!styleKey && !bookTitle) {
+      return res.status(400).json({ error: 'styleKey or bookTitle is required' });
+    }
+    if (!visualBible || typeof visualBible !== 'object') {
+      return res.status(400).json({ error: 'visualBible object is required' });
+    }
+    const bible = getOrCreateVisualBible(bookTitle || styleKey, merge ? visualBible : visualBible, styleKey);
+    res.json({ ok: true, styleKey: bible.styleKey, bible });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update visual bible' });
+  }
+});
+
+// GET /api/visual-refs?styleKey=...&bookTitle=...
+app.get('/api/visual-refs', (req, res) => {
+  try {
+    const styleKey = req.query.styleKey;
+    const bookTitle = req.query.bookTitle;
+    if (!styleKey && !bookTitle) {
+      return res.status(400).json({ error: 'styleKey or bookTitle is required' });
+    }
+    const { refsPath } = getBiblePaths(bookTitle || styleKey, styleKey);
+    const refs = loadJSONSafe(refsPath, []);
+    const files = refs.filter(fp => fs.existsSync(fp)).map(fp => {
+      const stat = fs.statSync(fp);
+      return { path: fp, size: stat.size };
+    });
+    res.json({ count: files.length, files });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to list visual references' });
   }
 });
 

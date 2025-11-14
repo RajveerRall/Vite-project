@@ -27,8 +27,8 @@ def draw_chapter_info(draw: ImageDraw.ImageDraw, fonts: Dict[str, ImageFont.Free
 
 
 def calculate_split_geometry(width: int, height: int, image_side: str = "left") -> Dict[str, int]:
-    image_ratio = 0.40 if width >= height else 0.45
-    image_w = int(width * image_ratio)
+    # Equal 50/50 split; center divider
+    image_w = width // 2
     text_w = width - image_w
     if image_side == "left":
         return {"image_w": image_w, "text_w": text_w, "image_x": 0, "text_x": image_w}
@@ -72,44 +72,51 @@ def create_split_scroll_frame(
                 break
     if column_img is None:
         column_img = Image.new('RGB', (image_w, height), '#111111')
+    else:
+        # Cover-fit the image to fill the column without letterboxing (center-crop)
+        src_w, src_h = column_img.size
+        if src_w <= 0 or src_h <= 0:
+            column_img = Image.new('RGB', (image_w, height), '#111111')
+        else:
+            scale = max(image_w / src_w, height / src_h)
+            new_w = int(src_w * scale)
+            new_h = int(src_h * scale)
+            resized = column_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            left = max((new_w - image_w) // 2, 0)
+            top = max((new_h - height) // 2, 0)
+            column_img = resized.crop((left, top, left + image_w, top + height))
     img.paste(column_img, (image_x, 0))
 
-    # Separator
-    sep_x = image_x + (image_w if image_side == "left" else 0)
     draw = ImageDraw.Draw(img)
+
+    # Text column background (solid), same color as text area
+    text_bg_color = '#F0F0E3'
+    draw.rectangle([(text_x, 0), (text_x + text_w, height)], fill=text_bg_color)
+
+    # Separator (center divider)
+    sep_x = image_x + (image_w if image_side == "left" else 0)
     draw.line([(sep_x, 0), (sep_x, height)], fill='#e0e0e0', width=2)
 
-    # Text container inside text column
-    container_padding = int(text_w * 0.08)
-    margin_top = int(height * 0.18)
-    margin_bottom = int(height * 0.08)
-    container_width = text_w - (2 * container_padding)
-    container_height = height - margin_top - margin_bottom
-    container_x = text_x + container_padding
-    container_y = margin_top
+    # Minimal text column: no overlay box, only chapter title + text
+    pad = 24
+    title_top = pad
+    text_padding_x = text_x + pad  # consistent inner padding
+    title_y = title_top
 
-    overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-    overlay_draw = ImageDraw.Draw(overlay)
-    corner_radius = int(text_w * 0.02)
-    container_color = (*hex_to_rgb('#F0F0E3'), int(255 * 0.65))
-    overlay_draw.rounded_rectangle(
-        [(container_x, container_y), (container_x + container_width, container_y + container_height)],
-        radius=corner_radius,
-        fill=container_color
-    )
-    img = Image.alpha_composite(img.convert('RGBA'), overlay).convert('RGB')
-    draw = ImageDraw.Draw(img)
+    # Draw chapter title at top-left of text column
+    draw.text((text_padding_x, title_y), chapter_title, font=layout['fonts']['title'], fill='#333333')
 
-    container_top = margin_top
-    container_bottom = height - margin_bottom
-    text_start_y = margin_top + layout['padding']
-    text_padding_x = container_x + layout['padding']
+    # Text starts below the chapter title
+    text_start_y = title_y + layout['fonts']['title_size'] + 16
+    container_top = title_top
+    container_bottom = height
 
     current_highlighted_sentence_id = last_highlighted_sentence_id
 
     for line_idx, line_data in enumerate(layout['lines']):
         line_y = line_data['y'] - scroll_y + text_start_y
         if container_top <= line_y <= container_bottom:
+            # Only draw highlight when mode requests it
             if highlight_mode == 'sentence' and srt_entries:
                 is_current = False
                 if srt_to_sentence_map:
@@ -122,9 +129,9 @@ def create_split_scroll_frame(
                     is_current = (mapped == line_idx)
                 if is_current:
                     draw_highlight_box(draw, line_data['text'], layout['fonts']['body'], text_padding_x, line_y)
+
             draw.text((text_padding_x, line_y), line_data['text'], font=layout['fonts']['body'], fill='#1a1a1a')
 
-    draw_chapter_info(draw, layout['fonts'], book_title, chapter_title, author, width, height, layout['padding'])
     return img, current_highlighted_sentence_id
 
 
