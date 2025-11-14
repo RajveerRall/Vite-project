@@ -7821,6 +7821,56 @@ def calculate_scroll_position(current_time, total_duration, total_content_height
 
     return scroll_y
 
+def calculate_anchored_scroll(current_time, srt_entries, srt_map, layout, total_duration, viewport_height):
+    """
+    Time-anchored linear scrolling: interpolates between SRT-based anchor points.
+    Combines smoothness of linear scrolling with accuracy of SRT timing.
+    """
+    if not srt_entries or not srt_map:
+        # Fallback to linear if no SRT data
+        return calculate_scroll_position(current_time, total_duration, 
+                                        layout['total_height'], viewport_height)
+    
+    # Build anchor points from SRT mapping
+    anchors = []
+    for i, entry in enumerate(srt_entries):
+        if i in srt_map:
+            line_indices = srt_map[i]
+            line_index = line_indices[0] if isinstance(line_indices, list) else line_indices
+            
+            if line_index < len(layout['lines']):
+                anchor_time = entry['start']
+                anchor_scroll = max(0, layout['lines'][line_index]['y'] - viewport_height * 0.3)
+                anchors.append((anchor_time, anchor_scroll))
+    
+    if not anchors:
+        # No valid anchors, use linear fallback
+        return calculate_scroll_position(current_time, total_duration,
+                                        layout['total_height'], viewport_height)
+    
+    # Find surrounding anchors
+    prev_anchor = (0, 0)
+    next_anchor = (total_duration, max(0, layout['total_height'] - viewport_height))
+    
+    for anchor_time, anchor_scroll in anchors:
+        if anchor_time <= current_time:
+            prev_anchor = (anchor_time, anchor_scroll)
+        elif anchor_time > current_time and next_anchor[0] == total_duration:
+            next_anchor = (anchor_time, anchor_scroll)
+            break
+    
+    # Linear interpolation between anchors
+    prev_time, prev_scroll = prev_anchor
+    next_time, next_scroll = next_anchor
+    
+    if next_time > prev_time:
+        progress = (current_time - prev_time) / (next_time - prev_time)
+        scroll_y = prev_scroll + (next_scroll - prev_scroll) * progress
+    else:
+        scroll_y = prev_scroll
+    
+    return scroll_y
+
 def calculate_step_scroll(current_time, total_duration, total_content_height, viewport_height, step_seconds=STEP_SECONDS, transition_duration=STEP_TRANSITION_SECONDS, page_fraction=STEP_PAGE_FRACTION):
     """
     Step-wise scroll: every `step_seconds`, scroll up by a fixed fraction of the screen.
@@ -8788,7 +8838,13 @@ def generate_smart_scroll_frames(
         for idx, current_time in enumerate(key_frame_times):
             # Per-layout scrolling: split vs fullscreen (no-highlight); else SRT/overlay logic
             if scene_layout == "split":
-                if SPLIT_SCROLL_MODE == 'step':
+                if srt_entries and srt_to_sentence_map:
+                    # Use anchored scrolling for better audio sync
+                    scroll_y = calculate_anchored_scroll(
+                        current_time, srt_entries, srt_to_sentence_map, layout,
+                        total_duration, height
+                    )
+                elif SPLIT_SCROLL_MODE == 'step':
                     scroll_y = calculate_step_scroll(
                         current_time, total_duration,
                         layout['total_height'], height,
@@ -8802,7 +8858,13 @@ def generate_smart_scroll_frames(
                     )
                 previous_scroll = scroll_y
             elif highlight_mode == 'none':
-                if FULL_SCROLL_MODE == 'step':
+                if srt_entries and srt_to_sentence_map:
+                    # Use anchored scrolling for better audio sync
+                    scroll_y = calculate_anchored_scroll(
+                        current_time, srt_entries, srt_to_sentence_map, layout,
+                        total_duration, height
+                    )
+                elif FULL_SCROLL_MODE == 'step':
                     scroll_y = calculate_step_scroll(
                         current_time, total_duration,
                         layout['total_height'], height,
@@ -8863,7 +8925,13 @@ def generate_smart_scroll_frames(
         for idx, current_time in enumerate(key_frame_times):
             # Per-layout scrolling: split vs fullscreen (no-highlight); else SRT/overlay logic
             if scene_layout == "split":
-                if SPLIT_SCROLL_MODE == 'step':
+                if srt_entries and srt_to_sentence_map:
+                    # Use anchored scrolling for better audio sync
+                    scroll_y = calculate_anchored_scroll(
+                        current_time, srt_entries, srt_to_sentence_map, layout,
+                        total_duration, height
+                    )
+                elif SPLIT_SCROLL_MODE == 'step':
                     scroll_y = calculate_step_scroll(
                         current_time, total_duration,
                         layout['total_height'], height,
@@ -8877,7 +8945,13 @@ def generate_smart_scroll_frames(
                     )
                 previous_scroll = scroll_y
             elif highlight_mode == 'none':
-                if FULL_SCROLL_MODE == 'step':
+                if srt_entries and srt_to_sentence_map:
+                    # Use anchored scrolling for better audio sync
+                    scroll_y = calculate_anchored_scroll(
+                        current_time, srt_entries, srt_to_sentence_map, layout,
+                        total_duration, height
+                    )
+                elif FULL_SCROLL_MODE == 'step':
                     scroll_y = calculate_step_scroll(
                         current_time, total_duration,
                         layout['total_height'], height,

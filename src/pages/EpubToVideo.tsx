@@ -215,117 +215,6 @@ const EpubToVideo: React.FC = () => {
     console.log(`[Queue] Added "${chapter.title}" to queue`);
   }, [chapters]);
 
-  // Process queue sequentially
-  const processQueue = useCallback(async () => {
-    if (isProcessingQueue) {
-      console.log('[Queue] Already processing, skipping');
-      return;
-    }
-
-    setIsProcessingQueue(true);
-    console.log('[Queue] Starting queue processing');
-
-    try {
-      while (true) {
-        // Get fresh queue state each iteration to avoid stale closures
-        const currentQueueState = await new Promise<QueueItem[]>(resolve => {
-          setVideoQueue(queue => {
-            resolve(queue);
-            return queue;
-          });
-        });
-
-        // Find next queued item from FRESH state
-        const nextItem = currentQueueState.find(item => item.status === 'queued');
-        
-        if (!nextItem) {
-          console.log('[Queue] No more items to process');
-          break;
-        }
-
-        console.log(`[Queue] Processing: ${nextItem.chapterTitle}`);
-        setCurrentProcessingId(nextItem.id);
-
-        // Mark as processing
-        setVideoQueue(prev => prev.map(item => 
-          item.id === nextItem.id 
-            ? { ...item, status: 'processing' as const }
-            : item
-        ));
-
-        // Wait for state to update
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        try {
-          // Generate video for this item
-          await generateVideoForQueueItem(nextItem);
-          
-          // Mark as completed
-          console.log(`[Queue] ✓ Completed: ${nextItem.chapterTitle}`);
-          setVideoQueue(prev => prev.map(item => 
-            item.id === nextItem.id 
-              ? { 
-                  ...item, 
-                  status: 'completed' as const,
-                  progress: { stage: 'complete', percentage: 100, message: 'Complete!' }
-                }
-              : item
-          ));
-
-          // Wait for state update before next iteration
-          await new Promise(resolve => setTimeout(resolve, 100));
-
-        } catch (error) {
-          // Mark as failed - STOP processing queue
-          console.error(`[Queue] ✗ Failed: ${nextItem.chapterTitle}`, error);
-          setVideoQueue(prev => prev.map(item => 
-            item.id === nextItem.id 
-              ? { 
-                  ...item, 
-                  status: 'failed' as const,
-                  error: error instanceof Error ? error.message : String(error),
-                  progress: { stage: 'idle', percentage: 0, message: 'Failed' }
-                }
-              : item
-          ));
-          
-          // STOP processing on failure
-          console.log('[Queue] Stopped due to failure');
-          break;
-        }
-      }
-    } finally {
-      setIsProcessingQueue(false);
-      setCurrentProcessingId(null);
-      console.log('[Queue] Queue processing ended');
-    }
-  }, [generateVideoForQueueItem, isProcessingQueue]);
-
-  // Auto-start queue when items are added (only when queue length changes)
-  const queueLengthRef = useRef(videoQueue.length);
-  const hasQueuedRef = useRef(false);
-  
-  useEffect(() => {
-    const queuedItems = videoQueue.filter(item => item.status === 'queued');
-    const hasQueuedItems = queuedItems.length > 0;
-    
-    // Only trigger if:
-    // 1. We have queued items AND
-    // 2. (Queue length changed OR we didn't have queued items before) AND
-    // 3. Not already processing
-    const shouldStart = hasQueuedItems && 
-                       (queueLengthRef.current !== videoQueue.length || !hasQueuedRef.current) &&
-                       !isProcessingQueue;
-    
-    queueLengthRef.current = videoQueue.length;
-    hasQueuedRef.current = hasQueuedItems;
-    
-    if (shouldStart) {
-      console.log('[Queue] Auto-starting queue processing');
-      processQueue();
-    }
-  }, [videoQueue.length, isProcessingQueue, processQueue]);
-
   // Generate video for a specific queue item
   const generateVideoForQueueItem = useCallback(async (queueItem: QueueItem) => {
     const chapter = chapters.find(c => c.index === queueItem.chapterIndex);
@@ -554,7 +443,7 @@ const EpubToVideo: React.FC = () => {
             audioBlobs.length  // Use total chunk index
           );
           
-          combinedSrt += adjustedSrt + '\n\n';
+          combinedSrt += adjustedSrt + '\\n\\n';
           cumulativeDuration += result.duration;
           
           console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added: duration=${result.duration}s, total=${cumulativeDuration.toFixed(2)}s`);
@@ -616,7 +505,7 @@ const EpubToVideo: React.FC = () => {
                 sceneLayout: settings.style === 'split' ? 'split' : 'overlay',
                 imageAspect: settings.style === 'split' ? '3:4' : undefined,
                 // Reuse saved anchors for consistency
-                styleKey: `yoread-${(uploadedFile?.name || chapter.title || 'Unknown').toLowerCase().replace(/[^a-z0-9\-]+/g, '-').replace(/^-+|-+$/g, '')}`,
+                styleKey: `yoread-${(uploadedFile?.name || chapter.title || 'Unknown').toLowerCase().replace(/[^a-z0-9\\-]+/g, '-').replace(/^-+|-+$/g, '')}`,
                 useSavedReferences: true
               })
             });
@@ -652,7 +541,7 @@ const EpubToVideo: React.FC = () => {
       console.log(`  - Audio chunks: ${audioBlobs.length}`);
       console.log(`  - Total duration: ${cumulativeDuration.toFixed(2)}s`);
       console.log(`  - SRT data length: ${combinedSrt.length} characters`);
-      console.log(`  - SRT segments: ${combinedSrt.split('\n\n').length}`);
+      console.log(`  - SRT segments: ${combinedSrt.split('\\n\\n').length}`);
       console.log(`  - Scene images: ${sceneImages.length}`);
 
       // Step 3: Send to Python server for video generation
@@ -664,7 +553,7 @@ const EpubToVideo: React.FC = () => {
 
       console.log(`[Video Generation] Sending to Python server`);
       console.log(`[Video Generation] Audio duration: ${cumulativeDuration}s`);
-      console.log(`[Video Generation] SRT segments: ${combinedSrt.split('\n\n').length}`);
+      console.log(`[Video Generation] SRT segments: ${combinedSrt.split('\\n\\n').length}`);
 
       console.log(`[Video Generation] Sending ${audioBlobs.length} individual audio chunks`);
 
@@ -763,6 +652,117 @@ const EpubToVideo: React.FC = () => {
       throw error; // Re-throw to mark queue item as failed
     }
   }, [chapters, uploadedFile, settings]);
+
+  // Process queue sequentially
+  const processQueue = useCallback(async () => {
+    if (isProcessingQueue) {
+      console.log('[Queue] Already processing, skipping');
+      return;
+    }
+
+    setIsProcessingQueue(true);
+    console.log('[Queue] Starting queue processing');
+
+    try {
+      while (true) {
+        // Get fresh queue state each iteration to avoid stale closures
+        const currentQueueState = await new Promise<QueueItem[]>(resolve => {
+          setVideoQueue(queue => {
+            resolve(queue);
+            return queue;
+          });
+        });
+
+        // Find next queued item from FRESH state
+        const nextItem = currentQueueState.find(item => item.status === 'queued');
+        
+        if (!nextItem) {
+          console.log('[Queue] No more items to process');
+          break;
+        }
+
+        console.log(`[Queue] Processing: ${nextItem.chapterTitle}`);
+        setCurrentProcessingId(nextItem.id);
+
+        // Mark as processing
+        setVideoQueue(prev => prev.map(item => 
+          item.id === nextItem.id 
+            ? { ...item, status: 'processing' as const }
+            : item
+        ));
+
+        // Wait for state to update
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        try {
+          // Generate video for this item
+          await generateVideoForQueueItem(nextItem);
+          
+          // Mark as completed
+          console.log(`[Queue] ✓ Completed: ${nextItem.chapterTitle}`);
+          setVideoQueue(prev => prev.map(item => 
+            item.id === nextItem.id 
+              ? { 
+                  ...item, 
+                  status: 'completed' as const,
+                  progress: { stage: 'complete', percentage: 100, message: 'Complete!' }
+                }
+              : item
+          ));
+
+          // Wait for state update before next iteration
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+        } catch (error) {
+          // Mark as failed - STOP processing queue
+          console.error(`[Queue] ✗ Failed: ${nextItem.chapterTitle}`, error);
+          setVideoQueue(prev => prev.map(item => 
+            item.id === nextItem.id 
+              ? { 
+                  ...item, 
+                  status: 'failed' as const,
+                  error: error instanceof Error ? error.message : String(error),
+                  progress: { stage: 'idle', percentage: 0, message: 'Failed' }
+                }
+              : item
+          ));
+          
+          // STOP processing on failure
+          console.log('[Queue] Stopped due to failure');
+          break;
+        }
+      }
+    } finally {
+      setIsProcessingQueue(false);
+      setCurrentProcessingId(null);
+      console.log('[Queue] Queue processing ended');
+    }
+  }, [generateVideoForQueueItem, isProcessingQueue]);
+
+  // Auto-start queue when items are added (only when queue length changes)
+  const queueLengthRef = useRef(videoQueue.length);
+  const hasQueuedRef = useRef(false);
+  
+  useEffect(() => {
+    const queuedItems = videoQueue.filter(item => item.status === 'queued');
+    const hasQueuedItems = queuedItems.length > 0;
+    
+    // Only trigger if:
+    // 1. We have queued items AND
+    // 2. (Queue length changed OR we didn't have queued items before) AND
+    // 3. Not already processing
+    const shouldStart = hasQueuedItems && 
+                       (queueLengthRef.current !== videoQueue.length || !hasQueuedRef.current) &&
+                       !isProcessingQueue;
+    
+    queueLengthRef.current = videoQueue.length;
+    hasQueuedRef.current = hasQueuedItems;
+    
+    if (shouldStart) {
+      console.log('[Queue] Auto-starting queue processing');
+      processQueue();
+    }
+  }, [videoQueue.length, isProcessingQueue, processQueue]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -885,39 +885,42 @@ const EpubToVideo: React.FC = () => {
             {chapters.length > 0 && (
               <div className="space-y-6">
                 {/* Chapters List */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <FileText className="w-5 h-5 mr-2 text-red-800" />
-                    Chapters ({chapters.length})
-                  </h3>
-                  
-                  <div className="space-y-3">
-                    {chapters.map((chapter) => {
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <FileText className="w-5 h-5 mr-2 text-red-800" />
+                  Chapters ({chapters.length})
+                </h3>
+                
+                <div className="space-y-3">
+                  {chapters.map((chapter) => {
                       const queueItem = videoQueue.find(item => item.chapterIndex === chapter.index);
                       const isInQueue = !!queueItem;
                       const isProcessing = queueItem?.status === 'processing';
                       
-                      return (
+                    return (
                         <div key={chapter.index} className="border border-gray-200 rounded-lg p-3">
                           <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 text-sm">
-                                {chapter.title}
-                              </h4>
-                              <p className="text-xs text-gray-500 mt-1">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 text-sm">
+                            {chapter.title}
+                          </h4>
+                          <p className="text-xs text-gray-500 mt-1">
                                 {chapter.content.length} characters • ~{formatDuration(chapter.estimatedDuration)}
-                              </p>
-                            </div>
-                            
-                            <div className="flex items-center space-x-2">
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {chapter.content.substring(0, 100)}...
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
                               {!isInQueue ? (
-                                <button
+                          <button
                                   onClick={() => addToQueue(chapter.index)}
                                   className="flex items-center px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs"
                                 >
-                                  <Video className="w-3 h-3 mr-1" />
+                                <Video className="w-3 h-3 mr-1" />
                                   Add to Queue
-                                </button>
+                          </button>
                               ) : (
                                 <span className={`px-3 py-1 rounded-md text-xs font-medium ${
                                   queueItem.status === 'queued' ? 'bg-gray-200 text-gray-700' :
@@ -932,8 +935,8 @@ const EpubToVideo: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                          </div>
-                          
+                        </div>
+                        
                           {/* Progress Bar */}
                           {isProcessing && queueItem.progress.percentage > 0 && (
                             <div className="mt-3">
@@ -941,23 +944,23 @@ const EpubToVideo: React.FC = () => {
                                 <div 
                                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                                   style={{ width: `${queueItem.progress.percentage}%` }}
-                                />
-                              </div>
-                              <p className="text-xs text-gray-600 mt-1">
-                                {queueItem.progress.message}
-                              </p>
+                              />
                             </div>
-                          )}
-                          
+                            <p className="text-xs text-gray-600 mt-1">
+                                {queueItem.progress.message}
+                            </p>
+                          </div>
+                        )}
+
                           {/* Error Message */}
                           {queueItem?.status === 'failed' && queueItem.error && (
                             <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                               {queueItem.error}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   </div>
                 </div>
 
@@ -1002,7 +1005,7 @@ const EpubToVideo: React.FC = () => {
                           <span className="text-blue-800 font-medium text-sm">
                             Processing queue... ({videoQueue.filter(i => i.status === 'completed').length}/{videoQueue.length} complete)
                           </span>
-                        </div>
+                </div>
                       </div>
                     )}
                     

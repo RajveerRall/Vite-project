@@ -7,45 +7,54 @@ import { EpubExtractor, Chapter } from '../services/EpubExtractor';
  */
 function removeCommonStartingPrefix(chapters: Chapter[]): Chapter[] {
   if (chapters.length < 2) return chapters;
-  
+
   const minLength = Math.min(...chapters.map(ch => ch.content.length));
-  
+
   // Debug: log first few characters of each chapter
   console.log('[Common Prefix] First 50 chars of first 5 chapters:');
   for (let i = 0; i < Math.min(5, chapters.length); i++) {
     const preview = chapters[i].content.substring(0, 50).replace(/\n/g, '\\n');
     console.log(`  Chapter ${i + 1}: "${preview}..."`);
   }
-  
+
   // Find the longest exact character-by-character match that appears in MOST chapters
   // Use "majority rule": if 70% of chapters match, consider it common
   const majorityThreshold = Math.ceil(chapters.length * 0.7);
   let commonPrefixLength = 0;
-  
+
   for (let i = 0; i < minLength; i++) {
     const char = chapters[0].content[i];
     const matchesCount = chapters.filter(ch => ch.content[i] === char).length;
-    
+
     if (matchesCount >= majorityThreshold) {
       commonPrefixLength = i + 1;
     } else {
       break;
     }
   }
-  
+
   console.log(`[Common Prefix] Found common prefix of ${commonPrefixLength} characters (appears in majority of chapters)`);
-  
+
   // If no common prefix found, return unchanged
   if (commonPrefixLength === 0) {
     console.log('[Common Prefix] No common prefix found');
     return chapters;
   }
-  
+
+  // SAFETY: Do not remove if it would make any chapter too short or empty
+  // Keep at least 50 characters per chapter after removal
+  const MIN_REMAINING_CHARS = 50;
+  const wouldStripTooMuch = chapters.some(ch => (ch.content.length - commonPrefixLength) < MIN_REMAINING_CHARS);
+  if (wouldStripTooMuch) {
+    console.log(`[Common Prefix] Skipping prefix removal to avoid stripping content below ${MIN_REMAINING_CHARS} chars in one or more chapters`);
+    return chapters;
+  }
+
   // Remove the exact common prefix from all chapters
   const removedPrefix = chapters[0].content.substring(0, commonPrefixLength);
   console.log(`[Common Prefix] Removing ${commonPrefixLength} character prefix from ALL chapters:`);
   console.log(`[Common Prefix] "${removedPrefix}"`);
-  
+
   return chapters.map(chapter => ({
     ...chapter,
     content: chapter.content.substring(commonPrefixLength).trim()
