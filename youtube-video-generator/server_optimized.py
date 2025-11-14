@@ -7648,9 +7648,9 @@ BASE_KEYFRAME_INTERVAL = 0.5
 STEP_PAGE_FRACTION = 0.8  # fraction of viewport scrolled per step (e.g., 0.8 = 80% of screen height)
 
 # Per-layout scrolling configuration
-# Split screen defaults to step scrolling; fullscreen (no-highlight) defaults to linear.
+# Split screen defaults to step scrolling; fullscreen (no-highlight) uses step for faster scroll.
 SPLIT_SCROLL_MODE = 'step'      # 'step' or 'linear'
-FULL_SCROLL_MODE  = 'linear'    # 'linear' or 'step'
+FULL_SCROLL_MODE  = 'step'      # changed to 'step' for better sync with audio
 
 SPLIT_BASE_KEYFRAME_INTERVAL = 0.5
 FULL_BASE_KEYFRAME_INTERVAL  = 0.5
@@ -7658,7 +7658,9 @@ FULL_BASE_KEYFRAME_INTERVAL  = 0.5
 SPLIT_STEP_SECONDS = 12.0
 SPLIT_STEP_TRANSITION_SECONDS = 0.0  # set >0 for easing at step boundaries
 FULL_STEP_SECONDS = 12.0
-FULL_STEP_TRANSITION_SECONDS = 0.0   # set >0 for easing at step boundaries
+FULL_STEP_TRANSITION_SECONDS = 1.0   # slight smoothing for fullscreen
+SPLIT_STEP_PAGE_FRACTION = 0.8       # 80% of screen per step for split
+FULL_STEP_PAGE_FRACTION = 0.6        # 60% of screen per step for fullscreen
 
 def calculate_scroll_position(current_time, total_duration, total_content_height, viewport_height):
     """
@@ -7678,7 +7680,7 @@ def calculate_scroll_position(current_time, total_duration, total_content_height
 
     return scroll_y
 
-def calculate_step_scroll(current_time, total_duration, total_content_height, viewport_height, step_seconds=STEP_SECONDS, transition_duration=STEP_TRANSITION_SECONDS):
+def calculate_step_scroll(current_time, total_duration, total_content_height, viewport_height, step_seconds=STEP_SECONDS, transition_duration=STEP_TRANSITION_SECONDS, page_fraction=STEP_PAGE_FRACTION):
     """
     Step-wise scroll: every `step_seconds`, scroll up by a fixed fraction of the screen.
     If transition_duration > 0, ease within the last transition window before the step.
@@ -7695,7 +7697,7 @@ def calculate_step_scroll(current_time, total_duration, total_content_height, vi
     max_scroll = max(float(total_content_height) - float(viewport_height), 0.0)
     # Dynamic step so we don't reach max on the very first step with short content
     expected_steps = max(1, int(float(total_duration) // float(step_seconds)))
-    base_step = float(viewport_height) * float(STEP_PAGE_FRACTION)
+    base_step = float(viewport_height) * float(page_fraction)
     ideal_step = max_scroll / float(expected_steps) if expected_steps > 0 else base_step
     step_pixels = min(base_step, ideal_step if ideal_step > 0 else base_step)
     max_scroll = max(float(total_content_height) - float(viewport_height), 0.0)
@@ -8644,7 +8646,8 @@ def generate_smart_scroll_frames(
                     scroll_y = calculate_step_scroll(
                         current_time, total_duration,
                         layout['total_height'], height,
-                        step_seconds=SPLIT_STEP_SECONDS, transition_duration=SPLIT_STEP_TRANSITION_SECONDS
+                        step_seconds=SPLIT_STEP_SECONDS, transition_duration=SPLIT_STEP_TRANSITION_SECONDS,
+                        page_fraction=SPLIT_STEP_PAGE_FRACTION
                     )
                 else:  # linear
                     scroll_y = calculate_scroll_position(
@@ -8657,7 +8660,8 @@ def generate_smart_scroll_frames(
                     scroll_y = calculate_step_scroll(
                         current_time, total_duration,
                         layout['total_height'], height,
-                        step_seconds=FULL_STEP_SECONDS, transition_duration=FULL_STEP_TRANSITION_SECONDS
+                        step_seconds=FULL_STEP_SECONDS, transition_duration=FULL_STEP_TRANSITION_SECONDS,
+                        page_fraction=FULL_STEP_PAGE_FRACTION
                     )
                 else:  # linear
                     scroll_y = calculate_scroll_position(
@@ -8717,7 +8721,8 @@ def generate_smart_scroll_frames(
                     scroll_y = calculate_step_scroll(
                         current_time, total_duration,
                         layout['total_height'], height,
-                        step_seconds=SPLIT_STEP_SECONDS, transition_duration=SPLIT_STEP_TRANSITION_SECONDS
+                        step_seconds=SPLIT_STEP_SECONDS, transition_duration=SPLIT_STEP_TRANSITION_SECONDS,
+                        page_fraction=SPLIT_STEP_PAGE_FRACTION
                     )
                 else:  # linear
                     scroll_y = calculate_scroll_position(
@@ -8730,7 +8735,8 @@ def generate_smart_scroll_frames(
                     scroll_y = calculate_step_scroll(
                         current_time, total_duration,
                         layout['total_height'], height,
-                        step_seconds=FULL_STEP_SECONDS, transition_duration=FULL_STEP_TRANSITION_SECONDS
+                        step_seconds=FULL_STEP_SECONDS, transition_duration=FULL_STEP_TRANSITION_SECONDS,
+                        page_fraction=FULL_STEP_PAGE_FRACTION
                     )
                 else:  # linear
                     scroll_y = calculate_scroll_position(
