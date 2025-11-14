@@ -5,4 +5,5 @@ moviepy==1.0.3
 # pip uninstall pillow && pip install pillow-simd
 pillow>=10.0.0
 numpy>=1.24.0
+psutil>=5.9.0
 python-multipart==0.0.6

@@ -5917,9 +5917,145 @@ import re
 import difflib
 from typing import List
 from multiprocessing import Pool, cpu_count
+import psutil
 import numpy as np
 
 app = FastAPI()
+
+def calculate_optimal_workers(num_tasks=None, frame_complexity='medium'):
+    """
+    Dynamically calculate optimal number of workers based on:
+    - CPU cores and current CPU load
+    - Available RAM
+    - Task count
+    - Frame complexity (affects memory per worker)
+    
+    Args:
+        num_tasks: Number of frames to generate (optional)
+        frame_complexity: 'low', 'medium', 'high' - affects memory estimation
+    
+    Returns:
+        int: Optimal number of workers
+    """
+    
+    # Check for environment variable override
+    try:
+        max_workers_env = os.environ.get('MAX_WORKERS', '').strip()
+        if max_workers_env and max_workers_env.isdigit():
+            override_value = int(max_workers_env)
+            if override_value > 0:
+                print(f"MAX_WORKERS environment variable set to {override_value}")
+                return override_value
+    except Exception:
+        pass
+    
+    # 1. CPU-based calculation
+    total_cores = cpu_count()
+    
+    # Reserve 1-2 cores for system and main process
+    if total_cores <= 4:
+        available_cores = max(1, total_cores - 1)
+    elif total_cores <= 8:
+        available_cores = max(2, total_cores - 2)
+    else:
+        available_cores = max(4, total_cores - 2)
+    
+    # Check current CPU load
+    try:
+        cpu_percent = psutil.cpu_percent(interval=0.5)
+        # If CPU is already heavily loaded (>70%), reduce workers
+        if cpu_percent > 70:
+            load_factor = 0.5
+        elif cpu_percent > 50:
+            load_factor = 0.75
+        else:
+            load_factor = 1.0
+        
+        cpu_based_workers = int(available_cores * load_factor)
+    except Exception as e:
+        # Fallback if psutil fails
+        print(f"Warning: Could not check CPU load ({e}), using fallback")
+        cpu_based_workers = available_cores
+    
+    # 2. Memory-based calculation
+    try:
+        memory = psutil.virtual_memory()
+        available_gb = memory.available / (1024 ** 3)
+        
+        # Estimate memory per worker based on frame complexity
+        # Frame generation with Pillow can use 100-500MB per worker
+        memory_per_worker = {
+            'low': 0.15,      # 150MB - small frames, no scene images
+            'medium': 0.3,    # 300MB - typical 1920x1080 with text
+            'high': 0.6       # 600MB - large frames with scene images/overlays
+        }.get(frame_complexity, 0.3)
+        
+        # Reserve 2GB for system and FFmpeg encoding
+        usable_gb = max(1, available_gb - 2)
+        memory_based_workers = int(usable_gb / memory_per_worker)
+    except Exception as e:
+        # Fallback if memory check fails
+        print(f"Warning: Could not check memory ({e}), using CPU-based calculation")
+        memory_based_workers = available_cores
+    
+    # 3. Task-based optimization
+    if num_tasks is not None:
+        # No point having more workers than tasks
+        task_based_workers = min(num_tasks, cpu_based_workers)
+    else:
+        task_based_workers = cpu_based_workers
+    
+    # 4. Calculate final worker count
+    optimal_workers = min(cpu_based_workers, memory_based_workers, task_based_workers)
+    
+    # Apply reasonable bounds
+    min_workers = 1
+    max_workers = 32  # Upper safety limit
+    optimal_workers = max(min_workers, min(optimal_workers, max_workers))
+    
+    # Log the decision
+    try:
+        print(f"Worker calculation:")
+        print(f"  CPU cores: {total_cores} (using {available_cores})")
+        print(f"  CPU load: {cpu_percent:.1f}%")
+        print(f"  Available RAM: {available_gb:.1f} GB")
+        print(f"  CPU-based workers: {cpu_based_workers}")
+        print(f"  Memory-based workers: {memory_based_workers}")
+        if num_tasks:
+            print(f"  Task count: {num_tasks}")
+        print(f"  → Optimal workers: {optimal_workers}")
+    except:
+        # If logging fails, just continue
+        print(f"Using {optimal_workers} workers")
+    
+    return optimal_workers
+
+
+def calculate_frame_complexity(width, height, has_scene_images, highlight_mode):
+    """
+    Determine frame complexity for memory estimation.
+    
+    Args:
+        width: Frame width in pixels
+        height: Frame height in pixels
+        has_scene_images: Whether scene images are being used
+        highlight_mode: Highlight mode setting
+    
+    Returns: 'low', 'medium', or 'high'
+    """
+    total_pixels = width * height
+    
+    # High complexity: large frames + scene images
+    if has_scene_images and total_pixels >= (1920 * 1080):
+        return 'high'
+    
+    # Medium complexity: HD video or scene images
+    if has_scene_images or total_pixels > (1280 * 720):
+        return 'medium'
+    
+    # Low complexity: small frames, simple rendering
+    return 'low'
+
 
 def hex_to_rgb(hex_color):
     """Convert hex color to RGB tuple."""
@@ -7217,10 +7353,14 @@ def combine_audio_files(audio_files, temp_dir):
     # Step 1: Normalize all audio files to consistent format (PARALLEL)
     print("Step 1: Normalizing audio files in parallel...")
     
-    # Use 4 worker threads for parallel processing
+    # Use dynamic worker threads for parallel processing
     from concurrent.futures import ThreadPoolExecutor, as_completed
     
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    # Calculate optimal workers for audio processing (I/O bound, less memory intensive)
+    audio_workers = calculate_optimal_workers(num_tasks=len(audio_files), frame_complexity='low')
+    audio_workers = max(2, min(audio_workers, 8))  # Audio: min 2, max 8 threads
+    
+    with ThreadPoolExecutor(max_workers=audio_workers) as executor:
         futures = {}
         for i, audio_file in enumerate(audio_files):
             normalized_path = os.path.join(temp_dir, f"normalized_{i}.wav")
@@ -7653,14 +7793,14 @@ SPLIT_SCROLL_MODE = 'step'      # 'step' or 'linear'
 FULL_SCROLL_MODE  = 'step'      # changed to 'step' for better sync with audio
 
 SPLIT_BASE_KEYFRAME_INTERVAL = 0.5
-FULL_BASE_KEYFRAME_INTERVAL  = 0.5
+FULL_BASE_KEYFRAME_INTERVAL  = 1.0   # Changed to 1.0s for faster generation
 
 SPLIT_STEP_SECONDS = 12.0
 SPLIT_STEP_TRANSITION_SECONDS = 0.0  # set >0 for easing at step boundaries
 FULL_STEP_SECONDS = 12.0
 FULL_STEP_TRANSITION_SECONDS = 1.0   # slight smoothing for fullscreen
 SPLIT_STEP_PAGE_FRACTION = 0.8       # 80% of screen per step for split
-FULL_STEP_PAGE_FRACTION = 0.6        # 60% of screen per step for fullscreen
+FULL_STEP_PAGE_FRACTION = 0.9        # 90% of screen per step for fullscreen
 
 def calculate_scroll_position(current_time, total_duration, total_content_height, viewport_height):
     """
@@ -8013,7 +8153,7 @@ def calculate_scene_timings(scene_images: list, srt_entries: list,
     scene_timings = []
     
     if USE_PARALLEL:
-        num_workers = min(10, max(1, cpu_count() - 1))
+        num_workers = calculate_optimal_workers(num_tasks=len(tasks), frame_complexity='high')
         print(f"Preprocessing {len(tasks)} scene images in parallel with {num_workers} workers...")
         
         with Pool(processes=num_workers) as pool:
@@ -8632,7 +8772,12 @@ def generate_smart_scroll_frames(
     USE_PARALLEL = len(key_frame_times) > 100
     
     if USE_PARALLEL:
-        max_workers = min(10, max(1, cpu_count() - 1))
+        complexity = calculate_frame_complexity(
+            width, height,
+            has_scene_images=(scene_timings and len(scene_timings) > 0),
+            highlight_mode=highlight_mode
+        )
+        max_workers = calculate_optimal_workers(num_tasks=len(key_frame_times), frame_complexity=complexity)
         print(f"Using parallel processing with {max_workers} workers")
         
         # Pre-compute all tasks
