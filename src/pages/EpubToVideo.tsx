@@ -883,8 +883,7 @@ const EpubToVideo: React.FC = () => {
                               {!isInQueue ? (
                                 <button
                                   onClick={() => addToQueue(chapter.index)}
-                                  disabled={isProcessingQueue}
-                                  className="flex items-center px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs disabled:opacity-50"
+                                  className="flex items-center px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs"
                                 >
                                   <Video className="w-3 h-3 mr-1" />
                                   Add to Queue
