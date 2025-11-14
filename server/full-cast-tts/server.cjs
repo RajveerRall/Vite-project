@@ -1172,7 +1172,9 @@ REQUIRED DETAIL CHECKLIST FOR EACH SCENE:
 ` : ''}
 
 STRICT PROMPT STRUCTURE (for each scene's image_prompt):
-[Medium], [Subject & Action], [Setting Description], [STYLE_THEME_KEYWORDS + STYLE_KEY:${styleKey || ''}], [LIGHTING_ATMOSPHERE], [COMPOSITION], [CHARACTER_REFERENCE], [LOCATION_REFERENCE]
+[Medium], [Subject & Action], [Setting Description], [STYLE_THEME_KEYWORDS], [LIGHTING_ATMOSPHERE], [COMPOSITION], [CAMERA (angle + lens + depth of field)], [CHARACTER_REFERENCE], [LOCATION_REFERENCE]
+
+IMPORTANT: Do NOT include the literal text "STYLE_KEY:..." in the image_prompt field. The STYLE_KEY is applied separately via the rendering pipeline.
 
 PROJECT BIBLE (Apply to all prompts):
 
@@ -1218,7 +1220,7 @@ OUTPUT FORMAT (JSON):
     {
       "anchor_text": "[EXACT 20-100 word snippet from chapter where this scene occurs]",
       "scene_description": "[${detailLevel === 'high' ? '≥180 characters, information-dense' : 'Brief'} summary: include SETTING, TIME_OF_DAY, LIGHTING, MOOD, COMPOSITION, CAMERA(LENS+ANGLE), CHARACTERS (age/build/skin/hair/eyes), WARDROBE, PROPS with exact counts, ENVIRONMENTAL DETAILS, COLOR PALETTE, BACKGROUND elements present in text/canon]",
-      "image_prompt": "[${detailLevel === 'high' ? '≥280 characters, concise comma-separated shot plan' : 'Concise shot plan'}: Medium, Subject & Action, Setting Description, STYLE_THEME_KEYWORDS + STYLE_KEY:${styleKey || ''}, LIGHTING_ATMOSPHERE, COMPOSITION, CAMERA (angle + lens + depth of field), CHARACTER_REFERENCE (reuse canonical if present), LOCATION_REFERENCE (reuse canonical if present)]",
+      "image_prompt": "[${detailLevel === 'high' ? '≥280 characters, concise comma-separated shot plan' : 'Concise shot plan'}: Medium, Subject & Action, Setting Description, STYLE_THEME_KEYWORDS, LIGHTING_ATMOSPHERE, COMPOSITION, CAMERA (angle + lens + depth of field), CHARACTER_REFERENCE (reuse canonical if present), LOCATION_REFERENCE (reuse canonical if present)]",
       "mood": "[one-word emotional tone]",
       "elements": ["list of concrete objects/entities present (must exist in anchor_text or canonical bible)"],
       "sourceJustification": ["for each element, short reference to anchor_text snippet or canonical profile name"]
@@ -1644,7 +1646,17 @@ app.post('/api/generate-scene-images', async (req, res) => {
       
       try {
         console.log(`[generate-scene-images] Generating image ${i + 1}/${scenes.length}...`);
-        console.log(`[generate-scene-images] Prompt: ${scene.image_prompt.substring(0, 100)}...`);
+        
+        // Sanitize image_prompt: remove any STYLE_KEY patterns that might have slipped through
+        let cleanPrompt = scene.image_prompt;
+        if (cleanPrompt) {
+          // Remove patterns like "STYLE_KEY:yoread-xyz" or "+ STYLE_KEY:xyz"
+          cleanPrompt = cleanPrompt.replace(/[+\s]*STYLE_KEY:[^\s,]+/gi, '').trim();
+          // Clean up any double spaces or commas left behind
+          cleanPrompt = cleanPrompt.replace(/\s{2,}/g, ' ').replace(/,\s*,/g, ',');
+        }
+        
+        console.log(`[generate-scene-images] Prompt: ${cleanPrompt.substring(0, 100)}...`);
         
         // Build conditioning preamble with anchor_text and canon
         const canonChars = (activeBible?.characterProfiles || []).map(p => p.name).filter(Boolean);
@@ -1680,10 +1692,10 @@ app.post('/api/generate-scene-images', async (req, res) => {
           role: 'user',
           parts: [{ text: preamble }]
         });
-        // 3. Final image instruction
+        // 3. Final image instruction (use sanitized prompt)
         contents.push({
           role: 'user',
-          parts: [{ text: scene.image_prompt }]
+          parts: [{ text: cleanPrompt }]
         });
 
         // Determine aspect ratio based on video format AND layout, allowing override

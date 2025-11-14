@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Upload, Settings, FileText, Video, Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/Common/SEO';
@@ -227,8 +227,16 @@ const EpubToVideo: React.FC = () => {
 
     try {
       while (true) {
-        // Find next queued item
-        const nextItem = videoQueue.find(item => item.status === 'queued');
+        // Get fresh queue state each iteration to avoid stale closures
+        const currentQueueState = await new Promise<QueueItem[]>(resolve => {
+          setVideoQueue(queue => {
+            resolve(queue);
+            return queue;
+          });
+        });
+
+        // Find next queued item from FRESH state
+        const nextItem = currentQueueState.find(item => item.status === 'queued');
         
         if (!nextItem) {
           console.log('[Queue] No more items to process');
@@ -245,6 +253,9 @@ const EpubToVideo: React.FC = () => {
             : item
         ));
 
+        // Wait for state to update
+        await new Promise(resolve => setTimeout(resolve, 50));
+
         try {
           // Generate video for this item
           await generateVideoForQueueItem(nextItem);
@@ -260,6 +271,9 @@ const EpubToVideo: React.FC = () => {
                 }
               : item
           ));
+
+          // Wait for state update before next iteration
+          await new Promise(resolve => setTimeout(resolve, 100));
 
         } catch (error) {
           // Mark as failed - STOP processing queue
@@ -285,16 +299,32 @@ const EpubToVideo: React.FC = () => {
       setCurrentProcessingId(null);
       console.log('[Queue] Queue processing ended');
     }
-  }, [videoQueue, isProcessingQueue]);
+  }, [generateVideoForQueueItem, isProcessingQueue]);
 
-  // Auto-start queue when items are added
+  // Auto-start queue when items are added (only when queue length changes)
+  const queueLengthRef = useRef(videoQueue.length);
+  const hasQueuedRef = useRef(false);
+  
   useEffect(() => {
-    const hasQueuedItems = videoQueue.some(item => item.status === 'queued');
-    if (hasQueuedItems && !isProcessingQueue) {
+    const queuedItems = videoQueue.filter(item => item.status === 'queued');
+    const hasQueuedItems = queuedItems.length > 0;
+    
+    // Only trigger if:
+    // 1. We have queued items AND
+    // 2. (Queue length changed OR we didn't have queued items before) AND
+    // 3. Not already processing
+    const shouldStart = hasQueuedItems && 
+                       (queueLengthRef.current !== videoQueue.length || !hasQueuedRef.current) &&
+                       !isProcessingQueue;
+    
+    queueLengthRef.current = videoQueue.length;
+    hasQueuedRef.current = hasQueuedItems;
+    
+    if (shouldStart) {
       console.log('[Queue] Auto-starting queue processing');
       processQueue();
     }
-  }, [videoQueue, isProcessingQueue, processQueue]);
+  }, [videoQueue.length, isProcessingQueue, processQueue]);
 
   // Generate video for a specific queue item
   const generateVideoForQueueItem = useCallback(async (queueItem: QueueItem) => {
