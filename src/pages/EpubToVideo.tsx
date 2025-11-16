@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import SEO from '../components/Common/SEO';
 import { useEpubExtraction } from '../hooks/useEpubExtraction';
 import { requestFullCast, ttsForLine } from '../services/fullCastTTS';
+import { videoCacheService } from '../services/VideoCacheService';
+import { generateCacheKey } from '../utils/cacheKeyGenerator';
 
 interface VideoSettings {
   format: 'youtube' | 'mobile';
@@ -34,14 +36,15 @@ const EpubToVideo: React.FC = () => {
   const [settings, setSettings] = useState<VideoSettings>({
     format: 'youtube',
     style: 'ereader',
-    highlightMode: 'sentence',  // Default to sentence-level
-    enableSceneImages: false,  // NEW: Scene images disabled by default
-    useMultiVoice: false  // NEW: Default to single narrator
+    highlightMode: 'none',  // Default to no highlighting
+    enableSceneImages: true,  // Default: AI scene images enabled
+    useMultiVoice: true  // Default: Multi-voice casting enabled
   });
   // Queue state
   const [videoQueue, setVideoQueue] = useState<QueueItem[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   const [currentProcessingId, setCurrentProcessingId] = useState<string | null>(null);
+  const [cacheStatuses, setCacheStatuses] = useState<Map<string, { hasCache: boolean; cacheSize: number; cacheDate: Date | null }>>(new Map());
 
   // Use the EPUB extraction hook (no TTS initialization)
   const { 
@@ -80,6 +83,23 @@ const EpubToVideo: React.FC = () => {
     const secs = Math.floor(seconds % 60);
     const ms = Math.floor((seconds % 1) * 1000);
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+  };
+
+  const extractLastSrtEndTime = (srtContent: string): number | null => {
+    const lines = srtContent.split('\n');
+    let lastEndTime: number | null = null;
+    
+    // Search from end to find the last timestamp entry
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i].trim();
+      if (line.includes('-->')) {
+        const [, endTime] = line.split('-->').map(t => t.trim());
+        lastEndTime = parseTimeToSeconds(endTime);
+        break;
+      }
+    }
+    
+    return lastEndTime;
   };
 
   const adjustSrtTimestamps = (srtContent: string, offsetSeconds: number, startIndex: number): string => {
@@ -194,6 +214,60 @@ const EpubToVideo: React.FC = () => {
     }
   }, [uploadedFile, extractChapters, chapters.length]);
 
+  // Check cache status for a chapter
+  const checkCacheStatus = useCallback(async (chapterIndex: number) => {
+    const chapter = chapters.find(c => c.index === chapterIndex);
+    if (!chapter || !uploadedFile) return;
+
+    try {
+      await videoCacheService.init();
+      const cacheKey = await generateCacheKey({
+        bookTitle: uploadedFile.name || 'Unknown',
+        chapterIndex,
+        content: chapter.content,
+        settings
+      });
+      
+      const status = await videoCacheService.getCacheStatus(cacheKey);
+      setCacheStatuses(prev => {
+        const newMap = new Map(prev);
+        newMap.set(`${chapterIndex}`, status);
+        return newMap;
+      });
+    } catch (error) {
+      console.warn('[Cache] Failed to check cache status:', error);
+    }
+  }, [chapters, uploadedFile, settings]);
+
+  // Clear cache for a chapter
+  const clearChapterCache = useCallback(async (chapterIndex: number) => {
+    const chapter = chapters.find(c => c.index === chapterIndex);
+    if (!chapter || !uploadedFile) return;
+
+    if (!confirm(`Clear cache for "${chapter.title}"?`)) return;
+
+    try {
+      await videoCacheService.init();
+      const cacheKey = await generateCacheKey({
+        bookTitle: uploadedFile.name || 'Unknown',
+        chapterIndex,
+        content: chapter.content,
+        settings
+      });
+      
+      await videoCacheService.clearCache(cacheKey);
+      setCacheStatuses(prev => {
+        const newMap = new Map(prev);
+        newMap.set(`${chapterIndex}`, { hasCache: false, cacheSize: 0, cacheDate: null });
+        return newMap;
+      });
+      alert('Cache cleared successfully');
+    } catch (error) {
+      console.error('[Cache] Failed to clear cache:', error);
+      alert('Failed to clear cache');
+    }
+  }, [chapters, uploadedFile, settings]);
+
   // Add chapter to queue
   const addToQueue = useCallback((chapterIndex: number) => {
     const chapter = chapters.find(c => c.index === chapterIndex);
@@ -213,7 +287,19 @@ const EpubToVideo: React.FC = () => {
 
     setVideoQueue(prev => [...prev, queueItem]);
     console.log(`[Queue] Added "${chapter.title}" to queue`);
-  }, [chapters]);
+    
+    // Check cache status when adding to queue
+    checkCacheStatus(chapterIndex);
+  }, [chapters, checkCacheStatus]);
+
+  // Check cache status when chapters are loaded
+  useEffect(() => {
+    if (chapters.length > 0 && uploadedFile) {
+      chapters.forEach(chapter => {
+        checkCacheStatus(chapter.index);
+      });
+    }
+  }, [chapters.length, uploadedFile, checkCacheStatus]);
 
   // Generate video for a specific queue item
   const generateVideoForQueueItem = useCallback(async (queueItem: QueueItem) => {
@@ -270,6 +356,41 @@ const EpubToVideo: React.FC = () => {
 
       console.log(`[Video Generation] Received ${script.length} script lines from Full Cast`);
 
+      // Initialize cache service and generate cache key
+      await videoCacheService.init();
+      const cacheKey = await generateCacheKey({
+        bookTitle: uploadedFile?.name || 'Unknown',
+        chapterIndex: chapter.index,
+        content: chapter.content,
+        settings
+      });
+      console.log(`[Video Generation] Cache key: ${cacheKey}`);
+
+      // Check cache before generating audio
+      const cachedData = await videoCacheService.loadCache(cacheKey);
+      let audioBlobs: Blob[] = [];
+      let durations: number[] = [];
+      let combinedSrt = '';
+      let cumulativeDuration = 0;
+      let sceneImageFiles: File[] = [];
+      let useCachedAudio = false;
+
+      if (cachedData && cachedData.audioBlobs && cachedData.audioBlobs.length > 0) {
+        console.log('[Video Generation] Using cached audio data');
+        audioBlobs = cachedData.audioBlobs;
+        durations = cachedData.durations || [];
+        combinedSrt = cachedData.srtData || '';
+        cumulativeDuration = cachedData.metadata?.totalDuration || durations.reduce((sum, d) => sum + d, 0);
+        sceneImageFiles = cachedData.sceneImages || [];
+        useCachedAudio = true;
+        
+        updateProgress({
+          stage: 'audio',
+          percentage: 75,
+          message: 'Using cached audio...'
+        });
+      }
+
       // Step 1.5: Start scene analysis in parallel (if enabled)
       // Use portable config if available
       let FULL_CAST_TTS_URL = 'http://localhost:4001';
@@ -287,6 +408,12 @@ const EpubToVideo: React.FC = () => {
       });
 
       if (settings.enableSceneImages) {
+        // Check if we have cached scene analysis
+        if (cachedData && cachedData.sceneAnalysis) {
+          console.log('[Video Generation] Using cached scene analysis, skipping API call');
+          sceneAnalysisPromise = Promise.resolve(cachedData.sceneAnalysis);
+        } else {
+          // Call API only if not cached
         console.log('[Video Generation] Starting parallel scene analysis...');
         // Derive a stable style key from book title/file name
         const rawTitle = uploadedFile?.name || chapter.title || 'Unknown';
@@ -315,9 +442,12 @@ const EpubToVideo: React.FC = () => {
             console.warn('[Video Generation] Scene analysis failed:', err);
             return { scenes: [] };
           });
+        }
       }
 
       // Step 2: Generate audio for each script line with SRT (batched parallel processing)
+      // Skip if we have cached audio
+      if (!useCachedAudio) {
       updateProgress({
         stage: 'audio',
         percentage: 50,
@@ -357,10 +487,10 @@ const EpubToVideo: React.FC = () => {
       console.log(`[Video Generation] Processing with batch size of 3 (max concurrent requests)`);
 
       // Collect audio blobs and metadata
-      const audioBlobs: Blob[] = [];
-      const durations: number[] = [];
-      let combinedSrt = '';
-      let cumulativeDuration = 0;
+        audioBlobs = [];
+        durations = [];
+        combinedSrt = '';
+        cumulativeDuration = 0;
 
       // Process TTS tasks in batches of 3
       interface TtsResult {
@@ -436,6 +566,9 @@ const EpubToVideo: React.FC = () => {
         durations.push(result.duration);
 
         if (result.srtContent && result.duration > 0) {
+          // Extract last SRT end time BEFORE adjustment to determine actual SRT span
+          const lastSrtEndTime = extractLastSrtEndTime(result.srtContent);
+          
           // Adjust SRT timestamps for this chunk
           const adjustedSrt = adjustSrtTimestamps(
             result.srtContent, 
@@ -444,9 +577,21 @@ const EpubToVideo: React.FC = () => {
           );
           
           combinedSrt += adjustedSrt + '\\n\\n';
-          cumulativeDuration += result.duration;
           
-          console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added: duration=${result.duration}s, total=${cumulativeDuration.toFixed(2)}s`);
+          // CRITICAL FIX: Use SRT's actual end time (after adjustment) to advance cumulative duration
+          // This ensures chunk N+1 starts exactly where chunk N ends, preventing gaps/overlaps
+          if (lastSrtEndTime !== null) {
+            // The adjusted last end time = originalLastEndTime + cumulativeDuration
+            const adjustedLastEndTime = lastSrtEndTime + cumulativeDuration;
+            cumulativeDuration = adjustedLastEndTime;
+            
+            const srtSpan = lastSrtEndTime;
+            console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added: audio=${result.duration}s, SRT span=${srtSpan.toFixed(3)}s, total=${cumulativeDuration.toFixed(2)}s`);
+          } else {
+            // Fallback to audio duration if SRT extraction fails
+            cumulativeDuration += result.duration;
+            console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added: duration=${result.duration}s (fallback, SRT extraction failed), total=${cumulativeDuration.toFixed(2)}s`);
+          }
         } else if (result.duration > 0) {
           cumulativeDuration += result.duration;
           console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added (no SRT): duration=${result.duration}s, total=${cumulativeDuration.toFixed(2)}s`);
@@ -459,6 +604,38 @@ const EpubToVideo: React.FC = () => {
       console.log(`  - Total chunks: ${audioBlobs.length}`);
       console.log(`  - Individual sizes:`, audioBlobs.map(b => b.size));
       console.log(`  - Total duration: ${cumulativeDuration}s`);
+
+        // Save to cache after successful generation (non-blocking)
+        const cacheData = {
+          audioBlobs,
+          durations,
+          srtData: combinedSrt,
+          sceneImages: sceneImageFiles.length > 0 ? sceneImageFiles : undefined,
+          metadata: {
+            bookTitle: uploadedFile?.name || 'Unknown',
+            chapterTitle: chapter.title,
+            totalDuration: cumulativeDuration,
+            chunkCount: audioBlobs.length,
+            timestamp: Date.now(),
+            version: 'v1'
+          }
+        };
+        
+        // Save cache (non-blocking, won't throw errors)
+        videoCacheService.saveCacheSafe(cacheKey, cacheData).then(success => {
+          if (success) {
+            console.log('[Video Generation] Cache saved successfully');
+            // Update cache status in UI
+            checkCacheStatus(chapter.index);
+          } else {
+            console.warn('[Video Generation] Cache save failed (non-critical)');
+          }
+        });
+      } else {
+        console.log('[Video Generation] Using cached audio, skipping generation');
+        console.log(`  - Total chunks: ${audioBlobs.length}`);
+        console.log(`  - Total duration: ${cumulativeDuration}s`);
+      }
       
       // Phase 2: Log chunk metadata before upload
       console.log(`[Video Generation] Preparing to upload ${audioBlobs.length} audio chunks`);
@@ -478,22 +655,67 @@ const EpubToVideo: React.FC = () => {
         console.warn('No SRT data generated - video will use basic timing');
       }
 
-      // Step 2.5: Generate scene images (if enabled)
+      // Step 2.5: Generate scene images (if enabled) or reconstruct metadata from cache
       let sceneImages: any[] = [];
-      let sceneImageFiles: File[] = [];
 
       if (settings.enableSceneImages && sceneAnalysisPromise) {
+        try {
+          // Await scene analysis (needed even when using cached audio for metadata)
+          const sceneAnalysisResult = await sceneAnalysisPromise;
+          const { scenes } = sceneAnalysisResult;
+          console.log('[Video Generation] Scene analysis complete:', scenes.length, 'scenes');
+
+          // Save scene analysis to cache if it was generated (not from cache)
+          if (!useCachedAudio || !cachedData?.sceneAnalysis) {
+            // Scene analysis was just generated, save it to cache
+            if (scenes && scenes.length > 0) {
+              const updatedCacheData = {
+                audioBlobs,
+                durations,
+                srtData: combinedSrt,
+                sceneImages: sceneImageFiles.length > 0 ? sceneImageFiles : undefined,
+                sceneAnalysis: { scenes },
+                metadata: {
+                  bookTitle: uploadedFile?.name || 'Unknown',
+                  chapterTitle: chapter.title,
+                  totalDuration: cumulativeDuration,
+                  chunkCount: audioBlobs.length,
+                  timestamp: Date.now(),
+                  version: 'v1'
+                }
+              };
+              videoCacheService.saveCacheSafe(cacheKey, updatedCacheData).catch(err => {
+                console.warn('[Video Generation] Failed to save scene analysis to cache:', err);
+              });
+            }
+          }
+
+          if (useCachedAudio && sceneImageFiles.length > 0) {
+            // Reconstruct scene images metadata from cached files and scene analysis
+            console.log('[Video Generation] Reconstructing scene images metadata from cache...');
+            sceneImages = sceneImageFiles.map((file, index) => {
+              // Try to match cached file to scene by index or filename
+              const matchingScene = scenes[index] || scenes.find((s: any) => 
+                file.name.includes(s.anchor_text?.substring(0, 20) || '') || 
+                file.name.includes(`scene-${index}`)
+              );
+              return {
+                sceneIndex: index,
+                filename: file.name,
+                mimeType: file.type || 'image/png',
+                anchor_text: matchingScene?.anchor_text || ''
+              };
+            });
+            console.log(`[Video Generation] Reconstructed metadata for ${sceneImages.length} cached scene images`);
+          } else if (scenes.length > 0) {
+            // Generate images if we have scenes but no cached images
+            // (regardless of whether audio is cached)
         updateProgress({
           stage: 'audio',
           percentage: 75,
           message: 'Generating scene images...'
         });
 
-        try {
-          const { scenes } = await sceneAnalysisPromise;
-          console.log('[Video Generation] Scene analysis complete:', scenes.length, 'scenes');
-
-          if (scenes.length > 0) {
             // Generate images for scenes
             const imageResponse = await fetch(`${FULL_CAST_TTS_URL}/api/generate-scene-images`, {
               method: 'POST',
@@ -532,7 +754,7 @@ const EpubToVideo: React.FC = () => {
             }
           }
         } catch (error) {
-          console.warn('[Video Generation] Image generation error:', error);
+          console.warn('[Video Generation] Scene analysis/image generation error:', error);
           // Continue without images
         }
       }
@@ -958,6 +1180,38 @@ const EpubToVideo: React.FC = () => {
                               {queueItem.error}
                           </div>
                         )}
+
+                          {/* Cache Status */}
+                          {(() => {
+                            const cacheStatus = cacheStatuses.get(`${chapter.index}`);
+                            if (cacheStatus?.hasCache) {
+                              return (
+                                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <span className="text-green-700 font-medium">✓ Cached</span>
+                                      <span className="text-green-600 ml-2">
+                                        {(cacheStatus.cacheSize / 1024 / 1024).toFixed(2)} MB
+                                      </span>
+                                      {cacheStatus.cacheDate && (
+                                        <span className="text-green-500 ml-2">
+                                          ({new Date(cacheStatus.cacheDate).toLocaleDateString()})
+                                        </span>
+                                      )}
+                                    </div>
+                                    <button
+                                      onClick={() => clearChapterCache(chapter.index)}
+                                      className="text-red-600 hover:text-red-800 underline text-xs"
+                                      title="Clear cache for this chapter"
+                                    >
+                                      Clear
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
                       </div>
                     );
                   })}

@@ -6011,7 +6011,9 @@ def calculate_optimal_workers(num_tasks=None, frame_complexity='medium'):
     
     # Apply reasonable bounds
     min_workers = 1
-    max_workers = 32  # Upper safety limit
+    # Cap at (total_cores - 1) to reserve 1 core for system/main process
+    # For 12 cores, this allows 11 workers
+    max_workers = max(1, total_cores - 1)
     optimal_workers = max(min_workers, min(optimal_workers, max_workers))
     
     # Log the decision
@@ -6291,53 +6293,126 @@ def detect_gpu_encoder():
         print(f"Encoder list failed: {e}")
         encoders = ''
 
-    # Try NVENC first
-    if 'h264_nvenc' in encoders:
+    # Track which encoders are available
+    nvenc_available = 'h264_nvenc' in encoders
+    qsv_available = 'h264_qsv' in encoders
+    amf_available = 'h264_amf' in encoders
+    
+    print(f"Available encoders: NVENC={nvenc_available}, QSV={qsv_available}, AMF={amf_available}")
+
+    # Try NVENC first (preferred)
+    if nvenc_available:
         try:
             test = subprocess.run(
                 [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
                  '-c:v', 'h264_nvenc', '-f', 'null', '-'],
-                capture_output=True, timeout=20
+                capture_output=True, text=True, timeout=20
             )
             if test.returncode == 0:
                 print("✓ NVIDIA NVENC hardware encoder detected")
                 return 'nvenc'
+            else:
+                print(f"⚠ NVENC probe failed with return code {test.returncode}")
+                if test.stderr:
+                    # Skip FFmpeg version banner and find actual error
+                    error_lines = test.stderr.split('\n')
+                    # Find lines that look like errors (not version info or informational output)
+                    actual_errors = []
+                    skip_patterns = ['input #', 'duration:', 'start:', 'bitrate:', 'stream mapping:', '  stream #']
+                    
+                    for i, line in enumerate(error_lines):
+                        line_lower = line.lower().strip()
+                        # Skip version/banner lines
+                        if (line.startswith('ffmpeg version') or 
+                            line.startswith('  built with') or
+                            line.startswith('  configuration:') or
+                            'Copyright' in line or
+                            'the FFmpeg developers' in line or
+                            (any(x in line_lower for x in ['lib', 'enable-', 'built', 'configuration']) and 'error' not in line_lower)):
+                            continue
+                        
+                        # Skip informational FFmpeg output lines
+                        if any(pattern in line_lower for pattern in skip_patterns):
+                            continue
+                        
+                        # Include lines with error indicators
+                        if any(keyword in line_lower for keyword in ['error', 'failed', 'cannot', 'unable', 'invalid', 'not found', 'no such', 'no device', 'device not', 'initialization']):
+                            actual_errors.append(line)
+                        # Include lines after "Stream mapping:" (errors often appear here)
+                        elif i > 0 and 'stream mapping' in error_lines[i-1].lower() and line.strip():
+                            actual_errors.append(line)
+                        # Include lines that look like error messages (contain colons and error-like text)
+                        elif line.strip() and ':' in line and any(keyword in line_lower for keyword in ['error', 'fail', 'cannot', 'unable', 'invalid', 'not', 'no']):
+                            actual_errors.append(line)
+                    
+                    if actual_errors:
+                        # Show up to 5 error lines
+                        print(f"   Error details:")
+                        for err_line in actual_errors[:5]:
+                            if err_line.strip():
+                                print(f"     {err_line}")
+                    else:
+                        # Fallback: show last 10-15 non-empty lines (excluding version info)
+                        non_empty = []
+                        for line in error_lines:
+                            line_stripped = line.strip()
+                            if (line_stripped and 
+                                not line_stripped.startswith('ffmpeg version') and
+                                not line_stripped.startswith('built with') and
+                                'Copyright' not in line_stripped):
+                                non_empty.append(line_stripped)
+                        
+                        if non_empty:
+                            print(f"   Error output (last {min(10, len(non_empty))} lines):")
+                            for line in non_empty[-10:]:
+                                if line:
+                                    print(f"     {line}")
         except subprocess.TimeoutExpired:
-            print("NVENC probe timed out, continuing to next encoder")
+            print("⚠ NVENC probe timed out, continuing to next encoder")
         except Exception as e:
-            print(f"NVENC probe failed: {e}")
+            print(f"⚠ NVENC probe failed: {e}")
 
-    # Then QSV
-    if 'h264_qsv' in encoders:
+    # Then QSV (but only if NVENC wasn't available or failed)
+    if qsv_available:
         try:
             test = subprocess.run(
                 [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=128x128:d=0.5',
                  '-c:v', 'h264_qsv', '-f', 'null', '-'],
-                capture_output=True, timeout=20
+                capture_output=True, text=True, timeout=20
             )
             if test.returncode == 0:
                 print("✓ Intel QuickSync hardware encoder detected")
                 return 'qsv'
+            else:
+                print(f"⚠ QSV probe failed with return code {test.returncode}")
+                if test.stderr:
+                    error_lines = test.stderr.split('\n')[:3]
+                    print(f"   Error: {' '.join(error_lines)}")
         except subprocess.TimeoutExpired:
-            print("QSV probe timed out, skipping QSV")
+            print("⚠ QSV probe timed out, skipping QSV")
         except Exception as e:
-            print(f"QSV probe failed: {e}")
+            print(f"⚠ QSV probe failed: {e}")
 
     # Then AMF
-    if 'h264_amf' in encoders:
+    if amf_available:
         try:
             test = subprocess.run(
                 [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
                  '-c:v', 'h264_amf', '-f', 'null', '-'],
-                capture_output=True, timeout=20
+                capture_output=True, text=True, timeout=20
             )
             if test.returncode == 0:
                 print("✓ AMD AMF hardware encoder detected")
                 return 'amf'
+            else:
+                print(f"⚠ AMF probe failed with return code {test.returncode}")
+                if test.stderr:
+                    error_lines = test.stderr.split('\n')[:3]
+                    print(f"   Error: {' '.join(error_lines)}")
         except subprocess.TimeoutExpired:
-            print("AMF probe timed out, skipping AMF")
+            print("⚠ AMF probe timed out, skipping AMF")
         except Exception as e:
-            print(f"AMF probe failed: {e}")
+            print(f"⚠ AMF probe failed: {e}")
 
     print("⚠ No hardware encoder detected, using CPU (slower)")
     return 'cpu'
@@ -6348,12 +6423,89 @@ GPU_PROBED = False
 def get_gpu_encoder():
     global GPU_ENCODER, GPU_PROBED
     if not GPU_PROBED:
+        # Skip GPU detection in worker processes to avoid NVENC conflicts
+        # Workers should not access GPU encoders - only the main process should
+        try:
+            import multiprocessing
+            import os
+            current_process = multiprocessing.current_process()
+            
+            # On Windows with spawn, each worker starts fresh, so we need multiple checks
+            # 1. Check process name (workers often have different names)
+            # 2. Check if we're being imported in a spawned context
+            # 3. Use environment variable as a sentinel (set by main process)
+            
+            is_worker_process = False
+            
+            # Check 1: Process name (most reliable on Unix, less so on Windows spawn)
+            if current_process.name != 'MainProcess':
+                is_worker_process = True
+            
+            # Check 2: Environment variable sentinel (set by main process before spawning workers)
+            # Main process sets this before creating workers
+            if os.environ.get('GPU_ENCODER_DETECTED', '').lower() == 'true':
+                # If this is set, main process already detected, so we're likely a worker
+                # But only if process name suggests it (to avoid false positives)
+                if current_process.name != 'MainProcess':
+                    is_worker_process = True
+            
+            # Check 3: On Windows, spawned processes have different characteristics
+            # If we can't determine, err on the side of caution for workers
+            # (Better to use CPU in worker than cause NVENC conflicts)
+            
+            if is_worker_process:
+                # In worker process - don't detect GPU, just return CPU fallback
+                print(f"Worker process detected ({current_process.name}), skipping GPU detection (using CPU)")
+                GPU_ENCODER = "cpu"
+                GPU_PROBED = True
+                return GPU_ENCODER
+        except Exception:
+            # If check fails, continue with detection (safer to try than skip)
+            pass
+        
+        # Main process - proceed with GPU detection
         try:
             GPU_ENCODER = detect_gpu_encoder()
-        except Exception:
+            print(f"GPU encoder initialized: {GPU_ENCODER}")
+            # Set sentinel so worker processes know GPU was already detected
+            os.environ['GPU_ENCODER_DETECTED'] = 'true'
+        except Exception as e:
+            print(f"GPU encoder detection failed: {e}")
             GPU_ENCODER = "cpu"
+            # Still set sentinel to prevent workers from trying
+            os.environ['GPU_ENCODER_DETECTED'] = 'true'
         GPU_PROBED = True
     return GPU_ENCODER
+
+def reset_gpu_encoder_cache():
+    """Reset GPU encoder cache to force re-detection"""
+    global GPU_ENCODER, GPU_PROBED
+    GPU_ENCODER = "cpu"
+    GPU_PROBED = False
+    print("GPU encoder cache reset")
+
+# Initialize GPU encoder at module level (after get_gpu_encoder is defined)
+# Only initialize in the main process to avoid conflicts in worker processes
+# Worker processes will use the encoder detected in the main process
+# On Windows with spawn method, each worker imports the module fresh, so we need to check carefully
+import multiprocessing
+try:
+    # Check if we're in the main process (not a spawned worker)
+    # On Windows spawn, workers have different parent process IDs
+    is_main_process = (
+        multiprocessing.current_process().name == 'MainProcess' and
+        (not hasattr(multiprocessing, 'parent_process') or 
+         multiprocessing.parent_process() is None)
+    )
+    # Also check if we're being run as a script (not imported)
+    is_main_script = __name__ == "__main__"
+    
+    if is_main_process or is_main_script:
+        print("Initializing GPU encoder detection...")
+        _ = get_gpu_encoder()  # Initialize and cache the result
+except Exception:
+    # If check fails, skip initialization (safer than risking conflicts)
+    pass
 
 def create_video_with_ffmpeg_direct(frames_dir, audio_path, width, height, fps, num_frames, total_duration, crf):
     """
@@ -7341,15 +7493,29 @@ def combine_audio_files(audio_files, temp_dir):
     # Get FFmpeg path once for this function
     ffmpeg_path_local = get_ffmpeg_path()
 
-    # Validate each audio file first
+    # Validate each audio file first and calculate total duration
+    total_duration = 0.0
     for i, audio_file in enumerate(audio_files):
         info = validate_audio_file(audio_file)
         if info:
             duration = info.get('format', {}).get('duration', 'unknown')
             size = info.get('format', {}).get('size', 'unknown')
+            # Sum up durations for timeout calculation
+            if isinstance(duration, (int, float)) and duration > 0:
+                total_duration += float(duration)
             print(f"Audio chunk {i}: duration={duration}s, size={size} bytes")
         else:
             print(f"WARNING: Audio chunk {i} may be invalid")
+    
+    # Calculate dynamic timeout based on total duration
+    # Base timeout: total duration + 5 minutes buffer, minimum 5 minutes, maximum 30 minutes
+    if total_duration > 0:
+        timeout_seconds = max(300, min(int(total_duration) + 300, 1800))  # 5min to 30min range
+        print(f"Total audio duration: {total_duration:.1f}s, using timeout: {timeout_seconds}s ({timeout_seconds/60:.1f} minutes)")
+    else:
+        # Fallback: estimate based on number of chunks if duration unavailable
+        timeout_seconds = max(300, min(len(audio_files) * 10, 1800))  # ~10s per chunk, max 30min
+        print(f"Duration unavailable, using estimated timeout: {timeout_seconds}s ({timeout_seconds/60:.1f} minutes) for {len(audio_files)} chunks")
     
     # Step 1: Normalize all audio files to consistent format (PARALLEL)
     print("Step 1: Normalizing audio files in parallel...")
@@ -7413,7 +7579,7 @@ def combine_audio_files(audio_files, temp_dir):
     print(f"Combining command: {' '.join(combine_cmd)}")
     
     try:
-        result = subprocess.run(combine_cmd, capture_output=True, text=True, timeout=300)  # Increased timeout for large files
+        result = subprocess.run(combine_cmd, capture_output=True, text=True, timeout=timeout_seconds)
         
         # Print FFmpeg output for debugging if it fails
         if result.returncode != 0:
@@ -7436,7 +7602,7 @@ def combine_audio_files(audio_files, temp_dir):
         return output_path
         
     except subprocess.TimeoutExpired:
-        raise Exception("FFmpeg audio combination timed out after 5 minutes")
+        raise Exception(f"FFmpeg audio combination timed out after {timeout_seconds}s ({timeout_seconds/60:.1f} minutes)")
 
 def generate_ereader_frame(page_sentences, current_time, chapter_title, page_number, width, height, highlight_mode="sentence"):
     """
@@ -7826,36 +7992,152 @@ def calculate_anchored_scroll(current_time, srt_entries, srt_map, layout, total_
     Time-anchored linear scrolling: interpolates between SRT-based anchor points.
     Combines smoothness of linear scrolling with accuracy of SRT timing.
     """
-    if not srt_entries or not srt_map:
-        # Fallback to linear if no SRT data
+    if not srt_entries or srt_map is None:
+        # Fallback to linear if no SRT data (None means no SRT provided, empty dict means no matches)
         return calculate_scroll_position(current_time, total_duration, 
                                         layout['total_height'], viewport_height)
     
-    # Build anchor points from SRT mapping
-    anchors = []
+    # Build anchor points from SRT mapping (matched entries)
+    matched_anchors = []
     for i, entry in enumerate(srt_entries):
         if i in srt_map:
             line_indices = srt_map[i]
             line_index = line_indices[0] if isinstance(line_indices, list) else line_indices
             
-            if line_index < len(layout['lines']):
+            # Validate line index
+            if line_index is not None and 0 <= line_index < len(layout['lines']):
                 anchor_time = entry['start']
                 anchor_scroll = max(0, layout['lines'][line_index]['y'] - viewport_height * 0.3)
-                anchors.append((anchor_time, anchor_scroll))
+                matched_anchors.append((anchor_time, anchor_scroll, i))  # Store index for reference
     
-    if not anchors:
-        # No valid anchors, use linear fallback
+    if not matched_anchors:
+        # No text matches, but we have SRT timing information
+        # Use SRT timing to create time-based scroll anchors
+        if srt_entries and len(srt_entries) > 0:
+            max_scroll = max(float(layout['total_height']) - float(viewport_height), 0.0)
+            
+            # Create time-based anchors from SRT entries
+            # Each SRT entry represents a time point, map it to estimated scroll position
+            time_anchors = []
+            
+            for i, entry in enumerate(srt_entries):
+                # Estimate scroll position based on time ratio
+                # Assume text distribution roughly follows time distribution
+                time_ratio = entry['start'] / total_duration if total_duration > 0 else 0.0
+                # Use a slight curve to account for variable speech rates
+                # 0.92 creates slight acceleration (speech often gets faster as content progresses)
+                scroll_ratio = time_ratio ** 0.92
+                estimated_scroll = scroll_ratio * max_scroll
+                time_anchors.append((entry['start'], estimated_scroll))
+            
+            # Find surrounding anchors for interpolation
+            prev_anchor = (0, 0)
+            next_anchor = (total_duration, max_scroll)
+            
+            for anchor_time, anchor_scroll in time_anchors:
+                if anchor_time <= current_time:
+                    prev_anchor = (anchor_time, anchor_scroll)
+                else:
+                    next_anchor = (anchor_time, anchor_scroll)
+                    break
+            
+            # Linear interpolation between time-based anchors
+            prev_time, prev_scroll = prev_anchor
+            next_time, next_scroll = next_anchor
+            
+            if next_time > prev_time:
+                time_ratio = (current_time - prev_time) / (next_time - prev_time)
+                scroll_y = prev_scroll + (next_scroll - prev_scroll) * time_ratio
+            else:
+                scroll_y = prev_scroll
+            
+            return min(scroll_y, max_scroll)
+        
+        # Fallback: if no SRT entries at all, use normal linear scrolling
         return calculate_scroll_position(current_time, total_duration,
                                         layout['total_height'], viewport_height)
     
-    # Find surrounding anchors
+    # Sort matched anchors by time
+    matched_anchors.sort(key=lambda x: x[0])
+    
+    # Build complete anchor list: matched anchors + time-based estimates for unmatched entries
+    anchors = [(time, scroll) for time, scroll, _ in matched_anchors]  # Start with matched anchors
+    
+    # Time-based fallback: estimate positions for unmatched SRT entries
+    for i, entry in enumerate(srt_entries):
+        if i not in srt_map:
+            # Find nearest matched entries before and after this unmatched entry
+            prev_matched = None
+            next_matched = None
+            
+            # Look backwards for matched entry
+            for j in range(i - 1, -1, -1):
+                if j in srt_map:
+                    line_indices = srt_map[j]
+                    line_index = line_indices[0] if isinstance(line_indices, list) else line_indices
+                    if line_index is not None and 0 <= line_index < len(layout['lines']):
+                        prev_matched = {
+                            'time': srt_entries[j]['start'],
+                            'scroll': max(0, layout['lines'][line_index]['y'] - viewport_height * 0.3)
+                        }
+                        break
+            
+            # Look forwards for matched entry
+            for j in range(i + 1, len(srt_entries)):
+                if j in srt_map:
+                    line_indices = srt_map[j]
+                    line_index = line_indices[0] if isinstance(line_indices, list) else line_indices
+                    if line_index is not None and 0 <= line_index < len(layout['lines']):
+                        next_matched = {
+                            'time': srt_entries[j]['start'],
+                            'scroll': max(0, layout['lines'][line_index]['y'] - viewport_height * 0.3)
+                        }
+                        break
+            
+            # Interpolate position based on timing ratio
+            if prev_matched and next_matched:
+                # Linear interpolation between matched anchors
+                time_span = next_matched['time'] - prev_matched['time']
+                if time_span > 0:
+                    time_ratio = (entry['start'] - prev_matched['time']) / time_span
+                    estimated_scroll = prev_matched['scroll'] + (next_matched['scroll'] - prev_matched['scroll']) * time_ratio
+                    anchors.append((entry['start'], estimated_scroll))
+            elif prev_matched:
+                # Only previous match - extrapolate forward using average scroll rate
+                if len(matched_anchors) >= 2:
+                    # Calculate average scroll rate from last two matched anchors
+                    last_two = matched_anchors[-2:]
+                    time_diff = last_two[1][0] - last_two[0][0]
+                    if time_diff > 0:
+                        scroll_rate = (last_two[1][1] - last_two[0][1]) / time_diff
+                        time_offset = entry['start'] - prev_matched['time']
+                        estimated_scroll = prev_matched['scroll'] + scroll_rate * time_offset
+                        anchors.append((entry['start'], max(0, estimated_scroll)))
+            elif next_matched:
+                # Only next match - extrapolate backward using average scroll rate
+                if len(matched_anchors) >= 2:
+                    # Calculate average scroll rate from first two matched anchors
+                    first_two = matched_anchors[:2]
+                    time_diff = first_two[1][0] - first_two[0][0]
+                    if time_diff > 0:
+                        scroll_rate = (first_two[1][1] - first_two[0][1]) / time_diff
+                        time_offset = entry['start'] - next_matched['time']
+                        estimated_scroll = next_matched['scroll'] + scroll_rate * time_offset
+                        anchors.append((entry['start'], max(0, estimated_scroll)))
+    
+    # CRITICAL FIX: Sort all anchors by time to ensure correct binary search
+    anchors.sort(key=lambda x: x[0])  # Sort by anchor_time
+    
+    # Find surrounding anchors using binary search approach
     prev_anchor = (0, 0)
     next_anchor = (total_duration, max(0, layout['total_height'] - viewport_height))
     
+    # Find the last anchor before or at current_time
     for anchor_time, anchor_scroll in anchors:
         if anchor_time <= current_time:
             prev_anchor = (anchor_time, anchor_scroll)
-        elif anchor_time > current_time and next_anchor[0] == total_duration:
+        else:
+            # Found first anchor after current_time
             next_anchor = (anchor_time, anchor_scroll)
             break
     
@@ -7868,7 +8150,7 @@ def calculate_anchored_scroll(current_time, srt_entries, srt_map, layout, total_
         scroll_y = prev_scroll + (next_scroll - prev_scroll) * progress
     else:
         scroll_y = prev_scroll
-    
+
     return scroll_y
 
 def calculate_step_scroll(current_time, total_duration, total_content_height, viewport_height, step_seconds=STEP_SECONDS, transition_duration=STEP_TRANSITION_SECONDS, page_fraction=STEP_PAGE_FRACTION):
@@ -7913,6 +8195,86 @@ def calculate_step_scroll(current_time, total_duration, total_content_height, vi
     else:
         scroll_y = current_scroll
 
+    return min(scroll_y, max_scroll)
+
+def calculate_srt_time_based_scroll(current_time, srt_entries, layout, total_duration, viewport_height):
+    """
+    Simple SRT time-based scrolling for no-highlight mode.
+    Uses SRT timing directly (no text matching required) to determine scroll position.
+    
+    Maps scroll position based on which SRT entry is active at the current time.
+    SRT entries may contain gaps (pauses) which are preserved in the original timings.
+    
+    Args:
+        current_time: Current video time in seconds
+        srt_entries: List of SRT entries with original timings (gaps preserved)
+        layout: Pre-computed text layout
+        total_duration: Total video duration
+        viewport_height: Viewport height in pixels
+    
+    Returns:
+        Scroll Y position in pixels
+    """
+    if not srt_entries or len(srt_entries) == 0:
+        # Fallback to linear scrolling
+        return calculate_scroll_position(current_time, total_duration,
+                                layout['total_height'], viewport_height)
+    
+    max_scroll = max(float(layout['total_height']) - float(viewport_height), 0.0)
+    
+    # Find which SRT entry is currently active
+    active_srt_index = -1
+    for i, entry in enumerate(srt_entries):
+        if entry['start'] <= current_time < entry['end']:
+            active_srt_index = i
+            break
+    
+    # If no active entry, find nearest
+    if active_srt_index == -1:
+        # Find the entry we're closest to
+        for i, entry in enumerate(srt_entries):
+            if current_time < entry['start']:
+                active_srt_index = i - 1 if i > 0 else 0
+                break
+        if active_srt_index == -1:
+            active_srt_index = len(srt_entries) - 1
+    
+    # Calculate scroll based on SRT entry progress
+    # Map: SRT entry index -> scroll position
+    total_srt_entries = len(srt_entries)
+    
+    if total_srt_entries == 1:
+        # Only one SRT entry - use time progress within it
+        entry = srt_entries[0]
+        entry_duration = entry['end'] - entry['start']
+        if entry_duration > 0:
+            entry_progress = (current_time - entry['start']) / entry_duration
+            entry_progress = max(0.0, min(1.0, entry_progress))
+        else:
+            entry_progress = 0.0
+        scroll_ratio = entry_progress
+    else:
+        # Multiple entries - calculate progress through entries
+        entry = srt_entries[active_srt_index]
+        entry_duration = entry['end'] - entry['start']
+        
+        # Calculate progress within current entry
+        if entry_duration > 0:
+            entry_progress = (current_time - entry['start']) / entry_duration
+            entry_progress = max(0.0, min(1.0, entry_progress))
+        else:
+            entry_progress = 0.0
+        
+        # Map entry index + progress to scroll ratio
+        # Entry 0 = 0% scroll, Entry N-1 = 100% scroll
+        current_entry_ratio = active_srt_index / (total_srt_entries - 1)
+        next_entry_ratio = (active_srt_index + 1) / (total_srt_entries - 1) if active_srt_index < total_srt_entries - 1 else 1.0
+        
+        # Interpolate between entry positions
+        scroll_ratio = current_entry_ratio + (next_entry_ratio - current_entry_ratio) * entry_progress
+    
+    # Apply to scroll
+    scroll_y = scroll_ratio * max_scroll
     return min(scroll_y, max_scroll)
 
 def parse_srt_entries(srt_data):
@@ -8290,8 +8652,13 @@ def create_frame_with_scene_background(scene_image_path: str, text_frame: Image.
 def create_srt_to_sentence_map(srt_entries, all_lines_data):
     """
     Creates a mapping from SRT entry index to the best matching sentence index.
-    Uses difflib SequenceMatcher with a lookahead concatenation strategy to handle
-    fragmented SRT entries from a TTS server.
+    Uses difflib SequenceMatcher with improved sequential matching that handles
+    long SRT entries and prevents cascade failures.
+    
+    Features:
+    - Dynamic window size based on SRT text length (longer entries get larger windows)
+    - Window advancement on failure to prevent cascade failures
+    - Sequential enforcement to maintain text order
     
     Args:
         srt_entries: List of parsed SRT entries.
@@ -8311,24 +8678,32 @@ def create_srt_to_sentence_map(srt_entries, all_lines_data):
     for srt_index, srt_entry in enumerate(srt_entries):
         # No need to check if already mapped - strict sequential means each SRT processed once
         
-        # NEW: Strict sequential matching with small sliding window
-        # Removes lookahead concatenation and multi-sentence splitting to prevent skipping
-        
+        # IMPROVED: Sequential matching with dynamic window size and cascade failure prevention
         best_match_score = 0.0
         best_line_index = -1
         
-        # Define search window: next 5 lines only (prevents skipping)
-        window_size = 5
-        start_line = max(0, last_mapped_line)
-        end_line = min(start_line + window_size, len(all_lines_data))
-        
-        # Normalize SRT text
+        # Normalize SRT text first to determine length
         srt_text_norm = normalize_text_for_matching(srt_entry['text'])
         
         if len(srt_text_norm) < 3:
             continue  # Skip very short SRT entries
         
-        # Search within the window
+        # OPTION 2: Dynamic window size based on SRT text length
+        # Long SRT entries need larger windows to find matches
+        if len(srt_text_norm) > 300:  # Very long SRT (like SRT 82)
+            window_size = 40  # Search much further ahead
+        elif len(srt_text_norm) > 200:  # Long SRT
+            window_size = 30
+        elif len(srt_text_norm) > 100:  # Medium SRT
+            window_size = 20
+        else:  # Short SRT
+            window_size = 10
+        
+        # Calculate search window - start from next line after last match
+        start_line = max(0, last_mapped_line + 1)
+        end_line = min(start_line + window_size, len(all_lines_data))
+        
+        # Search within the dynamic window
         for line_index in range(start_line, end_line):
             line_data = all_lines_data[line_index]
             line_text_norm = normalize_text_for_matching(line_data['text'])
@@ -8344,16 +8719,24 @@ def create_srt_to_sentence_map(srt_entries, all_lines_data):
                 best_match_score = similarity
                 best_line_index = line_index
         
-        # Map if we found a good match
-        if best_match_score > 0.6 and best_line_index >= last_mapped_line:
+        # Map if we found a good match (lowered threshold from 0.6 to 0.5 for better coverage)
+        if best_match_score > 0.5 and best_line_index >= last_mapped_line:
             mapping[srt_index] = [best_line_index]
             last_mapped_line = best_line_index
             
-            print(f"  SRT {srt_index} -> Line {best_line_index} (score: {best_match_score:.2f})")
+            print(f"  SRT {srt_index} -> Line {best_line_index} (score: {best_match_score:.2f}, window: {window_size})")
         else:
-            # No good match within window - might be extra narration, sound effect, etc.
-            # Don't map it, just continue
-            print(f"  SRT {srt_index} -> No match (best score: {best_match_score:.2f})")
+            # OPTION 1 + OPTION 3: Advance window on failure to prevent cascade
+            # Advance by a portion of the search window (50% of window size)
+            # This allows subsequent SRTs to search further ahead
+            advance_amount = max(1, window_size // 2)  # Advance by half the window
+            last_mapped_line = max(last_mapped_line, start_line + advance_amount)
+            
+            # Also try to advance to end of search window if we're close
+            if end_line < len(all_lines_data):
+                last_mapped_line = min(last_mapped_line, end_line - 1)
+            
+            print(f"  SRT {srt_index} -> No match (best score: {best_match_score:.2f}, window: {window_size}), advancing to line {last_mapped_line}")
 
     print(f"DEBUG: Sequential mapping created: {len(mapping)} of {len(srt_entries)} SRT entries mapped")
     return mapping
@@ -8858,10 +9241,10 @@ def generate_smart_scroll_frames(
                     )
                 previous_scroll = scroll_y
             elif highlight_mode == 'none':
-                if srt_entries and srt_to_sentence_map:
-                    # Use anchored scrolling for better audio sync
-                    scroll_y = calculate_anchored_scroll(
-                        current_time, srt_entries, srt_to_sentence_map, layout,
+                if srt_entries:
+                    # Use SRT timing directly (no text matching needed for no-highlight mode)
+                    scroll_y = calculate_srt_time_based_scroll(
+                        current_time, srt_entries, layout,
                         total_duration, height
                     )
                 elif FULL_SCROLL_MODE == 'step':
@@ -8945,10 +9328,10 @@ def generate_smart_scroll_frames(
                     )
                 previous_scroll = scroll_y
             elif highlight_mode == 'none':
-                if srt_entries and srt_to_sentence_map:
-                    # Use anchored scrolling for better audio sync
-                    scroll_y = calculate_anchored_scroll(
-                        current_time, srt_entries, srt_to_sentence_map, layout,
+                if srt_entries:
+                    # Use SRT timing directly (no text matching needed for no-highlight mode)
+                    scroll_y = calculate_srt_time_based_scroll(
+                        current_time, srt_entries, layout,
                         total_duration, height
                     )
                 elif FULL_SCROLL_MODE == 'step':
@@ -9318,11 +9701,13 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
     if srt_entries:
         print(f"Parsed {len(srt_entries)} SRT entries")
     
-    # Create similarity-based SRT-to-sentence mapping (used for scrolling even in no-highlight)
+    # Create similarity-based SRT-to-sentence mapping (only needed for highlight modes)
     srt_to_sentence_map = None
-    if srt_entries and layout['lines']:
+    if srt_entries and layout['lines'] and highlight_mode != 'none':
         print("Creating similarity-based SRT-to-sentence mapping (difflib)...")
         srt_to_sentence_map = create_srt_to_sentence_map(srt_entries, layout['lines'])
+    elif highlight_mode == 'none':
+        print("Skipping SRT-to-sentence mapping (not needed for no-highlight mode)")
     
     # Calculate scene timings (NEW) - now with preprocessing!
     scene_timings = []

@@ -130,6 +130,86 @@ function saveJSONSafe(filePath, obj) {
   }
 }
 
+/**
+ * Validate and repair malformed JSON from LLM responses
+ * @param {string} jsonString - The JSON string to validate/repair
+ * @returns {string|null} - Repaired JSON string or null if repair failed
+ */
+function validateAndRepairJSON(jsonString) {
+  if (!jsonString || typeof jsonString !== 'string') {
+    return null;
+  }
+  
+  // Try direct parse first
+  try {
+    JSON.parse(jsonString);
+    return jsonString;
+  } catch (e) {
+    // Continue to repair attempts
+  }
+  
+  // Attempt 1: Extract JSON from markdown code blocks
+  const jsonMatch = jsonString.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  if (jsonMatch) {
+    try {
+      JSON.parse(jsonMatch[1]);
+      return jsonMatch[1];
+    } catch (e) {
+      // Continue to next attempt
+    }
+  }
+  
+  // Attempt 2: Extract JSON object from text (find first { to last })
+  const objectMatch = jsonString.match(/\{[\s\S]*\}/);
+  if (objectMatch) {
+    let candidate = objectMatch[0];
+    // Try to fix common issues: remove trailing commas before }
+    candidate = candidate.replace(/,(\s*[}\]])/g, '$1');
+    // Remove control characters that break JSON
+    candidate = candidate.replace(/[\x00-\x1F\x7F]/g, '');
+    try {
+      JSON.parse(candidate);
+      return candidate;
+    } catch (e) {
+      // Log the error for debugging
+      const positionMatch = e.message.match(/position (\d+)/);
+      console.warn(`[JSON Repair] Failed at position ${positionMatch ? positionMatch[1] : 'unknown'}: ${e.message}`);
+      console.warn(`[JSON Repair] Problematic JSON (first 500 chars): ${candidate.substring(0, 500)}`);
+    }
+  }
+  
+  // All attempts failed
+  return null;
+}
+
+/**
+ * Safe JSON parse with validation and repair
+ * @param {string} jsonString - The JSON string to parse
+ * @param {any} fallback - Fallback value if parsing fails
+ * @returns {any} - Parsed JSON or fallback
+ */
+function parseJSONSafe(jsonString, fallback = null) {
+  if (!jsonString || typeof jsonString !== 'string') {
+    return fallback;
+  }
+  
+  try {
+    return JSON.parse(jsonString);
+  } catch (e) {
+    // Try to repair
+    const repaired = validateAndRepairJSON(jsonString);
+    if (repaired) {
+      try {
+        return JSON.parse(repaired);
+      } catch (e2) {
+        console.warn(`[JSON Parse] Repair succeeded but parse still failed: ${e2.message}`);
+      }
+    }
+    console.warn(`[JSON Parse] Failed to parse JSON: ${e.message}`);
+    return fallback;
+  }
+}
+
 function getOrCreateVisualBible(bookTitle, overrides, styleKey) {
   const { biblePath, keyBase } = getBiblePaths(bookTitle, styleKey);
   const existing = loadJSONSafe(biblePath, null);
@@ -572,10 +652,14 @@ app.post('/api/full-cast-tts', async (req, res) => {
     // Get user-specific CastingManager
     const userCastingManager = getUserCastingManager(req.userId);
     
+    // Build fallback chain for this request
+    const llmFallbackChain = buildLLMFallbackChain(chosen);
+    console.log(`[full-cast-tts] [req ${req.reqId}] LLM fallback chain:`, llmFallbackChain);
+    
     const structured = structureTextForLLM(text);
     // Use factory chain per package docs, with intelligentCastingParser by default
     const script = await sharedFactory.createAndExecuteChain({
-      llmIds: [chosen],
+      llmIds: llmFallbackChain,
       parserId: parser === 'simple' ? 'simpleDialogueParser'
         : parser === 'singleNarrator' ? 'singleNarratorParser'
         : 'intelligentCastingParser',
@@ -681,6 +765,44 @@ function chunkTextByParagraphs(text, maxChars = 4000) {
 }
 
 /**
+ * Build LLM fallback chain based on primary model and available providers
+ */
+function buildLLMFallbackChain(primaryModel) {
+  const chain = [primaryModel];
+  
+  // If primary is Gemini, add Gemini fallbacks then OpenAI
+  if (primaryModel && primaryModel.startsWith('gemini')) {
+    // Add gemini-2.5-pro as first fallback (if different from primary)
+    if (primaryModel !== 'gemini-2.5-pro' && ENV_KEYS.gemini) {
+      chain.push('gemini-2.5-pro');
+    }
+    // Add gemini-2.0-flash as fallback (if different from primary)
+    if (primaryModel !== 'gemini-2.0-flash' && ENV_KEYS.gemini) {
+      chain.push('gemini-2.0-flash');
+    }
+    // Add OpenAI as final fallback
+    if (ENV_KEYS.openai) {
+      chain.push('gpt-4o-mini');
+    }
+  } 
+  // If primary is OpenAI, add Gemini fallbacks then OpenAI-mini
+  else if (primaryModel && primaryModel.startsWith('gpt')) {
+    // Add Gemini models as fallbacks
+    if (ENV_KEYS.gemini) {
+      chain.push('gemini-2.5-pro');
+      chain.push('gemini-2.0-flash');
+    }
+    // Add gpt-4o-mini as final fallback (if different from primary)
+    if (primaryModel !== 'gpt-4o-mini' && ENV_KEYS.openai) {
+      chain.push('gpt-4o-mini');
+    }
+  }
+  
+  // Remove duplicates while preserving order
+  return [...new Set(chain)];
+}
+
+/**
  * Process single text chunk with retry on JSON errors
  */
 async function processChunkWithRetry(
@@ -694,6 +816,10 @@ async function processChunkWithRetry(
 ) {
   let lastError = null;
   
+  // Build fallback chain for this request
+  const llmFallbackChain = buildLLMFallbackChain(chosen);
+  console.log(`[chat-thread] [req ${reqId}] LLM fallback chain:`, llmFallbackChain);
+  
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const structured = structureTextForLLM(chunkText);
@@ -703,7 +829,7 @@ async function processChunkWithRetry(
       }
       
       const script = await sharedFactory.createAndExecuteChain({
-        llmIds: [chosen],
+        llmIds: llmFallbackChain,
         parserId: 'chatThreadParser',
         rawTextInput: structured,
         context: {
@@ -1372,8 +1498,16 @@ app.post('/api/analyze-scenes', async (req, res) => {
   }
   
   try {
+    // AUTO-REDUCE DETAIL LEVEL if too many scenes to prevent truncation
+    const SCENE_THRESHOLD = 15; // If more than 15 scenes, use normal detail
+    const effectiveDetailLevel = maxScenes > SCENE_THRESHOLD ? 'normal' : detailLevel;
+    
+    if (effectiveDetailLevel !== detailLevel) {
+      console.log(`[analyze-scenes] Auto-reducing detailLevel from '${detailLevel}' to 'normal' due to high scene count (${maxScenes} scenes)`);
+    }
+    
     console.log(`[analyze-scenes] Processing "${chapter}" from "${bookTitle}"`);
-    console.log(`[analyze-scenes] Text length: ${text.length} chars, max scenes: ${maxScenes}`);
+    console.log(`[analyze-scenes] Text length: ${text.length} chars, max scenes: ${maxScenes}, detailLevel: ${effectiveDetailLevel}`);
     console.log(`[analyze-scenes] Theme: ${bookTheme}, Palette: ${colorPalette}`);
     
     // Visual Bible: load/create/update per book/styleKey
@@ -1388,7 +1522,7 @@ app.post('/api/analyze-scenes', async (req, res) => {
     }
 
     // Build Visual Director prompt with bible/styleKey
-    const prompt = buildSceneAnalysisPrompt(text, bookTitle, bookTheme, colorPalette, maxScenes, activeBible, derivedKey, detailLevel);
+    const prompt = buildSceneAnalysisPrompt(text, bookTitle, bookTheme, colorPalette, maxScenes, activeBible, derivedKey, effectiveDetailLevel);
     
     // Use hard-locked Gemini model for text analysis (2.5 Pro), with safe fallback
     // Try to resolve a Gemini LLM by several known identifiers
@@ -1423,7 +1557,7 @@ app.post('/api/analyze-scenes', async (req, res) => {
     
     console.log(`[analyze-scenes] LLM response received (${response.length} chars)`);
     
-    // Parse JSON response (handle markdown code blocks)
+    // Parse JSON response (handle markdown code blocks and validate/repair)
     let cleanedResponse = response.trim();
     if (cleanedResponse.startsWith('```json')) {
       cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/```\s*$/, '');
@@ -1431,7 +1565,10 @@ app.post('/api/analyze-scenes', async (req, res) => {
       cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/```\s*$/, '');
     }
     
-    const scenesData = JSON.parse(cleanedResponse);
+    const scenesData = parseJSONSafe(cleanedResponse, null);
+    if (!scenesData) {
+      throw new Error('Failed to parse LLM response as JSON. Response: ' + cleanedResponse.substring(0, 500));
+    }
     
     console.log(`[analyze-scenes] Generated ${scenesData.scenes.length} scenes in ${Date.now() - startTime}ms`);
 
@@ -1446,7 +1583,7 @@ app.post('/api/analyze-scenes', async (req, res) => {
             const rewritePrompt = buildStrictRewritePrompt(scene, activeBible, derivedKey);
             const revised = await llm.execute(rewritePrompt);
             const revisedClean = revised.trim().replace(/^```json\s*|\s*```$/g, '');
-            const revisedObj = JSON.parse(revisedClean);
+            const revisedObj = parseJSONSafe(revisedClean, null);
             if (revisedObj && typeof revisedObj.image_prompt === 'string' && revisedObj.image_prompt.trim()) {
               scene.image_prompt = revisedObj.image_prompt.trim();
               rewrites++;
@@ -1462,7 +1599,7 @@ app.post('/api/analyze-scenes', async (req, res) => {
     }
 
     // Optional post-process: expand short fields when detailLevel is 'high' (AFTER strict compliance)
-    if (detailLevel === 'high' && Array.isArray(scenesData.scenes)) {
+    if (effectiveDetailLevel === 'high' && Array.isArray(scenesData.scenes)) {
       let expandedCount = 0;
       const MIN_DESC = 200;   // Raised from 160
       const MIN_PROMPT = 300; // Raised from 240
@@ -1478,7 +1615,7 @@ app.post('/api/analyze-scenes', async (req, res) => {
           let expandedClean = expanded.trim();
           if (expandedClean.startsWith('```json')) expandedClean = expandedClean.replace(/^```json\s*/, '').replace(/```\s*$/, '');
           else if (expandedClean.startsWith('```')) expandedClean = expandedClean.replace(/^```\s*/, '').replace(/```\s*$/, '');
-          const obj = JSON.parse(expandedClean);
+          const obj = parseJSONSafe(expandedClean, null);
           if (obj && typeof obj.scene_description === 'string' && typeof obj.image_prompt === 'string') {
             if (obj.scene_description.length > (scene.scene_description?.length || 0)) scene.scene_description = obj.scene_description;
             if (obj.image_prompt.length > (scene.image_prompt?.length || 0)) scene.image_prompt = obj.image_prompt;
