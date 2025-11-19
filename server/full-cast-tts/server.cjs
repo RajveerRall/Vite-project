@@ -163,22 +163,98 @@ function validateAndRepairJSON(jsonString) {
   const objectMatch = jsonString.match(/\{[\s\S]*\}/);
   if (objectMatch) {
     let candidate = objectMatch[0];
-    // Try to fix common issues: remove trailing commas before }
+    
+    // Fix common issues:
+    // 1. Remove trailing commas before } or ]
     candidate = candidate.replace(/,(\s*[}\]])/g, '$1');
-    // Remove control characters that break JSON
-    candidate = candidate.replace(/[\x00-\x1F\x7F]/g, '');
+    
+    // 2. Remove control characters that break JSON (but preserve \n, \r, \t)
+    candidate = candidate.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    
+    // 3. Fix unclosed strings (find strings that aren't properly closed)
+    // This is a heuristic: if we see an odd number of quotes before a comma/brace, try to close it
+    candidate = candidate.replace(/"([^"]*?)(?=\s*[,}\]])/g, (match, content) => {
+      // If the match doesn't end with a quote, add one
+      if (!match.endsWith('"')) {
+        return match + '"';
+      }
+      return match;
+    });
+    
+    // 4. Fix invalid escape sequences
+    candidate = candidate.replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
+    
+    // 5. Remove comments (JSON doesn't support comments)
+    candidate = candidate.replace(/\/\*[\s\S]*?\*\//g, ''); // Block comments
+    candidate = candidate.replace(/\/\/.*$/gm, ''); // Line comments
+    
+    // 6. Fix multiple JSON objects (take the first complete one)
+    const firstBrace = candidate.indexOf('{');
+    if (firstBrace >= 0) {
+      let braceCount = 0;
+      let endPos = firstBrace;
+      for (let i = firstBrace; i < candidate.length; i++) {
+        if (candidate[i] === '{') braceCount++;
+        if (candidate[i] === '}') braceCount--;
+        if (braceCount === 0) {
+          endPos = i + 1;
+          break;
+        }
+      }
+      if (braceCount === 0) {
+        candidate = candidate.substring(firstBrace, endPos);
+      }
+    }
+    
+    // 7. Try to fix truncated JSON by closing unclosed structures
+    let openBraces = (candidate.match(/\{/g) || []).length;
+    let closeBraces = (candidate.match(/\}/g) || []).length;
+    let openBrackets = (candidate.match(/\[/g) || []).length;
+    let closeBrackets = (candidate.match(/\]/g) || []).length;
+    
+    // Close unclosed structures
+    if (openBraces > closeBraces) {
+      candidate += '}'.repeat(openBraces - closeBraces);
+    }
+    if (openBrackets > closeBrackets) {
+      candidate += ']'.repeat(openBrackets - closeBrackets);
+    }
+    
     try {
-      JSON.parse(candidate);
+      const parsed = JSON.parse(candidate);
       return candidate;
     } catch (e) {
       // Log the error for debugging
       const positionMatch = e.message.match(/position (\d+)/);
-      console.warn(`[JSON Repair] Failed at position ${positionMatch ? positionMatch[1] : 'unknown'}: ${e.message}`);
-      console.warn(`[JSON Repair] Problematic JSON (first 500 chars): ${candidate.substring(0, 500)}`);
+      const position = positionMatch ? parseInt(positionMatch[1]) : 0;
+      console.warn(`[JSON Repair] Failed at position ${position}: ${e.message}`);
+      console.warn(`[JSON Repair] Problematic JSON around position ${position}:`);
+      const start = Math.max(0, position - 100);
+      const end = Math.min(candidate.length, position + 100);
+      console.warn(`[JSON Repair] ...${candidate.substring(start, end)}...`);
+      
+      // Attempt 3: Try to extract just the valid portion before the error
+      if (position > 0) {
+        try {
+          const truncated = candidate.substring(0, position);
+          // Try to close it properly
+          const truncatedOpen = (truncated.match(/\{/g) || []).length;
+          const truncatedClose = (truncated.match(/\}/g) || []).length;
+          if (truncatedOpen > truncatedClose) {
+            const repairedTruncated = truncated + '}'.repeat(truncatedOpen - truncatedClose);
+            JSON.parse(repairedTruncated);
+            console.warn(`[JSON Repair] Successfully repaired truncated JSON`);
+            return repairedTruncated;
+          }
+        } catch (e2) {
+          // Truncation repair also failed
+        }
+      }
     }
   }
   
   // All attempts failed
+  console.warn(`[JSON Repair] All repair attempts failed`);
   return null;
 }
 
@@ -467,6 +543,24 @@ function getSessionHistory(sessionId) {
   return history;
 }
 
+// Helper function to clean narration segments (remove quoted dialogue that was already extracted)
+function cleanNarrationSegment(narration) {
+  if (!narration) return narration;
+  
+  // Remove quoted dialogue (smart quotes and straight quotes)
+  let cleaned = narration.replace(/[""]([^""]+)[""]/g, '').trim();
+  cleaned = cleaned.replace(/"([^"]+)"/g, '').trim();
+  
+  // Remove dialogue at start of narration (e.g., "text," she said. -> she said.)
+  cleaned = cleaned.replace(/^[""][^""]*[""],?\s*/i, '').trim();
+  cleaned = cleaned.replace(/^"[^"]*",?\s*/i, '').trim();
+  
+  // Clean up multiple spaces
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  
+  return cleaned;
+}
+
 // Enhanced structuring: split quoted dialogue and narration into segments JSON
 function structureTextForLLM(raw) {
   if (!raw || typeof raw !== 'string') return JSON.stringify({ segments: [] });
@@ -505,7 +599,8 @@ function structureTextForLLM(raw) {
   cleanText.replace(regex, (match, smartQuoteContent, straightQuoteContent, offset) => {
     // Add narration before this dialogue
     if (offset > lastIndex) {
-      const narration = cleanText.substring(lastIndex, offset).trim();
+      let narration = cleanText.substring(lastIndex, offset).trim();
+      narration = cleanNarrationSegment(narration);  // Clean narration to remove quoted dialogue
       if (narration) {
         segments.push({ type: 'narration', content: narration });
       }
@@ -524,7 +619,8 @@ function structureTextForLLM(raw) {
   
   // Add any remaining narration at the end
   if (lastIndex < cleanText.length) {
-    const tail = cleanText.substring(lastIndex).trim();
+    let tail = cleanText.substring(lastIndex).trim();
+    tail = cleanNarrationSegment(tail);  // Clean narration to remove quoted dialogue
     if (tail) {
       segments.push({ type: 'narration', content: tail });
     }
@@ -538,7 +634,13 @@ function structureTextForLLM(raw) {
   // Add explicit instructions for the LLM about dialogue attribution
   const result = {
     segments,
-    instructions: "CRITICAL: Dialogue attribution phrases like 'said Sofia', 'whispered Locke', 'replied John' are NARRATION, not dialogue. Only the actual spoken words inside quotes should be dialogue. All dialogue attribution, actions, and descriptions should be assigned to 'Narrator' character."
+    instructions: "CRITICAL RULES:\n" +
+      "1. Dialogue attribution phrases like 'said Sofia', 'whispered Locke', 'replied John', 'she said', 'I said' are NARRATION, not dialogue.\n" +
+      "2. ONLY the actual spoken words inside quotes should be dialogue. The dialogue segments already contain ONLY the spoken text (quotes removed).\n" +
+      "3. Narration segments contain ONLY attribution, actions, and descriptions - NO dialogue text.\n" +
+      "4. DO NOT include dialogue text in narration. If you see dialogue in a narration segment, it has already been extracted to a separate dialogue segment.\n" +
+      "5. All dialogue attribution, actions, and descriptions should be assigned to 'Narrator' character.\n" +
+      "6. When generating script lines, if a narration segment contains attribution (e.g., 'she said'), create a narration line with ONLY the attribution, NOT the dialogue that was already extracted."
   };
   
   return JSON.stringify(result);

@@ -102,6 +102,30 @@ const EpubToVideo: React.FC = () => {
     return lastEndTime;
   };
 
+  const countSrtEntries = (srtContent: string): number => {
+    /**
+     * Count the number of SRT entries in a chunk's SRT content.
+     * SRT entries are separated by double newlines (empty lines).
+     */
+    if (!srtContent || srtContent.trim().length === 0) {
+      return 0;
+    }
+    
+    // Normalize line endings and split by double newlines
+    const normalized = srtContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const blocks = normalized.trim().split('\n\n');
+    
+    // Count blocks that contain a timestamp (-->)
+    let count = 0;
+    for (const block of blocks) {
+      if (block.includes('-->')) {
+        count++;
+      }
+    }
+    
+    return count;
+  };
+
   const adjustSrtTimestamps = (srtContent: string, offsetSeconds: number, startIndex: number): string => {
     console.log(`[adjustSrtTimestamps] Called with offset=${offsetSeconds.toFixed(3)}s, startIndex=${startIndex}`);
     
@@ -374,6 +398,7 @@ const EpubToVideo: React.FC = () => {
       let cumulativeDuration = 0;
       let sceneImageFiles: File[] = [];
       let useCachedAudio = false;
+      let srtEntryCounts: number[] = [];  // Track SRT entry counts per chunk (accessible in both cached and non-cached paths)
 
       if (cachedData && cachedData.audioBlobs && cachedData.audioBlobs.length > 0) {
         console.log('[Video Generation] Using cached audio data');
@@ -383,6 +408,37 @@ const EpubToVideo: React.FC = () => {
         cumulativeDuration = cachedData.metadata?.totalDuration || durations.reduce((sum, d) => sum + d, 0);
         sceneImageFiles = cachedData.sceneImages || [];
         useCachedAudio = true;
+        
+        // Calculate SRT entry counts from cached SRT data
+        // Parse combined SRT to count entries per chunk (approximate)
+        // Note: This is an approximation since we don't have exact chunk boundaries in cached data
+        srtEntryCounts = [];
+        if (combinedSrt) {
+          // Split by double newlines (actual newlines, not escaped string)
+          // The SRT is stored with actual \n\n characters, not the string "\\n\\n"
+          const chunkSrts = combinedSrt.split(/\n\n+/).filter(s => s.trim().length > 0);
+          console.log(`[Video Generation] Split cached SRT into ${chunkSrts.length} chunks`);
+          
+          for (let i = 0; i < chunkSrts.length; i++) {
+            const chunkSrt = chunkSrts[i];
+            const count = countSrtEntries(chunkSrt);
+            console.log(`[Video Generation] Cached chunk ${i}: ${count} SRT entries (preview: ${chunkSrt.substring(0, 50)}...)`);
+            srtEntryCounts.push(count);
+          }
+          
+          // Ensure we have counts for all chunks (pad with 0 if needed)
+          while (srtEntryCounts.length < audioBlobs.length) {
+            srtEntryCounts.push(0);
+          }
+          console.log(`[Video Generation] Calculated SRT entry counts from cache:`, srtEntryCounts);
+          console.log(`[Video Generation] Total SRT entries counted: ${srtEntryCounts.reduce((sum, count) => sum + count, 0)}`);
+        } else {
+          // No SRT data, fill with zeros
+          console.log(`[Video Generation] WARNING: No cached SRT data, filling with zeros`);
+          for (let i = 0; i < audioBlobs.length; i++) {
+            srtEntryCounts.push(0);
+          }
+        }
         
         updateProgress({
           stage: 'audio',
@@ -491,6 +547,7 @@ const EpubToVideo: React.FC = () => {
         durations = [];
         combinedSrt = '';
         cumulativeDuration = 0;
+        srtEntryCounts = [];  // Reset for non-cached audio generation
 
       // Process TTS tasks in batches of 3
       interface TtsResult {
@@ -566,6 +623,11 @@ const EpubToVideo: React.FC = () => {
         durations.push(result.duration);
 
         if (result.srtContent && result.duration > 0) {
+          // Count SRT entries in this chunk (for sequence correlation)
+          const srtEntryCount = countSrtEntries(result.srtContent);
+          srtEntryCounts.push(srtEntryCount);
+          console.log(`[Video Generation] Chunk ${audioBlobs.length}: ${srtEntryCount} SRT entries (preview: ${result.srtContent.substring(0, 50)}...)`);
+          
           // Extract last SRT end time BEFORE adjustment to determine actual SRT span
           const lastSrtEndTime = extractLastSrtEndTime(result.srtContent);
           
@@ -576,16 +638,17 @@ const EpubToVideo: React.FC = () => {
             audioBlobs.length  // Use total chunk index
           );
           
-          combinedSrt += adjustedSrt + '\\n\\n';
+          combinedSrt += adjustedSrt + '\n\n';
           
-          // CRITICAL FIX: Use SRT's actual end time (after adjustment) to advance cumulative duration
-          // This ensures chunk N+1 starts exactly where chunk N ends, preventing gaps/overlaps
+          // CRITICAL FIX: Use ACTUAL AUDIO DURATION to advance cumulative duration
+          // SRT end time may be shorter than audio due to gaps/pauses, causing drift accumulation
+          // Using audio duration ensures accurate timing tracking and prevents drift
           if (lastSrtEndTime !== null) {
-            // The adjusted last end time = originalLastEndTime + cumulativeDuration
-            const adjustedLastEndTime = lastSrtEndTime + cumulativeDuration;
-            cumulativeDuration = adjustedLastEndTime;
+            // Use actual audio duration, not SRT end time, to prevent drift
+            cumulativeDuration += result.duration;
             
             const srtSpan = lastSrtEndTime;
+            const adjustedLastEndTime = lastSrtEndTime + (cumulativeDuration - result.duration);
             console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added: audio=${result.duration}s, SRT span=${srtSpan.toFixed(3)}s, total=${cumulativeDuration.toFixed(2)}s`);
           } else {
             // Fallback to audio duration if SRT extraction fails
@@ -593,9 +656,12 @@ const EpubToVideo: React.FC = () => {
             console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added: duration=${result.duration}s (fallback, SRT extraction failed), total=${cumulativeDuration.toFixed(2)}s`);
           }
         } else if (result.duration > 0) {
+          // No SRT content for this chunk
+          srtEntryCounts.push(0);
           cumulativeDuration += result.duration;
           console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added (no SRT): duration=${result.duration}s, total=${cumulativeDuration.toFixed(2)}s`);
         } else {
+          srtEntryCounts.push(0);
           console.warn(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} missing both data: duration=${result.duration}, srtContent=${!!result.srtContent}`);
         }
       }
@@ -763,7 +829,7 @@ const EpubToVideo: React.FC = () => {
       console.log(`  - Audio chunks: ${audioBlobs.length}`);
       console.log(`  - Total duration: ${cumulativeDuration.toFixed(2)}s`);
       console.log(`  - SRT data length: ${combinedSrt.length} characters`);
-      console.log(`  - SRT segments: ${combinedSrt.split('\\n\\n').length}`);
+      console.log(`  - SRT segments: ${combinedSrt.split(/\n\n+/).length}`);
       console.log(`  - Scene images: ${sceneImages.length}`);
 
       // Step 3: Send to Python server for video generation
@@ -775,7 +841,7 @@ const EpubToVideo: React.FC = () => {
 
       console.log(`[Video Generation] Sending to Python server`);
       console.log(`[Video Generation] Audio duration: ${cumulativeDuration}s`);
-      console.log(`[Video Generation] SRT segments: ${combinedSrt.split('\\n\\n').length}`);
+      console.log(`[Video Generation] SRT segments: ${combinedSrt.split(/\n\n+/).length}`);
 
       console.log(`[Video Generation] Sending ${audioBlobs.length} individual audio chunks`);
 
@@ -794,17 +860,29 @@ const EpubToVideo: React.FC = () => {
         formData.append('audio_chunks', blob, `audio_${index}.mp3`);
       });
       
-      // Send metadata about each chunk
+      // Send metadata about each chunk (including SRT entry counts for course correction)
       const audioMetadata = audioBlobs.map((blob, index) => ({
         index,
         size: blob.size,
-        duration: durations[index] || 0
+        duration: durations[index] || 0,
+        srtEntryCount: srtEntryCounts[index] || 0  // NEW: SRT entry count per chunk for sequence correlation
       }));
       formData.append('audio_metadata', JSON.stringify(audioMetadata));
+      console.log(`[Video Generation] Sending SRT entry counts:`, srtEntryCounts);
       
       formData.append('text', chapter.content);
       formData.append('srt_data', combinedSrt);
-      formData.append('total_duration', cumulativeDuration.toString());
+      
+      // CRITICAL FIX: Use actual audio duration (sum of durations) instead of SRT-based cumulativeDuration
+      // The cumulativeDuration is used for SRT timeline continuity, but can be wrong if SRT contains
+      // malformed entries (like JSON). The actual audio durations are always accurate.
+      const actualTotalDuration = durations.reduce((sum, d) => sum + d, 0);
+      formData.append('total_duration', actualTotalDuration.toString());
+      
+      // Log both for debugging
+      console.log(`[Video Generation] SRT-based cumulative duration: ${cumulativeDuration.toFixed(2)}s`);
+      console.log(`[Video Generation] Actual audio duration (sum): ${actualTotalDuration.toFixed(2)}s`);
+      console.log(`[Video Generation] Using actual audio duration for video generation`);
       formData.append('book_title', uploadedFile?.name || 'Unknown');
       formData.append('chapter_title', chapter.title);
       formData.append('author', 'Unknown Author');
