@@ -6011,9 +6011,7 @@ def calculate_optimal_workers(num_tasks=None, frame_complexity='medium'):
     
     # Apply reasonable bounds
     min_workers = 1
-    # Cap at (total_cores - 1) to reserve 1 core for system/main process
-    # For 12 cores, this allows 11 workers
-    max_workers = max(1, total_cores - 1)
+    max_workers = 32  # Upper safety limit
     optimal_workers = max(min_workers, min(optimal_workers, max_workers))
     
     # Log the decision
@@ -6189,19 +6187,6 @@ async def generate_video(
             actual_duration = duration_float
             print(f"Warning: Could not get actual duration, using frontend duration: {duration_float}s")
         
-        # Calculate chunk timings using FFprobe for accurate audio timing
-        chunk_timings = None
-        if audio_files and len(audio_files) > 0:
-            print("[Video Generation] Calculating chunk timings from audio files...")
-            audio_durations = get_audio_chunk_durations(audio_files)
-            if audio_durations:
-                chunk_timings = calculate_chunk_timings(audio_durations)
-                print(f"[Video Generation] Calculated {len(chunk_timings)} chunk timings")
-            else:
-                print("[Video Generation] WARNING: Could not calculate chunk timings, will use SRT timings only")
-        
-        # Note: SRT entry counts no longer needed - Kokoro SRT timings are accurate and don't require course correction
-        
         # Parse highlighting mode
         highlight_mode_value = highlight_mode.lower()  # 'none', 'sentence', or 'word'
         
@@ -6213,13 +6198,46 @@ async def generate_video(
             scene_images,  # NEW: Scene image metadata
             scene_image_paths,  # NEW: Scene image file paths
             scene_layout=scene_layout,
-            image_side=image_side,
-            chunk_timings=chunk_timings  # Accurate chunk timings from FFprobe (for page change triggers)
+            image_side=image_side
         )
         
         # Read the video file content before cleanup
         with open(video_path, 'rb') as video_file:
             video_content = video_file.read()
+        
+        # Sanitize filename for HTTP headers (must be ASCII-compatible)
+        safe_filename = chapter_title
+        # Replace common Unicode punctuation with ASCII equivalents
+        safe_filename = safe_filename.replace('\u2019', "'")  # Right single quotation mark
+        safe_filename = safe_filename.replace('\u2018', "'")  # Left single quotation mark
+        safe_filename = safe_filename.replace('\u201C', '"')  # Left double quotation mark
+        safe_filename = safe_filename.replace('\u201D', '"')  # Right double quotation mark
+        safe_filename = safe_filename.replace('\u2013', '-')  # En dash
+        safe_filename = safe_filename.replace('\u2014', '--')  # Em dash
+        safe_filename = safe_filename.replace('\u2026', '...')  # Ellipsis
+        safe_filename = safe_filename.replace('\u00A0', ' ')  # Non-breaking space
+        # Replace any remaining non-ASCII characters with underscore
+        safe_filename = re.sub(r'[^\x00-\x7F]+', '_', safe_filename)
+        # Replace spaces and invalid filename characters
+        safe_filename = safe_filename.replace(' ', '_').replace('/', '_').replace('\\', '_')
+        safe_filename = re.sub(r'[<>:"|?*]', '_', safe_filename)
+        safe_filename = safe_filename.strip('._')
+        
+        # Final safety check: ensure the entire string is ASCII
+        try:
+            safe_filename.encode('ascii')
+        except UnicodeEncodeError:
+            # If still has non-ASCII, force ASCII encoding with error handling
+            safe_filename = safe_filename.encode('ascii', 'replace').decode('ascii')
+        
+        # Ensure the header value itself is ASCII-safe
+        header_value = f"attachment; filename=\"{safe_filename}_video.mp4\""
+        try:
+            header_value.encode('latin-1')
+        except UnicodeEncodeError:
+            # Fallback: use a generic filename if sanitization still fails
+            safe_filename = "video"
+            header_value = f"attachment; filename=\"{safe_filename}_video.mp4\""
         
         # Return the video content directly
         from fastapi.responses import Response
@@ -6227,7 +6245,7 @@ async def generate_video(
             content=video_content,
             media_type="video/mp4",
             headers={
-                "Content-Disposition": f"attachment; filename={chapter_title.replace(' ', '_')}_video.mp4"
+                "Content-Disposition": header_value
             }
         )
         
@@ -6307,126 +6325,53 @@ def detect_gpu_encoder():
         print(f"Encoder list failed: {e}")
         encoders = ''
 
-    # Track which encoders are available
-    nvenc_available = 'h264_nvenc' in encoders
-    qsv_available = 'h264_qsv' in encoders
-    amf_available = 'h264_amf' in encoders
-    
-    print(f"Available encoders: NVENC={nvenc_available}, QSV={qsv_available}, AMF={amf_available}")
-
-    # Try NVENC first (preferred)
-    if nvenc_available:
+    # Try NVENC first
+    if 'h264_nvenc' in encoders:
         try:
             test = subprocess.run(
                 [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
                  '-c:v', 'h264_nvenc', '-f', 'null', '-'],
-                capture_output=True, text=True, timeout=20
+                capture_output=True, timeout=20
             )
             if test.returncode == 0:
                 print("✓ NVIDIA NVENC hardware encoder detected")
                 return 'nvenc'
-            else:
-                print(f"⚠ NVENC probe failed with return code {test.returncode}")
-                if test.stderr:
-                    # Skip FFmpeg version banner and find actual error
-                    error_lines = test.stderr.split('\n')
-                    # Find lines that look like errors (not version info or informational output)
-                    actual_errors = []
-                    skip_patterns = ['input #', 'duration:', 'start:', 'bitrate:', 'stream mapping:', '  stream #']
-                    
-                    for i, line in enumerate(error_lines):
-                        line_lower = line.lower().strip()
-                        # Skip version/banner lines
-                        if (line.startswith('ffmpeg version') or 
-                            line.startswith('  built with') or
-                            line.startswith('  configuration:') or
-                            'Copyright' in line or
-                            'the FFmpeg developers' in line or
-                            (any(x in line_lower for x in ['lib', 'enable-', 'built', 'configuration']) and 'error' not in line_lower)):
-                            continue
-                        
-                        # Skip informational FFmpeg output lines
-                        if any(pattern in line_lower for pattern in skip_patterns):
-                            continue
-                        
-                        # Include lines with error indicators
-                        if any(keyword in line_lower for keyword in ['error', 'failed', 'cannot', 'unable', 'invalid', 'not found', 'no such', 'no device', 'device not', 'initialization']):
-                            actual_errors.append(line)
-                        # Include lines after "Stream mapping:" (errors often appear here)
-                        elif i > 0 and 'stream mapping' in error_lines[i-1].lower() and line.strip():
-                            actual_errors.append(line)
-                        # Include lines that look like error messages (contain colons and error-like text)
-                        elif line.strip() and ':' in line and any(keyword in line_lower for keyword in ['error', 'fail', 'cannot', 'unable', 'invalid', 'not', 'no']):
-                            actual_errors.append(line)
-                    
-                    if actual_errors:
-                        # Show up to 5 error lines
-                        print(f"   Error details:")
-                        for err_line in actual_errors[:5]:
-                            if err_line.strip():
-                                print(f"     {err_line}")
-                    else:
-                        # Fallback: show last 10-15 non-empty lines (excluding version info)
-                        non_empty = []
-                        for line in error_lines:
-                            line_stripped = line.strip()
-                            if (line_stripped and 
-                                not line_stripped.startswith('ffmpeg version') and
-                                not line_stripped.startswith('built with') and
-                                'Copyright' not in line_stripped):
-                                non_empty.append(line_stripped)
-                        
-                        if non_empty:
-                            print(f"   Error output (last {min(10, len(non_empty))} lines):")
-                            for line in non_empty[-10:]:
-                                if line:
-                                    print(f"     {line}")
         except subprocess.TimeoutExpired:
-            print("⚠ NVENC probe timed out, continuing to next encoder")
+            print("NVENC probe timed out, continuing to next encoder")
         except Exception as e:
-            print(f"⚠ NVENC probe failed: {e}")
+            print(f"NVENC probe failed: {e}")
 
-    # Then QSV (but only if NVENC wasn't available or failed)
-    if qsv_available:
+    # Then QSV
+    if 'h264_qsv' in encoders:
         try:
             test = subprocess.run(
                 [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=128x128:d=0.5',
                  '-c:v', 'h264_qsv', '-f', 'null', '-'],
-                capture_output=True, text=True, timeout=20
+                capture_output=True, timeout=20
             )
             if test.returncode == 0:
                 print("✓ Intel QuickSync hardware encoder detected")
                 return 'qsv'
-            else:
-                print(f"⚠ QSV probe failed with return code {test.returncode}")
-                if test.stderr:
-                    error_lines = test.stderr.split('\n')[:3]
-                    print(f"   Error: {' '.join(error_lines)}")
         except subprocess.TimeoutExpired:
-            print("⚠ QSV probe timed out, skipping QSV")
+            print("QSV probe timed out, skipping QSV")
         except Exception as e:
-            print(f"⚠ QSV probe failed: {e}")
+            print(f"QSV probe failed: {e}")
 
     # Then AMF
-    if amf_available:
+    if 'h264_amf' in encoders:
         try:
             test = subprocess.run(
                 [ffmpeg, '-f', 'lavfi', '-i', 'nullsrc=s=256x256:d=1',
                  '-c:v', 'h264_amf', '-f', 'null', '-'],
-                capture_output=True, text=True, timeout=20
+                capture_output=True, timeout=20
             )
             if test.returncode == 0:
                 print("✓ AMD AMF hardware encoder detected")
                 return 'amf'
-            else:
-                print(f"⚠ AMF probe failed with return code {test.returncode}")
-                if test.stderr:
-                    error_lines = test.stderr.split('\n')[:3]
-                    print(f"   Error: {' '.join(error_lines)}")
         except subprocess.TimeoutExpired:
-            print("⚠ AMF probe timed out, skipping AMF")
+            print("AMF probe timed out, skipping AMF")
         except Exception as e:
-            print(f"⚠ AMF probe failed: {e}")
+            print(f"AMF probe failed: {e}")
 
     print("⚠ No hardware encoder detected, using CPU (slower)")
     return 'cpu'
@@ -6437,89 +6382,12 @@ GPU_PROBED = False
 def get_gpu_encoder():
     global GPU_ENCODER, GPU_PROBED
     if not GPU_PROBED:
-        # Skip GPU detection in worker processes to avoid NVENC conflicts
-        # Workers should not access GPU encoders - only the main process should
-        try:
-            import multiprocessing
-            import os
-            current_process = multiprocessing.current_process()
-            
-            # On Windows with spawn, each worker starts fresh, so we need multiple checks
-            # 1. Check process name (workers often have different names)
-            # 2. Check if we're being imported in a spawned context
-            # 3. Use environment variable as a sentinel (set by main process)
-            
-            is_worker_process = False
-            
-            # Check 1: Process name (most reliable on Unix, less so on Windows spawn)
-            if current_process.name != 'MainProcess':
-                is_worker_process = True
-            
-            # Check 2: Environment variable sentinel (set by main process before spawning workers)
-            # Main process sets this before creating workers
-            if os.environ.get('GPU_ENCODER_DETECTED', '').lower() == 'true':
-                # If this is set, main process already detected, so we're likely a worker
-                # But only if process name suggests it (to avoid false positives)
-                if current_process.name != 'MainProcess':
-                    is_worker_process = True
-            
-            # Check 3: On Windows, spawned processes have different characteristics
-            # If we can't determine, err on the side of caution for workers
-            # (Better to use CPU in worker than cause NVENC conflicts)
-            
-            if is_worker_process:
-                # In worker process - don't detect GPU, just return CPU fallback
-                print(f"Worker process detected ({current_process.name}), skipping GPU detection (using CPU)")
-                GPU_ENCODER = "cpu"
-                GPU_PROBED = True
-                return GPU_ENCODER
-        except Exception:
-            # If check fails, continue with detection (safer to try than skip)
-            pass
-        
-        # Main process - proceed with GPU detection
         try:
             GPU_ENCODER = detect_gpu_encoder()
-            print(f"GPU encoder initialized: {GPU_ENCODER}")
-            # Set sentinel so worker processes know GPU was already detected
-            os.environ['GPU_ENCODER_DETECTED'] = 'true'
-        except Exception as e:
-            print(f"GPU encoder detection failed: {e}")
+        except Exception:
             GPU_ENCODER = "cpu"
-            # Still set sentinel to prevent workers from trying
-            os.environ['GPU_ENCODER_DETECTED'] = 'true'
         GPU_PROBED = True
     return GPU_ENCODER
-
-def reset_gpu_encoder_cache():
-    """Reset GPU encoder cache to force re-detection"""
-    global GPU_ENCODER, GPU_PROBED
-    GPU_ENCODER = "cpu"
-    GPU_PROBED = False
-    print("GPU encoder cache reset")
-
-# Initialize GPU encoder at module level (after get_gpu_encoder is defined)
-# Only initialize in the main process to avoid conflicts in worker processes
-# Worker processes will use the encoder detected in the main process
-# On Windows with spawn method, each worker imports the module fresh, so we need to check carefully
-import multiprocessing
-try:
-    # Check if we're in the main process (not a spawned worker)
-    # On Windows spawn, workers have different parent process IDs
-    is_main_process = (
-        multiprocessing.current_process().name == 'MainProcess' and
-        (not hasattr(multiprocessing, 'parent_process') or 
-         multiprocessing.parent_process() is None)
-    )
-    # Also check if we're being run as a script (not imported)
-    is_main_script = __name__ == "__main__"
-    
-    if is_main_process or is_main_script:
-        print("Initializing GPU encoder detection...")
-        _ = get_gpu_encoder()  # Initialize and cache the result
-except Exception:
-    # If check fails, skip initialization (safer than risking conflicts)
-    pass
 
 def create_video_with_ffmpeg_direct(frames_dir, audio_path, width, height, fps, num_frames, total_duration, crf):
     """
@@ -7613,120 +7481,10 @@ def combine_audio_files(audio_files, temp_dir):
             duration = combined_info.get('format', {}).get('duration', 'unknown')
             print(f"✓ Combined audio duration: {duration}s")
         
-        # Create debug version (raw combined audio without normalization) for sync comparison
-        try:
-            debug_output_path = combine_audio_files_debug(audio_files, temp_dir)
-            print(f"[DEBUG] Raw combined audio (no normalization) saved for comparison: {debug_output_path}")
-        except Exception as e:
-            print(f"[DEBUG] Warning: Could not create debug audio file: {e}")
-            # Don't fail the main process if debug fails
-        
         return output_path
         
     except subprocess.TimeoutExpired:
         raise Exception(f"FFmpeg audio combination timed out after {timeout_seconds}s ({timeout_seconds/60:.1f} minutes)")
-
-def combine_audio_files_debug(audio_files, temp_dir):
-    """
-    DEBUG VERSION: Combine audio files WITHOUT normalization or effects.
-    This is for debugging sync issues - creates a raw combined audio file
-    that can be compared with the final video to identify timing problems.
-    
-    Uses minimal processing:
-    - First tries -c copy to preserve original streams exactly (no re-encoding)
-    - Falls back to minimal PCM encoding if copy fails (incompatible formats)
-    
-    Args:
-        audio_files: List of audio file paths to combine
-        temp_dir: Temporary directory for concat list only (output saved to permanent location)
-        
-    Returns:
-        Path to combined debug audio file (saved to permanent location)
-    """
-    if not audio_files:
-        raise Exception("No audio files to combine")
-    
-    if len(audio_files) == 1:
-        print("[DEBUG] Only one audio file, no combination needed")
-        return audio_files[0]
-    
-    print(f"[DEBUG] Combining {len(audio_files)} audio files WITHOUT normalization (for debugging)...")
-    
-    ffmpeg_path = get_ffmpeg_path()
-    
-    # Step 1: Create concat list with ORIGINAL files (no normalization)
-    concat_file = os.path.join(temp_dir, "audio_concat_list_debug.txt")
-    with open(concat_file, 'w') as f:
-        for audio_file in audio_files:
-            abs_path = os.path.abspath(audio_file).replace('\\', '/')
-            f.write(f"file '{abs_path}'\n")
-    
-    # Step 2: Save to PERMANENT location (not temp_dir, so it survives cleanup)
-    import datetime
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    debug_dir = os.path.join(tempfile.gettempdir(), "yoread_debug_audio")
-    os.makedirs(debug_dir, exist_ok=True)  # Create debug directory if it doesn't exist
-    output_path = os.path.join(debug_dir, f"combined_audio_debug_{timestamp}.wav")
-    
-    # Try -c copy first (preserves timing exactly, no re-encoding)
-    combine_cmd = [
-        ffmpeg_path,
-        '-y',
-        '-f', 'concat',
-        '-safe', '0',
-        '-i', concat_file,
-        '-c', 'copy',  # Copy streams without re-encoding (preserves timing exactly)
-        output_path
-    ]
-    
-    print(f"[DEBUG] Combining command (trying -c copy): {' '.join(combine_cmd)}")
-    
-    try:
-        result = subprocess.run(combine_cmd, capture_output=True, text=True, timeout=600)
-        
-        if result.returncode != 0:
-            # If -c copy fails (incompatible formats), try minimal PCM encoding
-            print(f"[DEBUG] -c copy failed, trying minimal PCM encoding...")
-            print(f"[DEBUG] FFmpeg stderr: {result.stderr}")
-            
-            combine_cmd = [
-                ffmpeg_path,
-                '-y',
-                '-f', 'concat',
-                '-safe', '0',
-                '-i', concat_file,
-                '-c:a', 'pcm_s16le',  # Minimal re-encoding (PCM, no compression)
-                '-ar', '24000',       # Keep original sample rate if possible
-                '-ac', '1',           # Keep original channels
-                output_path
-            ]
-            
-            print(f"[DEBUG] Combining command (PCM fallback): {' '.join(combine_cmd)}")
-            result = subprocess.run(combine_cmd, capture_output=True, text=True, timeout=600)
-            
-            if result.returncode != 0:
-                print(f"[DEBUG] FFmpeg stdout: {result.stdout}")
-                print(f"[DEBUG] FFmpeg stderr: {result.stderr}")
-                raise Exception(f"FFmpeg audio combination failed: {result.stderr}")
-        
-        if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
-            raise Exception("Combined debug audio file is empty or doesn't exist")
-        
-        # Validate combined audio
-        combined_info = validate_audio_file(output_path)
-        if combined_info:
-            duration = combined_info.get('format', {}).get('duration', 'unknown')
-            print(f"[DEBUG] ✓ Combined debug audio duration: {duration}s")
-            print(f"[DEBUG] ✓ Debug audio saved to PERMANENT location: {output_path}")
-            print(f"[DEBUG] ✓ Full path: {os.path.abspath(output_path)}")
-        
-        return output_path
-        
-    except subprocess.TimeoutExpired:
-        raise Exception("FFmpeg audio combination timed out")
-    except Exception as e:
-        print(f"[DEBUG] Error creating debug audio: {e}")
-        raise
 
 def generate_ereader_frame(page_sentences, current_time, chapter_title, page_number, width, height, highlight_mode="sentence"):
     """
@@ -8323,16 +8081,15 @@ def calculate_step_scroll(current_time, total_duration, total_content_height, vi
 
 def calculate_srt_time_based_scroll(current_time, srt_entries, layout, total_duration, viewport_height):
     """
-    SRT time-based scrolling with FIXED POSITION mode: Active SRT text is always positioned at a fixed Y position.
+    Simple SRT time-based scrolling for no-highlight mode.
     Uses SRT timing directly (no text matching required) to determine scroll position.
     
-    FIXED POSITION BEHAVIOR:
-    - When an SRT entry is active (being read), its text is always positioned at a fixed Y position (e.g., 10% from top)
-    - Scroll position is continuously adjusted to maintain this fixed position throughout the SRT entry's duration
+    Since SRT gaps have been removed, we can use SRT entry indices and timing
+    to map scroll position directly based on which SRT entry is active.
     
     Args:
         current_time: Current video time in seconds
-        srt_entries: List of SRT entries with original timings (gaps preserved)
+        srt_entries: List of SRT entries (with gaps already removed)
         layout: Pre-computed text layout
         total_duration: Total video duration
         viewport_height: Viewport height in pixels
@@ -8345,503 +8102,62 @@ def calculate_srt_time_based_scroll(current_time, srt_entries, layout, total_dur
         return calculate_scroll_position(current_time, total_duration,
                                 layout['total_height'], viewport_height)
     
-    # Account for text container margins (74% effective viewport)
-    effective_viewport = viewport_height * 0.74
-    max_scroll = max(0, layout['total_height'] - effective_viewport + layout.get('padding', 0) * 2)
+    max_scroll = max(float(layout['total_height']) - float(viewport_height), 0.0)
     
-    # FIXED POSITION: Position active SRT at beginning of viewport (10% from top)
-    FIXED_POSITION_RATIO = 0.10  # 10% from top (beginning of viewport)
-    target_position_on_screen = viewport_height * FIXED_POSITION_RATIO
-    
-    # Find current active SRT entry
-    current_active_srt_index = -1
+    # Find which SRT entry is currently active
+    active_srt_index = -1
     for i, entry in enumerate(srt_entries):
         if entry['start'] <= current_time < entry['end']:
-            current_active_srt_index = i
+            active_srt_index = i
             break
     
-    if current_active_srt_index >= 0:
-        # Estimate text Y position using ratio-based approach (since we don't have srt_to_sentence_map in this function)
-        total_srt_entries = len(srt_entries)
-        if total_srt_entries > 1:
-            current_srt_ratio = current_active_srt_index / (total_srt_entries - 1)
-            estimated_text_y = current_srt_ratio * layout['total_height']
-        else:
-            estimated_text_y = layout['total_height'] * 0.5
-        
-        # Calculate scroll to position this SRT's text at the fixed position
-        target_scroll = max(0, estimated_text_y - target_position_on_screen)
-        target_scroll = min(target_scroll, max_scroll)
-        return target_scroll
-    
-    # No active SRT entry - find next one
-    next_srt_index = -1
-    for i, entry in enumerate(srt_entries):
-        if current_time < entry['start']:
-            next_srt_index = i
-            break
-    
-    if next_srt_index >= 0:
-        total_srt_entries = len(srt_entries)
-        if total_srt_entries > 1:
-            next_srt_ratio = next_srt_index / (total_srt_entries - 1)
-            estimated_text_y = next_srt_ratio * layout['total_height']
-        else:
-            estimated_text_y = layout['total_height'] * 0.5
-        
-        target_scroll = max(0, estimated_text_y - target_position_on_screen)
-        target_scroll = min(target_scroll, max_scroll)
-        return target_scroll
-    
-    # Fallback
-    return max_scroll
-
-def get_audio_chunk_durations(audio_files):
-    """
-    Get accurate durations for each audio chunk using FFprobe.
-    
-    Args:
-        audio_files: List of audio file paths
-        
-    Returns:
-        List of durations in seconds, or None if unable to determine
-    """
-    if not audio_files:
-        return None
-    
-    durations = []
-    for i, audio_file in enumerate(audio_files):
-        info = validate_audio_file(audio_file)
-        if info:
-            duration = info.get('format', {}).get('duration', None)
-            # FFprobe returns duration as a string, so convert it
-            if duration is not None:
-                try:
-                    duration_float = float(duration)
-                    if duration_float > 0:
-                        durations.append(duration_float)
-                        print(f"[Audio Timing] Chunk {i}: {duration_float:.3f}s (FFprobe)")
-                    else:
-                        print(f"[Audio Timing] WARNING: Chunk {i} has invalid duration: {duration}")
-                        return None  # If any chunk fails, return None
-                except (ValueError, TypeError) as e:
-                    print(f"[Audio Timing] WARNING: Chunk {i} duration conversion failed: {duration}, error: {e}")
-                    return None
-            else:
-                print(f"[Audio Timing] WARNING: Chunk {i} duration unavailable from FFprobe")
-                return None
-        else:
-            print(f"[Audio Timing] WARNING: Chunk {i} validation failed")
-            return None
-    
-    if len(durations) == len(audio_files):
-        print(f"[Audio Timing] Successfully extracted {len(durations)} chunk durations")
-        return durations
-    else:
-        print(f"[Audio Timing] WARNING: Duration count mismatch ({len(durations)} vs {len(audio_files)})")
-        return None
-
-def calculate_chunk_timings(audio_durations):
-    """
-    Calculate chunk-level timing map from audio durations.
-    
-    Args:
-        audio_durations: List of durations in seconds for each chunk
-        
-    Returns:
-        List of tuples: [(start_time, end_time), ...]
-    """
-    if not audio_durations:
-        return None
-    
-    chunk_timings = []
-    cumulative_time = 0.0
-    
-    for i, duration in enumerate(audio_durations):
-        start_time = cumulative_time
-        end_time = cumulative_time + duration
-        chunk_timings.append((start_time, end_time))
-        cumulative_time = end_time
-        print(f"[Chunk Timing] Chunk {i}: {start_time:.3f}s - {end_time:.3f}s")
-    
-    return chunk_timings
-
-# DEPRECATED: Course correction no longer needed - Kokoro SRT timings are accurate
-# This function is kept for reference but is no longer used.
-# def correct_srt_timings_with_chunks(srt_entries, chunk_timings, srt_entry_counts):
-#     """
-#     Course-correct SRT timings using accurate chunk timings.
-#     Uses sequence correlation: SRT entries are generated per chunk in order.
-#     
-#     Strategy:
-#     1. Map SRT entries to chunks based on sequence (srt_entry_counts)
-#     2. Use chunk boundaries as anchor points (accurate from FFprobe)
-#     3. Scale and shift SRT timings within each chunk to align with chunk boundaries
-#     4. Preserve relative timing within chunks
-#     
-#     Args:
-#         srt_entries: List of SRT entry dicts with 'start', 'end', 'text' keys
-#         chunk_timings: List of (start_time, end_time) tuples for each chunk (from FFprobe)
-#         srt_entry_counts: List of SRT entry counts per chunk (from frontend)
-#         
-#     Returns:
-#         List of corrected SRT entry dicts with aligned timings
-#     """
-#     if not srt_entries or not chunk_timings:
-#         print("[SRT Correction] Missing data, returning original SRT entries")
-#         return srt_entries
-#     
-#     # FALLBACK: If all counts are zero, distribute SRT entries evenly across chunks
-#     if not srt_entry_counts or all(count == 0 for count in srt_entry_counts):
-#         print("[SRT Correction] WARNING: All SRT entry counts are zero, using fallback distribution")
-#         if len(chunk_timings) > 0 and len(srt_entries) > 0:
-#             total_srt_entries = len(srt_entries)
-#             srt_per_chunk = total_srt_entries / len(chunk_timings)
-#             srt_entry_counts = [int(srt_per_chunk) for _ in chunk_timings]
-#             # Distribute remainder
-#             remainder = total_srt_entries - sum(srt_entry_counts)
-#             for i in range(remainder):
-#                 srt_entry_counts[i] += 1
-#             print(f"[SRT Correction] Fallback: Distributed {total_srt_entries} SRT entries across {len(chunk_timings)} chunks")
-#             print(f"[SRT Correction] Fallback distribution: {srt_entry_counts[:10]}... (showing first 10)")
-#         else:
-#             print("[SRT Correction] Cannot use fallback: missing chunks or SRT entries")
-#             return srt_entries
-#     
-#     if len(chunk_timings) != len(srt_entry_counts):
-#         print(f"[SRT Correction] WARNING: Chunk count mismatch ({len(chunk_timings)} chunks vs {len(srt_entry_counts)} counts)")
-#         # Try to pad or truncate to match
-#         if len(srt_entry_counts) < len(chunk_timings):
-#             srt_entry_counts.extend([0] * (len(chunk_timings) - len(srt_entry_counts)))
-#             print(f"[SRT Correction] Padded srt_entry_counts to {len(srt_entry_counts)}")
-#         else:
-#             srt_entry_counts = srt_entry_counts[:len(chunk_timings)]
-#             print(f"[SRT Correction] Truncated srt_entry_counts to {len(srt_entry_counts)}")
-#     
-#     corrected_entries = []
-#     srt_index = 0
-#     
-#     print(f"[SRT Correction] Starting course correction with {len(srt_entries)} SRT entries across {len(chunk_timings)} chunks")
-#     
-#     for chunk_idx, (chunk_start, chunk_end) in enumerate(chunk_timings):
-#         chunk_duration = chunk_end - chunk_start
-#         
-#         # Get SRT entry count for this chunk
-#         srt_count_for_chunk = srt_entry_counts[chunk_idx] if chunk_idx < len(srt_entry_counts) else 0
-#         
-#         if srt_count_for_chunk == 0:
-#             # No SRT entries for this chunk, skip
-#             continue
-#         
-#         # Get SRT entries that belong to this chunk (sequence correlation)
-#         chunk_srt_start_idx = srt_index
-#         chunk_srt_end_idx = min(srt_index + srt_count_for_chunk, len(srt_entries))
-#         
-#         if chunk_srt_start_idx >= len(srt_entries):
-#             break
-#         
-#         # Get SRT entries for this chunk
-#         chunk_srt_entries = srt_entries[chunk_srt_start_idx:chunk_srt_end_idx]
-#         
-#         if not chunk_srt_entries:
-#             continue
-#         
-#         # Calculate original SRT span for this chunk
-#         first_srt_start = chunk_srt_entries[0]['start']
-#         last_srt_end = chunk_srt_entries[-1]['end']
-#         original_srt_span = last_srt_end - first_srt_start
-#         
-#         # Calculate correction: scale and shift
-#         if original_srt_span > 0:
-#             scale_factor = chunk_duration / original_srt_span
-#         else:
-#             scale_factor = 1.0
-#         
-#         print(f"[SRT Correction] Chunk {chunk_idx}: {len(chunk_srt_entries)} SRT entries, "
-#               f"original span={original_srt_span:.3f}s, chunk duration={chunk_duration:.3f}s, "
-#               f"scale factor={scale_factor:.4f}")
-#         
-#         # Apply correction to each SRT entry in this chunk
-#         for srt_entry in chunk_srt_entries:
-#             # Normalize to start of chunk (relative to first SRT entry)
-#             relative_start = srt_entry['start'] - first_srt_start
-#             relative_end = srt_entry['end'] - first_srt_start
-#             
-#             # Scale relative to chunk duration
-#             corrected_relative_start = relative_start * scale_factor
-#             corrected_relative_end = relative_end * scale_factor
-#             
-#             # Shift to chunk start (align with accurate chunk boundary)
-#             corrected_start = chunk_start + corrected_relative_start
-#             corrected_end = chunk_start + corrected_relative_end
-#             
-#             corrected_entries.append({
-#                 'start': corrected_start,
-#                 'end': corrected_end,
-#                 'text': srt_entry['text']
-#             })
-#         
-#         srt_index = chunk_srt_end_idx
-#     
-#     # Add any remaining SRT entries that weren't mapped to chunks (shouldn't happen, but safety)
-#     if srt_index < len(srt_entries):
-#         print(f"[SRT Correction] WARNING: {len(srt_entries) - srt_index} SRT entries not mapped to chunks, adding uncorrected")
-#         for i in range(srt_index, len(srt_entries)):
-#             corrected_entries.append(srt_entries[i])
-#     
-#     print(f"[SRT Correction] Course correction complete: {len(corrected_entries)} corrected entries")
-#     return corrected_entries
-
-def get_srt_text_y_position(srt_index, srt_entries, layout, srt_to_sentence_map=None):
-    """
-    Get the actual Y position of text for an SRT entry using hybrid approach:
-    1. Use actual position from srt_to_sentence_map if available (most accurate)
-    2. Interpolate between nearby matched entries if unmatched
-    3. Fall back to ratio-based estimation only as last resort
-    
-    Args:
-        srt_index: Index of SRT entry
-        srt_entries: List of SRT entries
-        layout: Pre-computed text layout
-        srt_to_sentence_map: Optional mapping from SRT index to line index
-        
-    Returns:
-        Y position in pixels, or None if unable to determine
-    """
-    if srt_index < 0 or srt_index >= len(srt_entries):
-        return None
-    
-    # OPTION 1: Use actual text position from mapping (most accurate)
-    if srt_to_sentence_map and srt_index in srt_to_sentence_map:
-        line_indices = srt_to_sentence_map[srt_index]
-        line_index = line_indices[0] if isinstance(line_indices, list) else line_indices
-        
-        if line_index is not None and 0 <= line_index < len(layout['lines']):
-            return layout['lines'][line_index]['y']
-    
-    # OPTION 2: Interpolate between nearby matched entries
-    if srt_to_sentence_map and len(srt_to_sentence_map) > 0:
-        # Find nearest matched entries before and after this unmatched entry
-        prev_matched_index = None
-        next_matched_index = None
-        prev_matched_y = None
-        next_matched_y = None
-        
-        # Look backwards for matched entry
-        for j in range(srt_index - 1, -1, -1):
-            if j in srt_to_sentence_map:
-                line_indices = srt_to_sentence_map[j]
-                line_index = line_indices[0] if isinstance(line_indices, list) else line_indices
-                if line_index is not None and 0 <= line_index < len(layout['lines']):
-                    prev_matched_index = j
-                    prev_matched_y = layout['lines'][line_index]['y']
-                    break
-        
-        # Look forwards for matched entry
-        for j in range(srt_index + 1, len(srt_entries)):
-            if j in srt_to_sentence_map:
-                line_indices = srt_to_sentence_map[j]
-                line_index = line_indices[0] if isinstance(line_indices, list) else line_indices
-                if line_index is not None and 0 <= line_index < len(layout['lines']):
-                    next_matched_index = j
-                    next_matched_y = layout['lines'][line_index]['y']
-                    break
-        
-        # Interpolate between matched entries
-        if prev_matched_index is not None and next_matched_index is not None:
-            # Linear interpolation based on SRT index
-            index_span = next_matched_index - prev_matched_index
-            if index_span > 0:
-                index_ratio = (srt_index - prev_matched_index) / index_span
-                interpolated_y = prev_matched_y + (next_matched_y - prev_matched_y) * index_ratio
-                return interpolated_y
-        elif prev_matched_index is not None:
-            # Only previous match - extrapolate forward using average scroll rate
-            # Find another matched entry to calculate rate
-            for j in range(prev_matched_index - 1, -1, -1):
-                if j in srt_to_sentence_map:
-                    line_indices = srt_to_sentence_map[j]
-                    line_index = line_indices[0] if isinstance(line_indices, list) else line_indices
-                    if line_index is not None and 0 <= line_index < len(layout['lines']):
-                        prev_prev_y = layout['lines'][line_index]['y']
-                        index_diff = prev_matched_index - j
-                        if index_diff > 0:
-                            scroll_rate = (prev_matched_y - prev_prev_y) / index_diff
-                            index_offset = srt_index - prev_matched_index
-                            extrapolated_y = prev_matched_y + scroll_rate * index_offset
-                            return max(0, extrapolated_y)
-                    break
-        elif next_matched_index is not None:
-            # Only next match - extrapolate backward using average scroll rate
-            # Find another matched entry to calculate rate
-            for j in range(next_matched_index + 1, len(srt_entries)):
-                if j in srt_to_sentence_map:
-                    line_indices = srt_to_sentence_map[j]
-                    line_index = line_indices[0] if isinstance(line_indices, list) else line_indices
-                    if line_index is not None and 0 <= line_index < len(layout['lines']):
-                        next_next_y = layout['lines'][line_index]['y']
-                        index_diff = j - next_matched_index
-                        if index_diff > 0:
-                            scroll_rate = (next_next_y - next_matched_y) / index_diff
-                            index_offset = srt_index - next_matched_index
-                            extrapolated_y = next_matched_y + scroll_rate * index_offset
-                            return max(0, extrapolated_y)
-                    break
-    
-    # OPTION 3: Fall back to ratio-based estimation (last resort)
-    total_srt_entries = len(srt_entries)
-    if total_srt_entries > 1:
-        srt_ratio = srt_index / (total_srt_entries - 1)
-        estimated_y = srt_ratio * layout['total_height']
-        return estimated_y
-    else:
-        return layout['total_height']
-
-def calculate_page_based_scroll(current_time, srt_entries, layout, viewport_height, chunk_timings, previous_scroll=None, srt_to_sentence_map=None):
-    """
-    Page-based scrolling with FIXED POSITION mode: Active SRT text is always positioned at a fixed Y position.
-    Uses accurate chunk timings (from FFprobe) for page change triggers, and hybrid text positioning.
-    
-    FIXED POSITION BEHAVIOR:
-    - When an SRT entry is active (being read), its text is always positioned at a fixed Y position (e.g., 10% from top)
-    - Scroll position is continuously adjusted to maintain this fixed position throughout the SRT entry's duration
-    - Only scrolls when transitioning to the next SRT entry
-    
-    Note: SRT entries use accurate Kokoro timings directly (no course correction needed).
-    
-    Args:
-        current_time: Current video time in seconds
-        srt_entries: List of SRT entries with 'start', 'end', 'text' keys (using accurate Kokoro timings)
-        layout: Pre-computed text layout with 'lines', 'total_height', 'padding'
-        viewport_height: Viewport height in pixels
-        chunk_timings: List of (start_time, end_time) tuples for each audio chunk (from FFprobe)
-        previous_scroll: Previous scroll position for smooth transitions
-        srt_to_sentence_map: Optional mapping from SRT index to line index for accurate text positioning
-        
-    Returns:
-        Scroll Y position in pixels
-    """
-    if not srt_entries or len(srt_entries) == 0:
-        # Fallback to linear scrolling (estimate total duration from layout height)
-        # Use a rough estimate: assume 1 second per 100 pixels of content
-        estimated_duration = max(1.0, layout['total_height'] / 100.0)
-        return calculate_scroll_position(current_time, estimated_duration,
-                                        layout['total_height'], viewport_height)
-    
-    # Account for text container margins (18% top + 8% bottom = 26% total)
-    # Container only takes up 74% of frame height, so use that as effective viewport
-    effective_viewport = viewport_height * 0.74
-    max_scroll = max(0, layout['total_height'] - effective_viewport + layout.get('padding', 0) * 2)
-    
-    # FIXED POSITION: Position active SRT at beginning of viewport (10% from top)
-    # You can adjust this value: 0.10 = 10% from top, 0.15 = 15% from top, etc.
-    FIXED_POSITION_RATIO = 0.10  # 10% from top (beginning of viewport)
-    target_position_on_screen = viewport_height * FIXED_POSITION_RATIO
-    
-    # STEP 1: Map SRT entries to chunks based on timing overlap
-    # This allows us to use accurate chunk timings for page change triggers
-    srt_to_chunk_map = {}  # Maps SRT index to chunk index
-    if chunk_timings and len(chunk_timings) > 0:
-        for srt_idx, srt_entry in enumerate(srt_entries):
-            srt_start = srt_entry['start']
-            srt_end = srt_entry['end']
-            
-            # Find which chunk(s) overlap with this SRT entry
-            # Use the chunk that contains the SRT entry's start time (primary chunk)
-            for chunk_idx, (chunk_start, chunk_end) in enumerate(chunk_timings):
-                if chunk_start <= srt_start < chunk_end:
-                    srt_to_chunk_map[srt_idx] = chunk_idx
-                    break
-    
-    # STEP 2: Find current active chunk using accurate chunk timings
-    current_chunk_index = -1
-    if chunk_timings and len(chunk_timings) > 0:
-        for chunk_idx, (chunk_start, chunk_end) in enumerate(chunk_timings):
-            if chunk_start <= current_time < chunk_end:
-                current_chunk_index = chunk_idx
+    # If no active entry, find nearest
+    if active_srt_index == -1:
+        # Find the entry we're closest to
+        for i, entry in enumerate(srt_entries):
+            if current_time < entry['start']:
+                active_srt_index = i - 1 if i > 0 else 0
                 break
+        if active_srt_index == -1:
+            active_srt_index = len(srt_entries) - 1
     
-    # STEP 3: Find current active SRT entry (the one being read aloud right now)
-    current_active_srt_index = -1
-    for i, entry in enumerate(srt_entries):
-        if entry['start'] <= current_time < entry['end']:
-            current_active_srt_index = i
-            break
+    # Calculate scroll based on SRT entry progress
+    # Map: SRT entry index -> scroll position
+    total_srt_entries = len(srt_entries)
     
-    # STEP 4: If we have an active SRT entry, position it at the fixed position
-    if current_active_srt_index >= 0:
-        # Get the Y position of the active SRT entry's text using hybrid approach
-        current_srt_y = get_srt_text_y_position(current_active_srt_index, srt_entries, layout, srt_to_sentence_map)
-        
-        if current_srt_y is not None:
-            # Calculate scroll to position this SRT's text at the fixed position
-            target_scroll = max(0, current_srt_y - target_position_on_screen)
-            target_scroll = min(target_scroll, max_scroll)
-            
-            # Smooth transition from previous scroll to target (if previous_scroll exists)
-            if previous_scroll is not None:
-                # Use smooth easing for transitions between SRT entries
-                distance = abs(target_scroll - previous_scroll)
-                snap_threshold = 5.0  # pixels - snap when very close
-                
-                if distance < snap_threshold:
-                    # Already at target, maintain position
-                    scroll_y = target_scroll
-                else:
-                    # Smooth transition using ease-in-out
-                    ease_factor = 0.3  # Moderate ease speed
-                    scroll_y = previous_scroll + (target_scroll - previous_scroll) * ease_factor
-                    
-                    # Snap when close enough
-                    if abs(scroll_y - target_scroll) < snap_threshold:
-                        scroll_y = target_scroll
-            else:
-                # No previous scroll, jump directly to target
-                scroll_y = target_scroll
-            
-            return scroll_y
+    if total_srt_entries == 1:
+        # Only one SRT entry - use time progress within it
+        entry = srt_entries[0]
+        entry_duration = entry['end'] - entry['start']
+        if entry_duration > 0:
+            entry_progress = (current_time - entry['start']) / entry_duration
+            entry_progress = max(0.0, min(1.0, entry_progress))
         else:
-            # Fallback: Unable to determine text position, use ratio-based estimation
-            total_srt_entries = len(srt_entries)
-            if total_srt_entries > 1:
-                current_srt_ratio = current_active_srt_index / (total_srt_entries - 1)
-                target_scroll = current_srt_ratio * max_scroll
-                target_scroll = min(target_scroll, max_scroll)
-                
-                if previous_scroll is not None:
-                    ease_factor = 0.3
-                    scroll_y = previous_scroll + (target_scroll - previous_scroll) * ease_factor
-                else:
-                    scroll_y = target_scroll
-                return scroll_y
-    
-    # STEP 5: No active SRT entry (between entries or before first entry)
-    # Find next SRT entry to position
-    next_srt_index = -1
-    for i, entry in enumerate(srt_entries):
-        if current_time < entry['start']:
-            next_srt_index = i
-            break
-    
-    if next_srt_index >= 0:
-        # Position next SRT entry at fixed position
-        next_srt_y = get_srt_text_y_position(next_srt_index, srt_entries, layout, srt_to_sentence_map)
-        if next_srt_y is not None:
-            target_scroll = max(0, next_srt_y - target_position_on_screen)
-            target_scroll = min(target_scroll, max_scroll)
-            
-            if previous_scroll is not None:
-                ease_factor = 0.3
-                scroll_y = previous_scroll + (target_scroll - previous_scroll) * ease_factor
-            else:
-                scroll_y = target_scroll
-            return scroll_y
-    
-    # STEP 6: Fallback - maintain previous scroll or use max scroll
-    if previous_scroll is not None:
-        return previous_scroll
+            entry_progress = 0.0
+        scroll_ratio = entry_progress
     else:
-        return max_scroll
+        # Multiple entries - calculate progress through entries
+        entry = srt_entries[active_srt_index]
+        entry_duration = entry['end'] - entry['start']
+        
+        # Calculate progress within current entry
+        if entry_duration > 0:
+            entry_progress = (current_time - entry['start']) / entry_duration
+            entry_progress = max(0.0, min(1.0, entry_progress))
+        else:
+            entry_progress = 0.0
+        
+        # Map entry index + progress to scroll ratio
+        # Entry 0 = 0% scroll, Entry N-1 = 100% scroll
+        current_entry_ratio = active_srt_index / (total_srt_entries - 1)
+        next_entry_ratio = (active_srt_index + 1) / (total_srt_entries - 1) if active_srt_index < total_srt_entries - 1 else 1.0
+        
+        # Interpolate between entry positions
+        scroll_ratio = current_entry_ratio + (next_entry_ratio - current_entry_ratio) * entry_progress
+    
+    # Apply to scroll
+    scroll_y = scroll_ratio * max_scroll
+    return min(scroll_y, max_scroll)
 
 def parse_srt_entries(srt_data):
     """Parse SRT data into structured entries."""
@@ -8883,15 +8199,115 @@ def parse_srt_entries(srt_data):
                         'text': text.strip()
                     }
                     entries.append(entry)
-                    # Convert to HH:MM:SS format for easier reading
-                    start_formatted = seconds_to_time_format(start_time)
-                    end_formatted = seconds_to_time_format(end_time)
-                    print(f"DEBUG: SRT Entry {i+1}: {start_formatted}-{end_formatted} '{text.strip()}'")
+                    print(f"DEBUG: SRT Entry {i+1}: {start_time:.2f}s-{end_time:.2f}s '{text.strip()}'")
                 except Exception as e:
                     print(f"DEBUG: Failed to parse block {i+1}: {e}")
     
     print(f"DEBUG: Parsed {len(entries)} SRT entries total")
     return entries
+
+def remove_srt_gaps(srt_entries):
+    """
+    Remove gaps from SRT timings by shifting entries forward.
+    
+    When a gap is detected between consecutive entries (e.g., Entry N ends at 46.50s
+    and Entry N+1 starts at 57.27s), shift Entry N+1 and all subsequent entries
+    forward by the gap amount. This makes SRT timings continuous and matches
+    the actual continuous audio playback.
+    
+    Args:
+        srt_entries: List of SRT entry dicts with 'start', 'end', and 'text' keys.
+    
+    Returns:
+        List of SRT entries with gaps removed (all entries are now continuous).
+    """
+    if not srt_entries or len(srt_entries) <= 1:
+        return srt_entries
+    
+    # Validate and normalize timestamps (ensure they're floats)
+    validated_entries = []
+    for entry in srt_entries:
+        try:
+            start = float(entry['start'])
+            end = float(entry['end'])
+            
+            # Sanity check: timestamps should be reasonable (0 to 10 hours max)
+            if start < 0 or end < 0 or start > 36000 or end > 36000:
+                print(f"[SRT Gap Removal] WARNING: Invalid timestamp in entry: start={start}, end={end}")
+                continue
+            
+            if end <= start:
+                print(f"[SRT Gap Removal] WARNING: Entry has end <= start: start={start}, end={end}, skipping")
+                continue
+            
+            validated_entries.append({
+                'start': start,
+                'end': end,
+                'text': entry.get('text', '')
+            })
+        except (ValueError, TypeError, KeyError) as e:
+            print(f"[SRT Gap Removal] ERROR: Invalid entry format: {entry}, error: {e}")
+            continue
+    
+    if len(validated_entries) <= 1:
+        return validated_entries
+    
+    compressed = [validated_entries[0].copy()]  # First entry unchanged
+    cumulative_shift = 0.0
+    gaps_removed = 0
+    
+    for i in range(1, len(validated_entries)):
+        # CRITICAL FIX: Use ORIGINAL previous entry (not compressed) for gap calculation
+        # The compressed entry has already been shifted, so using its end time would double-count shifts
+        prev_entry_original = validated_entries[i - 1]
+        current_entry = validated_entries[i]
+        
+        # Calculate gap between ORIGINAL previous entry end and current entry start
+        gap = current_entry['start'] - prev_entry_original['end']
+        
+        # Validate gap is reasonable (not astronomical)
+        if gap > 3600:  # More than 1 hour gap is likely an error
+            print(f"[SRT Gap Removal] WARNING: Suspiciously large gap ({gap:.2f}s) at entry {i+1}, skipping gap removal for this entry")
+            # Don't accumulate this gap, just use the entry as-is (preserve the gap)
+            compressed.append(current_entry.copy())
+            continue
+        
+        # If gap is significant (>100ms), it's likely a false gap that needs removal
+        if gap > 0.1:
+            # Accumulate shift amount
+            cumulative_shift += gap
+            gaps_removed += 1
+            print(f"[SRT Gap Removal] Entry {i+1}: Removing {gap:.2f}s gap (total shift: {cumulative_shift:.2f}s)")
+        
+        # Shift entry forward by cumulative shift amount
+        compressed_entry = {
+            'start': current_entry['start'] - cumulative_shift,
+            'end': current_entry['end'] - cumulative_shift,
+            'text': current_entry['text']
+        }
+        
+        # Final validation: ensure shifted times are still valid
+        if compressed_entry['start'] < 0:
+            print(f"[SRT Gap Removal] WARNING: Shifted start time is negative: {compressed_entry['start']}, clamping to 0")
+            duration = compressed_entry['end'] - compressed_entry['start']
+            compressed_entry['start'] = 0.0
+            compressed_entry['end'] = duration
+        
+        if compressed_entry['end'] <= compressed_entry['start']:
+            print(f"[SRT Gap Removal] WARNING: Shifted entry has end <= start, skipping")
+            continue
+        
+        compressed.append(compressed_entry)
+    
+    if gaps_removed > 0:
+        print(f"[SRT Gap Removal] Removed {gaps_removed} gaps, total time removed: {cumulative_shift:.2f}s")
+        if len(compressed) > 0:
+            print(f"[SRT Gap Removal] Original duration: {validated_entries[-1]['end'] - validated_entries[0]['start']:.2f}s")
+            print(f"[SRT Gap Removal] Compressed duration: {compressed[-1]['end'] - compressed[0]['start']:.2f}s")
+    else:
+        print(f"[SRT Gap Removal] No gaps detected, SRT timings are already continuous")
+    
+    return compressed
 
 def parse_time_to_seconds(time_str):
     """Parse SRT time format to seconds."""
@@ -8902,13 +8318,6 @@ def parse_time_to_seconds(time_str):
     seconds = int(sec_parts[0])
     milliseconds = int(sec_parts[1])
     return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000
-
-def seconds_to_time_format(seconds):
-    """Convert seconds to HH:MM:SS.mm format for easier readability in logs."""
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = seconds % 60
-    return f"{hours:02d}:{int(minutes):02d}:{int(secs):02d}.{int((secs % 1) * 100):02d}"
 
 def normalize_text_for_matching(text):
     """
@@ -9246,18 +8655,6 @@ def create_srt_to_sentence_map(srt_entries, all_lines_data):
     if not srt_entries or not all_lines_data:
         return {}
     
-    # DEBUG: Log initial state
-    print(f"[DEBUG SRT Mapping] Starting mapping: {len(srt_entries)} SRT entries, {len(all_lines_data)} layout lines")
-    if len(srt_entries) > 0:
-        print(f"[DEBUG SRT Mapping] Sample SRT entries:")
-        for i in range(min(5, len(srt_entries))):
-            print(f"  SRT {i}: '{srt_entries[i]['text'][:60]}...'")
-    if len(all_lines_data) > 0:
-        print(f"[DEBUG SRT Mapping] Sample layout lines:")
-        for i in range(min(5, len(all_lines_data))):
-            line_data = all_lines_data[i]
-            print(f"  Line {i}: text='{line_data['text'][:60]}...', sentence='{line_data.get('sentence', '')[:60]}...'")
-    
     mapping = {}
     # REMOVED: mapped_srts - no longer needed with strict sequential mapping
     # REMOVED: mapped_lines - no longer blocking duplicate mapping to allow repeated text highlighting
@@ -9272,13 +8669,9 @@ def create_srt_to_sentence_map(srt_entries, all_lines_data):
         
         # Normalize SRT text first to determine length
         srt_text_norm = normalize_text_for_matching(srt_entry['text'])
-        srt_text_original = srt_entry['text']
         
         if len(srt_text_norm) < 3:
             continue  # Skip very short SRT entries
-        
-        # DEBUG: Log first 10 entries and every 50th entry to see what's being compared
-        should_debug = (srt_index < 10) or (srt_index % 50 == 0) or (srt_index in [5, 6, 7, 8, 9, 30, 31, 32, 33, 34])
         
         # OPTION 2: Dynamic window size based on SRT text length
         # Long SRT entries need larger windows to find matches
@@ -9302,22 +8695,14 @@ def create_srt_to_sentence_map(srt_entries, all_lines_data):
             sentence_norm = normalize_text_for_matching(line_data['sentence'])
             
             # Calculate similarity
-            similarity_line = difflib.SequenceMatcher(None, srt_text_norm, line_text_norm).ratio()
-            similarity_sentence = difflib.SequenceMatcher(None, srt_text_norm, sentence_norm).ratio()
-            similarity = max(similarity_line, similarity_sentence)
+            similarity = max(
+                difflib.SequenceMatcher(None, srt_text_norm, line_text_norm).ratio(),
+                difflib.SequenceMatcher(None, srt_text_norm, sentence_norm).ratio()
+            )
             
             if similarity > best_match_score:
                 best_match_score = similarity
                 best_line_index = line_index
-                
-                # DEBUG: Log details when we find a better match (for first 10 and problematic entries)
-                if should_debug and similarity > 0.0:
-                    print(f"    [DEBUG SRT {srt_index}] Better match found at line {line_index}:")
-                    print(f"      SRT original: '{srt_text_original[:80]}...'")
-                    print(f"      SRT normalized: '{srt_text_norm[:80]}...'")
-                    print(f"      Line text normalized: '{line_text_norm[:80]}...'")
-                    print(f"      Sentence normalized: '{sentence_norm[:80]}...'")
-                    print(f"      Similarity (line): {similarity_line:.3f}, (sentence): {similarity_sentence:.3f}")
         
         # Map if we found a good match (lowered threshold from 0.6 to 0.5 for better coverage)
         if best_match_score > 0.5 and best_line_index >= last_mapped_line:
@@ -9337,22 +8722,6 @@ def create_srt_to_sentence_map(srt_entries, all_lines_data):
                 last_mapped_line = min(last_mapped_line, end_line - 1)
             
             print(f"  SRT {srt_index} -> No match (best score: {best_match_score:.2f}, window: {window_size}), advancing to line {last_mapped_line}")
-            
-            # DEBUG: Log details when no match found (especially for 0.00 scores)
-            if should_debug:
-                print(f"    [DEBUG SRT {srt_index}] No match found:")
-                print(f"      SRT original: '{srt_text_original[:80]}...'")
-                print(f"      SRT normalized: '{srt_text_norm[:80]}...'")
-                print(f"      Search window: lines {start_line} to {end_line-1} (total lines: {len(all_lines_data)})")
-                if best_line_index >= 0:
-                    best_line_data = all_lines_data[best_line_index]
-                    best_line_text_norm = normalize_text_for_matching(best_line_data['text'])
-                    best_sentence_norm = normalize_text_for_matching(best_line_data['sentence'])
-                    print(f"      Best candidate (line {best_line_index}):")
-                    print(f"        Line text normalized: '{best_line_text_norm[:80]}...'")
-                    print(f"        Sentence normalized: '{best_sentence_norm[:80]}...'")
-                else:
-                    print(f"      No candidate found in search window")
 
     print(f"DEBUG: Sequential mapping created: {len(mapping)} of {len(srt_entries)} SRT entries mapped")
     return mapping
@@ -9747,8 +9116,7 @@ def generate_smart_scroll_frames(
     srt_to_sentence_map=None,  # Sequential mapping to prevent duplicate highlights
     scene_timings=None,  # NEW: Scene image timings for overlay
     scene_layout="overlay",
-    image_side="left",
-    chunk_timings=None  # NEW: Accurate chunk timings from FFprobe for page-based scrolling
+    image_side="left"
 ):
     """
     Generate key frames at SRT boundaries + regular intervals for accurate highlighting.
@@ -9858,15 +9226,8 @@ def generate_smart_scroll_frames(
                     )
                 previous_scroll = scroll_y
             elif highlight_mode == 'none':
-                if srt_entries and chunk_timings:
-                    # Use page-based scrolling with accurate chunk timings
-                    scroll_y = calculate_page_based_scroll(
-                        current_time, srt_entries, layout,
-                        height, chunk_timings, previous_scroll,
-                        srt_to_sentence_map=srt_to_sentence_map  # NEW: Pass the map for hybrid positioning
-                    )
-                elif srt_entries:
-                    # Fallback: Use SRT timing directly (no text matching needed for no-highlight mode)
+                if srt_entries:
+                    # Use SRT timing directly (no text matching needed for no-highlight mode)
                     scroll_y = calculate_srt_time_based_scroll(
                         current_time, srt_entries, layout,
                         total_duration, height
@@ -9952,15 +9313,8 @@ def generate_smart_scroll_frames(
                     )
                 previous_scroll = scroll_y
             elif highlight_mode == 'none':
-                if srt_entries and chunk_timings:
-                    # Use page-based scrolling with accurate chunk timings
-                    scroll_y = calculate_page_based_scroll(
-                        current_time, srt_entries, layout,
-                        height, chunk_timings, previous_scroll,
-                        srt_to_sentence_map=srt_to_sentence_map  # NEW: Pass the map for hybrid positioning
-                    )
-                elif srt_entries:
-                    # Fallback: Use SRT timing directly (no text matching needed for no-highlight mode)
+                if srt_entries:
+                    # Use SRT timing directly (no text matching needed for no-highlight mode)
                     scroll_y = calculate_srt_time_based_scroll(
                         current_time, srt_entries, layout,
                         total_duration, height
@@ -10063,19 +9417,19 @@ def load_ereader_fonts(width, height):
             ]
         }
     
-    # IMPROVED: Smaller font sizes for more content visibility
-    # Load body font (32pt - reduced from 38pt to show more text on screen)
-    body_size = int(32 * base_scale)
+    # IMPROVED: Smaller font sizes for more content
+    # Load body font (38pt - reduced from 52pt)
+    body_size = int(38 * base_scale)
     fonts['body'] = load_font_fallback(font_paths['serif'], body_size)
     fonts['body_size'] = body_size
     
-    # Load title font (40pt - reduced from 48pt)
-    title_size = int(40 * base_scale)
+    # Load title font (48pt - reduced from 68pt)
+    title_size = int(48 * base_scale)
     fonts['title'] = load_font_fallback(font_paths['serif_bold'], title_size)
     fonts['title_size'] = title_size
     
-    # Load page number font (20pt - reduced from 24pt)
-    page_num_size = int(20 * base_scale)
+    # Load page number font (24pt - reduced from 36pt)
+    page_num_size = int(24 * base_scale)
     fonts['page_num'] = load_font_fallback(font_paths['serif_italic'], page_num_size)
     fonts['page_num_size'] = page_num_size
     
@@ -10289,12 +9643,9 @@ def generate_ereader_key_frames(pages, duration, width, height, fps, temp_dir, c
     
     return frames_dir, len(unique_moments), unique_moments
 
-def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title, author, duration, srt_data, temp_dir, video_format="youtube", style="ereader", highlight_mode="sentence", scene_images=None, scene_image_paths=None, scene_layout="overlay", image_side="left", chunk_timings=None):
+def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title, author, duration, srt_data, temp_dir, video_format="youtube", style="ereader", highlight_mode="sentence", scene_images=None, scene_image_paths=None, scene_layout="overlay", image_side="left"):
     """
     Create video with smooth scrolling instead of page transitions
-    
-    Args:
-        chunk_timings: List of (start_time, end_time) tuples for each audio chunk (from FFprobe, for page change triggers)
     """
     print(f"Creating smooth scroll video: {chapter_title}")
     print(f"Text length: {len(text)} characters")
@@ -10334,21 +9685,17 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
     srt_entries = parse_srt_entries(srt_data) if srt_data else []
     if srt_entries:
         print(f"Parsed {len(srt_entries)} SRT entries")
-        print(f"[Video Generation] Using Kokoro SRT timings directly (no course correction needed - timings are accurate)")
+        # Remove gaps from SRT timings to match continuous audio playback
+        srt_entries = remove_srt_gaps(srt_entries)
+        print(f"After gap removal: {len(srt_entries)} SRT entries")
     
-    # Create similarity-based SRT-to-sentence mapping
-    # For highlight modes: used for highlighting (needs text matching)
-    # For no-highlight mode: Skip difflib matching since SRT timings are accurate - use time-based positioning directly
+    # Create similarity-based SRT-to-sentence mapping (only needed for highlight modes)
     srt_to_sentence_map = None
-    if highlight_mode != 'none' and srt_entries and layout['lines']:
-        # Only create mapping for highlight modes (sentence/word highlighting needs text matching)
-        print("Creating similarity-based SRT-to-sentence mapping (difflib) for highlight mode...")
+    if srt_entries and layout['lines'] and highlight_mode != 'none':
+        print("Creating similarity-based SRT-to-sentence mapping (difflib)...")
         srt_to_sentence_map = create_srt_to_sentence_map(srt_entries, layout['lines'])
-        print(f"SRT-to-sentence mapping created: {len(srt_to_sentence_map)} of {len(srt_entries)} entries mapped")
     elif highlight_mode == 'none':
-        print("Skipping SRT-to-sentence mapping for no-highlight mode (using accurate SRT timings directly)")
-    else:
-        print("Skipping SRT-to-sentence mapping (missing SRT entries or layout lines)")
+        print("Skipping SRT-to-sentence mapping (not needed for no-highlight mode)")
     
     # Calculate scene timings (NEW) - now with preprocessing!
     scene_timings = []
@@ -10370,8 +9717,7 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
         srt_to_sentence_map,
         scene_timings,
         scene_layout=scene_layout,
-        image_side=image_side,
-        chunk_timings=chunk_timings  # NEW: Pass chunk timings for page-based scrolling
+        image_side=image_side
     )
     
     # STEP 2: Encode video using the correct interpolation method

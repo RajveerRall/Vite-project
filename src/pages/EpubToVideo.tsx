@@ -3,7 +3,7 @@ import { Upload, Settings, FileText, Video, Loader2, ArrowLeft, CheckCircle } fr
 import { Link } from 'react-router-dom';
 import SEO from '../components/Common/SEO';
 import { useEpubExtraction } from '../hooks/useEpubExtraction';
-import { requestFullCast, ttsForLine } from '../services/fullCastTTS';
+import { requestFullCast, ttsForLine, type DialogueLine } from '../services/fullCastTTS';
 import { videoCacheService } from '../services/VideoCacheService';
 import { generateCacheKey } from '../utils/cacheKeyGenerator';
 
@@ -43,7 +43,7 @@ const EpubToVideo: React.FC = () => {
   // Queue state
   const [videoQueue, setVideoQueue] = useState<QueueItem[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
-  const [currentProcessingId, setCurrentProcessingId] = useState<string | null>(null);
+  const [_currentProcessingId, setCurrentProcessingId] = useState<string | null>(null);
   const [cacheStatuses, setCacheStatuses] = useState<Map<string, { hasCache: boolean; cacheSize: number; cacheDate: Date | null }>>(new Map());
 
   // Use the EPUB extraction hook (no TTS initialization)
@@ -380,6 +380,33 @@ const EpubToVideo: React.FC = () => {
 
       console.log(`[Video Generation] Received ${script.length} script lines from Full Cast`);
 
+      // Check for duplicate script lines
+      const scriptTexts = script.map((line: DialogueLine) => line.dialogue);
+      const duplicateLines: number[] = [];
+      const seenTexts = new Map<string, number[]>();
+      scriptTexts.forEach((text: string, idx: number) => {
+        if (!seenTexts.has(text)) {
+          seenTexts.set(text, [idx]);
+        } else {
+          seenTexts.get(text)!.push(idx);
+          if (seenTexts.get(text)!.length === 2) {
+            duplicateLines.push(...seenTexts.get(text)!);
+          } else {
+            duplicateLines.push(idx);
+          }
+        }
+      });
+      if (duplicateLines.length > 0) {
+        console.warn(`[Video Generation] ⚠️  Found ${duplicateLines.length} duplicate script lines!`);
+        console.warn(`[Video Generation] Duplicate line indices:`, duplicateLines);
+        // Show first 5 duplicates
+        duplicateLines.slice(0, 5).forEach(idx => {
+          console.warn(`  - Line ${idx + 1}: "${scriptTexts[idx].substring(0, 80)}..."`);
+        });
+      } else {
+        console.log(`[Video Generation] ✓ No duplicate script lines found`);
+      }
+
       // Initialize cache service and generate cache key
       await videoCacheService.init();
       const cacheKey = await generateCacheKey({
@@ -389,10 +416,35 @@ const EpubToVideo: React.FC = () => {
         settings
       });
       console.log(`[Video Generation] Cache key: ${cacheKey}`);
+      console.log(`[Video Generation] Chapter index: ${chapter.index}, Chapter title: ${chapter.title}`);
 
       // Check cache before generating audio
       const cachedData = await videoCacheService.loadCache(cacheKey);
+      
+      // Diagnostic: Verify cached data belongs to this chapter
+      if (cachedData && cachedData.metadata) {
+        console.log(`[Video Generation] Cached data metadata:`, {
+          bookTitle: cachedData.metadata.bookTitle,
+          chapterTitle: cachedData.metadata.chapterTitle,
+          chunkCount: cachedData.metadata.chunkCount,
+          totalDuration: cachedData.metadata.totalDuration,
+          timestamp: cachedData.metadata.timestamp ? new Date(cachedData.metadata.timestamp).toISOString() : 'unknown'
+        });
+        // Verify cache belongs to this chapter
+        if (cachedData.metadata.chapterTitle !== chapter.title) {
+          console.error(`[Video Generation] ⚠️  CACHE MISMATCH! Cached chapter "${cachedData.metadata.chapterTitle}" does not match current chapter "${chapter.title}"`);
+        }
+        if (cachedData.audioBlobs) {
+          console.log(`[Video Generation] Cached audio blobs count: ${cachedData.audioBlobs.length}`);
+          // Log first few blob sizes to detect duplicates
+          cachedData.audioBlobs.slice(0, 5).forEach((blob, i) => {
+            console.log(`[Video Generation] Cached blob ${i}: ${blob.size} bytes`);
+          });
+        }
+      }
+      
       let audioBlobs: Blob[] = [];
+      console.log(`[Video Generation] Initialized audioBlobs as empty array (length: ${audioBlobs.length})`);
       let durations: number[] = [];
       let combinedSrt = '';
       let cumulativeDuration = 0;
@@ -402,7 +454,25 @@ const EpubToVideo: React.FC = () => {
 
       if (cachedData && cachedData.audioBlobs && cachedData.audioBlobs.length > 0) {
         console.log('[Video Generation] Using cached audio data');
+        console.log(`[Video Generation] BEFORE assignment: audioBlobs.length = ${audioBlobs.length}`);
         audioBlobs = cachedData.audioBlobs;
+        console.log(`[Video Generation] AFTER assignment: audioBlobs.length = ${audioBlobs.length}`);
+        
+        // Check for duplicate blob sizes (potential duplicates)
+        const blobSizes = audioBlobs.map(b => b.size);
+        const sizeCounts = new Map<number, number>();
+        blobSizes.forEach(size => {
+          sizeCounts.set(size, (sizeCounts.get(size) || 0) + 1);
+        });
+        const duplicates = Array.from(sizeCounts.entries()).filter(([, count]) => count > 1);
+        if (duplicates.length > 0) {
+          console.warn(`[Video Generation] ⚠️  Found ${duplicates.length} duplicate blob sizes in cached audio!`);
+          duplicates.slice(0, 5).forEach(([size, count]) => {
+            const indices = blobSizes.map((s, idx) => s === size ? idx : -1).filter(idx => idx >= 0);
+            console.warn(`  - Size ${size} bytes appears ${count} times at indices: ${indices.slice(0, 10).join(', ')}`);
+          });
+        }
+        
         durations = cachedData.durations || [];
         combinedSrt = cachedData.srtData || '';
         cumulativeDuration = cachedData.metadata?.totalDuration || durations.reduce((sum, d) => sum + d, 0);
@@ -476,28 +546,50 @@ const EpubToVideo: React.FC = () => {
         const normalized = rawTitle.toLowerCase().replace(/[^a-z0-9\-]+/g, '-').replace(/^-+|-+$/g, '');
         const styleKey = `yoread-${normalized}`;
 
-        sceneAnalysisPromise = fetch(`${FULL_CAST_TTS_URL}/api/analyze-scenes`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: chapter.content,
-            bookTitle: uploadedFile?.name || 'Unknown',
-            chapter: chapter.title,
-            maxScenes: Math.ceil(chapter.content.length / 1500), // Let LLM decide optimal scene count (no hard limit)
-            bookTheme: 'atmospheric narrative',
-            colorPalette: 'muted tones with dramatic contrasts',
-            videoFormat: settings.format,
-            styleKey,
-            bibleMode: 'use',
-            strictImageCompliance: true,
-            detailLevel: 'high'
-          })
-        })
-          .then(res => res.json())
-          .catch(err => {
-            console.warn('[Video Generation] Scene analysis failed:', err);
-            return { scenes: [] };
-          });
+        sceneAnalysisPromise = (async () => {
+          const makeRequest = async () => {
+            const response = await fetch(`${FULL_CAST_TTS_URL}/api/analyze-scenes`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text: chapter.content,
+                bookTitle: uploadedFile?.name || 'Unknown',
+                chapter: chapter.title,
+                maxScenes: Math.ceil(chapter.content.length / 1500), // Let LLM decide optimal scene count (no hard limit)
+                bookTheme: 'atmospheric narrative',
+                colorPalette: 'muted tones with dramatic contrasts',
+                videoFormat: settings.format,
+                styleKey,
+                bibleMode: 'use',
+                strictImageCompliance: true,
+                detailLevel: 'high'
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Scene analysis API returned ${response.status}: ${response.statusText}`);
+            }
+            
+            return await response.json();
+          };
+
+          try {
+            // First attempt
+            return await makeRequest();
+          } catch (err) {
+            console.warn('[Video Generation] Scene analysis failed (attempt 1):', err);
+            console.log('[Video Generation] Retrying scene analysis...');
+            
+            try {
+              // Retry once with 1 second delay
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              return await makeRequest();
+            } catch (retryErr) {
+              console.warn('[Video Generation] Scene analysis failed (retry attempt):', retryErr);
+              return { scenes: [] }; // Fallback to empty scenes
+            }
+          }
+        })();
         }
       }
 
@@ -540,10 +632,41 @@ const EpubToVideo: React.FC = () => {
       }
 
       console.log(`[Video Generation] Prepared ${ttsTasks.length} TTS tasks from ${script.length} script lines`);
+
+      // Check for duplicate TTS task text
+      const taskTexts = ttsTasks.map(task => task.text);
+      const duplicateTasks: number[] = [];
+      const seenTaskTexts = new Map<string, number[]>();
+      taskTexts.forEach((text, idx) => {
+        if (!seenTaskTexts.has(text)) {
+          seenTaskTexts.set(text, [idx]);
+        } else {
+          seenTaskTexts.get(text)!.push(idx);
+          if (seenTaskTexts.get(text)!.length === 2) {
+            duplicateTasks.push(...seenTaskTexts.get(text)!);
+          } else {
+            duplicateTasks.push(idx);
+          }
+        }
+      });
+      if (duplicateTasks.length > 0) {
+        console.warn(`[Video Generation] ⚠️  Found ${duplicateTasks.length} duplicate TTS tasks!`);
+        console.warn(`[Video Generation] Duplicate task indices:`, duplicateTasks.slice(0, 10));
+        // Show first 3 duplicates
+        duplicateTasks.slice(0, 3).forEach(idx => {
+          const task = ttsTasks[idx];
+          console.warn(`  - Task ${idx} (Line ${task.lineIndex + 1}, Chunk ${task.chunkIndex + 1}): "${task.text.substring(0, 60)}..."`);
+        });
+      } else {
+        console.log(`[Video Generation] ✓ No duplicate TTS tasks found`);
+      }
+
       console.log(`[Video Generation] Processing with batch size of 3 (max concurrent requests)`);
 
       // Collect audio blobs and metadata
+        console.log(`[Video Generation] NOT using cached audio - resetting audioBlobs`);
         audioBlobs = [];
+        console.log(`[Video Generation] Reset audioBlobs.length = ${audioBlobs.length}`);
         durations = [];
         combinedSrt = '';
         cumulativeDuration = 0;
@@ -620,6 +743,7 @@ const EpubToVideo: React.FC = () => {
       // Process results in order and update cumulative tracking
       for (const result of allResults) {
         audioBlobs.push(result.blob);
+        console.log(`[Video Generation] Pushed blob ${audioBlobs.length - 1}: ${result.blob.size} bytes, audioBlobs.length now = ${audioBlobs.length}`);
         durations.push(result.duration);
 
         if (result.srtContent && result.duration > 0) {
@@ -648,7 +772,6 @@ const EpubToVideo: React.FC = () => {
             cumulativeDuration += result.duration;
             
             const srtSpan = lastSrtEndTime;
-            const adjustedLastEndTime = lastSrtEndTime + (cumulativeDuration - result.duration);
             console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added: audio=${result.duration}s, SRT span=${srtSpan.toFixed(3)}s, total=${cumulativeDuration.toFixed(2)}s`);
           } else {
             // Fallback to audio duration if SRT extraction fails
@@ -704,6 +827,29 @@ const EpubToVideo: React.FC = () => {
       }
       
       // Phase 2: Log chunk metadata before upload
+      console.log(`[Video Generation] Final audioBlobs check before upload:`);
+      console.log(`  - Total chunks: ${audioBlobs.length}`);
+      console.log(`  - Chapter: ${chapter.title} (index ${chapter.index})`);
+      
+      // Check for duplicate blob sizes
+      const finalBlobSizes = audioBlobs.map(b => b.size);
+      const finalSizeCounts = new Map<number, number[]>();
+      finalBlobSizes.forEach((size, idx) => {
+        if (!finalSizeCounts.has(size)) {
+          finalSizeCounts.set(size, []);
+        }
+        finalSizeCounts.get(size)!.push(idx);
+      });
+      const finalDuplicates = Array.from(finalSizeCounts.entries()).filter(([, indices]) => indices.length > 1);
+      if (finalDuplicates.length > 0) {
+        console.warn(`[Video Generation] ⚠️  Found ${finalDuplicates.length} duplicate blob sizes in final audioBlobs!`);
+        finalDuplicates.slice(0, 10).forEach(([size, indices]) => {
+          console.warn(`  - Size ${size} bytes appears ${indices.length} times at indices: ${indices.slice(0, 20).join(', ')}${indices.length > 20 ? '...' : ''}`);
+        });
+      } else {
+        console.log(`[Video Generation] ✓ No duplicate blob sizes found in final audioBlobs`);
+      }
+      
       console.log(`[Video Generation] Preparing to upload ${audioBlobs.length} audio chunks`);
       let totalSize = 0;
       audioBlobs.forEach((blob, i) => {

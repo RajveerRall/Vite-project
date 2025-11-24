@@ -212,6 +212,80 @@ function validateAndRepairJSON(jsonString) {
     let openBrackets = (candidate.match(/\[/g) || []).length;
     let closeBrackets = (candidate.match(/\]/g) || []).length;
     
+    // NEW: Detect if JSON ends inside an unclosed string
+    // This handles cases where the LLM response is truncated mid-string
+    const trimmedCandidate = candidate.trim();
+    if (trimmedCandidate.length > 0) {
+      // Find the last non-whitespace character
+      let lastNonWhitespaceIdx = -1;
+      for (let i = trimmedCandidate.length - 1; i >= 0; i--) {
+        if (!/\s/.test(trimmedCandidate[i])) {
+          lastNonWhitespaceIdx = i;
+          break;
+        }
+      }
+      
+      if (lastNonWhitespaceIdx >= 0) {
+        const lastChar = trimmedCandidate[lastNonWhitespaceIdx];
+        
+        // If last char is not a quote, brace, or bracket, we might be in an unclosed string
+        if (lastChar !== '"' && lastChar !== '}' && lastChar !== ']') {
+          // Scan backwards to find if we're inside a string
+          // Look for the most recent quote that starts a string (preceded by : or , or { or [)
+          let inString = false;
+          let escaped = false;
+          
+          for (let i = lastNonWhitespaceIdx; i >= 0; i--) {
+            const char = trimmedCandidate[i];
+            
+            if (char === '\\' && !escaped) {
+              escaped = true;
+              continue;
+            }
+            
+            if (char === '"' && !escaped) {
+              // Check if this quote starts a string (look backwards for delimiter)
+              let foundDelimiter = false;
+              for (let j = i - 1; j >= 0; j--) {
+                const prevChar = trimmedCandidate[j];
+                if (!/\s/.test(prevChar)) {
+                  if (prevChar === ':' || prevChar === ',' || prevChar === '{' || prevChar === '[') {
+                    foundDelimiter = true;
+                  }
+                  break;
+                }
+              }
+              
+              if (foundDelimiter) {
+                // This is a string start quote
+                // Check if there's a matching end quote after it
+                let hasEndQuote = false;
+                for (let k = i + 1; k <= lastNonWhitespaceIdx; k++) {
+                  if (trimmedCandidate[k] === '"' && (k === 0 || trimmedCandidate[k - 1] !== '\\')) {
+                    hasEndQuote = true;
+                    break;
+                  }
+                }
+                
+                if (!hasEndQuote) {
+                  // We're in an unclosed string - close it
+                  inString = true;
+                  break;
+                }
+              }
+            }
+            
+            escaped = false;
+          }
+          
+          if (inString) {
+            // Close the unclosed string
+            candidate = trimmedCandidate + '"';
+          }
+        }
+      }
+    }
+    
     // Close unclosed structures
     if (openBraces > closeBraces) {
       candidate += '}'.repeat(openBraces - closeBraces);
