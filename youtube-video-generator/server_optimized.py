@@ -6575,7 +6575,7 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
     print(f"Running FFmpeg: {' '.join(cmd[:10])}...")
     
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=900)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         print(f"✓ Video encoded successfully with {encoder}")
         print(f"Video created: {output_path}")
         
@@ -6594,8 +6594,6 @@ def create_video_with_ffmpeg_interpolated(frames_dir, audio_path, width, height,
         print(f"FFmpeg failed: {e.returncode}")
         print(f"Error: {e.stderr}")
         raise Exception(f"Video encoding failed: {e.stderr}")
-    except subprocess.TimeoutExpired:
-        raise Exception("FFmpeg encoding timed out after 5 minutes")
 
 def create_video_with_ffmpeg_interpolated_cpu_fallback(frames_dir, audio_path, width, height, target_fps, num_keyframes, total_duration, crf):
     """
@@ -6633,7 +6631,7 @@ def create_video_with_ffmpeg_interpolated_cpu_fallback(frames_dir, audio_path, w
     print(f"Running FFmpeg (CPU): {' '.join(cmd[:10])}...")
     
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=900)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         print("✓ Video encoded successfully with CPU")
         print(f"Video created: {output_path}")
         
@@ -6645,8 +6643,6 @@ def create_video_with_ffmpeg_interpolated_cpu_fallback(frames_dir, audio_path, w
     except subprocess.CalledProcessError as e:
         print(f"FFmpeg error: {e.stderr}")
         raise Exception(f"Video encoding failed: {e.stderr}")
-    except subprocess.TimeoutExpired:
-        raise Exception("FFmpeg encoding timed out after 5 minutes")
 
 def create_video_with_ffmpeg(frames_dir, audio_path, width, height, fps, crf):
     """
