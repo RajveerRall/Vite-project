@@ -125,6 +125,14 @@ const Header: React.FC = () => {
     };
   }, [showMobileMenu, showAccountDrawer]);
 
+  // Close auth modal when user successfully authenticates
+  useEffect(() => {
+    if (isAuthenticated && showAuthModal) {
+      console.log('[Header] User authenticated, closing auth modal');
+      setShowAuthModal(false);
+    }
+  }, [isAuthenticated, showAuthModal]);
+
   const handleSignInClick = async () => {
     // Don't check for existing session - user should manually sign in
     // This prevents auto-authentication from browser session tokens
@@ -207,9 +215,10 @@ const Header: React.FC = () => {
                   <div className="flex items-center gap-x-2 text-sm text-gray-700">
                     <span className="font-medium">
                       {usageLimit ? (
-                        // Show remaining minutes converted to hours (e.g., "4.3 hrs")
+                        // Show remaining seconds converted to hours (e.g., "2.6 hrs")
+                        // minutes_remaining is in seconds, so divide by 3600 to get hours
                         usageLimit.minutes_remaining !== null && usageLimit.minutes_remaining > 0
-                          ? `${(usageLimit.minutes_remaining / 60).toFixed(1)} hrs`
+                          ? `${(usageLimit.minutes_remaining / 3600).toFixed(1)} hrs`
                           : '0 hrs'
                       ) : subscriptionInfo?.profile ? (
                         // Fallback: calculate from profile data
@@ -218,7 +227,8 @@ const Header: React.FC = () => {
                           const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used 
                             ? Math.ceil(subscriptionInfo.profile.subscription_minutes_used / 60)
                             : Math.ceil((subscriptionInfo.profile.tts_minutes_used || 0) / 60);
-                          const prepaidMinutes = subscriptionInfo.profile.prepaid_minutes || 0;
+                          // prepaid_minutes from profile is in seconds, convert to minutes
+                          const prepaidMinutes = (subscriptionInfo.profile.prepaid_minutes || 0) / 60;
                           const remaining = Math.max(0, (subscriptionLimit - subscriptionUsed) + prepaidMinutes);
                           return remaining > 0 ? `${(remaining / 60).toFixed(1)} hrs` : '0 hrs';
                         })()
@@ -433,9 +443,10 @@ const Header: React.FC = () => {
                   <div className="flex items-center gap-x-2">
                     <span className="text-sm font-medium text-gray-700">
                       {usageLimit ? (
-                        // Show remaining minutes converted to hours (e.g., "4.3 hrs")
+                        // Show remaining seconds converted to hours (e.g., "2.6 hrs")
+                        // minutes_remaining is in seconds, so divide by 3600 to get hours
                         usageLimit.minutes_remaining !== null && usageLimit.minutes_remaining > 0
-                          ? `${(usageLimit.minutes_remaining / 60).toFixed(1)} hrs`
+                          ? `${(usageLimit.minutes_remaining / 3600).toFixed(1)} hrs`
                           : '0 hrs'
                       ) : subscriptionInfo?.profile ? (
                         // Fallback: calculate from profile data
@@ -444,7 +455,8 @@ const Header: React.FC = () => {
                           const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used 
                             ? Math.ceil(subscriptionInfo.profile.subscription_minutes_used / 60)
                             : Math.ceil((subscriptionInfo.profile.tts_minutes_used || 0) / 60);
-                          const prepaidMinutes = subscriptionInfo.profile.prepaid_minutes || 0;
+                          // prepaid_minutes from profile is in seconds, convert to minutes
+                          const prepaidMinutes = (subscriptionInfo.profile.prepaid_minutes || 0) / 60;
                           const remaining = Math.max(0, (subscriptionLimit - subscriptionUsed) + prepaidMinutes);
                           return remaining > 0 ? `${(remaining / 60).toFixed(1)} hrs` : '0 hrs';
                         })()

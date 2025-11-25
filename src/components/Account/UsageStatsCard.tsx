@@ -20,6 +20,7 @@ export const UsageStatsCard: React.FC<UsageStatsCardProps> = ({
   onRefresh,
   refreshing = false,
 }) => {
+  // prepaid_minutes from API is already in minutes (converted by SQL function)
   const prepaidMinutes = usageLimit?.prepaid_minutes ?? 0;
   const minutesRemaining = usageLimit?.minutes_remaining ?? null;
   const isSubscribed = subscriptionInfo?.subscription?.status === 'active' || 

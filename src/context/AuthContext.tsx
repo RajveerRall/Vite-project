@@ -370,7 +370,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (async () => {
       try {
         // First, get initial session to determine auth state immediately
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        let initialSession = null;
+        let sessionError = null;
+        
+        try {
+          const result = await supabase.auth.getSession();
+          initialSession = result.data?.session ?? null;
+          sessionError = result.error;
+        } catch (getSessionError: any) {
+          // ✅ FIX: Handle errors from getSession() (including invalid refresh token)
+          const errorMessage = getSessionError?.message || '';
+          const isInvalidRefreshToken = 
+            errorMessage.includes('Invalid Refresh Token') ||
+            errorMessage.includes('Refresh Token Not Found') ||
+            errorMessage.includes('refresh_token') ||
+            getSessionError?.name === 'AuthApiError';
+          
+          if (isInvalidRefreshToken) {
+            console.log('[AuthContext] Refresh token invalid/expired - treating as normal sign-out');
+            // Clear any stale session data silently
+            try {
+              await supabase.auth.signOut();
+            } catch {
+              // Ignore - session is already invalid
+            }
+            setUser(null);
+            setAuthInitialized(true);
+            return; // Exit early - this is normal, not an error
+          }
+          
+          // For other errors, log and continue
+          console.warn('[AuthContext] getSession() error (non-critical):', getSessionError);
+          sessionError = getSessionError;
+        }
+        
+        // Handle error returned in response (not thrown)
+        if (sessionError) {
+          const errorMessage = sessionError?.message || '';
+          if (errorMessage.includes('Invalid Refresh Token') || 
+              errorMessage.includes('Refresh Token Not Found')) {
+            console.log('[AuthContext] Refresh token invalid/expired - treating as normal sign-out');
+            setUser(null);
+            setAuthInitialized(true);
+            return; // Exit early - this is normal, not an error
+          }
+        }
 
         // Check if user explicitly signed out before processing session
         const explicitlySignedOut = localStorage.getItem(SIGN_OUT_FLAG_KEY) === 'true';

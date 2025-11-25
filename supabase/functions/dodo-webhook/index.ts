@@ -676,17 +676,19 @@ async function handlePaymentEvent(eventData: any, supabase: any) {
       throw new Error(`Profile not found: ${profileId}`);
     }
 
-    const currentBalance = currentProfile?.prepaid_minutes || 0;
-    const newBalance = currentBalance + minutesAmount;
+    const currentBalance = currentProfile?.prepaid_minutes || 0;  // prepaid_minutes now stores seconds
+    const secondsToAdd = minutesAmount * 60;  // Convert minutes to seconds
+    const newBalance = currentBalance + secondsToAdd;
 
     console.log(`[Webhook] Updating prepaid balance:`, {
       profileId,
       currentBalance,
       minutesAmount,
+      secondsToAdd,
       newBalance
     });
 
-    // Update prepaid_minutes
+    // Update prepaid_minutes (now stores seconds)
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
@@ -700,7 +702,7 @@ async function handlePaymentEvent(eventData: any, supabase: any) {
       throw updateError; // Re-throw to fail the webhook so it retries
     }
 
-    console.log(`[Webhook] ✅ Successfully updated prepaid balance: +${minutesAmount} minutes (new balance: ${newBalance})`);
+    console.log(`[Webhook] ✅ Successfully updated prepaid balance: +${minutesAmount} minutes (${secondsToAdd} seconds, new balance: ${newBalance} seconds)`);
   } else if (isPrepaid && !isSubscriptionRenewal && minutesAmount === 0) {
     console.warn(`[Webhook] Prepaid purchase detected but minutesAmount is 0. Product: ${productId}, Metadata:`, eventData.metadata)
   }

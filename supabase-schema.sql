@@ -816,16 +816,17 @@ BEGIN
   END IF;
 
   -- Calculate remaining minutes (include prepaid in total)
+  -- NOTE: prepaid_minutes now stores SECONDS, convert to minutes for display
   IF v_minutes_limit > 0 THEN
-    v_minutes_remaining := GREATEST(0, v_minutes_limit - v_minutes_used) + v_prepaid_minutes;
+    v_minutes_remaining := GREATEST(0, v_minutes_limit - v_minutes_used) + (v_prepaid_minutes / 60.0);
     -- FIXED: Treat as exceeded if remaining subscription time is less than 1 minute
     -- This handles decimal precision issues (e.g., 0.0166 minutes = 1 second remaining)
     -- Only consider exceeded if subscription limit is exhausted AND no prepaid minutes
-    v_limit_exceeded := ((v_minutes_limit - v_minutes_used) < 1.0 AND v_prepaid_minutes <= 0) OR 
-                        ((v_minutes_limit - v_minutes_used) <= 0 AND v_prepaid_minutes <= 0);
+    v_limit_exceeded := ((v_minutes_limit - v_minutes_used) < 1.0 AND (v_prepaid_minutes / 60.0) <= 0) OR 
+                        ((v_minutes_limit - v_minutes_used) <= 0 AND (v_prepaid_minutes / 60.0) <= 0);
   ELSIF v_prepaid_minutes > 0 THEN
-    -- No subscription limit, but has prepaid
-    v_minutes_remaining := v_prepaid_minutes;
+    -- No subscription limit, but has prepaid (convert seconds to minutes)
+    v_minutes_remaining := v_prepaid_minutes / 60.0;
     v_limit_exceeded := FALSE;
   ELSE
     -- No limit set (unlimited or free tier)
@@ -836,7 +837,7 @@ BEGIN
   RETURN jsonb_build_object(
     'has_limit', v_minutes_limit > 0 OR v_prepaid_minutes > 0,
     'minutes_limit', v_minutes_limit,
-    'prepaid_minutes', v_prepaid_minutes,
+    'prepaid_minutes', (v_prepaid_minutes / 60.0)::INTEGER,  -- Convert seconds to minutes for API response
     'subscription_minutes_used', v_minutes_used,
     'minutes_used', v_minutes_used,
     'minutes_remaining', v_minutes_remaining,
@@ -988,8 +989,7 @@ DECLARE
   v_minutes_used INTEGER;
   v_seconds_used INTEGER;
   v_subscription_seconds_used INTEGER;
-  v_prepaid_minutes INTEGER := 0;
-  v_prepaid_seconds INTEGER := 0;
+  v_prepaid_minutes INTEGER := 0;  -- NOTE: Stores seconds (column name kept for compatibility)
   v_prepaid_to_consume INTEGER := 0;
   v_subscription_to_consume INTEGER := 0;
   v_prepaid_remaining INTEGER := 0;
@@ -1022,7 +1022,8 @@ BEGIN
     v_subscription_seconds_used := 0;
   END IF;
 
-  -- Get current balances (prepaid in minutes, subscription used in seconds, total used in seconds)
+  -- Get current balances (prepaid in seconds, subscription used in seconds, total used in seconds)
+  -- NOTE: prepaid_minutes column now stores SECONDS (not minutes) for precision
   SELECT 
     COALESCE(prepaid_minutes, 0),
     COALESCE(subscription_minutes_used, 0),
@@ -1070,15 +1071,13 @@ BEGIN
     END IF;
   END IF;
 
-  -- Convert prepaid to seconds for consumption
-  v_prepaid_seconds := v_prepaid_minutes * 60;
-
   -- Calculate consumption: use prepaid first, then subscription
-  v_prepaid_to_consume := LEAST(p_seconds, v_prepaid_seconds);
+  -- prepaid_minutes now stores seconds directly, no conversion needed
+  v_prepaid_to_consume := LEAST(p_seconds, v_prepaid_minutes);
   v_subscription_to_consume := GREATEST(0, p_seconds - v_prepaid_to_consume);
 
-  -- Convert remaining prepaid back to minutes for storage (round down)
-  v_prepaid_remaining := FLOOR((v_prepaid_seconds - v_prepaid_to_consume) / 60.0);
+  -- Calculate remaining prepaid (in seconds)
+  v_prepaid_remaining := v_prepaid_minutes - v_prepaid_to_consume;
 
   -- Check subscription limit only if prepaid exhausted
   IF v_subscription_to_consume > 0 AND v_minutes_limit > 0 THEN

@@ -242,7 +242,8 @@ const Reader: React.FC = () => {
     highlightedContent: ttsHighlightedContent,
     setPlaybackRate,
     anonymousLimit,
-    hasFinishedPlayback
+    hasFinishedPlayback,
+    bufferedChunksCount
   } = ttsHook;
   
   // Also check subscription limit status (moved here after isSpeaking/isProcessing are defined)
@@ -459,6 +460,7 @@ const Reader: React.FC = () => {
           onPreviewScroll={handlePreviewScroll}
           onSeekToPercentage={handleSeekToPercentage}
           fullCastActive={fullCastActive}
+          bufferedChunksCount={bufferedChunksCount}
           fullCastStatus={fullCastStatus}
           fullCastBuffered={fullCastBuffered}
           fullCastNeedsTap={fullCastNeedsTap}

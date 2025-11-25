@@ -107,6 +107,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     syncBooks,
     syncBookToCloud,
     syncProgressToCloud,
+    flushProgressSync,
     removeBookFromCloud,
   } = useBookSync(userId, isAuthenticated, isInitialLoadComplete);
 
@@ -1012,6 +1013,14 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     console.log('[closeBook] Setting isClosing flag to true');
     console.log('[closeBook Debug] Current Book when closing:', currentBook?.id);
     console.log('[closeBook Debug] isReading when closing:', isReading);
+    
+    // Ensure any pending progress is synced before closing (fire-and-forget)
+    if (currentBook && isAuthenticated) {
+      flushProgressSync().catch((error) => {
+        console.error('[closeBook] Error flushing progress sync:', error);
+      });
+    }
+    
     // 5. TRACK THE EVENT AND CALCULATE DURATION
     if (readingStartTimestamp.current && currentBook) {
       const endTime = Date.now();

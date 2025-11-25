@@ -12,6 +12,7 @@ export interface UseBookSyncReturn {
   syncBooks: (localBooks: BookData[]) => Promise<BookData[]>;
   syncBookToCloud: (book: BookData) => Promise<void>;
   syncProgressToCloud: (bookId: string, currentPage: number, lastChapter: any) => Promise<void>;
+  flushProgressSync: () => Promise<void>;
   removeBookFromCloud: (bookId: string) => Promise<void>;
 }
 
@@ -27,6 +28,14 @@ export function useBookSync(
 ): UseBookSyncReturn {
   const [isSyncingFromCloud, setIsSyncingFromCloud] = useState<boolean>(false);
   const fallbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Track pending progress and in-flight sync to prevent race conditions
+  const pendingProgressRef = useRef<{
+    bookId: string;
+    currentPage: number;
+    lastChapter: any;
+  } | null>(null);
+  const currentSyncPromiseRef = useRef<Promise<void> | null>(null);
 
   // Create repository instance when user is authenticated (memoized)
   const cloudRepository = useMemo(() => {
@@ -49,20 +58,118 @@ export function useBookSync(
     [isAuthenticated, userId, cloudRepository]
   );
 
-  // Sync reading progress to cloud
-  const syncProgressToCloud = useCallback(
-    async (bookId: string, currentPage: number, lastChapter: any) => {
-      if (!isAuthenticated || !userId || !cloudRepository) return;
-
+  // Helper function to perform the actual sync
+  const performSync = useCallback(
+    async (progress: { bookId: string; currentPage: number; lastChapter: any }) => {
       try {
-        await cloudRepository.updateBookProgress(bookId, currentPage, lastChapter);
-        console.log(`[useBookSync] Updated progress for book ${bookId}: page ${currentPage}`);
+        await cloudRepository!.updateBookProgress(
+          progress.bookId,
+          progress.currentPage,
+          progress.lastChapter
+        );
+        console.log(
+          `[useBookSync] Updated progress for book ${progress.bookId}: page ${progress.currentPage}`
+        );
       } catch (error) {
         console.error('[useBookSync] Error syncing progress:', error);
       }
     },
-    [isAuthenticated, userId, cloudRepository]
+    [cloudRepository]
   );
+
+  // Sync reading progress to cloud (with race condition prevention)
+  const syncProgressToCloud = useCallback(
+    async (bookId: string, currentPage: number, lastChapter: any) => {
+      if (!isAuthenticated || !userId || !cloudRepository) return;
+
+      // Always store the latest progress
+      pendingProgressRef.current = { bookId, currentPage, lastChapter };
+
+      // If a sync is already in progress, chain the new sync after it completes
+      if (currentSyncPromiseRef.current) {
+        currentSyncPromiseRef.current = currentSyncPromiseRef.current
+          .then(async () => {
+            // After previous sync completes, check if there's newer progress
+            const pending = pendingProgressRef.current;
+            if (pending) {
+              await performSync(pending);
+            }
+          })
+          .catch(async () => {
+            // If previous sync failed, still try to sync latest progress
+            const pending = pendingProgressRef.current;
+            if (pending) {
+              await performSync(pending);
+            }
+          })
+          .finally(() => {
+            currentSyncPromiseRef.current = null;
+          });
+        return;
+      }
+
+      // No sync in progress, start sync immediately with latest progress
+      const syncPromise = (async () => {
+        const pending = pendingProgressRef.current;
+        if (!pending) {
+          currentSyncPromiseRef.current = null;
+          return;
+        }
+
+        // Store what we're about to sync
+        const progressToSync = { ...pending };
+
+        try {
+          await performSync(progressToSync);
+        } finally {
+          currentSyncPromiseRef.current = null;
+
+          // After sync completes, check if newer progress arrived while we were syncing
+          const latestPending = pendingProgressRef.current;
+          if (
+            latestPending &&
+            (latestPending.bookId !== progressToSync.bookId ||
+              latestPending.currentPage !== progressToSync.currentPage)
+          ) {
+            // Newer progress arrived while we were syncing, sync it now
+            // This creates a new promise chain
+            const nextSyncPromise = performSync(latestPending).finally(() => {
+              currentSyncPromiseRef.current = null;
+            });
+            currentSyncPromiseRef.current = nextSyncPromise;
+          }
+        }
+      })();
+
+      currentSyncPromiseRef.current = syncPromise;
+    },
+    [isAuthenticated, userId, cloudRepository, performSync]
+  );
+
+  // Flush any pending progress sync (useful when closing book)
+  const flushProgressSync = useCallback(async () => {
+    if (!isAuthenticated || !userId || !cloudRepository) return;
+
+    // Wait for any in-flight sync to complete
+    if (currentSyncPromiseRef.current) {
+      try {
+        await currentSyncPromiseRef.current;
+      } catch {
+        // Ignore errors from previous sync
+      }
+    }
+
+    // Sync any pending progress
+    const pending = pendingProgressRef.current;
+    if (pending) {
+      try {
+        await performSync(pending);
+        pendingProgressRef.current = null;
+      } catch (error) {
+        console.error('[useBookSync] Error flushing progress sync:', error);
+      }
+    }
+  }, [isAuthenticated, userId, cloudRepository, performSync]);
 
   // Remove book from cloud
   const removeBookFromCloud = useCallback(
@@ -201,13 +308,16 @@ export function useBookSync(
     [isAuthenticated, userId, cloudRepository, isInitialLoadComplete]
   );
 
-  // Cleanup timeout on unmount
+  // Cleanup timeout and refs on unmount
   useEffect(() => {
     return () => {
       if (fallbackTimeoutRef.current) {
         clearTimeout(fallbackTimeoutRef.current);
         fallbackTimeoutRef.current = null;
       }
+      // Clear progress tracking refs
+      pendingProgressRef.current = null;
+      currentSyncPromiseRef.current = null;
     };
   }, []);
 
@@ -216,6 +326,7 @@ export function useBookSync(
     syncBooks,
     syncBookToCloud,
     syncProgressToCloud,
+    flushProgressSync,
     removeBookFromCloud,
   };
 }

@@ -50,6 +50,8 @@ export interface ControlsProps {
   onFullCastResume?: () => void;
   // Anonymous usage limit
   anonymousLimit?: any;
+  // Buffering state
+  bufferedChunksCount?: number;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -85,7 +87,8 @@ const Controls: React.FC<ControlsProps> = ({
   onFullCastStop,
   onFullCastPause,
   onFullCastResume,
-  anonymousLimit
+  anonymousLimit,
+  bufferedChunksCount = 0
 }) => {
   const { usedMinutes: fcUsed, totalMinutes: fcTotal } = useFullCastUsage();
   const { isLimitExceeded } = useSubscription();

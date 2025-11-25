@@ -8,8 +8,16 @@
  * @returns true if tracking should be enabled, false otherwise
  */
 export function isTrackingEnabled(): boolean {
-  // Check if explicitly disabled via environment variable
   const analyticsEnabled = import.meta.env.VITE_ANALYTICS_ENABLED;
+  
+  // Check if explicitly enabled via environment variable (check this FIRST)
+  // This allows enabling tracking in development for testing
+  if (analyticsEnabled === 'true' || analyticsEnabled === true) {
+    console.log('[Tracking] Explicitly enabled via VITE_ANALYTICS_ENABLED=true');
+    return true; // Explicitly enabled, override dev/localhost checks
+  }
+  
+  // Check if explicitly disabled via environment variable
   if (analyticsEnabled === 'false' || analyticsEnabled === false) {
     return false;
   }

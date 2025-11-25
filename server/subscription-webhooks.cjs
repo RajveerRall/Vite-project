@@ -707,11 +707,12 @@ async function handlePackPurchase(eventData) {
       };
     }
     
-    // Increment prepaid_minutes
+    // Increment prepaid_minutes (now stores seconds, convert minutes to seconds)
+    const secondsToAdd = minutesToAdd * 60;
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ 
-        prepaid_minutes: (profile.prepaid_minutes || 0) + minutesToAdd,
+        prepaid_minutes: (profile.prepaid_minutes || 0) + secondsToAdd,
         updated_at: new Date().toISOString()
       })
       .eq('id', profile.id);
@@ -724,7 +725,8 @@ async function handlePackPurchase(eventData) {
     console.log('[Webhook] ✅ Successfully added minutes:', {
       userId: profile.id,
       minutesAdded: minutesToAdd,
-      newBalance: (profile.prepaid_minutes || 0) + minutesToAdd
+      secondsAdded: secondsToAdd,
+      newBalance: (profile.prepaid_minutes || 0) + secondsToAdd
     });
     
     // Log transaction for audit trail
@@ -845,7 +847,9 @@ async function handlePackRefund(eventData) {
       return { success: false, error: 'Profile not found' };
     }
     
-    const newBalance = Math.max(0, (profile.prepaid_minutes || 0) + refundAmount);
+    // Convert refund amount from minutes to seconds (prepaid_minutes now stores seconds)
+    const secondsToRefund = refundAmount * 60;
+    const newBalance = Math.max(0, (profile.prepaid_minutes || 0) + secondsToRefund);
     
     // Update prepaid balance
     const { error: updateError } = await supabase

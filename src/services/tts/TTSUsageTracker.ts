@@ -13,6 +13,7 @@ import { isTrackingEnabled } from '../../utils/trackingConfig';
 export interface UsageTrackingCallbacks {
   onSuccess?: (seconds: number, isAnonymous: boolean) => void;
   onError?: (error: Error) => void;
+  skipLimitCheck?: boolean; // ✅ If true, skip limit check but still record usage
 }
 
 export class TTSUsageTracker {
@@ -21,6 +22,12 @@ export class TTSUsageTracker {
   private circuitBreaker: CircuitBreaker;
   private usageQueue: UsageTrackingQueue;
   private metrics: UsageMetrics;
+  // ✅ Cache for limit check results (30 second cache)
+  private limitCheckCache: { 
+    result: { allowed: boolean; reason?: string }; 
+    timestamp: number;
+  } | null = null;
+  private readonly LIMIT_CHECK_CACHE_MS = 30000; // Cache for 30 seconds
 
   constructor(userId?: string) {
     this.userId = userId;
@@ -129,8 +136,19 @@ export class TTSUsageTracker {
   /**
    * Check usage limit before recording (for authenticated users)
    * Uses REST API instead of RPC to avoid hanging
+   * @param userId - User ID to check limit for
+   * @param forceCheck - If true, bypass cache and force a fresh check
    */
-  private async checkUsageLimit(userId: string): Promise<{ allowed: boolean; reason?: string }> {
+  private async checkUsageLimit(userId: string, forceCheck: boolean = false): Promise<{ allowed: boolean; reason?: string }> {
+    // ✅ Use cached result if recent and not forcing check
+    if (!forceCheck) {
+      const now = Date.now();
+      if (this.limitCheckCache && (now - this.limitCheckCache.timestamp) < this.LIMIT_CHECK_CACHE_MS) {
+        console.log('[TTS Usage] Using cached limit check result');
+        return this.limitCheckCache.result;
+      }
+    }
+    
     try {
       const { getAccessToken } = await import('../../lib/authToken');
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -138,7 +156,9 @@ export class TTSUsageTracker {
       
       if (!supabaseUrl || !supabaseAnonKey) {
         console.warn('[TTS Usage] Missing Supabase env vars, allowing usage');
-        return { allowed: true };
+        const result = { allowed: true };
+        this.limitCheckCache = { result, timestamp: Date.now() };
+        return result;
       }
       
       const accessToken = await getAccessToken(5000);
@@ -196,44 +216,58 @@ export class TTSUsageTracker {
 
             if (!retryResponse.ok) {
               console.warn('[TTS Usage] Limit check failed after refresh, allowing usage:', retryResponse.status);
-              return { allowed: true }; // Fail open
+              const result = { allowed: true }; // Fail open
+              this.limitCheckCache = { result, timestamp: Date.now() };
+              return result;
             }
 
             const data = await retryResponse.json();
 
             if (data?.limit_exceeded) {
-              return {
+              const result = {
                 allowed: false,
                 reason: `Usage limit exceeded. ${data.minutes_used}/${data.minutes_limit} minutes used.`,
               };
+              this.limitCheckCache = { result, timestamp: Date.now() };
+              return result;
             }
 
-            return { allowed: true };
+            const result = { allowed: true };
+            this.limitCheckCache = { result, timestamp: Date.now() };
+            return result;
 
           } catch (refreshOrRetryError: any) {
             // This single catch block handles both refresh and retry errors
             if (refreshOrRetryError.name !== 'AbortError') {
               console.warn('[TTS Usage] Token refresh or retry failed, allowing usage:', refreshOrRetryError.message);
             }
-            return { allowed: true }; // Fail open
+            const result = { allowed: true }; // Fail open
+            this.limitCheckCache = { result, timestamp: Date.now() };
+            return result;
           }
         }
         
         if (!response.ok) {
           console.warn('[TTS Usage] Limit check failed, allowing usage:', response.status);
-          return { allowed: true }; // Fail open
+          const result = { allowed: true }; // Fail open
+          this.limitCheckCache = { result, timestamp: Date.now() };
+          return result;
         }
         
         const data = await response.json();
         
         if (data?.limit_exceeded) {
-          return {
+          const result = {
             allowed: false,
             reason: `Usage limit exceeded. ${data.minutes_used}/${data.minutes_limit} minutes used.`,
           };
+          this.limitCheckCache = { result, timestamp: Date.now() };
+          return result;
         }
         
-        return { allowed: true };
+        const result = { allowed: true };
+        this.limitCheckCache = { result, timestamp: Date.now() };
+        return result;
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         if (fetchError.name !== 'AbortError') {
@@ -243,18 +277,22 @@ export class TTSUsageTracker {
     } catch (error) {
       console.warn('[TTS Usage] Error checking limit, allowing usage:', error);
     }
-    return { allowed: true }; // Fail open by default
+    const result = { allowed: true }; // Fail open by default
+    this.limitCheckCache = { result, timestamp: Date.now() };
+    return result;
   }
 
   /**
    * Direct tracking (bypasses queue, used for immediate attempts)
    * Uses REST API instead of RPC to avoid hanging
+   * @param skipLimitCheck - If true, skip limit check but still record usage
    */
   private async trackUsageDirect(
     seconds: number,
     source: string,
     userId?: string,
-    sessionId?: string
+    sessionId?: string,
+    skipLimitCheck: boolean = false
   ): Promise<void> {
     const { getAccessToken } = await import('../../lib/authToken');
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -264,9 +302,9 @@ export class TTSUsageTracker {
       throw new Error('Missing Supabase environment variables');
     }
 
-    if (userId) {
+    if (userId && !skipLimitCheck) {
       // Check limit before recording (with REST API)
-      const limitCheck = await this.checkUsageLimit(userId);
+      const limitCheck = await this.checkUsageLimit(userId, false);
       if (!limitCheck.allowed) {
         const error = new Error(limitCheck.reason || 'Usage limit exceeded');
         (error as any).code = 'TTS_USAGE_LIMIT_EXCEEDED';
@@ -277,11 +315,32 @@ export class TTSUsageTracker {
       const eventId = crypto.randomUUID();
       const url = `${supabaseUrl}/rest/v1/rpc/increment_tts_usage`;
       
+      // ✅ DEBUG: Log what we're sending to verify units
+      console.log('[TTS Usage] Recording usage:', {
+        userId,
+        seconds: seconds,  // Should be in seconds (2-7 typically)
+        secondsType: typeof seconds,
+        secondsValue: seconds,
+        source,
+        eventId,
+        url
+      });
+      
       const accessToken = await getAccessToken(5000);
       
       // Add timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const requestBody = {
+        p_user_id: userId,
+        p_seconds: seconds,
+        p_source: source,
+        p_event_id: eventId,
+      };
+      
+      // ✅ DEBUG: Log the exact request body being sent
+      console.log('[TTS Usage] Request body being sent to increment_tts_usage:', JSON.stringify(requestBody, null, 2));
       
       try {
         const response = await fetch(url, {
@@ -292,12 +351,7 @@ export class TTSUsageTracker {
             'Content-Type': 'application/json',
             'Prefer': 'return=representation',
           },
-          body: JSON.stringify({
-            p_user_id: userId,
-            p_seconds: seconds,
-            p_source: source,
-            p_event_id: eventId,
-          }),
+          body: JSON.stringify(requestBody),
           signal: controller.signal,
         });
         
@@ -384,6 +438,14 @@ export class TTSUsageTracker {
           throw new Error(`Failed to record usage: ${errorText}`);
         }
         
+        // ✅ DEBUG: Log successful response
+        console.log('[TTS Usage] Successfully recorded usage:', {
+          userId,
+          seconds,
+          responseStatus: response.status,
+          responseOk: response.ok
+        });
+        
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         if (fetchError.name === 'AbortError') {
@@ -450,6 +512,16 @@ export class TTSUsageTracker {
     source: string = 'reader',
     callbacks?: UsageTrackingCallbacks
   ): Promise<void> {
+    // ✅ DEBUG: Always log what would be sent (even if tracking is disabled)
+    console.log('[TTS Usage] recordUsageSeconds called:', {
+      seconds,
+      secondsType: typeof seconds,
+      secondsValue: seconds,
+      source,
+      userId: this.userId,
+      isTrackingEnabled: isTrackingEnabled()
+    });
+    
     // Skip tracking if disabled in development
     if (!isTrackingEnabled()) {
       console.log('[TTS Usage] Tracking disabled in development - skipping usage recording');
@@ -478,7 +550,8 @@ export class TTSUsageTracker {
               seconds,
               source,
               this.userId,
-              sessionId
+              sessionId,
+              callbacks?.skipLimitCheck ?? false
             );
           },
           (error, attempt) => {

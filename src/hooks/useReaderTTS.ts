@@ -13,9 +13,115 @@ import { fetchUsageLimit } from '../services/subscription/SubscriptionService';
 
 // Helper: split text into sentence chunks
 function splitTextIntoChunks(text: string): string[] {
-  return text
-    .split(/(?<=[.!?])\s+/)
-    .filter(chunk => chunk.trim().length > 0);
+  // Common abbreviations that should NOT trigger sentence splits
+  // These are patterns that end with a period but aren't sentence endings
+  const abbreviations = [
+    // Titles
+    'Dr\\.', 'Mr\\.', 'Mrs\\.', 'Ms\\.', 'Prof\\.', 'Rev\\.', 'Sr\\.', 'Jr\\.', 'Esq\\.',
+    // Time
+    'A\\.M\\.', 'P\\.M\\.', 'a\\.m\\.', 'p\\.m\\.',
+    // Locations
+    'U\\.S\\.', 'U\\.K\\.', 'E\\.U\\.', 'U\\.S\\.A\\.',
+    // Latin
+    'etc\\.', 'i\\.e\\.', 'e\\.g\\.', 'vs\\.', 'et al\\.',
+    // Academic
+    'Ph\\.D\\.', 'M\\.D\\.', 'B\\.A\\.', 'M\\.A\\.', 'B\\.S\\.', 'M\\.S\\.',
+    // Common
+    'Inc\\.', 'Ltd\\.', 'Corp\\.', 'Co\\.',
+    // Additional common ones
+    'St\\.', 'Ave\\.', 'Blvd\\.', 'Rd\\.', 'No\\.', 'Vol\\.', 'Ch\\.', 'pp\\.'
+  ];
+  
+  // Create a regex pattern to match abbreviations (case-insensitive)
+  const abbreviationPattern = new RegExp(
+    `\\b(${abbreviations.join('|')})\\b`,
+    'gi'
+  );
+  
+  // Step 1: Normalize spacing after sentence-ending punctuation
+  // Add space after punctuation when followed by a letter (fixes "warm.A" → "warm. A")
+  // But skip if the punctuation is part of an abbreviation
+  let normalizedText = text;
+  
+  // First, temporarily mark abbreviations to protect them
+  const abbreviationMap = new Map<string, string>();
+  let placeholderIndex = 0;
+  
+  normalizedText = normalizedText.replace(abbreviationPattern, (match) => {
+    const placeholder = `__ABBR_${placeholderIndex}__`;
+    abbreviationMap.set(placeholder, match);
+    placeholderIndex++;
+    return placeholder;
+  });
+  
+  // Now normalize spacing after punctuation (only when followed by a letter)
+  normalizedText = normalizedText.replace(/([.!?])([A-Za-z])/g, '$1 $2');
+  
+  // Restore abbreviations
+  abbreviationMap.forEach((abbreviation, placeholder) => {
+    normalizedText = normalizedText.replace(placeholder, abbreviation);
+  });
+  
+  // Step 2: Split on sentence boundaries, avoiding abbreviations
+  // Create a function to check if a potential split point is an abbreviation
+  const isAbbreviationAtPosition = (text: string, position: number): boolean => {
+    // Look back to find the word before the punctuation (up to 50 chars for longer contexts)
+    const beforePunct = text.substring(Math.max(0, position - 50), position);
+    const words = beforePunct.trim().split(/\s+/);
+    const lastWord = words[words.length - 1] || '';
+    const lastTwoWords = words.slice(-2).join(' ');
+    
+    // Check if last word + period matches an abbreviation
+    const wordWithPeriod = lastWord + text[position];
+    const isSingleWordAbbr = abbreviations.some(abbr => {
+      const abbrClean = abbr.replace(/\\/g, ''); // Remove regex escaping
+      const pattern = new RegExp(`^${abbrClean}$`, 'i');
+      return pattern.test(wordWithPeriod);
+    });
+    
+    // Check for multi-word abbreviations like "et al."
+    const isMultiWordAbbr = /et\s+al\./i.test(lastTwoWords + text[position]);
+    
+    return isSingleWordAbbr || isMultiWordAbbr;
+  };
+  
+  // Split manually, checking each potential split point
+  const chunks: string[] = [];
+  let currentChunk = '';
+  
+  for (let i = 0; i < normalizedText.length; i++) {
+    const char = normalizedText[i];
+    currentChunk += char;
+    
+    // Check if we hit a potential sentence boundary
+    if (/[.!?]/.test(char)) {
+      const nextChar = normalizedText[i + 1];
+      const isEndOfText = i === normalizedText.length - 1;
+      const isFollowedBySpace = nextChar === ' ' || nextChar === '\n' || nextChar === '\t';
+      
+      if ((isFollowedBySpace || isEndOfText) && !isAbbreviationAtPosition(normalizedText, i)) {
+        // This is a real sentence boundary
+        const trimmed = currentChunk.trim();
+        if (trimmed.length > 0) {
+          chunks.push(trimmed);
+        }
+        currentChunk = '';
+        
+        // Skip the space
+        if (isFollowedBySpace) {
+          i++; // Skip the space character
+        }
+      }
+    }
+  }
+  
+  // Add remaining text
+  const trimmed = currentChunk.trim();
+  if (trimmed.length > 0) {
+    chunks.push(trimmed);
+  }
+  
+  return chunks;
 }
 
 export interface UseReaderTTSReturn {
@@ -29,6 +135,7 @@ export interface UseReaderTTSReturn {
   hasFinishedPlayback: boolean;
   useKokoroTTS: boolean;
   highlightedContent: string;
+  bufferedChunksCount: number; // Number of chunks currently buffered
   
   // TTS Controls
   handleTTS: () => void;
@@ -72,7 +179,8 @@ interface UseReaderTTSProps {
 
 // Constants moved to src/constants/tts.ts
 const PREFETCH_CHUNK_COUNT = 4;
-const PREFETCH_SECONDARY_OFFSET = 3;
+const INITIAL_PREFETCH_COUNT = 2; // Fetch 2 chunks initially for faster startup
+const MAX_AUDIO_BUFFER_SIZE = 10; // ✅ Limit total buffered chunks to prevent memory bloat
 
 /**
  * Custom hook for managing all Text-to-Speech functionality
@@ -131,6 +239,9 @@ export const useReaderTTS = ({
   const durationsBuffer = useRef<Record<number, number>>({});
   const audioCtxRef = useRef<AudioContext | null>(null);
   const playStartTimeRef = useRef<Record<number, number>>({});
+  // ✅ Track last limit check time for periodic checks (60 seconds)
+  const lastLimitCheckTimeRef = useRef<number>(0);
+  const LIMIT_CHECK_INTERVAL_MS = 60000; // Check limit every 60 seconds
   // === Voice tracking for buffer validation ===
   const bufferVoiceRef = useRef<string>(selectedVoice);
   // === Ref for selectedVoice to avoid stale closures ===
@@ -147,6 +258,12 @@ export const useReaderTTS = ({
   const isAutoAdvancingRef = useRef<boolean>(false);
   // === Ref for handleStopTTS to avoid circular dependency ===
   const handleStopTTSRef = useRef<(() => void) | null>(null);
+  // === Track if chunk is currently playing to prevent duplicates ===
+  const isChunkPlayingRef = useRef<number | null>(null);
+  // === Track chunks currently being prefetched to prevent duplicates ===
+  const inFlightPrefetchRef = useRef<Set<number>>(new Set());
+  // === Track buffered chunks count for UI ===
+  const [bufferedChunksCount, setBufferedChunksCount] = useState<number>(0);
 
   // === Keep selectedVoiceRef synchronized with selectedVoice prop ===
   useEffect(() => {
@@ -161,7 +278,10 @@ export const useReaderTTS = ({
   }, [ttsSpeed, readerInstanceId]);
 
   // === Usage recording helper - Enhanced with queue and retry ===
-  const recordUsageSeconds = useCallback(async (seconds: number) => {
+  const recordUsageSeconds = useCallback(async (
+    seconds: number,
+    options?: { skipLimitCheck?: boolean }
+  ) => {
     if (!seconds || seconds <= 0) return;
     
     try {
@@ -200,6 +320,7 @@ export const useReaderTTS = ({
       
       // Use enhanced tracker (handles queue, retry, circuit breaker)
       await tracker.recordUsageSeconds(seconds, 'reader', {
+        skipLimitCheck: options?.skipLimitCheck ?? false,  // ✅ Pass through skipLimitCheck
         onSuccess: () => {
           console.log('[TTS Usage] Recorded successfully via enhanced tracker');
         },
@@ -357,8 +478,40 @@ export const useReaderTTS = ({
       }
     });
     audioBuffer.current = {};
+    setBufferedChunksCount(0);
     // Update the voice tracking ref
     bufferVoiceRef.current = selectedVoiceRef.current;
+  }, [readerInstanceId]);
+
+  // === Clean up old chunks when buffer exceeds limit ===
+  const cleanupOldChunks = useCallback((currentIndex: number) => {
+    const bufferKeys = Object.keys(audioBuffer.current).map(Number);
+    if (bufferKeys.length <= MAX_AUDIO_BUFFER_SIZE) return;
+    
+    // Protect current chunk and nearby chunks (±2 range)
+    const protectedChunks = new Set<number>();
+    for (let i = -2; i <= 2; i++) {
+      protectedChunks.add(currentIndex + i);
+    }
+    
+    // Find chunks to evict (oldest, non-protected chunks)
+    const chunksToEvict = bufferKeys
+      .filter(key => !protectedChunks.has(key))
+      .sort((a, b) => a - b) // Oldest first
+      .slice(0, bufferKeys.length - MAX_AUDIO_BUFFER_SIZE);
+    
+    chunksToEvict.forEach(chunkIndex => {
+      const url = audioBuffer.current[chunkIndex];
+      if (url && url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+      delete audioBuffer.current[chunkIndex];
+      setBufferedChunksCount(prev => Math.max(0, prev - 1));
+    });
+    
+    if (chunksToEvict.length > 0) {
+      console.log(`[${readerInstanceId}][cleanupOldChunks] Evicted ${chunksToEvict.length} old chunks, buffer now has ${Object.keys(audioBuffer.current).length} chunks`);
+    }
   }, [readerInstanceId]);
 
   // === Handle voice changes during playback ===
@@ -377,6 +530,97 @@ export const useReaderTTS = ({
     prevVoiceRef.current = selectedVoice;
   }, [selectedVoice, isSpeaking, isPaused, isProcessing, clearAudioBuffer, readerInstanceId]);
 
+  // === Fetch single chunk helper (for optimistic initial playback) ===
+  const fetchSingleChunk = useCallback(async (chunkIndex: number): Promise<void> => {
+    if (chunks.length === 0 || chunkIndex < 0 || chunkIndex >= chunks.length) return;
+    if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex) return; // Already cached
+    
+    // Check if already in flight
+    if (inFlightPrefetchRef.current.has(chunkIndex)) {
+      console.log(`[FetchSingle] Chunk #${chunkIndex} already in flight, skipping`);
+      return;
+    }
+    
+    // Mark as in-flight
+    inFlightPrefetchRef.current.add(chunkIndex);
+    
+    try {
+      const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
+      const textChunk = chunks[chunkIndex];
+      const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
+      
+      const params = new URLSearchParams({
+        text: textChunk,
+        voice: selectedVoiceRef.current,
+        format: 'audio-24khz-48kbitrate-mono-mp3'
+      });
+      
+      if (ttsSpeed !== 1) {
+        const speedPercent = Math.round((ttsSpeed - 1) * 100);
+        const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
+        params.set('rate', speedParam);
+      }
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      let response;
+      try {
+        response = await fetch(`${apiUrl}?${params.toString()}`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          console.warn(`[FetchSingle] TTS request timeout for chunk #${chunkIndex} after 30 seconds`);
+          return;
+        }
+        throw fetchError;
+      }
+      
+      if (!response.ok) return;
+      
+      const audioBlob = await response.blob();
+      if (audioBlob.size === 0) {
+        console.warn(`[FetchSingle] Received empty audio blob for chunk #${chunkIndex}`);
+        return;
+      }
+      
+      const strategy = playbackStrategyRef.current;
+      const isSeamless = strategy && (strategy as any).getStrategyType?.() === 'seamless';
+      
+      if (isSeamless && strategy) {
+        try {
+          await strategy.prepareChunk(chunkIndex, audioBlob);
+          console.log(`[FetchSingle] Pre-decoded chunk #${chunkIndex} for seamless playback`);
+        } catch (err) {
+          console.warn(`[FetchSingle] Failed to pre-decode chunk #${chunkIndex} for seamless playback`, err);
+        }
+      }
+      
+      try {
+        const headerSeconds = Number(response.headers.get('X-Audio-Duration') || 0);
+        const seconds = headerSeconds > 0 ? headerSeconds : await getBlobDurationSeconds(audioBlob);
+        durationsBuffer.current[chunkIndex] = seconds;
+      } catch {}
+      
+      const audioUrl = URL.createObjectURL(audioBlob);
+      audioBuffer.current[chunkIndex] = audioUrl;
+      bufferVoiceRef.current = selectedVoiceRef.current;
+      
+      console.log(`[FetchSingle] Successfully buffered chunk #${chunkIndex}`);
+      setBufferedChunksCount(prev => prev + 1);
+      
+      // ✅ Clean up old chunks if buffer is too large
+      cleanupOldChunks(chunkIndex);
+    } catch (error) {
+      console.warn(`[FetchSingle] Failed to fetch chunk #${chunkIndex}`, error);
+    } finally {
+      inFlightPrefetchRef.current.delete(chunkIndex);
+    }
+  }, [chunks, currentChunkIndex, ttsSpeed, cleanupOldChunks]);
+
   // === Prefetch chunks function ===
   const prefetchChunks = useCallback(async (startIndex: number) => {
     if (chunks.length === 0) return;
@@ -384,8 +628,24 @@ export const useReaderTTS = ({
     const normalizedStart = Math.max(0, startIndex);
     if (normalizedStart >= chunks.length) return;
 
+    // ✅ FIX: Check if chunks in this range are already being prefetched
+    const chunksToCheck: number[] = [];
+    for (let i = 0; i < PREFETCH_CHUNK_COUNT && normalizedStart + i < chunks.length; i++) {
+      chunksToCheck.push(normalizedStart + i);
+    }
+    
+    // If all chunks are already in flight, skip this prefetch
+    const allInFlight = chunksToCheck.every(idx => inFlightPrefetchRef.current.has(idx));
+    if (allInFlight && chunksToCheck.length > 0) {
+      console.log(`[Prefetch] Skipping duplicate prefetch for chunks ${normalizedStart}-${normalizedStart + chunksToCheck.length - 1} (already in flight)`);
+      return;
+    }
+
     const chunksToFetch = chunks.slice(normalizedStart, normalizedStart + PREFETCH_CHUNK_COUNT);
     if (chunksToFetch.length === 0) return;
+
+    // ✅ FIX: Mark chunks as in-flight
+    chunksToCheck.forEach(idx => inFlightPrefetchRef.current.add(idx));
 
     console.log(`[Prefetch] Starting pre-fetch for chunks from index ${normalizedStart}`);
 
@@ -464,13 +724,22 @@ export const useReaderTTS = ({
         bufferVoiceRef.current = selectedVoiceRef.current;
 
         console.log(`[Prefetch] Successfully buffered chunk #${chunkIndex} with voice ${selectedVoiceRef.current}`);
+        
+        // ✅ FIX: Update buffered chunks count
+        setBufferedChunksCount(prev => prev + 1);
+        
+        // ✅ Clean up old chunks if buffer is too large
+        cleanupOldChunks(chunkIndex);
 
       } catch (error) {
         console.warn(`[Prefetch] Failed to pre-fetch chunk #${chunkIndex}`, error);
         addToast(`Failed to pre-fetch audio chunk ${chunkIndex + 1}. If it does not work contact us.`, 'error');
+      } finally {
+        // ✅ FIX: Remove from in-flight set when done (success or failure)
+        inFlightPrefetchRef.current.delete(chunkIndex);
       }
     }
-  }, [chunks, currentChunkIndex, ttsSpeed, addToast]);
+  }, [chunks, currentChunkIndex, ttsSpeed, addToast, cleanupOldChunks]);
 
   // === Play chunk function ===
   const playChunk = useCallback(async (index: number) => {
@@ -486,8 +755,12 @@ export const useReaderTTS = ({
       clearResumeIndex(); 
       ttsIntentActiveRef.current = false;
       isAutoAdvancingRef.current = false;
+      isChunkPlayingRef.current = null;
       return;
     }
+
+    // ✅ FIX: Track playing chunk to prevent duplicates
+    isChunkPlayingRef.current = index;
 
     // Don't set currentChunkIndex here - it will be set when audio actually starts playing
     // This ensures the highlight updates exactly when audio starts, not when playChunk is called
@@ -510,9 +783,8 @@ export const useReaderTTS = ({
           // Strategy will handle seamless auto-advance via onChunkComplete handler
           await strategy.play(audioBlob, index);
           
-          // Prefetch next chunks
+          // ✅ Prefetch next chunk only (reduced to prevent buffer bloat)
           prefetchChunks(index + 1);
-          prefetchChunks(index + PREFETCH_SECONDARY_OFFSET);
           return; // Success - seamless playback started
         } catch (error) {
           console.warn(`[playChunk] Seamless playback failed, falling back to HTML5:`, error);
@@ -559,6 +831,17 @@ export const useReaderTTS = ({
           ? durationsBuffer.current[index]
           : (elapsed > 0 ? elapsed : Math.round((audioRef.current as any)?.duration || 0));
         
+        // ✅ DEBUG: Log seconds calculation for HTML5 playback
+        console.log(`[playChunk] Usage calculation for chunk #${index}:`, {
+          chunkIndex: index,
+          durationsBufferValue: durationsBuffer.current[index],
+          elapsed,
+          audioDuration: (audioRef.current as any)?.duration,
+          calculatedSeconds: seconds,
+          playStartTime: playStartTimeRef.current[index],
+          currentTime: Date.now()
+        });
+        
         // Use ref to ensure we always call the latest playChunk function
         // This fixes the stale closure issue when playChunk is recreated
         const nextChunkIndex = index + 1;
@@ -594,9 +877,22 @@ export const useReaderTTS = ({
             console.log(`[playChunk] Auto-advance flag cleared`);
           }, 100);
           
+          // ✅ FIX: Determine if we should check limit (periodic check every 60 seconds)
+          const now = Date.now();
+          const timeSinceLastCheck = now - lastLimitCheckTimeRef.current;
+          const shouldCheckLimit = timeSinceLastCheck > LIMIT_CHECK_INTERVAL_MS;
+          
+          if (shouldCheckLimit) {
+            console.log(`[playChunk] Performing periodic limit check (last check was ${Math.round(timeSinceLastCheck / 1000)}s ago)`);
+            lastLimitCheckTimeRef.current = now;
+          }
+          
           // ✅ Track usage in BACKGROUND (non-blocking) - don't await before starting next chunk
+          // Skip limit check if we just checked recently (cached result will be used)
           // Only stop playback if limit exceeded (handled in the catch block)
-          recordUsageSeconds(seconds).catch((error: any) => {
+          recordUsageSeconds(seconds, {
+            skipLimitCheck: !shouldCheckLimit  // ✅ Only check limit periodically
+          }).catch((error: any) => {
             console.error(`[playChunk] Error recording usage seconds:`, error);
             // Stop playback if limit exceeded
             if (error?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
@@ -628,14 +924,115 @@ export const useReaderTTS = ({
           onPlaybackComplete?.();
           
           // Track final chunk usage (non-blocking)
-          recordUsageSeconds(seconds).catch((error: any) => {
+          // Always check limit on final chunk to ensure we catch limit exceeded
+          recordUsageSeconds(seconds, {
+            skipLimitCheck: false  // ✅ Always check on final chunk
+          }).catch((error: any) => {
             console.error(`[playChunk] Error recording final chunk usage:`, error);
           });
         }
       };
       
-      const handleError = (e: Event) => {
+      const handleError = async (e: Event | Error) => {
         console.error(`[${readerInstanceId}][playChunk] Audio playback error:`, e);
+        
+        // ✅ NEW: Detect invalid blob URL errors and auto-retry with fresh fetch
+        const error = e as any;
+        // Handle both Event objects (from audio element) and Error objects (from playPromise)
+        const errorName = error?.name || error?.target?.error?.name || '';
+        const errorMessage = error?.message || error?.target?.error?.message || error?.target?.error?.code?.toString() || '';
+        const isInvalidSource = errorName === 'NotSupportedError' ||
+                               errorName === 'MEDIA_ERR_SRC_NOT_SUPPORTED' ||
+                               errorMessage?.includes('no supported source') ||
+                               errorMessage?.includes('Failed to load') ||
+                               errorMessage?.includes('ERR_FILE_NOT_FOUND') ||
+                               errorMessage?.includes('ERR_UNKNOWN_URL_SCHEME');
+        
+        // Check if error occurred while using buffered audio
+        if (isInvalidSource && audioBuffer.current[index]) {
+          console.warn(`[playChunk] Blob URL for chunk #${index} is invalid, clearing buffer and retrying with fresh fetch`);
+          
+          // Clear the invalid blob URL
+          const invalidUrl = audioBuffer.current[index];
+          if (invalidUrl && invalidUrl.startsWith('blob:')) {
+            try {
+              URL.revokeObjectURL(invalidUrl);
+            } catch (revokeError) {
+              console.warn(`[playChunk] Failed to revoke invalid blob URL:`, revokeError);
+            }
+          }
+          delete audioBuffer.current[index];
+          
+          // Retry by fetching fresh audio
+          try {
+            const textChunk = chunks[index];
+            if (!textChunk) {
+              throw new Error('No text chunk available for retry');
+            }
+            
+            const ttsApiUrlForPlay = import.meta.env.VITE_TTS_API_URL || '';
+            const apiUrlForPlay = ttsApiUrlForPlay ? `${ttsApiUrlForPlay}/api/tts` : '/api/tts';
+            
+            const params = new URLSearchParams({
+              text: textChunk,
+              voice: selectedVoiceRef.current,
+              format: 'audio-24khz-48kbitrate-mono-mp3'
+            });
+            
+            if (ttsSpeedRef.current !== 1) {
+              const speedPercent = Math.round((ttsSpeedRef.current - 1) * 100);
+              const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
+              params.set('rate', speedParam);
+            }
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            
+            let response;
+            try {
+              response = await fetch(`${apiUrlForPlay}?${params.toString()}`, {
+                signal: controller.signal
+              });
+              clearTimeout(timeoutId);
+            } catch (fetchError: any) {
+              clearTimeout(timeoutId);
+              if (fetchError.name === 'AbortError') {
+                throw new Error('TTS request timeout after 30 seconds');
+              }
+              throw fetchError;
+            }
+            
+            if (!response.ok) {
+              throw new Error(`Failed to fetch TTS audio: ${response.statusText}`);
+            }
+            
+            const audioBlob = await response.blob();
+            if (audioBlob.size === 0) {
+              throw new Error(`Received empty audio blob for chunk #${index}`);
+            }
+            
+            // Track duration
+            try {
+              const headerSeconds = Number(response.headers.get('X-Audio-Duration') || 0);
+              const seconds = headerSeconds > 0 ? headerSeconds : await getBlobDurationSeconds(audioBlob);
+              durationsBuffer.current[index] = seconds;
+            } catch {}
+            
+            const audioUrl = URL.createObjectURL(audioBlob);
+            audioBuffer.current[index] = audioUrl;
+            bufferVoiceRef.current = selectedVoiceRef.current;
+            
+            // Retry playback with fresh audio
+            console.log(`[playChunk] Retrying chunk #${index} with fresh audio after blob URL error`);
+            playAudio(audioUrl);
+            return; // Success - don't show error
+          } catch (retryError) {
+            console.error(`[playChunk] Retry failed for chunk #${index}:`, retryError);
+            // Fall through to show error below
+          }
+        }
+        
+        // Original error handling for non-blob-URL errors or if retry failed
         setIsSpeaking(false); 
         setIsPaused(false); 
         setCurrentChunkIndex(null);
@@ -665,8 +1062,8 @@ export const useReaderTTS = ({
         });
       }
       
+      // ✅ Prefetch next chunk only (reduced to prevent buffer bloat)
       prefetchChunks(index + 1);
-      prefetchChunks(index + PREFETCH_SECONDARY_OFFSET);
     };
 
     // ✅ FIX: Check if seamless is actively playing before creating HTML5 Audio
@@ -690,8 +1087,8 @@ export const useReaderTTS = ({
             await strategy.prepareChunk(index, audioBlob);
             console.log(`[playChunk] Pre-decoded chunk #${index} from buffer for seamless playback`);
             await strategy.play(audioBlob, index);
+            // ✅ Prefetch next chunk only (reduced to prevent buffer bloat)
             prefetchChunks(index + 1);
-            prefetchChunks(index + PREFETCH_SECONDARY_OFFSET);
             return; // Success - seamless playback started, no HTML5 Audio
           } catch (error) {
             console.warn(`[playChunk] Seamless playback from buffer failed, falling back to HTML5:`, error);
@@ -774,8 +1171,8 @@ export const useReaderTTS = ({
             await strategy.prepareChunk(index, audioBlob);
             console.log(`[playChunk] Pre-decoded chunk #${index} for seamless playback`);
             await strategy.play(audioBlob, index);
+            // ✅ Prefetch next chunk only (reduced to prevent buffer bloat)
             prefetchChunks(index + 1);
-            prefetchChunks(index + PREFETCH_SECONDARY_OFFSET);
             return; // Success - seamless playback started
           } catch (error) {
             console.warn(`[playChunk] Seamless playback failed, using HTML5:`, error);
@@ -829,6 +1226,8 @@ export const useReaderTTS = ({
       onPlay: (chunkIndex: number) => {
         playStartTimeRef.current[chunkIndex] = Date.now();
         console.log(`[Strategy] Audio started playing chunk #${chunkIndex}`);
+        // ✅ FIX: Update playing chunk ref when audio actually starts
+        isChunkPlayingRef.current = chunkIndex;
         // Update currentChunkIndex when audio actually starts playing
         // This ensures highlight is synchronized with audio playback
         setCurrentChunkIndex(chunkIndex);
@@ -843,9 +1242,31 @@ export const useReaderTTS = ({
           ? durationsBuffer.current[chunkIndex]
           : (elapsed > 0 ? elapsed : 0);
         
+        // ✅ DEBUG: Log seconds calculation for seamless playback
+        console.log(`[Strategy] Usage calculation for chunk #${chunkIndex}:`, {
+          chunkIndex,
+          durationsBufferValue: durationsBuffer.current[chunkIndex],
+          elapsed,
+          calculatedSeconds: seconds,
+          playStartTime: playStartTimeRef.current[chunkIndex],
+          currentTime: Date.now()
+        });
+        
         // ✅ CRITICAL FIX: Make usage tracking blocking - stop playback if limit exceeded
+        // ✅ FIX: Determine if we should check limit (periodic check every 60 seconds)
+        const now = Date.now();
+        const timeSinceLastCheck = now - lastLimitCheckTimeRef.current;
+        const shouldCheckLimit = timeSinceLastCheck > LIMIT_CHECK_INTERVAL_MS;
+        
+        if (shouldCheckLimit) {
+          console.log(`[Strategy] Performing periodic limit check (last check was ${Math.round(timeSinceLastCheck / 1000)}s ago)`);
+          lastLimitCheckTimeRef.current = now;
+        }
+        
         try {
-          await recordUsageSeconds(seconds);
+          await recordUsageSeconds(seconds, {
+            skipLimitCheck: !shouldCheckLimit  // ✅ Only check limit periodically
+          });
         } catch (error: any) {
           console.error(`[Strategy] Error recording usage seconds:`, error);
           // Stop playback if limit exceeded
@@ -949,6 +1370,12 @@ export const useReaderTTS = ({
     
     const strategy = playbackStrategyRef.current;
     
+    // ✅ FIX: Prevent resuming if already playing the same chunk
+    if (isChunkPlayingRef.current === resumeIndex && (isSpeaking || strategy?.isPlaying())) {
+      console.log(`[${readerInstanceId}][resumePlayback] Already playing chunk ${resumeIndex}, skipping resume`);
+      return;
+    }
+    
     // Try strategy first (seamless or HTML5)
     if (strategy && strategy.isPaused()) {
       try {
@@ -956,6 +1383,10 @@ export const useReaderTTS = ({
         setIsPaused(false);
         setIsSpeaking(true);
         ttsIntentActiveRef.current = true;
+        // ✅ FIX: Update playing chunk ref to prevent duplicates
+        if (resumeIndex !== null) {
+          isChunkPlayingRef.current = resumeIndex;
+        }
         return;
       } catch (error) {
         // If seamless resume fails (e.g., chunk evicted from queue), fallback to HTML5
@@ -974,35 +1405,52 @@ export const useReaderTTS = ({
             setIsPaused(false);
             setIsSpeaking(true);
             ttsIntentActiveRef.current = true;
+            // ✅ FIX: Update playing chunk ref
+            if (resumeIndex !== null) {
+              isChunkPlayingRef.current = resumeIndex;
+            }
           })
           .catch((error) => {
             console.warn('Audio play failed:', error);
             setIsPaused(true);
             setIsSpeaking(false);
             ttsIntentActiveRef.current = false;
+            isChunkPlayingRef.current = null;
             addToast('Failed to resume audio playback. If it does not work contact us.', 'error');
           });
       } else {
         setIsPaused(false);
         setIsSpeaking(true);
         ttsIntentActiveRef.current = true;
+        if (resumeIndex !== null) {
+          isChunkPlayingRef.current = resumeIndex;
+        }
       }
     } else if (resumeIndex !== null) {
-      // Fallback: If no audio ref or strategy resume failed, restart playback from saved index
-      console.log(`[${readerInstanceId}][resumePlayback] Restarting playback from chunk ${resumeIndex}`);
-      // Stop strategy if it's still active but in error state
-      if (strategy && (strategy.isPlaying() || strategy.isPaused())) {
-        strategy.stop();
+      // ✅ FIX: Only restart if not already playing this chunk
+      if (isChunkPlayingRef.current !== resumeIndex) {
+        // Fallback: If no audio ref or strategy resume failed, restart playback from saved index
+        console.log(`[${readerInstanceId}][resumePlayback] Restarting playback from chunk ${resumeIndex}`);
+        // Stop strategy if it's still active but in error state
+        if (strategy && (strategy.isPlaying() || strategy.isPaused())) {
+          strategy.stop();
+        }
+        isChunkPlayingRef.current = resumeIndex;
+        playChunk(resumeIndex);
+      } else {
+        console.log(`[${readerInstanceId}][resumePlayback] Already playing chunk ${resumeIndex}, skipping restart`);
       }
-      playChunk(resumeIndex);
     } else {
       console.log(`[${readerInstanceId}][resumePlayback] Cannot resume - resumeIndex: ${resumeIndex}, isPaused: ${isPaused}, audioRef: ${!!audioRef.current}`);
     }
-  }, [isPaused, resumeIndex, playChunk, readerInstanceId, addToast]);
+  }, [isPaused, resumeIndex, isSpeaking, playChunk, readerInstanceId, addToast]);
 
   // === Halt playback (for navigation or stopping) ===
   const haltPlayback = useCallback(() => {
     const strategy = playbackStrategyRef.current;
+    
+    // ✅ FIX: Clear playing chunk ref
+    isChunkPlayingRef.current = null;
     
     // Stop strategy first (seamless or HTML5)
     if (strategy && (strategy.isPlaying() || strategy.isPaused())) {
@@ -1048,6 +1496,8 @@ export const useReaderTTS = ({
     haltPlayback();
     clearResumeIndex();
     ttsIntentActiveRef.current = false;
+    // ✅ Reset buffered chunks count when stopping
+    setBufferedChunksCount(0);
   }, [haltPlayback, clearResumeIndex]);
 
   // Update handleStopTTSRef when handleStopTTS changes
@@ -1069,24 +1519,42 @@ export const useReaderTTS = ({
     
     // ✅ FIXED: Refresh usage limit and check directly for authenticated users
     if (user?.id) {
-      // Refresh the context first
-      await refreshUsageLimit();
-      
-      // Fetch limit directly to get fresh data (context might not update immediately)
-      const limitData = await fetchUsageLimit(user.id);
-      
-      if (limitData) {
-        // Check if limit is exceeded (using same logic as SubscriptionContext)
-        const limitExceeded = (limitData.limit_exceeded ?? false) || 
+      try {
+        // Refresh the context first
+        await refreshUsageLimit();
+        
+        // Fetch limit directly to get fresh data (context might not update immediately)
+        const limitData = await fetchUsageLimit(user.id);
+        
+        if (limitData) {
+          // Check if limit is exceeded (using same logic as SubscriptionContext)
+          const limitExceeded = (limitData.limit_exceeded ?? false) || 
                               (limitData.minutes_remaining !== null && 
                                limitData.minutes_remaining < 1 && 
                                (limitData.prepaid_minutes ?? 0) === 0);
-        
-        if (limitExceeded) {
-          console.warn('[TTS] Authenticated user limit exceeded, blocking TTS');
-          addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
-          return; // Block TTS
+          
+          if (limitExceeded) {
+            console.warn('[TTS] Authenticated user limit exceeded, blocking TTS');
+            addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+            return; // Block TTS
+          }
         }
+      } catch (limitError: any) {
+        // ✅ NEW: If limit check fails (timeout, network error, etc.), log warning but allow TTS to proceed
+        // This prevents TTS from being blocked when the limit service is unavailable
+        console.warn('[TTS] Failed to check usage limit, allowing TTS to proceed:', limitError?.message || limitError);
+        
+        // Check if it's a session/auth error - might want to handle differently
+        if (limitError?.message?.includes('Session refresh timeout') || 
+            limitError?.message?.includes('Session expired')) {
+          console.warn('[TTS] Session refresh failed, but allowing TTS to proceed. User may need to sign in again.');
+          // Don't show error toast - just log and proceed
+          // The usage will still be tracked, and limits will be enforced server-side
+        } else {
+          // For other errors (network, timeout), log but proceed
+          console.warn('[TTS] Usage limit check failed, proceeding with TTS. Limits will be enforced server-side.');
+        }
+        // Continue to TTS - don't block on limit check failures
       }
     }
     
@@ -1273,14 +1741,33 @@ export const useReaderTTS = ({
 
     const startPlayback = async () => {
       console.log(`[${readerInstanceId}][handleTTS] Starting playback from chunk ${startChunk}`);
-      setIsProcessing(true); 
-      await prefetchChunks(startChunk);
+      // ✅ Reset buffered chunks count when starting new playback
+      setBufferedChunksCount(0);
+      setIsProcessing(true);
+      
+      // ✅ OPTIMISTIC PLAYBACK: Fetch first 2 chunks in parallel, then start playing immediately
+      const firstChunkPromise = fetchSingleChunk(startChunk);
+      const secondChunkPromise = startChunk + 1 < chunks.length 
+        ? fetchSingleChunk(startChunk + 1) 
+        : Promise.resolve();
+      
+      // Wait for first chunk to be ready, then start playing
+      await firstChunkPromise;
       setIsProcessing(false);
       playChunk(startChunk);
+      
+      // Prefetch second chunk and remaining chunks in background (non-blocking)
+      secondChunkPromise.catch(err => 
+        console.warn('[handleTTS] Background prefetch of second chunk failed:', err)
+      );
+      // ✅ Only prefetch next chunks (reduced to prevent buffer bloat)
+      prefetchChunks(startChunk + INITIAL_PREFETCH_COUNT).catch(err => 
+        console.warn('[handleTTS] Background prefetch failed:', err)
+      );
     };
     startPlayback();
 
-  }, [isPaused, isSpeaking, resumeIndex, chunks, currentPageText, readerInstanceId, pausePlayback, resumePlayback, playChunk, prefetchChunks, anonymousLimit, addToast, user?.id, refreshUsageLimit]);
+  }, [isPaused, isSpeaking, resumeIndex, chunks, currentPageText, readerInstanceId, pausePlayback, resumePlayback, playChunk, prefetchChunks, fetchSingleChunk, anonymousLimit, addToast, user?.id, refreshUsageLimit]);
 
   // === Save progress periodically on chunk change ===
   useEffect(() => {
@@ -1476,14 +1963,24 @@ export const useReaderTTS = ({
   // === Previous/Next Sentence Navigation ===
   const handlePreviousSentence = useCallback(() => {
     if (currentChunkIndex !== null && currentChunkIndex > 0) {
+      // Play the previous sentence
+      const previousChunkIndex = currentChunkIndex - 1;
+      
+      // ✅ FIX: Prevent playing same chunk if already playing
+      if (isChunkPlayingRef.current === previousChunkIndex && isSpeaking) {
+        console.log(`[${readerInstanceId}][Previous Sentence] Already playing chunk ${previousChunkIndex}, skipping`);
+        return;
+      }
+      
       // Stop current playback if playing
       if (isSpeaking) {
         pausePlayback();
       }
       
-      // Play the previous sentence
-      const previousChunkIndex = currentChunkIndex - 1;
       console.log(`[${readerInstanceId}][Previous Sentence] Moving from chunk ${currentChunkIndex} to ${previousChunkIndex}`);
+      
+      // ✅ FIX: Update playing chunk ref before playing
+      isChunkPlayingRef.current = previousChunkIndex;
       
       // Prefetch and play the previous chunk
       prefetchChunks(previousChunkIndex);
@@ -1502,14 +1999,24 @@ export const useReaderTTS = ({
     }
     
     if (currentChunkIndex !== null && currentChunkIndex < chunks.length - 1) {
+      // Play the next sentence
+      const nextChunkIndex = currentChunkIndex + 1;
+      
+      // ✅ FIX: Prevent playing same chunk if already playing
+      if (isChunkPlayingRef.current === nextChunkIndex && isSpeaking) {
+        console.log(`[${readerInstanceId}][Next Sentence] Already playing chunk ${nextChunkIndex}, skipping`);
+        return;
+      }
+      
       // Stop current playback if playing (manual navigation only)
       if (isSpeaking) {
         pausePlayback();
       }
       
-      // Play the next sentence
-      const nextChunkIndex = currentChunkIndex + 1;
       console.log(`[${readerInstanceId}][Next Sentence] Manual navigation: Moving from chunk ${currentChunkIndex} to ${nextChunkIndex}`);
+      
+      // ✅ FIX: Update playing chunk ref before playing
+      isChunkPlayingRef.current = nextChunkIndex;
       
       // Prefetch and play the next chunk
       prefetchChunks(nextChunkIndex);
@@ -1638,6 +2145,7 @@ export const useReaderTTS = ({
     hasFinishedPlayback,
     useKokoroTTS,
     highlightedContent,
+    bufferedChunksCount, // ✅ Buffering UI state
     
     // Controls
     handleTTS,

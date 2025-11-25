@@ -1,7 +1,7 @@
 // src/components/Reader/ReaderHeader.tsx
 // Header component for Reader (mobile + desktop variants)
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Headphones, RefreshCw, Sparkles } from 'lucide-react';
 import { TOCItem } from '../../types/books';
 import MobileTOCDrawer from './MobileTOCDrawer';
@@ -68,6 +68,14 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
     setShowAuthModal(true);
   };
 
+  // Close auth modal when user successfully authenticates
+  useEffect(() => {
+    if (isAuthenticated && showAuthModal) {
+      console.log('[ReaderHeader] User authenticated, closing auth modal');
+      setShowAuthModal(false);
+    }
+  }, [isAuthenticated, showAuthModal]);
+
   return (
     <header className="reader-header">
       {/* Mobile: Stacked layout */}
@@ -130,9 +138,9 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
                 <div className="flex items-center gap-x-1 text-xs text-gray-700">
                   <span className="font-medium">
                     {usageLimit ? (
-                      // Backend now returns minutes_remaining that includes free tier limit + prepaid
+                      // Backend returns minutes_remaining in seconds, so divide by 3600 to get hours
                       usageLimit.minutes_remaining !== null && usageLimit.minutes_remaining !== undefined
-                        ? `${(usageLimit.minutes_remaining / 60).toFixed(1)}h`
+                        ? `${(usageLimit.minutes_remaining / 3600).toFixed(1)}h`
                         : '0h'
                     ) : subscriptionInfo?.profile ? (
                       // Fallback: calculate from profile data if usageLimit not available
@@ -271,9 +279,9 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
               <div className="flex items-center gap-x-2 text-sm text-gray-700">
                 <span className="font-medium">
                   {usageLimit ? (
-                    // Backend now returns minutes_remaining that includes free tier limit + prepaid
+                    // Backend returns minutes_remaining in seconds, so divide by 3600 to get hours
                     usageLimit.minutes_remaining !== null && usageLimit.minutes_remaining !== undefined
-                      ? `${(usageLimit.minutes_remaining / 60).toFixed(1)} hrs`
+                      ? `${(usageLimit.minutes_remaining / 3600).toFixed(1)} hrs`
                       : '0 hrs'
                   ) : subscriptionInfo?.profile ? (
                     // Fallback: calculate from profile data if usageLimit not available
@@ -282,7 +290,8 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
                       const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used 
                         ? subscriptionInfo.profile.subscription_minutes_used / 60
                         : (subscriptionInfo.profile.tts_minutes_used || 0) / 60;
-                      const prepaidMinutes = subscriptionInfo.profile.prepaid_minutes || 0;
+                      // prepaid_minutes from profile is in seconds, convert to minutes
+                      const prepaidMinutes = (subscriptionInfo.profile.prepaid_minutes || 0) / 60;
                       
                       // If no subscription limit and no subscription, use free tier limit (360 minutes)
                       let effectiveLimit = subscriptionLimit;
