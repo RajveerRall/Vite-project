@@ -5,6 +5,7 @@ import SEO from '../components/Common/SEO';
 import { useEpubExtraction } from '../hooks/useEpubExtraction';
 import { requestFullCast, ttsForLine, type DialogueLine } from '../services/fullCastTTS';
 import { videoCacheService } from '../services/VideoCacheService';
+import { videoStorageService } from '../services/VideoStorageService';
 import { generateCacheKey } from '../utils/cacheKeyGenerator';
 
 interface VideoSettings {
@@ -29,6 +30,7 @@ interface QueueItem {
   progress: VideoProgress;
   error?: string;
   estimatedDuration: number;
+  savedPath?: string; // Path where video was saved
 }
 
 const EpubToVideo: React.FC = () => {
@@ -45,6 +47,10 @@ const EpubToVideo: React.FC = () => {
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   const [_currentProcessingId, setCurrentProcessingId] = useState<string | null>(null);
   const [cacheStatuses, setCacheStatuses] = useState<Map<string, { hasCache: boolean; cacheSize: number; cacheDate: Date | null }>>(new Map());
+  // Merge state
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergeProgress, setMergeProgress] = useState({ percentage: 0, message: '' });
+  const [directoryAccessGranted, setDirectoryAccessGranted] = useState(false);
 
   // Use the EPUB extraction hook (no TTS initialization)
   const { 
@@ -1075,7 +1081,7 @@ const EpubToVideo: React.FC = () => {
         throw new Error(`Video generation failed: ${response.statusText}`);
       }
 
-      // Step 4: Download the generated video
+      // Step 4: Save the generated video using VideoStorageService
       updateProgress({
         stage: 'complete',
         percentage: 100,
@@ -1083,21 +1089,60 @@ const EpubToVideo: React.FC = () => {
       });
 
       const videoBlob = await response.blob();
-      const videoUrl = URL.createObjectURL(videoBlob);
-      const a = document.createElement('a');
-      a.href = videoUrl;
-      a.download = `${chapter.title}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(videoUrl);
+      const bookTitle = uploadedFile?.name || 'Unknown';
+      
+      // Request directory access on first video (if File System API is available)
+      if (!directoryAccessGranted && 'showDirectoryPicker' in window) {
+        const granted = await videoStorageService.requestDirectoryAccess(bookTitle);
+        setDirectoryAccessGranted(granted);
+        if (granted) {
+          console.log('[Video Generation] Directory access granted for organized storage');
+        }
+      }
 
-      console.log('[Video Generation] Video generated and downloaded successfully');
+      // Save video using VideoStorageService
+      const saveResult = await videoStorageService.saveVideo(
+        bookTitle,
+        chapter.index,
+        chapter.title,
+        videoBlob
+      );
+
+      if (saveResult.success) {
+        console.log('[Video Generation] Video saved to:', saveResult.filePath);
+        
+        // Update queue item with saved path
+        setVideoQueue(prev => prev.map(item => 
+          item.id === queueItem.id 
+            ? { ...item, status: 'completed', savedPath: saveResult.filePath }
+            : item
+        ));
+      } else {
+        console.warn('[Video Generation] Failed to save video:', saveResult.error);
+        // Fallback to direct download
+        const videoUrl = URL.createObjectURL(videoBlob);
+        const a = document.createElement('a');
+        a.href = videoUrl;
+        a.download = `${chapter.title}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(videoUrl);
+        
+        // Still mark as completed
+        setVideoQueue(prev => prev.map(item => 
+          item.id === queueItem.id 
+            ? { ...item, status: 'completed' }
+            : item
+        ));
+      }
+
+      console.log('[Video Generation] Video generated and saved successfully');
     } catch (error) {
       console.error('[Video Generation] Failed:', error);
       throw error; // Re-throw to mark queue item as failed
     }
-  }, [chapters, uploadedFile, settings]);
+  }, [chapters, uploadedFile, settings, directoryAccessGranted]);
 
   // Process queue sequentially
   const processQueue = useCallback(async () => {
@@ -1184,6 +1229,112 @@ const EpubToVideo: React.FC = () => {
       console.log('[Queue] Queue processing ended');
     }
   }, [generateVideoForQueueItem, isProcessingQueue]);
+
+  // Merge all completed videos into a single video
+  const handleMergeVideos = useCallback(async () => {
+    if (!uploadedFile) {
+      alert('Please upload a book first');
+      return;
+    }
+
+    const bookTitle = uploadedFile.name || 'Unknown';
+    setIsMerging(true);
+    setMergeProgress({ percentage: 0, message: 'Preparing to merge videos...' });
+
+    try {
+      // Get all saved videos for this book
+      const videos = await videoStorageService.getBookVideos(bookTitle);
+      
+      if (videos.length === 0) {
+        alert('No videos found to merge. Please generate videos first.');
+        setIsMerging(false);
+        return;
+      }
+
+      setMergeProgress({ percentage: 10, message: `Found ${videos.length} videos to merge...` });
+
+      // Get video generator URL
+      let videoGeneratorUrl = 'http://localhost:8000';
+      try {
+        const { portableConfig } = await import('../config/portable');
+        videoGeneratorUrl = portableConfig.videoGeneratorUrl;
+      } catch (e) {
+        videoGeneratorUrl = import.meta.env.VITE_VIDEO_GENERATOR_URL || 'http://localhost:8000';
+      }
+
+      setMergeProgress({ percentage: 20, message: 'Preparing video files for merge...' });
+
+      // Create FormData with all videos
+      const formData = new FormData();
+      formData.append('book_title', bookTitle);
+      formData.append('video_count', videos.length.toString());
+      
+      // Add video blobs in order
+      videos.forEach((video, index) => {
+        formData.append('videos', video.blob, video.fileName);
+        console.log(`[Video Merge] Added video ${index + 1}: ${video.fileName}`);
+      });
+
+      setMergeProgress({ percentage: 40, message: 'Sending merge request to server...' });
+
+      // Send to backend to merge
+      const response = await fetch(`${videoGeneratorUrl}/merge-videos`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Merge failed: ${response.statusText} - ${errorText}`);
+      }
+
+      setMergeProgress({ percentage: 80, message: 'Merging videos on server...' });
+
+      // The server will return the merged video
+      const mergedBlob = await response.blob();
+      
+      setMergeProgress({ percentage: 90, message: 'Downloading merged video...' });
+
+      // Save merged video
+      const sanitizedBookTitle = bookTitle.replace(/\.[^/.]+$/, '').replace(/[<>:"/\\|?*]/g, '_');
+      const mergedFileName = `${sanitizedBookTitle}_Complete.mp4`;
+      
+      const saveResult = await videoStorageService.saveVideo(
+        bookTitle,
+        -1, // Special index for merged video
+        'Complete',
+        mergedBlob
+      );
+
+      if (saveResult.success) {
+        console.log('[Video Merge] Merged video saved to:', saveResult.filePath);
+      } else {
+        // Fallback to direct download
+        const mergedUrl = URL.createObjectURL(mergedBlob);
+        const a = document.createElement('a');
+        a.href = mergedUrl;
+        a.download = mergedFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(mergedUrl);
+      }
+
+      setMergeProgress({ percentage: 100, message: 'Merge complete!' });
+      
+      setTimeout(() => {
+        alert(`Successfully merged ${videos.length} chapters into complete video!`);
+      }, 500);
+    } catch (error: any) {
+      console.error('[Video Merge] Failed:', error);
+      alert(`Failed to merge videos: ${error.message}`);
+    } finally {
+      setIsMerging(false);
+      setTimeout(() => {
+        setMergeProgress({ percentage: 0, message: '' });
+      }, 2000);
+    }
+  }, [uploadedFile]);
 
   // Auto-start queue when items are added (only when queue length changes)
   const queueLengthRef = useRef(videoQueue.length);
@@ -1487,6 +1638,35 @@ const EpubToVideo: React.FC = () => {
                       </div>
                     )}
                     
+                    {/* Merge Videos Button */}
+                    {videoQueue.length > 0 && 
+                     videoQueue.every(item => item.status === 'completed' || item.status === 'failed') &&
+                     videoQueue.filter(item => item.status === 'completed').length > 0 && (
+                      <button
+                        onClick={handleMergeVideos}
+                        disabled={isMerging}
+                        className="mt-4 w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm disabled:opacity-50 flex items-center justify-center"
+                      >
+                        {isMerging ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Merging... {mergeProgress.percentage}%
+                          </>
+                        ) : (
+                          <>
+                            <Video className="w-4 h-4 mr-2" />
+                            Merge All Videos ({videoQueue.filter(i => i.status === 'completed').length} chapters)
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    {isMerging && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                        {mergeProgress.message}
+                      </div>
+                    )}
+
                     {/* Clear Queue Button */}
                     <button
                       onClick={() => {
@@ -1494,7 +1674,7 @@ const EpubToVideo: React.FC = () => {
                           setVideoQueue([]);
                         }
                       }}
-                      disabled={isProcessingQueue}
+                      disabled={isProcessingQueue || isMerging}
                       className="mt-4 w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm disabled:opacity-50"
                     >
                       Clear Queue

@@ -6258,6 +6258,109 @@ async def generate_video(
         # Clean up temporary directory
         shutil.rmtree(temp_dir, ignore_errors=True)
 
+@app.post("/merge-videos")
+async def merge_videos(
+    videos: List[UploadFile] = File(...),
+    book_title: str = Form(...),
+    video_count: str = Form(...)
+):
+    """
+    Merge multiple video files into a single video using FFmpeg concat.
+    """
+    temp_dir = tempfile.mkdtemp()
+    try:
+        print(f"[Merge Videos] Starting merge for book: {book_title}")
+        print(f"[Merge Videos] Number of videos: {video_count}")
+        
+        # Save all videos to temp directory
+        video_files = []
+        for i, video in enumerate(videos):
+            video_path = os.path.join(temp_dir, f"video_{i:03d}.mp4")
+            with open(video_path, "wb") as f:
+                content = await video.read()
+                f.write(content)
+            video_files.append(video_path)
+            print(f"[Merge Videos] Saved video {i+1}/{len(videos)}: {video.filename} ({len(content)} bytes)")
+        
+        # Create concat list file
+        concat_list_path = os.path.join(temp_dir, "concat_list.txt")
+        with open(concat_list_path, "w", encoding="utf-8") as f:
+            for video_path in video_files:
+                # Use absolute path with forward slashes (FFmpeg prefers this)
+                abs_path = os.path.abspath(video_path).replace("\\", "/")
+                f.write(f"file '{abs_path}'\n")
+        
+        print(f"[Merge Videos] Created concat list with {len(video_files)} videos")
+        
+        # Output path
+        sanitized_title = "".join(c for c in book_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        sanitized_title = sanitized_title.replace(' ', '_').replace('.epub', '').replace('.EPUB', '')
+        output_filename = f"{sanitized_title}_Complete.mp4"
+        output_path = os.path.join(tempfile.gettempdir(), output_filename)
+        
+        # FFmpeg concat command
+        ffmpeg_path = get_ffmpeg_path()
+        cmd = [
+            ffmpeg_path,
+            '-y',
+            '-f', 'concat',
+            '-safe', '0',
+            '-i', concat_list_path,
+            '-c', 'copy',  # No re-encoding, just concatenate
+            output_path
+        ]
+        
+        print(f"[Merge Videos] Running FFmpeg concat command...")
+        print(f"[Merge Videos] Output: {output_path}")
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        
+        if not os.path.exists(output_path):
+            raise Exception("Merged video file was not created")
+        
+        file_size = os.path.getsize(output_path)
+        print(f"[Merge Videos] ✓ Merged video created: {output_path} ({file_size} bytes)")
+        
+        # Read merged video
+        with open(output_path, 'rb') as f:
+            video_content = f.read()
+        
+        # Cleanup temp files
+        os.remove(output_path)
+        
+        # Sanitize filename for HTTP header
+        safe_filename = sanitized_title.replace('_', ' ')
+        safe_filename = safe_filename.replace('\u2019', "'").replace('\u2018', "'")
+        safe_filename = safe_filename.replace('\u201C', '"').replace('\u201D', '"')
+        safe_filename = re.sub(r'[^\x00-\x7F]+', '_', safe_filename)
+        safe_filename = safe_filename.replace(' ', '_').replace('/', '_').replace('\\', '_')
+        safe_filename = re.sub(r'[<>:"|?*]', '_', safe_filename)
+        safe_filename = safe_filename.strip('._')
+        
+        header_value = f"attachment; filename=\"{safe_filename}_Complete.mp4\""
+        try:
+            header_value.encode('latin-1')
+        except UnicodeEncodeError:
+            safe_filename = "Complete_Video"
+            header_value = f"attachment; filename=\"{safe_filename}.mp4\""
+        
+        from fastapi.responses import Response
+        return Response(
+            content=video_content,
+            media_type="video/mp4",
+            headers={
+                "Content-Disposition": header_value
+            }
+        )
+        
+    except Exception as e:
+        print(f"[Merge Videos] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e)}
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
 def get_ffmpeg_path():
     """Get FFmpeg executable path"""
     # Try common locations
