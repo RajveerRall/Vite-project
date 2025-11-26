@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Merge multiple chapter videos into a single video file.
-Identifies videos by numeric prefix (001_, 002_, etc.) and merges them in sequence.
+Streamlit UI for merging multiple chapter videos into a single video file.
+Allows manual arrangement and shows timestamps for each video.
 """
 
 import os
@@ -11,7 +11,12 @@ import tempfile
 import shutil
 import re
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Dict, Optional, Callable
+import streamlit as st
+try:
+    from streamlit_sortable_list import sortable_list
+except ImportError:
+    sortable_list = None
 
 def get_ffmpeg_path():
     """Get FFmpeg executable path"""
@@ -32,10 +37,65 @@ def get_ffmpeg_path():
     
     raise Exception("FFmpeg not found. Please install FFmpeg and add it to your PATH.")
 
-def find_video_files(directory: str) -> List[Tuple[Tuple[int, int], str]]:
+def get_ffprobe_path():
+    """Get FFprobe executable path"""
+    possible_paths = [
+        "ffprobe",
+        "C:\\ffmpeg\\bin\\ffprobe.exe",
+        "C:\\Program Files\\ffmpeg\\bin\\ffprobe.exe",
+        "/usr/bin/ffprobe",
+        "/usr/local/bin/ffprobe"
+    ]
+    
+    for path in possible_paths:
+        try:
+            subprocess.run([path, "-version"], capture_output=True, check=True)
+            return path
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            continue
+    
+    # Fallback: try replacing 'ffmpeg' with 'ffprobe' in ffmpeg path
+    try:
+        ffmpeg_path = get_ffmpeg_path()
+        if 'ffmpeg' in ffmpeg_path:
+            probe_path = ffmpeg_path.replace('ffmpeg', 'ffprobe')
+            subprocess.run([probe_path, "-version"], capture_output=True, check=True)
+            return probe_path
+    except:
+        pass
+    
+    raise Exception("FFprobe not found. Please install FFmpeg and add it to your PATH.")
+
+def get_video_duration(video_path: str) -> float:
+    """Get video duration in seconds using ffprobe"""
+    try:
+        ffprobe_path = get_ffprobe_path()
+        cmd = [
+            ffprobe_path,
+            '-v', 'error',
+            '-show_entries', 'format=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            video_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=30)
+        duration = float(result.stdout.strip())
+        return duration
+    except Exception as e:
+        if 'st' in sys.modules:
+            st.warning(f"Could not get duration for {os.path.basename(video_path)}: {e}")
+        return 0.0
+
+def format_timestamp(seconds: float) -> str:
+    """Format seconds as HH:MM:SS"""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+def find_video_files(directory: str) -> List[Dict]:
     """
     Find all video files in directory and extract their sequence numbers.
-    Returns list of ((priority, sequence_number), file_path) tuples, sorted by priority then sequence.
+    Returns list of dictionaries with video info.
     Handles multiple naming patterns:
     - 001_filename.mp4
     - Chapter 1.mp4, Chapter 2.mp4 (comes after Letters)
@@ -48,8 +108,6 @@ def find_video_files(directory: str) -> List[Tuple[Tuple[int, int], str]]:
     directory_path = Path(directory)
     if not directory_path.exists():
         raise FileNotFoundError(f"Directory not found: {directory}")
-    
-    print(f"Scanning directory: {directory}")
     
     for file_path in directory_path.iterdir():
         if file_path.is_file() and file_path.suffix.lower() in video_extensions:
@@ -105,52 +163,49 @@ def find_video_files(directory: str) -> List[Tuple[Tuple[int, int], str]]:
                                         priority = 500
             
             if sequence is not None:
-                # Use tuple of (priority, sequence) for sorting
-                # Lower priority number = earlier in sort
-                sort_key = (priority, sequence)
-                video_files.append((sort_key, str(file_path)))
-                print(f"  Found: {filename} (type: {type_name}, sequence: {sequence:03d}, priority: {priority})")
-            else:
-                print(f"  Warning: {filename} has no sequence number, skipping")
+                video_files.append({
+                    'filename': filename,
+                    'path': str(file_path),
+                    'priority': priority,
+                    'sequence': sequence,
+                    'type': type_name,
+                    'duration': 0.0,  # Will be filled later
+                    'start_time': 0.0  # Will be calculated after ordering
+                })
     
     # Sort by priority first, then by sequence number
-    video_files.sort(key=lambda x: x[0])
+    video_files.sort(key=lambda x: (x['priority'], x['sequence']))
     
     if not video_files:
         raise ValueError("No video files with sequence numbers found in directory")
     
-    print(f"\n✓ Found {len(video_files)} video files")
-    print("\nMerge order:")
-    for i, ((priority, seq), file_path) in enumerate(video_files, 1):
-        filename = os.path.basename(file_path)
-        type_name = "Letter" if priority == 0 else "Chapter" if priority == 100 else "File"
-        print(f"  {i:2d}. {type_name} {seq} - {filename}")
-    
     return video_files
 
-def create_concat_list(video_files: List[Tuple[Tuple[int, int], str]], temp_dir: str) -> str:
+def create_concat_list(video_files: List[Dict], temp_dir: str) -> str:
     """Create FFmpeg concat list file"""
     concat_list_path = os.path.join(temp_dir, "concat_list.txt")
     
     with open(concat_list_path, "w", encoding="utf-8") as f:
-        for (priority, sequence), video_path in video_files:
+        for video in video_files:
             # Use absolute path with forward slashes (FFmpeg prefers this)
-            abs_path = os.path.abspath(video_path).replace("\\", "/")
+            abs_path = os.path.abspath(video['path']).replace("\\", "/")
             f.write(f"file '{abs_path}'\n")
     
     return concat_list_path
 
-def merge_videos(video_files: List[Tuple[Tuple[int, int], str]], output_path: str) -> bool:
+def merge_videos(video_files: List[Dict], output_path: str, progress_callback: Optional[Callable[[str], None]] = None) -> bool:
     """Merge videos using FFmpeg concat"""
     ffmpeg_path = get_ffmpeg_path()
     temp_dir = tempfile.mkdtemp()
     
     try:
-        print(f"\nCreating concat list...")
+        if progress_callback:
+            progress_callback("Creating concat list...")
+        
         concat_list_path = create_concat_list(video_files, temp_dir)
         
-        print(f"\nMerging {len(video_files)} videos into: {output_path}")
-        print("This may take a while depending on video sizes...")
+        if progress_callback:
+            progress_callback(f"Merging {len(video_files)} videos...")
         
         # FFmpeg concat command
         cmd = [
@@ -163,84 +218,256 @@ def merge_videos(video_files: List[Tuple[Tuple[int, int], str]], output_path: st
             output_path
         ]
         
-        print(f"\nRunning: {' '.join(cmd[:6])}... (concat)")
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         
         if not os.path.exists(output_path):
             raise Exception("Merged video file was not created")
         
-        file_size = os.path.getsize(output_path)
-        file_size_mb = file_size / (1024 * 1024)
-        print(f"\n✓ Success! Merged video created: {output_path}")
-        print(f"  File size: {file_size_mb:.2f} MB")
-        
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"\n✗ FFmpeg error:")
-        print(f"  Return code: {e.returncode}")
-        if e.stderr:
-            print(f"  Error: {e.stderr[:500]}")
+        error_msg = e.stderr[:500] if e.stderr else str(e)
+        if progress_callback:
+            progress_callback(f"Error: {error_msg}")
         return False
-        
     except Exception as e:
-        print(f"\n✗ Error: {e}")
+        if progress_callback:
+            progress_callback(f"Error: {str(e)}")
         return False
-        
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 def main():
-    """Main function"""
-    if len(sys.argv) < 2:
-        print("Usage: python merge_chapters.py <directory> [output_file]")
-        print("\nExample:")
-        print("  python merge_chapters.py C:\\Videos\\A_Christmas_Carol")
-        print("  python merge_chapters.py C:\\Videos\\A_Christmas_Carol output.mp4")
-        sys.exit(1)
+    """Streamlit main function"""
+    st.set_page_config(
+        page_title="Video Merger",
+        page_icon="🎬",
+        layout="wide"
+    )
     
-    directory = sys.argv[1]
-    output_file = sys.argv[2] if len(sys.argv) > 2 else None
+    st.title("🎬 Video Chapter Merger")
+    st.markdown("Select a folder and arrange videos in your desired order. Timestamps will be shown for each video.")
     
-    try:
-        # Find all video files
-        video_files = find_video_files(directory)
+    # Initialize session state
+    if 'video_files' not in st.session_state:
+        st.session_state.video_files = []
+    if 'selected_folder' not in st.session_state:
+        st.session_state.selected_folder = None
+    
+    # Folder selection
+    st.markdown("---")
+    st.subheader("📁 Folder Selection")
+    
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        folder_path = st.text_input(
+            "Folder Path",
+            value=st.session_state.selected_folder or "",
+            placeholder="C:\\Users\\Rajveer\\Downloads\\Frankienstien",
+            label_visibility="collapsed"
+        )
+    
+    with col2:
+        st.write("")  # Spacing
+        if st.button("🔍 Scan Folder", type="primary", use_container_width=True):
+            if folder_path and os.path.isdir(folder_path):
+                with st.spinner("Scanning folder..."):
+                    try:
+                        videos = find_video_files(folder_path)
+                        st.session_state.video_files = videos
+                        st.session_state.selected_folder = folder_path
+                        st.success(f"Found {len(videos)} videos!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+            else:
+                st.error("Please enter a valid folder path")
+    
+    # Display and reorder videos
+    if st.session_state.video_files:
+        st.markdown("---")
+        st.subheader("📋 Video Order & Timestamps")
         
-        # Determine output filename
-        if output_file:
-            output_path = output_file
-        else:
-            # Use directory name + "_Complete.mp4"
-            dir_name = os.path.basename(os.path.abspath(directory))
-            output_path = os.path.join(directory, f"{dir_name}_Complete.mp4")
+        # Calculate cumulative timestamps
+        cumulative_time = 0.0
+        for video in st.session_state.video_files:
+            video['start_time'] = cumulative_time
+            cumulative_time += video['duration']
         
-        # Make sure output path is absolute
-        output_path = os.path.abspath(output_path)
+        # Check if durations need to be loaded
+        needs_duration_check = any(v.get('duration', 0) == 0 for v in st.session_state.video_files)
         
-        print(f"\nOutput will be saved to: {output_path}")
+        if needs_duration_check:
+            with st.spinner("Getting video durations... This may take a moment."):
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                for i, video in enumerate(st.session_state.video_files):
+                    if video.get('duration', 0) == 0:
+                        status_text.text(f"Analyzing {video['filename']}...")
+                        video['duration'] = get_video_duration(video['path'])
+                    progress_bar.progress((i + 1) / len(st.session_state.video_files))
+                
+                # Recalculate timestamps after getting durations
+                cumulative_time = 0.0
+                for video in st.session_state.video_files:
+                    video['start_time'] = cumulative_time
+                    cumulative_time += video['duration']
+                
+                st.rerun()
         
-        # Confirm before proceeding
-        response = input(f"\nProceed with merge? (y/n): ").strip().lower()
-        if response != 'y':
-            print("Cancelled.")
-            sys.exit(0)
+        # Reordering section
+        st.markdown("**Reorder videos using up/down buttons" + (" or drag-and-drop" if sortable_list else "") + ":**")
         
-        # Merge videos
-        success = merge_videos(video_files, output_path)
+        # Try drag-and-drop if available
+        if sortable_list:
+            try:
+                # Create items for sortable list
+                items = []
+                for i, video in enumerate(st.session_state.video_files):
+                    items.append({
+                        'id': str(i),
+                        'title': f"#{i+1} - {video['filename']}",
+                        'description': f"{video['type']} {video['sequence']} | Duration: {format_timestamp(video['duration'])}"
+                    })
+                
+                # Display sortable list
+                sorted_items = sortable_list(items, key="video_list")
+                
+                if sorted_items and len(sorted_items) == len(st.session_state.video_files):
+                    # Check if order changed
+                    new_order = [int(item['id']) for item in sorted_items]
+                    current_order = list(range(len(st.session_state.video_files)))
+                    
+                    if new_order != current_order:
+                        # Reorder videos based on new order
+                        reordered_videos = [st.session_state.video_files[i] for i in new_order]
+                        st.session_state.video_files = reordered_videos
+                        st.rerun()
+            except Exception as e:
+                # If drag-drop fails, fall back to buttons only
+                st.warning("Drag-and-drop unavailable, use up/down buttons instead")
         
-        if success:
-            print(f"\n🎉 All done! Your merged video is ready: {output_path}")
-            sys.exit(0)
-        else:
-            print(f"\n❌ Merge failed. Please check the errors above.")
-            sys.exit(1)
-            
-    except KeyboardInterrupt:
-        print("\n\nCancelled by user.")
-        sys.exit(1)
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
-        sys.exit(1)
+        # Display video list with up/down buttons
+        for i, video in enumerate(st.session_state.video_files):
+            with st.container():
+                col1, col2, col3, col4, col5, col6, col7 = st.columns([0.5, 3, 1.5, 1.5, 1.5, 0.5, 0.5])
+                
+                with col1:
+                    st.markdown(f"**#{i+1}**")
+                
+                with col2:
+                    st.markdown(f"**{video['filename']}**")
+                    st.caption(f"Type: {video['type']} | Sequence: {video['sequence']}")
+                
+                with col3:
+                    duration_str = format_timestamp(video['duration'])
+                    st.metric("Duration", duration_str)
+                
+                with col4:
+                    start_str = format_timestamp(video['start_time'])
+                    st.metric("Starts At", start_str)
+                
+                with col5:
+                    end_time = video['start_time'] + video['duration']
+                    end_str = format_timestamp(end_time)
+                    st.metric("Ends At", end_str)
+                
+                with col6:
+                    if i > 0 and st.button("⬆️", key=f"up_{i}", use_container_width=True):
+                        st.session_state.video_files[i], st.session_state.video_files[i-1] = \
+                            st.session_state.video_files[i-1], st.session_state.video_files[i]
+                        st.rerun()
+                
+                with col7:
+                    if i < len(st.session_state.video_files) - 1 and st.button("⬇️", key=f"down_{i}", use_container_width=True):
+                        st.session_state.video_files[i], st.session_state.video_files[i+1] = \
+                            st.session_state.video_files[i+1], st.session_state.video_files[i]
+                        st.rerun()
+                
+                st.markdown("---")
+        
+        # Summary
+        total_duration = sum(v['duration'] for v in st.session_state.video_files)
+        st.info(f"📊 **Total Duration:** {format_timestamp(total_duration)} | **Total Videos:** {len(st.session_state.video_files)}")
+        
+        # Export timestamps
+        st.markdown("---")
+        st.subheader("📝 Export Timestamps")
+        
+        timestamp_text = "Video Timestamps:\n\n"
+        for i, video in enumerate(st.session_state.video_files):
+            end_time = video['start_time'] + video['duration']
+            timestamp_text += f"{i+1}. {video['filename']}\n"
+            timestamp_text += f"   Start: {format_timestamp(video['start_time'])}\n"
+            timestamp_text += f"   End: {format_timestamp(end_time)}\n"
+            timestamp_text += f"   Duration: {format_timestamp(video['duration'])}\n\n"
+        
+        st.text_area("Timestamps", timestamp_text, height=300, key="timestamp_display")
+        
+        # Download timestamps
+        st.download_button(
+            label="💾 Download Timestamps (TXT)",
+            data=timestamp_text,
+            file_name="video_timestamps.txt",
+            mime="text/plain"
+        )
+        
+        # Merge section
+        st.markdown("---")
+        st.subheader("🔀 Merge Videos")
+        
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            output_filename = st.text_input(
+                "Output Filename",
+                value="Complete_Video.mp4",
+                placeholder="Complete_Video.mp4"
+            )
+        
+        with col2:
+            st.write("")  # Spacing
+            merge_button = st.button("🚀 Merge Videos", type="primary", use_container_width=True)
+        
+        if merge_button:
+            if not output_filename:
+                st.error("Please enter an output filename")
+            else:
+                output_path = os.path.join(st.session_state.selected_folder, output_filename)
+                
+                with st.spinner("Merging videos... This may take a while..."):
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    def progress_callback(message):
+                        status_text.text(message)
+                        progress_bar.progress(0.5)
+                    
+                    success = merge_videos(st.session_state.video_files, output_path, progress_callback)
+                    progress_bar.progress(1.0)
+                    
+                    if success:
+                        file_size = os.path.getsize(output_path)
+                        file_size_mb = file_size / (1024 * 1024)
+                        st.success(f"✅ Success! Merged video created: {output_path}")
+                        st.info(f"📦 File size: {file_size_mb:.2f} MB")
+                        
+                        # Show download button
+                        try:
+                            with open(output_path, 'rb') as f:
+                                video_data = f.read()
+                            st.download_button(
+                                label="📥 Download Merged Video",
+                                data=video_data,
+                                file_name=output_filename,
+                                mime="video/mp4"
+                            )
+                        except Exception as e:
+                            st.warning(f"Could not prepare download: {e}")
+                    else:
+                        st.error("❌ Merge failed. Please check the errors above.")
 
 if __name__ == "__main__":
     main()
