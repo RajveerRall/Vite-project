@@ -14,9 +14,9 @@ from pathlib import Path
 from typing import List, Dict, Optional, Callable
 import streamlit as st
 try:
-    from streamlit_sortable_list import sortable_list
+    from streamlit_sortables import sort_items
 except ImportError:
-    sortable_list = None
+    sort_items = None
 
 def get_ffmpeg_path():
     """Get FFmpeg executable path"""
@@ -261,6 +261,8 @@ def main():
         st.session_state.video_files = []
     if 'selected_folder' not in st.session_state:
         st.session_state.selected_folder = None
+    if 'durations_loaded' not in st.session_state:
+        st.session_state.durations_loaded = False
     
     # Folder selection
     st.markdown("---")
@@ -285,6 +287,7 @@ def main():
                         videos = find_video_files(folder_path)
                         st.session_state.video_files = videos
                         st.session_state.selected_folder = folder_path
+                        st.session_state.durations_loaded = False  # Reset flag when scanning new folder
                         st.success(f"Found {len(videos)} videos!")
                         st.rerun()
                     except Exception as e:
@@ -297,14 +300,8 @@ def main():
         st.markdown("---")
         st.subheader("📋 Video Order & Timestamps")
         
-        # Calculate cumulative timestamps
-        cumulative_time = 0.0
-        for video in st.session_state.video_files:
-            video['start_time'] = cumulative_time
-            cumulative_time += video['duration']
-        
-        # Check if durations need to be loaded
-        needs_duration_check = any(v.get('duration', 0) == 0 for v in st.session_state.video_files)
+        # Check if durations need to be loaded (only if not already attempted)
+        needs_duration_check = not st.session_state.durations_loaded and any(v.get('duration', 0) == 0 for v in st.session_state.video_files)
         
         if needs_duration_check:
             with st.spinner("Getting video durations... This may take a moment."):
@@ -313,9 +310,17 @@ def main():
                 
                 for i, video in enumerate(st.session_state.video_files):
                     if video.get('duration', 0) == 0:
-                        status_text.text(f"Analyzing {video['filename']}...")
-                        video['duration'] = get_video_duration(video['path'])
+                        status_text.text(f"Analyzing {video['filename']}... ({i+1}/{len(st.session_state.video_files)})")
+                        try:
+                            duration = get_video_duration(video['path'])
+                            video['duration'] = duration if duration > 0 else 0.0
+                        except Exception as e:
+                            st.warning(f"Could not get duration for {video['filename']}: {e}")
+                            video['duration'] = 0.0
                     progress_bar.progress((i + 1) / len(st.session_state.video_files))
+                
+                # Mark as loaded to prevent infinite loop
+                st.session_state.durations_loaded = True
                 
                 # Recalculate timestamps after getting durations
                 cumulative_time = 0.0
@@ -325,37 +330,50 @@ def main():
                 
                 st.rerun()
         
+        # Calculate cumulative timestamps (always do this, even if durations are 0)
+        cumulative_time = 0.0
+        for video in st.session_state.video_files:
+            video['start_time'] = cumulative_time
+            cumulative_time += video['duration']
+        
         # Reordering section
-        st.markdown("**Reorder videos using up/down buttons" + (" or drag-and-drop" if sortable_list else "") + ":**")
+        st.markdown("**Reorder videos using up/down buttons" + (" or drag-and-drop" if sort_items else "") + ":**")
         
         # Try drag-and-drop if available
-        if sortable_list:
+        if sort_items:
             try:
-                # Create items for sortable list
-                items = []
+                # Create items for sortable list - simple list of strings when multi_containers=False
+                # Use filename as unique identifier (prefixed with index for display)
+                video_items = []
                 for i, video in enumerate(st.session_state.video_files):
-                    items.append({
-                        'id': str(i),
-                        'title': f"#{i+1} - {video['filename']}",
-                        'description': f"{video['type']} {video['sequence']} | Duration: {format_timestamp(video['duration'])}"
-                    })
+                    # Store index in the item so we can track original position
+                    video_items.append(f"[{i}] #{i+1} - {video['filename']} | {video['type']} {video['sequence']} | {format_timestamp(video['duration'])}")
                 
-                # Display sortable list
-                sorted_items = sortable_list(items, key="video_list")
+                # When multi_containers=False, pass the list directly (not wrapped in dict)
+                sorted_items = sort_items(video_items, multi_containers=False)
                 
                 if sorted_items and len(sorted_items) == len(st.session_state.video_files):
+                    # Extract new order from sorted items
+                    # Each item is like "[0] #1 - filename.mp4 | ...", extract the number in brackets
+                    new_order = []
+                    for sorted_item in sorted_items:
+                        # Extract the index from brackets (e.g., "[0]" -> 0)
+                        match = re.search(r'\[(\d+)\]', sorted_item)
+                        if match:
+                            original_index = int(match.group(1))
+                            new_order.append(original_index)
+                    
                     # Check if order changed
-                    new_order = [int(item['id']) for item in sorted_items]
                     current_order = list(range(len(st.session_state.video_files)))
                     
-                    if new_order != current_order:
+                    if new_order != current_order and len(new_order) == len(st.session_state.video_files):
                         # Reorder videos based on new order
                         reordered_videos = [st.session_state.video_files[i] for i in new_order]
                         st.session_state.video_files = reordered_videos
                         st.rerun()
             except Exception as e:
                 # If drag-drop fails, fall back to buttons only
-                st.warning("Drag-and-drop unavailable, use up/down buttons instead")
+                st.warning(f"Drag-and-drop unavailable: {str(e)}. Use up/down buttons instead.")
         
         # Display video list with up/down buttons
         for i, video in enumerate(st.session_state.video_files):
