@@ -6,16 +6,27 @@ import { sendTestEvent } from './lib/analytics';
 import { AuthProvider } from './context/AuthContext';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { isTrackingEnabled } from './utils/trackingConfig';
+import { PostHogProvider } from 'posthog-js/react';
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <GoogleOAuthProvider clientId={clientId}>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </GoogleOAuthProvider>
+    <PostHogProvider
+      apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY}
+      options={{
+        api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
+        defaults: '2025-05-24',
+        capture_exceptions: true,
+        debug: import.meta.env.MODE === 'development',
+      }}
+    >
+      <GoogleOAuthProvider clientId={clientId}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </GoogleOAuthProvider>
+    </PostHogProvider>
   </React.StrictMode>
 );
 

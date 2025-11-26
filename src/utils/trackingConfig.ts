@@ -38,4 +38,3 @@ export function isTrackingEnabled(): boolean {
   // If explicitly enabled or in production, enable tracking
   return true;
 }
-

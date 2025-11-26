@@ -1,5 +1,6 @@
 // src/lib/analytics.ts
 
+import posthog from 'posthog-js';
 import { isTrackingEnabled } from '../utils/trackingConfig';
 
 // This interface makes it clear what we can send to Google Analytics.
@@ -13,11 +14,12 @@ interface EventParams {
 const isAnalyticsAvailable = {
   gtag: () => typeof window !== 'undefined' && typeof window.gtag === 'function',
   dataLayer: () => typeof window !== 'undefined' && Array.isArray(window.dataLayer),
-  amplitude: () => typeof window !== 'undefined' && window.amplitude && typeof window.amplitude.track === 'function'
+  amplitude: () => typeof window !== 'undefined' && window.amplitude && typeof window.amplitude.track === 'function',
+  posthog: () => typeof posthog !== 'undefined' && typeof posthog.capture === 'function'
 };
 
 /**
- * Sends a custom event to both Google Analytics and Amplitude.
+ * Sends a custom event to Google Analytics, GTM, Amplitude, and PostHog.
  * This provides comprehensive analytics coverage.
  * @param eventName The name of the event (e.g., 'add_book').
  * @param eventParams Optional parameters providing context (e.g., { method: 'upload' }).
@@ -67,10 +69,22 @@ export const trackEvent = (eventName: string, eventParams?: EventParams) => {
   } else {
     console.warn(`[Analytics] Amplitude not found. Event "${eventName}" was not tracked in Amplitude.`);
   }
+
+  // Track in PostHog
+  if (isAnalyticsAvailable.posthog()) {
+    try {
+      console.log(`[Analytics] Tracking Event in PostHog: ${eventName}`, eventParams || '');
+      posthog.capture(eventName, eventParams);
+    } catch (error) {
+      console.warn(`[Analytics] PostHog tracking failed for "${eventName}":`, error);
+    }
+  } else {
+    console.warn(`[Analytics] posthog not found. Event "${eventName}" was not tracked in PostHog.`);
+  }
 };
 
 /**
- * Set user properties in Amplitude (useful for user segmentation)
+ * Set user properties in Amplitude and PostHog (useful for user segmentation)
  * @param properties Object containing user properties
  */
 export const setUserProperties = (properties: Record<string, any>) => {
@@ -79,6 +93,7 @@ export const setUserProperties = (properties: Record<string, any>) => {
     return;
   }
 
+  // Amplitude
   if (isAnalyticsAvailable.amplitude()) {
     try {
       console.log(`[Analytics] Setting Amplitude user properties:`, properties);
@@ -89,10 +104,22 @@ export const setUserProperties = (properties: Record<string, any>) => {
   } else {
     console.warn(`[Analytics] Amplitude not found. User properties not set.`);
   }
+
+  // PostHog
+  if (isAnalyticsAvailable.posthog()) {
+    try {
+      console.log(`[Analytics] Setting PostHog user properties:`, properties);
+      posthog.register(properties);
+    } catch (error) {
+      console.warn(`[Analytics] Failed to set PostHog user properties:`, error);
+    }
+  } else {
+    console.warn(`[Analytics] posthog not found. User properties not set in PostHog.`);
+  }
 };
 
 /**
- * Identify a user in Amplitude (useful for user tracking)
+ * Identify a user in Amplitude and PostHog (useful for user tracking)
  * @param userId Unique identifier for the user
  * @param userProperties Optional user properties
  */
@@ -102,6 +129,7 @@ export const identifyUser = (userId: string, userProperties?: Record<string, any
     return;
   }
 
+  // Amplitude
   if (isAnalyticsAvailable.amplitude()) {
     try {
       console.log(`[Analytics] Identifying user in Amplitude: ${userId}`, userProperties || '');
@@ -112,14 +140,27 @@ export const identifyUser = (userId: string, userProperties?: Record<string, any
     } catch (error) {
       console.warn(`[Analytics] Failed to identify user in Amplitude:`, error);
     }
+  }
+
+  // PostHog
+  if (isAnalyticsAvailable.posthog()) {
+    try {
+      console.log(`[Analytics] Identifying user in PostHog: ${userId}`, userProperties || '');
+      posthog.identify(userId);
+      if (userProperties) {
+        posthog.register(userProperties);
+      }
+    } catch (error) {
+      console.warn(`[Analytics] Failed to identify user in PostHog:`, error);
+    }
   } else {
     // Don't log warnings for blocked analytics - this is expected behavior
-    // console.warn(`[Analytics] Amplitude not found. User identification failed.`);
+    // console.warn(`[Analytics] PostHog not found. User identification failed.`);
   }
 };
 
 /**
- * Track page views in Amplitude
+ * Track page views in Amplitude and PostHog
  * @param pageName Name of the page
  * @param pageProperties Optional page properties
  */
@@ -129,6 +170,7 @@ export const trackPageView = (pageName: string, pageProperties?: Record<string, 
     return;
   }
 
+  // Amplitude
   if (isAnalyticsAvailable.amplitude()) {
     try {
       console.log(`[Analytics] Tracking page view in Amplitude: ${pageName}`, pageProperties || '');
@@ -142,10 +184,25 @@ export const trackPageView = (pageName: string, pageProperties?: Record<string, 
   } else {
     console.warn(`[Analytics] Amplitude not found. Page view not tracked.`);
   }
+
+  // PostHog
+  if (isAnalyticsAvailable.posthog()) {
+    try {
+      console.log(`[Analytics] Tracking page view in PostHog: ${pageName}`, pageProperties || '');
+      posthog.capture('Page View', {
+        page_name: pageName,
+        ...pageProperties
+      });
+    } catch (error) {
+      console.warn(`[Analytics] PostHog page view tracking failed:`, error);
+    }
+  } else {
+    console.warn(`[Analytics] posthog not found. Page view not tracked in PostHog.`);
+  }
 };
 
 /**
- * Send a test event to verify Amplitude is working
+ * Send a test event to verify Amplitude and PostHog are working
  */
 export const sendTestEvent = () => {
   if (!isTrackingEnabled()) {
@@ -153,6 +210,7 @@ export const sendTestEvent = () => {
     return;
   }
 
+  // Amplitude test
   if (isAnalyticsAvailable.amplitude()) {
     try {
       console.log('[Analytics] Sending test event to Amplitude');
@@ -164,9 +222,20 @@ export const sendTestEvent = () => {
     } catch (error) {
       console.warn('[Analytics] Failed to send test event to Amplitude:', error);
     }
-  } else {
-    // Don't log warnings for blocked analytics - this is expected behavior
-    // console.warn('[Analytics] Amplitude not found. Test event not sent.');
+  }
+
+  // PostHog test
+  if (isAnalyticsAvailable.posthog()) {
+    try {
+      console.log('[Analytics] Sending test event to PostHog');
+      posthog.capture('posthog_test', {
+        timestamp: new Date().toISOString(),
+        user_agent: navigator.userAgent,
+        platform: 'web'
+      });
+    } catch (error) {
+      console.warn('[Analytics] Failed to send test event to PostHog:', error);
+    }
   }
 };
 
@@ -225,7 +294,8 @@ export const logAnalyticsStatus = () => {
   console.log('[Analytics] Status Check:', {
     gtag: isAnalyticsAvailable.gtag(),
     dataLayer: isAnalyticsAvailable.dataLayer(),
-    amplitude: isAnalyticsAvailable.amplitude()
+    amplitude: isAnalyticsAvailable.amplitude(),
+    posthog: isAnalyticsAvailable.posthog()
   });
 };
 
@@ -251,6 +321,12 @@ export const initializeAnalytics = () => {
       sendTestEvent();
     } else {
       console.warn('[Analytics] Amplitude is not available - may be blocked by ad blocker');
+    }
+
+    if (isAnalyticsAvailable.posthog()) {
+      console.log('[Analytics] PostHog is available');
+    } else {
+      console.warn('[Analytics] PostHog is not available - not initialized');
     }
   } catch (error) {
     console.error('[Analytics] Initialization failed:', error);

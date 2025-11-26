@@ -1,5 +1,5 @@
 # 🚀 Production Deployment Guide
-
+#  git clone ssh -i C:\Users\Rajveer\.ssh\id_ed25519 root@161.35.186 252         
 ## Overview
 
 Your ebook reader consists of 4 parts:
