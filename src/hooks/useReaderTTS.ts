@@ -1332,14 +1332,16 @@ export const useReaderTTS = ({
   const pausePlayback = useCallback(() => {
     console.log(`[${readerInstanceId}][pausePlayback] PAUSE CALLED - currentChunkIndex: ${currentChunkIndex}, isSpeaking: ${isSpeaking}`);
     
+    // ✅ FIX: Update state IMMEDIATELY for responsive UI
+    setIsPaused(true);
+    setIsSpeaking(false);
+    ttsIntentActiveRef.current = true;
+    
     const strategy = playbackStrategyRef.current;
     
     // Try strategy first (seamless or HTML5)
     if (strategy && strategy.isPlaying()) {
       strategy.pause();
-      setIsPaused(true);
-      setIsSpeaking(false);
-      ttsIntentActiveRef.current = true;
       
       if (currentChunkIndex !== null) {
         console.log(`[${readerInstanceId}][pausePlayback] Saving resumeIndex: ${currentChunkIndex}`);
@@ -1351,9 +1353,6 @@ export const useReaderTTS = ({
     // Fallback to HTML5 Audio
     if (audioRef.current && isSpeaking) {
       audioRef.current.pause();
-      setIsPaused(true);
-      setIsSpeaking(false);
-      ttsIntentActiveRef.current = true;
       
       if (currentChunkIndex !== null) {
         console.log(`[${readerInstanceId}][pausePlayback] Saving resumeIndex: ${currentChunkIndex}`);
@@ -1507,6 +1506,63 @@ export const useReaderTTS = ({
 
   // === Handle main TTS button pressed ===
   const handleTTS = useCallback(async (selectedTextOverride?: string | any) => {
+    // ✅ FIX: Type guard FIRST - needed for pause/resume logic
+    let textOverride: string | undefined;
+    if (selectedTextOverride !== undefined) {
+      if (typeof selectedTextOverride === 'string') {
+        textOverride = selectedTextOverride;
+      } else {
+        console.log(`[${readerInstanceId}][handleTTS] Received non-string parameter (event object?), ignoring`);
+        textOverride = undefined;
+      }
+    }
+    
+    console.log(`[${readerInstanceId}][handleTTS] TTS function called`, {
+      isPaused,
+      isSpeaking,
+      hasCurrentPageText: !!currentPageText,
+      chunksLength: chunks.length,
+      hasTextOverride: !!textOverride
+    });
+    
+    ttsIntentActiveRef.current = true;
+
+    // ✅ FIX: Handle pause/resume IMMEDIATELY before any async operations
+    // NEW: If text is provided and TTS is active, stop and restart from new position
+    if (textOverride && (isSpeaking || isPaused)) {
+      console.log(`[${readerInstanceId}][handleTTS] Stopping current playback to start from new selection`);
+      haltPlayback(); // Stop current playback
+      // Continue to start new playback below - will check limits
+    }
+    // Handle pause/resume for button clicks without text
+    else if (isPaused) {
+      // ✅ NEW: Debounce guard - prevent double resume within 300ms
+      const now = Date.now();
+      if (now - lastPauseResumeActionRef.current < 300) {
+        console.log(`[${readerInstanceId}][handleTTS] Ignoring duplicate resume call (within 300ms)`);
+        return; // Return immediately - no limit checks
+      }
+      lastPauseResumeActionRef.current = now;
+      
+      console.log(`[${readerInstanceId}][handleTTS] Resuming paused playback`);
+      resumePlayback();
+      return; // Return immediately - no limit checks
+    }
+    else if (isSpeaking) {
+      // ✅ NEW: Debounce guard - prevent double pause within 300ms
+      const now = Date.now();
+      if (now - lastPauseResumeActionRef.current < 300) {
+        console.log(`[${readerInstanceId}][handleTTS] Ignoring duplicate pause call (within 300ms)`);
+        return; // Return immediately - no limit checks
+      }
+      lastPauseResumeActionRef.current = now;
+      
+      console.log(`[${readerInstanceId}][handleTTS] Pausing current playback`);
+      pausePlayback();
+      return; // Return immediately - no limit checks
+    }
+
+    // ✅ FIX: Usage limit checks ONLY for NEW playback (not for pause/resume)
     // Check anonymous limit BEFORE starting TTS
     if (anonymousLimit) {
       const canUseTTS = await anonymousLimit.checkLimit();
@@ -1556,61 +1612,6 @@ export const useReaderTTS = ({
         }
         // Continue to TTS - don't block on limit check failures
       }
-    }
-    
-    // Type guard: Only accept string overrides
-    let textOverride: string | undefined;
-    if (selectedTextOverride !== undefined) {
-      if (typeof selectedTextOverride === 'string') {
-        textOverride = selectedTextOverride;
-      } else {
-        console.log(`[${readerInstanceId}][handleTTS] Received non-string parameter (event object?), ignoring`);
-        textOverride = undefined;
-      }
-    }
-    
-    console.log(`[${readerInstanceId}][handleTTS] TTS function called`, {
-      isPaused,
-      isSpeaking,
-      hasCurrentPageText: !!currentPageText,
-      chunksLength: chunks.length,
-      hasTextOverride: !!textOverride
-    });
-    
-    ttsIntentActiveRef.current = true;
-
-    // NEW: If text is provided and TTS is active, stop and restart from new position
-    if (textOverride && (isSpeaking || isPaused)) {
-      console.log(`[${readerInstanceId}][handleTTS] Stopping current playback to start from new selection`);
-      haltPlayback(); // Stop current playback
-      // Continue to start new playback below
-    }
-    // Handle pause/resume for button clicks without text
-    else if (isPaused) {
-      // ✅ NEW: Debounce guard - prevent double resume within 300ms
-      const now = Date.now();
-      if (now - lastPauseResumeActionRef.current < 300) {
-        console.log(`[${readerInstanceId}][handleTTS] Ignoring duplicate resume call (within 300ms)`);
-        return;
-      }
-      lastPauseResumeActionRef.current = now;
-      
-      console.log(`[${readerInstanceId}][handleTTS] Resuming paused playback`);
-      resumePlayback();
-      return;
-    }
-    else if (isSpeaking) {
-      // ✅ NEW: Debounce guard - prevent double pause within 300ms
-      const now = Date.now();
-      if (now - lastPauseResumeActionRef.current < 300) {
-        console.log(`[${readerInstanceId}][handleTTS] Ignoring duplicate pause call (within 300ms)`);
-        return;
-      }
-      lastPauseResumeActionRef.current = now;
-      
-      console.log(`[${readerInstanceId}][handleTTS] Pausing current playback`);
-      pausePlayback();
-      return;
     }
 
     // Check if currentPageText is ready
@@ -1767,7 +1768,7 @@ export const useReaderTTS = ({
     };
     startPlayback();
 
-  }, [isPaused, isSpeaking, resumeIndex, chunks, currentPageText, readerInstanceId, pausePlayback, resumePlayback, playChunk, prefetchChunks, fetchSingleChunk, anonymousLimit, addToast, user?.id, refreshUsageLimit]);
+  }, [isPaused, isSpeaking, resumeIndex, chunks, currentPageText, readerInstanceId, pausePlayback, resumePlayback, haltPlayback, playChunk, prefetchChunks, fetchSingleChunk, anonymousLimit, addToast, user?.id, refreshUsageLimit]);
 
   // === Save progress periodically on chunk change ===
   useEffect(() => {
