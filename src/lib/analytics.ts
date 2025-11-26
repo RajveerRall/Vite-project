@@ -1,6 +1,7 @@
 // src/lib/analytics.ts
 
-import posthog from 'posthog-js';
+// PostHog is accessed via window.posthog when using PostHogProvider
+// No direct import needed - PostHogProvider initializes it
 import { isTrackingEnabled } from '../utils/trackingConfig';
 
 // This interface makes it clear what we can send to Google Analytics.
@@ -15,7 +16,11 @@ const isAnalyticsAvailable = {
   gtag: () => typeof window !== 'undefined' && typeof window.gtag === 'function',
   dataLayer: () => typeof window !== 'undefined' && Array.isArray(window.dataLayer),
   amplitude: () => typeof window !== 'undefined' && window.amplitude && typeof window.amplitude.track === 'function',
-  posthog: () => typeof posthog !== 'undefined' && typeof posthog.capture === 'function'
+  posthog: () => {
+    if (typeof window === 'undefined') return false;
+    const ph = (window as any).posthog;
+    return ph && typeof ph.capture === 'function';
+  }
 };
 
 /**
@@ -74,7 +79,7 @@ export const trackEvent = (eventName: string, eventParams?: EventParams) => {
   if (isAnalyticsAvailable.posthog()) {
     try {
       console.log(`[Analytics] Tracking Event in PostHog: ${eventName}`, eventParams || '');
-      posthog.capture(eventName, eventParams);
+      (window as any).posthog.capture(eventName, eventParams);
     } catch (error) {
       console.warn(`[Analytics] PostHog tracking failed for "${eventName}":`, error);
     }
@@ -109,7 +114,7 @@ export const setUserProperties = (properties: Record<string, any>) => {
   if (isAnalyticsAvailable.posthog()) {
     try {
       console.log(`[Analytics] Setting PostHog user properties:`, properties);
-      posthog.register(properties);
+      (window as any).posthog.register(properties);
     } catch (error) {
       console.warn(`[Analytics] Failed to set PostHog user properties:`, error);
     }
@@ -146,9 +151,9 @@ export const identifyUser = (userId: string, userProperties?: Record<string, any
   if (isAnalyticsAvailable.posthog()) {
     try {
       console.log(`[Analytics] Identifying user in PostHog: ${userId}`, userProperties || '');
-      posthog.identify(userId);
+      (window as any).posthog.identify(userId);
       if (userProperties) {
-        posthog.register(userProperties);
+        (window as any).posthog.register(userProperties);
       }
     } catch (error) {
       console.warn(`[Analytics] Failed to identify user in PostHog:`, error);
@@ -189,7 +194,7 @@ export const trackPageView = (pageName: string, pageProperties?: Record<string, 
   if (isAnalyticsAvailable.posthog()) {
     try {
       console.log(`[Analytics] Tracking page view in PostHog: ${pageName}`, pageProperties || '');
-      posthog.capture('Page View', {
+      (window as any).posthog.capture('Page View', {
         page_name: pageName,
         ...pageProperties
       });
@@ -228,7 +233,7 @@ export const sendTestEvent = () => {
   if (isAnalyticsAvailable.posthog()) {
     try {
       console.log('[Analytics] Sending test event to PostHog');
-      posthog.capture('posthog_test', {
+      (window as any).posthog.capture('posthog_test', {
         timestamp: new Date().toISOString(),
         user_agent: navigator.userAgent,
         platform: 'web'
