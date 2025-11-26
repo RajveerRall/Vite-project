@@ -17,6 +17,7 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [previewPosition, setPreviewPosition] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPulseHint, setShowPulseHint] = useState(false);
   const progressBarRef = useRef<HTMLDivElement>(null);
 
   // Calculate percentage from mouse/touch position
@@ -35,6 +36,7 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
     if (!isActive) return;
     e.preventDefault();
     
+    setShowPulseHint(false); // Hide pulse on interaction
     setIsDragging(true);
     const percentage = calculatePercentage(e.clientX);
     setPreviewPosition(percentage);
@@ -78,6 +80,7 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
     if (!isActive) return;
     e.preventDefault();
     
+    setShowPulseHint(false); // Hide pulse on interaction
     const touch = e.touches[0];
     setIsDragging(true);
     const percentage = calculatePercentage(touch.clientX);
@@ -126,6 +129,22 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
     }
   }, [isDragging, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd]);
 
+  // Show pulse hint when TTS becomes active
+  React.useEffect(() => {
+    if (isActive) {
+      setShowPulseHint(true);
+      const timer = setTimeout(() => {
+        setShowPulseHint(false);
+      }, 4000); // Hide after 4 seconds
+      
+      return () => {
+        clearTimeout(timer);
+      };
+    } else {
+      setShowPulseHint(false);
+    }
+  }, [isActive]);
+
   // Display position: preview while dragging, actual progress otherwise
   const displayPosition = isDragging && previewPosition !== null ? previewPosition : progress;
 
@@ -158,19 +177,32 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
         
         {/* Draggable handle */}
         {isActive && (
-          <div
-            className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 rounded-full shadow-lg transition-all ${
-              isDragging ? 'scale-125 border-amber-400' : 'border-amber-600 hover:scale-110'
-            }`}
-            style={{ left: `calc(${displayPosition}% - 8px)` }}
-          />
+          <>
+            {/* Pulsing ring effect */}
+            {showPulseHint && !isDragging && (
+              <div
+                className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-amber-400 opacity-75 animate-ping"
+                style={{ left: `calc(${displayPosition}% - 8px)` }}
+              />
+            )}
+            <div
+              className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 rounded-full shadow-lg transition-all z-10 ${
+                isDragging ? 'scale-125 border-amber-400' : 'border-amber-600 hover:scale-110'
+              } ${showPulseHint && !isDragging ? 'animate-pulse' : ''}`}
+              style={{ left: `calc(${displayPosition}% - 8px)` }}
+            />
+          </>
         )}
       </div>
       
       {/* Progress info */}
       <div className="flex justify-between text-xs text-gray-600 mt-1">
         <span>
-          {isDragging ? 'Release to start from...' : 'Chapter Progress'}
+          {isDragging ? 'Release to start from...' : (
+            <>
+              Chapter Progress (<span className="text-[10px]">Drag to listen ahead</span>)
+            </>
+          )}
         </span>
         <span className={`font-medium flex items-center gap-1 ${
           isDragging ? 'text-amber-500' : 'text-amber-700'
