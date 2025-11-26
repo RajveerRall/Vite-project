@@ -94,13 +94,15 @@ def format_timestamp(seconds: float) -> str:
 
 def find_video_files(directory: str) -> List[Dict]:
     """
-    Find all video files in directory and extract their sequence numbers.
+    Find all video files in directory and extract their sequence numbers if available.
     Returns list of dictionaries with video info.
+    Includes ALL video files, even if they don't have sequence numbers.
     Handles multiple naming patterns:
     - 001_filename.mp4
     - Chapter 1.mp4, Chapter 2.mp4 (comes after Letters)
     - Letter 1.mp4, Letter 2.mp4 (comes first)
     - Any filename with a number in it
+    - Files without numbers (sorted alphabetically)
     """
     video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv', '.m4v'}
     video_files = []
@@ -162,22 +164,28 @@ def find_video_files(directory: str) -> List[Dict]:
                                         sequence = int(match.group(1))
                                         priority = 500
             
-            if sequence is not None:
-                video_files.append({
-                    'filename': filename,
-                    'path': str(file_path),
-                    'priority': priority,
-                    'sequence': sequence,
-                    'type': type_name,
-                    'duration': 0.0,  # Will be filled later
-                    'start_time': 0.0  # Will be calculated after ordering
-                })
+            # Include ALL videos, even if they don't have sequence numbers
+            # For videos without sequence, use filename for sorting (alphabetical)
+            if sequence is None:
+                # Use a large sequence number and sort by filename
+                sequence = 999999  # Large number to sort after numbered videos
+                type_name = "Unnumbered"
+            
+            video_files.append({
+                'filename': filename,
+                'path': str(file_path),
+                'priority': priority,
+                'sequence': sequence,
+                'type': type_name,
+                'duration': 0.0,  # Will be filled later
+                'start_time': 0.0  # Will be calculated after ordering
+            })
     
-    # Sort by priority first, then by sequence number
-    video_files.sort(key=lambda x: (x['priority'], x['sequence']))
+    # Sort by priority first, then by sequence number, then by filename (for unnumbered files)
+    video_files.sort(key=lambda x: (x['priority'], x['sequence'], x['filename']))
     
     if not video_files:
-        raise ValueError("No video files with sequence numbers found in directory")
+        raise ValueError("No video files found in directory")
     
     return video_files
 
