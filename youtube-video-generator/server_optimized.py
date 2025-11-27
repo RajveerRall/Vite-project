@@ -8755,74 +8755,271 @@ def create_srt_to_sentence_map(srt_entries, all_lines_data):
         return {}
     
     mapping = {}
+    total_lines = len(all_lines_data)
+    
+    def _preview_for_log(value, limit=150):
+        """
+        Safely build a short representation for log lines without breaking f-strings.
+        Escapes single quotes so we can embed inside single-quoted strings.
+        """
+        if value is None:
+            return ""
+        text = str(value)
+        snippet = text[:limit]
+        if len(text) > limit:
+            snippet += "..."
+        return snippet.replace("'", "\\'")
+    
+    def _is_probable_fragment(text_norm, original_text):
+        """
+        Heuristic check for SRT fragments that are too short to match reliably.
+        """
+        if not text_norm:
+            return True
+        stripped = text_norm.strip()
+        if not stripped:
+            return True
+        if len(stripped) <= 4:
+            return True
+        if len(stripped) <= 10:
+            alnum_chars = sum(1 for c in stripped if c.isalnum())
+            alpha_chars = sum(1 for c in stripped if c.isalpha())
+            words = stripped.split()
+            if alnum_chars <= 4:
+                return True
+            if len(words) <= 2 and all(len(word) <= 3 for word in words):
+                return True
+            if alpha_chars == 0:
+                return True
+        original_stripped = (original_text or "").strip()
+        if original_stripped and all(not c.isalpha() for c in original_stripped):
+            return True
+        return False
+
     # REMOVED: mapped_srts - no longer needed with strict sequential mapping
     # REMOVED: mapped_lines - no longer blocking duplicate mapping to allow repeated text highlighting
     last_mapped_line = -1  # Track last mapped line for sequential enforcement
     
+    print(f"\n[SRT Mapping] Starting mapping for {len(srt_entries)} SRT entries against {total_lines} lines")
+    
     for srt_index, srt_entry in enumerate(srt_entries):
-        # No need to check if already mapped - strict sequential means each SRT processed once
-        
         # IMPROVED: Sequential matching with dynamic window size and cascade failure prevention
         best_match_score = 0.0
         best_line_index = -1
         
+        # Store original SRT text for logging
+        srt_text_original = srt_entry['text']
+        
         # Normalize SRT text first to determine length
         srt_text_norm = normalize_text_for_matching(srt_entry['text'])
         
-        if len(srt_text_norm) < 3:
-            continue  # Skip very short SRT entries
+        print(f"\n[SRT Mapping] Processing SRT {srt_index}:")
+        print(f"  Original: '{_preview_for_log(srt_text_original)}'")
+        print(f"  Normalized: '{_preview_for_log(srt_text_norm)}'")
+        print(f"  Length: {len(srt_text_norm)} chars")
+        print(f"  Time: {srt_entry['start']:.2f}s - {srt_entry['end']:.2f}s")
+        
+        text_length = len(srt_text_norm)
+        if text_length == 0:
+            print("  → Skipping (empty after normalization)")
+            continue
+        
+        fragment_candidate = False
+        if text_length < 5:
+            fragment_candidate = True
+        elif text_length <= 10:
+            fragment_candidate = _is_probable_fragment(srt_text_norm, srt_text_original)
+        
+        if fragment_candidate:
+            if srt_index > 0 and (srt_index - 1) in mapping:
+                prev_line = mapping[srt_index - 1][0]
+                mapping[srt_index] = [prev_line]
+                last_mapped_line = prev_line
+                print(f"  → Attached short fragment to previous SRT line {prev_line}")
+            else:
+                print("  → Skipping (fragment too short to map reliably)")
+            continue
         
         # OPTION 2: Dynamic window size based on SRT text length
         # Long SRT entries need larger windows to find matches
-        if len(srt_text_norm) > 300:  # Very long SRT (like SRT 82)
+        if text_length > 300:  # Very long SRT
             window_size = 40  # Search much further ahead
-        elif len(srt_text_norm) > 200:  # Long SRT
+        elif text_length > 200:  # Long SRT
             window_size = 30
-        elif len(srt_text_norm) > 100:  # Medium SRT
+        elif text_length > 100:  # Medium SRT
             window_size = 20
         else:  # Short SRT
             window_size = 10
         
         # Calculate search window - start from next line after last match
         start_line = max(0, last_mapped_line + 1)
-        end_line = min(start_line + window_size, len(all_lines_data))
+        if start_line >= total_lines:
+            if srt_index > 0 and (srt_index - 1) in mapping:
+                prev_line = mapping[srt_index - 1][0]
+                mapping[srt_index] = [prev_line]
+                last_mapped_line = prev_line
+                print(f"  ⚠ WINDOW OUT OF BOUNDS -> Attached to previous line {prev_line}")
+            else:
+                print("  ⚠ WINDOW OUT OF BOUNDS -> No lines remaining to search, skipping")
+            continue
+        
+        end_line = min(start_line + window_size, total_lines)
+        if end_line <= start_line:
+            end_line = min(total_lines, start_line + max(1, window_size // 2))
+        
+        print(f"  Search window: lines {start_line} to {end_line-1} (window size: {window_size})")
+        print(f"  Last mapped line: {last_mapped_line}")
         
         # Search within the dynamic window
+        all_similarities = []  # Store all similarities for logging
         for line_index in range(start_line, end_line):
             line_data = all_lines_data[line_index]
+            line_text_original = line_data['text']
+            sentence_text_original = line_data.get('sentence', '')
+            
             line_text_norm = normalize_text_for_matching(line_data['text'])
-            sentence_norm = normalize_text_for_matching(line_data['sentence'])
+            sentence_norm = normalize_text_for_matching(line_data.get('sentence', ''))
             
             # Calculate similarity
-            similarity = max(
-                difflib.SequenceMatcher(None, srt_text_norm, line_text_norm).ratio(),
-                difflib.SequenceMatcher(None, srt_text_norm, sentence_norm).ratio()
-            )
+            similarity_line = difflib.SequenceMatcher(None, srt_text_norm, line_text_norm).ratio()
+            similarity_sentence = difflib.SequenceMatcher(None, srt_text_norm, sentence_norm).ratio()
+            similarity = max(similarity_line, similarity_sentence)
+            
+            all_similarities.append({
+                'line_index': line_index,
+                'similarity': similarity,
+                'similarity_line': similarity_line,
+                'similarity_sentence': similarity_sentence,
+                'line_text': line_text_original,
+                'line_text_norm': line_text_norm,
+                'sentence_text': sentence_text_original,
+                'sentence_text_norm': sentence_norm
+            })
             
             if similarity > best_match_score:
                 best_match_score = similarity
                 best_line_index = line_index
         
+        # Log top 3 matches for debugging
+        all_similarities.sort(key=lambda x: x['similarity'], reverse=True)
+        print(f"  Top matches in window:")
+        for i, match in enumerate(all_similarities[:3]):
+            print(f"    {i+1}. Line {match['line_index']}: score={match['similarity']:.3f} (line={match['similarity_line']:.3f}, sentence={match['similarity_sentence']:.3f})")
+            print(f"       Line original: '{_preview_for_log(match['line_text'], 100)}'")
+            print(f"       Line normalized: '{_preview_for_log(match['line_text_norm'], 100)}'")
+            if match['sentence_text']:
+                print(f"       Sentence original: '{_preview_for_log(match['sentence_text'], 100)}'")
+                print(f"       Sentence normalized: '{_preview_for_log(match['sentence_text_norm'], 100)}'")
+        
         # Map if we found a good match (lowered threshold from 0.6 to 0.5 for better coverage)
-        if best_match_score > 0.5 and best_line_index >= last_mapped_line:
+        if best_match_score > 0.5 and best_line_index >= last_mapped_line and best_line_index >= 0:
             mapping[srt_index] = [best_line_index]
             last_mapped_line = best_line_index
             
-            print(f"  SRT {srt_index} -> Line {best_line_index} (score: {best_match_score:.2f}, window: {window_size})")
+            best_match = all_similarities[0] if all_similarities else None
+            print(f"  ✓ MATCHED -> Line {best_line_index} (score: {best_match_score:.2f}, window: {window_size})")
+            if best_match:
+                print(f"     Matched line original: '{_preview_for_log(best_match['line_text'])}'")
+                print(f"     Matched line normalized: '{_preview_for_log(best_match['line_text_norm'])}'")
+                print(f"     SRT normalized (for comparison): '{_preview_for_log(srt_text_norm)}'")
         else:
-            # OPTION 1 + OPTION 3: Advance window on failure to prevent cascade
-            # Advance by a portion of the search window (50% of window size)
-            # This allows subsequent SRTs to search further ahead
-            advance_amount = max(1, window_size // 2)  # Advance by half the window
-            last_mapped_line = max(last_mapped_line, start_line + advance_amount)
+            near_end = (total_lines - end_line) <= 5
+            fallback_used = False
             
-            # Also try to advance to end of search window if we're close
-            if end_line < len(all_lines_data):
-                last_mapped_line = min(last_mapped_line, end_line - 1)
+            if near_end and best_match_score >= 0.3 and best_line_index >= 0 and best_line_index >= last_mapped_line:
+                mapping[srt_index] = [best_line_index]
+                last_mapped_line = best_line_index
+                fallback_used = True
+                print(f"  ⚠ FALLBACK MATCH -> Line {best_line_index} (score: {best_match_score:.2f}, near end)")
+            elif srt_index > 0 and (srt_index - 1) in mapping:
+                prev_line = mapping[srt_index - 1][0]
+                mapping[srt_index] = [prev_line]
+                last_mapped_line = prev_line
+                fallback_used = True
+                print(f"  ⚠ ATTACHED TO PREVIOUS -> Line {prev_line} (no strong match)")
             
-            print(f"  SRT {srt_index} -> No match (best score: {best_match_score:.2f}, window: {window_size}), advancing to line {last_mapped_line}")
+            if fallback_used:
+                continue
+            
+            # OPTION 1 + OPTION 3: Advance window on failure to prevent cascade,
+            # but never advance beyond available lines.
+            safe_advance = max(1, window_size // 2)
+            new_last_mapped = max(last_mapped_line, start_line + safe_advance)
+            max_index = total_lines - 1
+            
+            if total_lines - start_line <= 5 or end_line >= total_lines:
+                new_last_mapped = min(max(last_mapped_line + 1, start_line), max_index)
+            else:
+                new_last_mapped = min(new_last_mapped, end_line - 1, max_index)
+            
+            new_last_mapped = max(0, new_last_mapped)
+            last_mapped_line = new_last_mapped
+            
+            print(f"  ✗ NO MATCH (best score: {best_match_score:.2f}, threshold: 0.5, window: {window_size})")
+            print(f"     Advancing to line {last_mapped_line}")
+            if all_similarities:
+                best_match = all_similarities[0]
+                print(f"     Best candidate was Line {best_match['line_index']}:")
+                print(f"       SRT original: '{_preview_for_log(srt_text_original)}'")
+                print(f"       SRT normalized: '{_preview_for_log(srt_text_norm)}'")
+                print(f"       Line original: '{_preview_for_log(best_match['line_text'])}'")
+                print(f"       Line normalized: '{_preview_for_log(best_match['line_text_norm'])}'")
+                if best_match['sentence_text']:
+                    print(f"       Sentence original: '{_preview_for_log(best_match['sentence_text'])}'")
+                    print(f"       Sentence normalized: '{_preview_for_log(best_match['sentence_text_norm'])}'")
+                print(f"       Similarity breakdown: line={best_match['similarity_line']:.3f}, sentence={best_match['similarity_sentence']:.3f}")
+                print(f"       Why failed: score {best_match_score:.3f} < threshold 0.5" + (f" OR line {best_line_index} < last_mapped {last_mapped_line}" if best_line_index < last_mapped_line else ""))
+    
+    # Recovery phase: attempt to map any unmapped SRT entries
+    unmapped_indices = [i for i in range(len(srt_entries)) if i not in mapping]
+    if unmapped_indices:
+        print(f"\n[SRT Mapping] Recovery phase: attempting to map {len(unmapped_indices)} unmapped SRT entries...")
+        mapped_lines = [vals[0] for vals in mapping.values() if vals]
+        last_line_mapped = max(mapped_lines) if mapped_lines else -1
+        recovery_start = max(0, min(last_line_mapped + 1, total_lines - 1)) if total_lines else 0
+        if recovery_start >= total_lines:
+            recovery_start = max(total_lines - 5, 0)
+        
+        recovered = 0
+        for srt_index in unmapped_indices:
+            srt_entry = srt_entries[srt_index]
+            srt_text_norm = normalize_text_for_matching(srt_entry['text'])
+            if len(srt_text_norm) < 5:
+                continue
+            
+            best_score = 0.0
+            best_line = -1
+            search_ranges = []
+            if total_lines:
+                search_ranges.append(range(recovery_start, total_lines))
+                if recovery_start > 0:
+                    search_ranges.append(range(0, recovery_start))
+            
+            for search_range in search_ranges:
+                for line_index in search_range:
+                    line_data = all_lines_data[line_index]
+                    line_norm = normalize_text_for_matching(line_data['text'])
+                    sentence_norm = normalize_text_for_matching(line_data.get('sentence', ''))
+                    similarity_line = difflib.SequenceMatcher(None, srt_text_norm, line_norm).ratio()
+                    similarity_sentence = difflib.SequenceMatcher(None, srt_text_norm, sentence_norm).ratio()
+                    similarity = max(similarity_line, similarity_sentence)
+                    if similarity > best_score:
+                        best_score = similarity
+                        best_line = line_index
+                if best_score >= 0.3:
+                    break
+            
+            if best_score >= 0.3 and best_line >= 0:
+                mapping[srt_index] = [best_line]
+                recovered += 1
+                print(f"  ✓ RECOVERED SRT {srt_index} -> Line {best_line} (score: {best_score:.2f})")
+    
+        if recovered:
+            print(f"[SRT Mapping] Recovery mapped {recovered} additional SRT entries")
+        else:
+            print("[SRT Mapping] Recovery could not map any remaining entries")
 
-    print(f"DEBUG: Sequential mapping created: {len(mapping)} of {len(srt_entries)} SRT entries mapped")
+    print(f"\n[SRT Mapping] Sequential mapping created: {len(mapping)} of {len(srt_entries)} SRT entries mapped")
     return mapping
 
 def check_if_current_sentence_fallback(line_data, current_time, srt_entries):
