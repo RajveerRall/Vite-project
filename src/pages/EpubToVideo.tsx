@@ -15,6 +15,7 @@ interface VideoSettings {
   enableSceneImages: boolean;  // NEW: Toggle for AI-generated scene images
   useMultiVoice: boolean;  // NEW: Toggle for multi-voice casting
   showText: boolean;  // NEW: Toggle for showing text in video
+  useSttSrt: boolean;  // NEW: Use STT-generated SRT for accurate text sync
 }
 
 interface VideoProgress {
@@ -42,7 +43,8 @@ const EpubToVideo: React.FC = () => {
     highlightMode: 'none',  // Default to no highlighting
     enableSceneImages: true,  // Default: AI scene images enabled
     useMultiVoice: true,  // Default: Multi-voice casting enabled
-    showText: true  // Default: Show text in video
+    showText: true,  // Default: Show text in video
+    useSttSrt: false  // Default: Use TTS-provided SRT (set to true for STT-based SRT)
   });
   // Queue state
   const [videoQueue, setVideoQueue] = useState<QueueItem[]>([]);
@@ -1044,6 +1046,7 @@ const EpubToVideo: React.FC = () => {
       formData.append('style', settings.style);
       formData.append('highlight_mode', settings.highlightMode);
       formData.append('show_text', settings.showText.toString());
+      formData.append('use_stt_srt', settings.useSttSrt.toString());
       // New split layout controls for Python backend
       formData.append('scene_layout', settings.style === 'split' ? 'split' : 'overlay');
       formData.append('image_side', 'left'); // change to 'right' to flip columns
@@ -1146,6 +1149,71 @@ const EpubToVideo: React.FC = () => {
       throw error; // Re-throw to mark queue item as failed
     }
   }, [chapters, uploadedFile, settings, directoryAccessGranted]);
+
+  // Regenerate SRT using Whisper STT for better accuracy
+  const regenerateSrtWithStt = useCallback(async (chapterIndex: number) => {
+    const chapter = chapters.find(c => c.index === chapterIndex);
+    if (!chapter) {
+      alert('Chapter not found');
+      return;
+    }
+
+    try {
+      // Get cached audio or generate it
+      const cacheKey = generateCacheKey(uploadedFile?.name || 'Unknown', chapterIndex);
+      await videoCacheService.init();
+      const cachedData = await videoCacheService.loadCache(cacheKey);
+      
+      if (!cachedData?.audioBlobs || cachedData.audioBlobs.length === 0) {
+        alert('No audio found. Please generate video first.');
+        return;
+      }
+
+      // Combine audio blobs
+      const combinedAudio = new Blob(cachedData.audioBlobs, { type: 'audio/mpeg' });
+
+      // Call STT endpoint
+      const formData = new FormData();
+      formData.append('audio', combinedAudio, 'audio.mp3');
+      formData.append('original_text', chapter.content);
+      formData.append('book_title', uploadedFile?.name || 'Unknown');
+      formData.append('chapter_title', chapter.title);
+      formData.append('model_size', 'base'); // Can be made configurable
+
+      console.log('[STT] Calling /api/generate-srt-from-audio endpoint...');
+      const response = await fetch('http://localhost:8000/api/generate-srt-from-audio', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`STT API returned ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Update cache with new SRT
+        const updatedCache = {
+          ...cachedData,
+          srtData: result.srt_content
+        };
+        await videoCacheService.saveCacheSafe(cacheKey, updatedCache);
+        
+        console.log(`[STT] SRT regenerated successfully! ${result.entry_count} entries created.`);
+        alert(`SRT regenerated successfully! ${result.entry_count} entries created. You can now regenerate the video with accurate text sync.`);
+        
+        // Optionally trigger video regeneration here if desired
+        // For now, user can manually regenerate video
+      } else {
+        throw new Error(result.error || 'STT generation failed');
+      }
+    } catch (error: any) {
+      console.error('[STT] Error:', error);
+      alert(`Failed to regenerate SRT: ${error.message || error}`);
+    }
+  }, [chapters, uploadedFile]);
 
   // Process queue sequentially
   const processQueue = useCallback(async () => {
@@ -1577,19 +1645,41 @@ const EpubToVideo: React.FC = () => {
                                         </span>
                                       )}
                                     </div>
-                                    <button
-                                      onClick={() => clearChapterCache(chapter.index)}
-                                      className="text-red-600 hover:text-red-800 underline text-xs"
-                                      title="Clear cache for this chapter"
-                                    >
-                                      Clear
-                                    </button>
+                                    <div className="flex items-center space-x-2">
+                                      <button
+                                        onClick={() => regenerateSrtWithStt(chapter.index)}
+                                        className="text-blue-600 hover:text-blue-800 underline text-xs"
+                                        title="Regenerate SRT using Whisper STT for better accuracy"
+                                      >
+                                        Regenerate SRT
+                                      </button>
+                                      <button
+                                        onClick={() => clearChapterCache(chapter.index)}
+                                        className="text-red-600 hover:text-red-800 underline text-xs"
+                                        title="Clear cache for this chapter"
+                                      >
+                                        Clear
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               );
                             }
                             return null;
                           })()}
+                          
+                          {/* STT SRT Regeneration Button (show even if no cache) */}
+                          {queueItem?.status === 'completed' && (
+                            <div className="mt-2">
+                              <button
+                                onClick={() => regenerateSrtWithStt(chapter.index)}
+                                className="w-full px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded text-xs hover:bg-blue-100 transition-colors"
+                                title="Regenerate SRT using Whisper STT for accurate text synchronization"
+                              >
+                                🔄 Regenerate SRT with STT
+                              </button>
+                            </div>
+                          )}
                       </div>
                     );
                   })}
@@ -1829,6 +1919,30 @@ const EpubToVideo: React.FC = () => {
                   </label>
                   <p className="text-xs text-gray-500 mt-1">
                     When disabled, video will only show scene images (if enabled) with audio, no text overlay
+                  </p>
+                </div>
+
+                {/* Use STT SRT Toggle */}
+                <div>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={settings.useSttSrt}
+                      onChange={(e) => {
+                        console.log('[Settings] useSttSrt checkbox changed to:', e.target.checked);
+                        setSettings(prev => ({
+                          ...prev,
+                          useSttSrt: e.target.checked
+                        }));
+                      }}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm text-gray-700">
+                      Use STT for accurate text sync
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Regenerate SRT using Whisper speech-to-text for better text synchronization (slower but more accurate)
                   </p>
                 </div>
               </div>

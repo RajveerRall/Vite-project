@@ -5916,6 +5916,8 @@ from typing import List
 from multiprocessing import Pool, cpu_count
 import psutil
 import numpy as np
+from stt_srt_generator import generate_srt_with_whisper
+from forced_alignment_srt_generator import generate_srt_with_mfa
 
 app = FastAPI()
 
@@ -6090,7 +6092,8 @@ async def generate_video(
     scene_image_files: List[UploadFile] = File([]),  # NEW: Actual image files from frontend
     scene_layout: str = Form("overlay"),  # NEW: "overlay" | "split"
     image_side: str = Form("left"),        # NEW: "left" | "right"
-    show_text: str = Form("true")           # NEW: Enable/disable text rendering
+    show_text: str = Form("true"),          # NEW: Enable/disable text rendering
+    use_stt_srt: str = Form("false")       # NEW: Use STT-generated SRT instead of TTS SRT
 ):
     """
     Generate video with smart frame generation using multiple audio chunks
@@ -6191,6 +6194,46 @@ async def generate_video(
         # Parse show_text parameter
         show_text_value = show_text.lower() == 'true'
         
+        # Optionally regenerate SRT using forced alignment (MFA) for better accuracy
+        srt_from_stt = False  # Track if we're using forced alignment SRT
+        if use_stt_srt.lower() == 'true':
+            logger.info("Regenerating SRT using Montreal Forced Aligner for better accuracy...")
+            try:
+                # Try MFA forced alignment first (most accurate)
+                mfa_srt = generate_srt_with_mfa(
+                    audio_path=combined_audio_path,
+                    original_text=text,
+                    language="english"  # Default to English, can be made configurable
+                )
+                if mfa_srt and len(mfa_srt.strip()) > 0:
+                    srt_data = mfa_srt
+                    srt_from_stt = True  # Mark that we're using forced alignment SRT
+                    logger.info(f"MFA SRT generated: {len(parse_srt_entries(mfa_srt))} entries")
+                else:
+                    # MFA failed, fall back to Whisper
+                    logger.warning("MFA alignment failed, falling back to Whisper STT...")
+                    raise Exception("MFA returned empty SRT")
+            except Exception as e:
+                logger.warning(f"MFA alignment failed, trying Whisper STT fallback: {e}")
+                try:
+                    # Fallback to Whisper STT
+                    stt_srt = generate_srt_with_whisper(
+                        audio_path=combined_audio_path,
+                        original_text=text,
+                        model_size="base",  # Can be made configurable
+                        language=None  # Auto-detect
+                    )
+                    if stt_srt and len(stt_srt.strip()) > 0:
+                        srt_data = stt_srt
+                        srt_from_stt = True  # Mark that we're using STT SRT
+                        logger.info(f"Whisper STT SRT generated (fallback): {len(parse_srt_entries(stt_srt))} entries")
+                    else:
+                        logger.warning("Both MFA and Whisper failed, using original SRT")
+                        # Fall back to original srt_data (srt_from_stt remains False)
+                except Exception as e2:
+                    logger.warning(f"Whisper STT fallback also failed, using original SRT: {e2}")
+                    # Fall back to original srt_data (srt_from_stt remains False)
+        
         # Generate video with smart frame generation using actual audio duration
         video_path = create_video_with_srt_optimized(
             combined_audio_path, text, book_title, chapter_title,
@@ -6200,7 +6243,8 @@ async def generate_video(
             scene_image_paths,  # NEW: Scene image file paths
             scene_layout=scene_layout,
             image_side=image_side,
-            show_text=show_text_value
+            show_text=show_text_value,
+            srt_from_stt=srt_from_stt  # NEW: Pass flag to use direct matching
         )
         
         # Read the video file content before cleanup
@@ -6258,6 +6302,111 @@ async def generate_video(
         return {"error": str(e)}
     finally:
         # Clean up temporary directory
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+@app.post("/api/generate-srt-from-audio")
+async def generate_srt_from_audio(
+    audio: UploadFile = File(...),
+    original_text: str = Form(...),
+    book_title: str = Form(...),
+    chapter_title: str = Form(...),
+    model_size: str = Form("base"),  # Whisper model size: tiny, base, small, medium, large
+    language: str = Form(None),  # Language code or None for auto-detect
+    use_forced_alignment: str = Form("true")  # Use MFA forced alignment (default) or Whisper STT
+):
+    """
+    Generate accurate SRT file using forced alignment (MFA) or Whisper STT.
+    
+    MFA forced alignment is preferred as it aligns known text to audio with >95% accuracy.
+    Falls back to Whisper STT if MFA is unavailable or fails.
+    
+    Args:
+        audio: Audio file (MP3, WAV, etc.)
+        original_text: Original chapter text to align
+        book_title: Book title (for logging)
+        chapter_title: Chapter title (for logging)
+        model_size: Whisper model size (if using Whisper fallback)
+        language: Language code (e.g., 'en') or None for auto-detect
+        use_forced_alignment: "true" to use MFA (default), "false" to use Whisper
+    
+    Returns:
+        JSON with SRT content and metadata
+    """
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        logger.info(f"Generating SRT from audio for: {book_title} - {chapter_title}")
+        
+        # Save uploaded audio
+        audio_path = os.path.join(temp_dir, "audio_for_alignment.mp3")
+        with open(audio_path, "wb") as f:
+            content = await audio.read()
+            f.write(content)
+        
+        logger.info(f"Audio saved: {audio_path} ({len(content)} bytes)")
+        
+        srt_content = ""
+        method_used = "unknown"
+        
+        # Try MFA forced alignment first (if enabled)
+        if use_forced_alignment.lower() == 'true':
+            try:
+                logger.info("Attempting MFA forced alignment...")
+                mfa_srt = generate_srt_with_mfa(
+                    audio_path=audio_path,
+                    original_text=original_text,
+                    language=language if language else "english"
+                )
+                if mfa_srt and len(mfa_srt.strip()) > 0:
+                    srt_content = mfa_srt
+                    method_used = "MFA (forced alignment)"
+                    logger.info("MFA forced alignment successful")
+                else:
+                    raise Exception("MFA returned empty SRT")
+            except Exception as e:
+                logger.warning(f"MFA forced alignment failed: {e}, falling back to Whisper STT")
+                # Fall through to Whisper
+        
+        # Fallback to Whisper STT if MFA failed or disabled
+        if not srt_content or use_forced_alignment.lower() == 'false':
+            try:
+                logger.info("Using Whisper STT...")
+                srt_content = generate_srt_with_whisper(
+                    audio_path=audio_path,
+                    original_text=original_text,
+                    model_size=model_size,
+                    language=language if language else None
+                )
+                method_used = "Whisper STT"
+            except Exception as e:
+                logger.error(f"Whisper STT also failed: {e}")
+                raise
+        
+        # Parse SRT to get statistics
+        srt_entries = parse_srt_entries(srt_content) if srt_content else []
+        
+        logger.info(f"Generated SRT with {len(srt_entries)} entries using {method_used}")
+        
+        return {
+            "success": True,
+            "srt_content": srt_content,
+            "entry_count": len(srt_entries),
+            "book_title": book_title,
+            "chapter_title": chapter_title,
+            "method": method_used,
+            "model_size": model_size if method_used == "Whisper STT" else None,
+            "language": language or ("english" if method_used == "MFA (forced alignment)" else "auto-detected")
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating SRT from audio: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e),
+            "srt_content": ""
+        }
+    finally:
+        # Cleanup
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 @app.post("/merge-videos")
@@ -8735,6 +8884,163 @@ def create_frame_with_scene_background(scene_image_path: str, text_frame: Image.
         print(f"Error creating scene background frame: {e}")
         return text_frame  # Fallback to text-only frame
 
+def create_direct_srt_map(srt_entries, all_lines_data):
+    """
+    Direct mapping for STT-generated SRT (text already matches original).
+    Uses fuzzy matching to handle word-wrapping and transcription variations.
+    
+    Args:
+        srt_entries: List of parsed SRT entries (from STT, text already matches original).
+        all_lines_data: List of pre-computed line data from text layout.
+        
+    Returns:
+        dict: Maps SRT entry index -> list of line indices in layout.
+    """
+    import difflib
+    
+    if not srt_entries or not all_lines_data:
+        print("Direct matching: No SRT entries or layout lines available")
+        return {}
+    
+    mapping = {}
+    line_index = 0  # Current position in layout lines (sequential matching)
+    unmatched_count = 0
+    multiline_matches = 0
+    
+    print(f"Direct matching {len(srt_entries)} STT SRT entries to {len(all_lines_data)} layout lines...")
+    
+    for srt_idx, srt_entry in enumerate(srt_entries):
+        srt_text = srt_entry['text'].strip()
+        srt_text_norm = normalize_text_for_matching(srt_text)
+        
+        # Edge case: Skip empty or very short entries
+        if not srt_text_norm or len(srt_text_norm) < 3:
+            continue
+        
+        # Search forward from current position (increased from 10 to 20)
+        best_match_idx = -1
+        best_match_score = 0.0
+        best_match_lines = []  # For multi-line matches
+        search_window = min(20, len(all_lines_data) - line_index)
+        
+        # Try single-line match first (fast path)
+        for i in range(line_index, min(line_index + search_window, len(all_lines_data))):
+            line_text = all_lines_data[i]['text']
+            line_norm = normalize_text_for_matching(line_text)
+            
+            # Use fuzzy matching instead of exact matching
+            similarity = difflib.SequenceMatcher(None, srt_text_norm, line_norm).ratio()
+            
+            # Check for exact match first (highest priority)
+            if srt_text_norm == line_norm:
+                best_match_idx = i
+                best_match_score = 1.0
+                best_match_lines = [i]
+                break
+            # Check for substring match (high priority)
+            elif srt_text_norm in line_norm or line_norm in srt_text_norm:
+                if similarity > best_match_score:
+                    best_match_idx = i
+                    best_match_score = similarity
+                    best_match_lines = [i]
+            # Fuzzy similarity match
+            elif similarity > best_match_score:
+                best_match_idx = i
+                best_match_score = similarity
+                best_match_lines = [i]
+        
+        # If single-line match found with good score, use it
+        if best_match_idx >= 0 and best_match_score >= 0.6:
+            mapping[srt_idx] = best_match_lines
+            line_index = best_match_idx + 1  # Advance to next position
+            if len(best_match_lines) > 1:
+                multiline_matches += 1
+        # Try multi-line matching for longer sentences (word-wrapping)
+        elif best_match_idx >= 0 and best_match_score >= 0.4:
+            # Try combining 2-3 consecutive lines for better match
+            for num_lines in [2, 3]:
+                if line_index + num_lines <= len(all_lines_data):
+                    combined_lines = []
+                    combined_text = ""
+                    for j in range(line_index, min(line_index + num_lines, len(all_lines_data))):
+                        combined_lines.append(j)
+                        combined_text += " " + all_lines_data[j]['text']
+                    
+                    combined_norm = normalize_text_for_matching(combined_text)
+                    combined_similarity = difflib.SequenceMatcher(None, srt_text_norm, combined_norm).ratio()
+                    
+                    if combined_similarity > best_match_score and combined_similarity >= 0.6:
+                        best_match_score = combined_similarity
+                        best_match_lines = combined_lines
+                        best_match_idx = combined_lines[0]
+                        break
+            
+            # Use match if we found a good one
+            if best_match_score >= 0.6:
+                mapping[srt_idx] = best_match_lines
+                line_index = best_match_lines[-1] + 1  # Advance past all matched lines
+                if len(best_match_lines) > 1:
+                    multiline_matches += 1
+            else:
+                # Progressive threshold fallback: try lower thresholds
+                for threshold in [0.5, 0.4]:
+                    if best_match_score >= threshold:
+                        mapping[srt_idx] = best_match_lines
+                        line_index = best_match_lines[-1] + 1
+                        break
+                else:
+                    unmatched_count += 1
+        else:
+            # No good match in search window - try broader search (but don't advance line_index)
+            best_fallback_idx = -1
+            best_fallback_score = 0.0
+            best_fallback_lines = []
+            
+            # Broader search with progressive thresholds
+            for threshold in [0.6, 0.5, 0.4]:
+                for i in range(len(all_lines_data)):
+                    line_norm = normalize_text_for_matching(all_lines_data[i]['text'])
+                    similarity = difflib.SequenceMatcher(None, srt_text_norm, line_norm).ratio()
+                    
+                    if similarity >= threshold and similarity > best_fallback_score:
+                        best_fallback_score = similarity
+                        best_fallback_idx = i
+                        best_fallback_lines = [i]
+                
+                # Also try multi-line in broader search
+                for num_lines in [2, 3]:
+                    for start_idx in range(len(all_lines_data) - num_lines + 1):
+                        combined_text = " ".join([all_lines_data[start_idx + j]['text'] 
+                                                 for j in range(num_lines)])
+                        combined_norm = normalize_text_for_matching(combined_text)
+                        combined_similarity = difflib.SequenceMatcher(None, srt_text_norm, combined_norm).ratio()
+                        
+                        if combined_similarity >= threshold and combined_similarity > best_fallback_score:
+                            best_fallback_score = combined_similarity
+                            best_fallback_idx = start_idx
+                            best_fallback_lines = list(range(start_idx, start_idx + num_lines))
+                
+                if best_fallback_idx >= 0:
+                    mapping[srt_idx] = best_fallback_lines
+                    if len(best_fallback_lines) > 1:
+                        multiline_matches += 1
+                    break
+            
+            if best_fallback_idx < 0:
+                unmatched_count += 1
+                # Allow multiple entries to map to same line (overlapping timing)
+                # Don't log every failure to avoid spam, but track count
+    
+    matched_count = len(mapping)
+    match_rate = (matched_count / len(srt_entries) * 100) if srt_entries else 0
+    print(f"Direct matching results: {matched_count}/{len(srt_entries)} SRT entries matched ({match_rate:.1f}%)")
+    if multiline_matches > 0:
+        print(f"  - Multi-line matches: {multiline_matches}")
+    if unmatched_count > 0:
+        print(f"  - Unmatched entries: {unmatched_count}")
+    
+    return mapping
+
 def create_srt_to_sentence_map(srt_entries, all_lines_data):
     """
     Creates a mapping from SRT entry index to the best matching sentence index.
@@ -9983,7 +10289,7 @@ def generate_ereader_key_frames(pages, duration, width, height, fps, temp_dir, c
     
     return frames_dir, len(unique_moments), unique_moments
 
-def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title, author, duration, srt_data, temp_dir, video_format="youtube", style="ereader", highlight_mode="sentence", scene_images=None, scene_image_paths=None, scene_layout="overlay", image_side="left", show_text=True):
+def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title, author, duration, srt_data, temp_dir, video_format="youtube", style="ereader", highlight_mode="sentence", scene_images=None, scene_image_paths=None, scene_layout="overlay", image_side="left", show_text=True, srt_from_stt=False):
     """
     Create video with smooth scrolling instead of page transitions
     """
@@ -10037,12 +10343,21 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
     # Create similarity-based SRT-to-sentence mapping (for highlighting and accurate scrolling)
     srt_to_sentence_map = None
     if show_text and srt_entries and layout['lines']:
-        print("Creating similarity-based SRT-to-sentence mapping (difflib)...")
-        if highlight_mode != 'none':
-            print("  (for highlighting)")
+        if srt_from_stt:
+            # STT SRT already has correct text - use direct matching instead of fuzzy matching
+            print("Using direct text matching for STT-generated SRT (text already matched)...")
+            if highlight_mode != 'none':
+                print("  (for highlighting)")
+            else:
+                print("  (for accurate scrolling)")
+            srt_to_sentence_map = create_direct_srt_map(srt_entries, layout['lines'])
         else:
-            print("  (for accurate scrolling)")
-        srt_to_sentence_map = create_srt_to_sentence_map(srt_entries, layout['lines'])
+            print("Creating similarity-based SRT-to-sentence mapping (difflib)...")
+            if highlight_mode != 'none':
+                print("  (for highlighting)")
+            else:
+                print("  (for accurate scrolling)")
+            srt_to_sentence_map = create_srt_to_sentence_map(srt_entries, layout['lines'])
     
     # Calculate scene timings (NEW) - now with preprocessing!
     scene_timings = []

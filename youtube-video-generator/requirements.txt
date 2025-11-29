@@ -9,3 +9,9 @@ psutil>=5.9.0
 python-multipart==0.0.6
 streamlit>=1.28.0
 streamlit-sortables>=0.1.0
+openai-whisper>=20231117
+torch>=2.0.0
+torchaudio>=2.0.0
+montreal-forced-alignment>=3.0.0
+textgrid>=1.5.0
+praat-parselmouth>=0.4.3
