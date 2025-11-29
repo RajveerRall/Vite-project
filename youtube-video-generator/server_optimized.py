@@ -1,8 +1,5 @@
-# # from fastapi import FastAPI, File, UploadFile, Form
-# # from fastapi.responses import FileResponse
-# # from fastapi.middleware.cors import CORSMiddleware
-# # from PIL import Image, ImageDraw, ImageFont
-# # import subprocess
+import logging
+logger = logging.getLogger(__name__)
 # # import uuid
 # # import os
 # # import tempfile
@@ -6092,7 +6089,8 @@ async def generate_video(
     scene_images_metadata: str = Form("[]"),  # NEW: JSON array of scene prompts
     scene_image_files: List[UploadFile] = File([]),  # NEW: Actual image files from frontend
     scene_layout: str = Form("overlay"),  # NEW: "overlay" | "split"
-    image_side: str = Form("left")        # NEW: "left" | "right"
+    image_side: str = Form("left"),        # NEW: "left" | "right"
+    show_text: str = Form("true")           # NEW: Enable/disable text rendering
 ):
     """
     Generate video with smart frame generation using multiple audio chunks
@@ -6190,6 +6188,9 @@ async def generate_video(
         # Parse highlighting mode
         highlight_mode_value = highlight_mode.lower()  # 'none', 'sentence', or 'word'
         
+        # Parse show_text parameter
+        show_text_value = show_text.lower() == 'true'
+        
         # Generate video with smart frame generation using actual audio duration
         video_path = create_video_with_srt_optimized(
             combined_audio_path, text, book_title, chapter_title,
@@ -6198,7 +6199,8 @@ async def generate_video(
             scene_images,  # NEW: Scene image metadata
             scene_image_paths,  # NEW: Scene image file paths
             scene_layout=scene_layout,
-            image_side=image_side
+            image_side=image_side,
+            show_text=show_text_value
         )
         
         # Read the video file content before cleanup
@@ -8597,9 +8599,9 @@ def preprocess_scene_image_worker(args):
         # PRE-PROCESS image once (zoom, crop, darken)
         try:
             preprocessed_img = preprocess_scene_image(image_path, width, height)
-            print(f"✓ Scene {scene_index}: Preprocessed and matched at {match['start_time']:.2f}s (ratio: {match['match_ratio']:.2f})")
+            logger.info(f"✓ Scene {scene_index}: Preprocessed and matched at {match['start_time']:.2f}s (ratio: {match['match_ratio']:.2f})")
         except Exception as e:
-            print(f"⚠️  Scene {scene_index}: Failed to preprocess image: {e}")
+            logger.error(f"⚠️  Scene {scene_index}: Failed to preprocess image: {e}")
             return None
         
         return {
@@ -8612,7 +8614,7 @@ def preprocess_scene_image_worker(args):
         }
     except Exception as e:
         scene_index = scene.get('sceneIndex', -1) if 'scene' in locals() else -1
-        print(f"⚠️  Scene {scene_index}: Error in worker: {e}")
+        logger.error(f"⚠️  Scene {scene_index}: Error in worker: {e}")
         return None
 
 def calculate_scene_timings(scene_images: list, srt_entries: list, 
@@ -8834,7 +8836,7 @@ def create_srt_to_sentence_map(srt_entries, all_lines_data):
             if srt_index > 0 and (srt_index - 1) in mapping:
                 prev_line = mapping[srt_index - 1][0]
                 mapping[srt_index] = [prev_line]
-                last_mapped_line = prev_line
+                last_mapped_line = min(prev_line, total_lines - 1)
                 print(f"  → Attached short fragment to previous SRT line {prev_line}")
             else:
                 print("  → Skipping (fragment too short to map reliably)")
@@ -8851,13 +8853,20 @@ def create_srt_to_sentence_map(srt_entries, all_lines_data):
         else:  # Short SRT
             window_size = 10
         
-        # Calculate search window - start from next line after last match
-        start_line = max(0, last_mapped_line + 1)
-        if start_line >= total_lines:
+        # Calculate search window - allow searching the currently mapped line again (for multi-chunk sentences)
+        start_line = max(0, last_mapped_line)
+        
+        # Guard against reading past the end of the file
+        if start_line >= total_lines and total_lines > 0:
+            # If we are effectively at the end, force the window to look at the last line
+            start_line = total_lines - 1
+        
+        # The existing out-of-bounds check acts as a secondary safety net now
+        if start_line >= total_lines or total_lines == 0:
             if srt_index > 0 and (srt_index - 1) in mapping:
                 prev_line = mapping[srt_index - 1][0]
                 mapping[srt_index] = [prev_line]
-                last_mapped_line = prev_line
+                last_mapped_line = min(prev_line, total_lines - 1)
                 print(f"  ⚠ WINDOW OUT OF BOUNDS -> Attached to previous line {prev_line}")
             else:
                 print("  ⚠ WINDOW OUT OF BOUNDS -> No lines remaining to search, skipping")
@@ -8912,9 +8921,9 @@ def create_srt_to_sentence_map(srt_entries, all_lines_data):
                 print(f"       Sentence normalized: '{_preview_for_log(match['sentence_text_norm'], 100)}'")
         
         # Map if we found a good match (lowered threshold from 0.6 to 0.5 for better coverage)
-        if best_match_score > 0.5 and best_line_index >= last_mapped_line and best_line_index >= 0:
+        if best_match_score > 0.5 and best_line_index >= last_mapped_line and best_line_index >= 0 and best_line_index < total_lines:
             mapping[srt_index] = [best_line_index]
-            last_mapped_line = best_line_index
+            last_mapped_line = min(best_line_index, total_lines - 1)
             
             best_match = all_similarities[0] if all_similarities else None
             print(f"  ✓ MATCHED -> Line {best_line_index} (score: {best_match_score:.2f}, window: {window_size})")
@@ -8926,15 +8935,15 @@ def create_srt_to_sentence_map(srt_entries, all_lines_data):
             near_end = (total_lines - end_line) <= 5
             fallback_used = False
             
-            if near_end and best_match_score >= 0.3 and best_line_index >= 0 and best_line_index >= last_mapped_line:
+            if near_end and best_match_score >= 0.3 and best_line_index >= 0 and best_line_index < total_lines and best_line_index >= last_mapped_line:
                 mapping[srt_index] = [best_line_index]
-                last_mapped_line = best_line_index
+                last_mapped_line = min(best_line_index, total_lines - 1)
                 fallback_used = True
                 print(f"  ⚠ FALLBACK MATCH -> Line {best_line_index} (score: {best_match_score:.2f}, near end)")
             elif srt_index > 0 and (srt_index - 1) in mapping:
                 prev_line = mapping[srt_index - 1][0]
                 mapping[srt_index] = [prev_line]
-                last_mapped_line = prev_line
+                last_mapped_line = min(prev_line, total_lines - 1)
                 fallback_used = True
                 print(f"  ⚠ ATTACHED TO PREVIOUS -> Line {prev_line} (no strong match)")
             
@@ -9241,7 +9250,8 @@ def create_scroll_frame(
     width, height, highlight_mode,  # Changed from enable_highlight
     srt_to_sentence_map=None,  # Sequential mapping to prevent duplicate highlights
     last_highlighted_sentence_id=None,  # NEW: Track previous highlight to prevent flickering
-    scene_timings=None  # NEW: Scene image timings for overlay
+    scene_timings=None,  # NEW: Scene image timings for overlay
+    show_text=True  # NEW: Enable/disable text rendering
 ):
     """
     Create a single frame with scrolled text.
@@ -9264,91 +9274,95 @@ def create_scroll_frame(
     
     draw = ImageDraw.Draw(img)
     
-    # STEP 2: Create semi-transparent container overlay (centered with padding)
-    container_padding = int(width * 0.08)  # 8% padding on sides
-    container_margin_top = int(height * 0.18)  # 18% padding top (more space for chapter title)
-    container_margin_bottom = int(height * 0.08)  # 8% padding bottom (increased visible area)
-    
-    container_width = width - (container_padding * 2)
-    container_height = height - container_margin_top - container_margin_bottom
-    container_x = container_padding
-    container_y = container_margin_top
-    
-    # Create a semi-transparent overlay
-    overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-    overlay_draw = ImageDraw.Draw(overlay)
-    
-    # Draw rounded rectangle for container
-    corner_radius = int(width * 0.02)  # 2% of width for rounded corners
-    container_color = (*hex_to_rgb('#F0F0E3'), int(255 * 0.65))  # 65% opacity
-    
-    overlay_draw.rounded_rectangle(
-        [(container_x, container_y), 
-         (container_x + container_width, container_y + container_height)],
-        radius=corner_radius,
-        fill=container_color
-    )
-    
-    # Composite the overlay onto the main image
-    img = Image.alpha_composite(img.convert('RGBA'), overlay).convert('RGB')
-    draw = ImageDraw.Draw(img)  # Recreate draw object after conversion
-    
-    # Calculate container bounds for clipping
-    container_top = container_margin_top
-    container_bottom = height - container_margin_bottom
-    
-    # Calculate text start position (inside container, with padding from container top)
-    text_start_y = container_margin_top + layout['padding']
-    
-    # Adjust text padding to respect container margins
-    text_padding_x = layout['padding'] + container_padding
-    
-    # NEW: Track which sentence is highlighted in this frame
-    current_highlighted_sentence_id = last_highlighted_sentence_id
-    
-    # Draw visible text lines
-    for line_idx, line_data in enumerate(layout['lines']):
-        line_y = line_data['y'] - scroll_y + text_start_y
+    if show_text:
+        # STEP 2: Create semi-transparent container overlay (centered with padding)
+        container_padding = int(width * 0.08)  # 8% padding on sides
+        container_margin_top = int(height * 0.18)  # 18% padding top (more space for chapter title)
+        container_margin_bottom = int(height * 0.08)  # 8% padding bottom (increased visible area)
         
-        # Only draw lines within container bounds (use <= for better edge visibility)
-        if container_top <= line_y <= container_bottom:
-            # Draw highlight based on mode
-            if highlight_mode == 'sentence':
-                # Use pre-computed mapping if available, otherwise fallback
-                if srt_to_sentence_map is not None:
-                    # NEW: Pass fallback_sentence_id and get active sentence back
-                    is_current, active_sentence_id = check_if_current_sentence_with_mapping(
-                        line_idx, current_time, srt_entries, srt_to_sentence_map,
-                        layout['lines'],  # Pass all_lines_data for sentence_id matching
-                        last_highlighted_sentence_id  # NEW: Fallback to persist highlight
-                    )
-                    
-                    # NEW: Update tracking once if we found a new active sentence (not per line)
-                    if active_sentence_id is not None and active_sentence_id != current_highlighted_sentence_id:
-                        current_highlighted_sentence_id = active_sentence_id
-                else:
-                    is_current = check_if_current_sentence_fallback(line_data, current_time, srt_entries)
-                    # Note: fallback doesn't provide sentence_id, so we can't update tracking
-                
-                if is_current:
-                    draw_highlight_box(draw, line_data['text'], 
-                                     layout['fonts']['body'], 
-                                     text_padding_x, line_y)
-            elif highlight_mode == 'word':
-                # TODO: Implement word-level highlighting
-                pass
+        container_width = width - (container_padding * 2)
+        container_height = height - container_margin_top - container_margin_bottom
+        container_x = container_padding
+        container_y = container_margin_top
+        
+        # Create a semi-transparent overlay
+        overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+        overlay_draw = ImageDraw.Draw(overlay)
+        
+        # Draw rounded rectangle for container
+        corner_radius = int(width * 0.02)  # 2% of width for rounded corners
+        container_color = (*hex_to_rgb('#F0F0E3'), int(255 * 0.65))  # 65% opacity
+        
+        overlay_draw.rounded_rectangle(
+            [(container_x, container_y), 
+             (container_x + container_width, container_y + container_height)],
+            radius=corner_radius,
+            fill=container_color
+        )
+        
+        # Composite the overlay onto the main image
+        img = Image.alpha_composite(img.convert('RGBA'), overlay).convert('RGB')
+        draw = ImageDraw.Draw(img)  # Recreate draw object after conversion
+        
+        # Calculate container bounds for clipping
+        container_top = container_margin_top
+        container_bottom = height - container_margin_bottom
+        
+        # Calculate text start position (inside container, with padding from container top)
+        text_start_y = container_margin_top + layout['padding']
+        
+        # Adjust text padding to respect container margins
+        text_padding_x = layout['padding'] + container_padding
+        
+        # NEW: Track which sentence is highlighted in this frame
+        current_highlighted_sentence_id = last_highlighted_sentence_id
+        
+        # Draw visible text lines
+        for line_idx, line_data in enumerate(layout['lines']):
+            line_y = line_data['y'] - scroll_y + text_start_y
             
-            # Draw text (adjusted for container padding)
-            draw.text(
-                (text_padding_x, line_y),
-                line_data['text'],
-                font=layout['fonts']['body'],
-                fill='#1a1a1a'
-            )
-    
-    # Draw chapter info (header/footer)
-    draw_chapter_info(draw, layout['fonts'], book_title, chapter_title, 
-                     author, width, height, layout['padding'])
+            # Only draw lines within container bounds (use <= for better edge visibility)
+            if container_top <= line_y <= container_bottom:
+                # Draw highlight based on mode
+                if highlight_mode == 'sentence':
+                    # Use pre-computed mapping if available, otherwise fallback
+                    if srt_to_sentence_map is not None:
+                        # NEW: Pass fallback_sentence_id and get active sentence back
+                        is_current, active_sentence_id = check_if_current_sentence_with_mapping(
+                            line_idx, current_time, srt_entries, srt_to_sentence_map,
+                            layout['lines'],  # Pass all_lines_data for sentence_id matching
+                            last_highlighted_sentence_id  # NEW: Fallback to persist highlight
+                        )
+                        
+                        # NEW: Update tracking once if we found a new active sentence (not per line)
+                        if active_sentence_id is not None and active_sentence_id != current_highlighted_sentence_id:
+                            current_highlighted_sentence_id = active_sentence_id
+                    else:
+                        is_current = check_if_current_sentence_fallback(line_data, current_time, srt_entries)
+                        # Note: fallback doesn't provide sentence_id, so we can't update tracking
+                    
+                    if is_current:
+                        draw_highlight_box(draw, line_data['text'], 
+                                         layout['fonts']['body'], 
+                                         text_padding_x, line_y)
+                elif highlight_mode == 'word':
+                    # TODO: Implement word-level highlighting
+                    pass
+                
+                # Draw text (adjusted for container padding)
+                draw.text(
+                    (text_padding_x, line_y),
+                    line_data['text'],
+                    font=layout['fonts']['body'],
+                    fill='#1a1a1a'
+                )
+        
+        # Draw chapter info (header/footer)
+        draw_chapter_info(draw, layout['fonts'], book_title, chapter_title, 
+                         author, width, height, layout['padding'])
+    else:
+        # Text disabled: no text rendering, no container overlay
+        current_highlighted_sentence_id = last_highlighted_sentence_id
     
     # NOTE: Scene background is now applied at the beginning (STEP 1) before container overlay
     # No need to apply it again here since we already handle it at the start of the function
@@ -9373,7 +9387,7 @@ def generate_frame_worker(args):
         # Unpack arguments - remove use_pipe_mode
         (frame_idx, current_time, scroll_y, srt_entries, layout, 
          book_title, chapter_title, author, width, height, highlight_mode,
-         srt_to_sentence_map, scene_timings, frames_dir, scene_layout, image_side) = args
+         srt_to_sentence_map, scene_timings, frames_dir, scene_layout, image_side, show_text) = args
         
         # Generate frame
         if scene_layout == "split":
@@ -9384,7 +9398,8 @@ def generate_frame_worker(args):
                 srt_to_sentence_map,
                 None,  # last_highlighted_sentence_id (not needed in parallel)
                 scene_timings,
-                image_side=image_side
+                image_side=image_side,
+                show_text=show_text
             )
         else:
             frame, _ = create_scroll_frame(
@@ -9393,7 +9408,8 @@ def generate_frame_worker(args):
                 width, height, highlight_mode,
                 srt_to_sentence_map,
                 None,  # last_highlighted_sentence_id (not needed in parallel)
-                scene_timings
+                scene_timings,
+                show_text=show_text
             )
         
         # Save frame to disk
@@ -9412,7 +9428,8 @@ def generate_smart_scroll_frames(
     srt_to_sentence_map=None,  # Sequential mapping to prevent duplicate highlights
     scene_timings=None,  # NEW: Scene image timings for overlay
     scene_layout="overlay",
-    image_side="left"
+    image_side="left",
+    show_text=True
 ):
     """
     Generate key frames at SRT boundaries + regular intervals for accurate highlighting.
@@ -9420,7 +9437,16 @@ def generate_smart_scroll_frames(
     frames_dir = tempfile.mkdtemp()
     
     # Generate key frames
-    key_frame_times = set([0.0, float(total_duration)])
+    if not show_text:
+        # Text-free mode: only generate keyframes at scene transitions
+        key_frame_times = set([0.0, float(total_duration)])
+        if scene_timings:
+            for scene in scene_timings:
+                key_frame_times.add(round(scene['start_time'], 3))
+                key_frame_times.add(round(scene['end_time'], 3))
+        print(f"Generating {len(key_frame_times)} keyframes (text-free mode, scene transitions only)")
+    else:
+        key_frame_times = set([0.0, float(total_duration)])
 
     # For split layout or when highlighting is disabled (fullscreen), use per-layout keyframes
     if scene_layout == "split":
@@ -9501,7 +9527,9 @@ def generate_smart_scroll_frames(
         
         for idx, current_time in enumerate(key_frame_times):
             # Per-layout scrolling: split vs fullscreen (no-highlight); else SRT/overlay logic
-            if scene_layout == "split":
+            if not show_text:
+                scroll_y = 0  # No scrolling needed when text is disabled
+            elif scene_layout == "split":
                 if srt_entries and srt_to_sentence_map:
                     # Use anchored scrolling for better audio sync
                     scroll_y = calculate_anchored_scroll(
@@ -9522,8 +9550,14 @@ def generate_smart_scroll_frames(
                     )
                 previous_scroll = scroll_y
             elif highlight_mode == 'none':
-                if srt_entries:
-                    # Use SRT timing directly (no text matching needed for no-highlight mode)
+                if srt_entries and srt_to_sentence_map:
+                    # Use accurate text-matched scrolling (same as highlight modes)
+                    scroll_y = calculate_static_page_scroll(
+                        current_time, srt_entries, srt_to_sentence_map, layout,
+                        height, previous_scroll
+                    )
+                elif srt_entries:
+                    # Fallback to time-based if mapping unavailable
                     scroll_y = calculate_srt_time_based_scroll(
                         current_time, srt_entries, layout,
                         total_duration, height
@@ -9557,7 +9591,7 @@ def generate_smart_scroll_frames(
             task_args = (
                 idx, current_time, scroll_y, srt_entries, layout,
                 book_title, chapter_title, author, width, height, highlight_mode,
-                srt_to_sentence_map, scene_timings, frames_dir, scene_layout, image_side
+                srt_to_sentence_map, scene_timings, frames_dir, scene_layout, image_side, show_text
             )
             tasks.append(task_args)
         
@@ -9588,7 +9622,9 @@ def generate_smart_scroll_frames(
         
         for idx, current_time in enumerate(key_frame_times):
             # Per-layout scrolling: split vs fullscreen (no-highlight); else SRT/overlay logic
-            if scene_layout == "split":
+            if not show_text:
+                scroll_y = 0  # No scrolling needed when text is disabled
+            elif scene_layout == "split":
                 if srt_entries and srt_to_sentence_map:
                     # Use anchored scrolling for better audio sync
                     scroll_y = calculate_anchored_scroll(
@@ -9609,8 +9645,14 @@ def generate_smart_scroll_frames(
                     )
                 previous_scroll = scroll_y
             elif highlight_mode == 'none':
-                if srt_entries:
-                    # Use SRT timing directly (no text matching needed for no-highlight mode)
+                if srt_entries and srt_to_sentence_map:
+                    # Use accurate text-matched scrolling (same as highlight modes)
+                    scroll_y = calculate_static_page_scroll(
+                        current_time, srt_entries, srt_to_sentence_map, layout,
+                        height, previous_scroll
+                    )
+                elif srt_entries:
+                    # Fallback to time-based if mapping unavailable
                     scroll_y = calculate_srt_time_based_scroll(
                         current_time, srt_entries, layout,
                         total_duration, height
@@ -9649,7 +9691,8 @@ def generate_smart_scroll_frames(
                     srt_to_sentence_map,  # Pass the mapping
                     last_highlighted_sentence_id,  # NEW: Pass previous highlight
                     scene_timings,  # NEW: Pass scene timings
-                    image_side=image_side
+                    image_side=image_side,
+                    show_text=show_text
                 )
             else:
                 frame, last_highlighted_sentence_id = create_scroll_frame(
@@ -9658,7 +9701,8 @@ def generate_smart_scroll_frames(
                     width, height, highlight_mode,
                     srt_to_sentence_map,  # Pass the mapping
                     last_highlighted_sentence_id,  # NEW: Pass previous highlight
-                    scene_timings  # NEW: Pass scene timings
+                    scene_timings,  # NEW: Pass scene timings
+                    show_text=show_text
                 )
             
             # Save frame with sequential numbering
@@ -9939,7 +9983,7 @@ def generate_ereader_key_frames(pages, duration, width, height, fps, temp_dir, c
     
     return frames_dir, len(unique_moments), unique_moments
 
-def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title, author, duration, srt_data, temp_dir, video_format="youtube", style="ereader", highlight_mode="sentence", scene_images=None, scene_image_paths=None, scene_layout="overlay", image_side="left"):
+def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title, author, duration, srt_data, temp_dir, video_format="youtube", style="ereader", highlight_mode="sentence", scene_images=None, scene_image_paths=None, scene_layout="overlay", image_side="left", show_text=True):
     """
     Create video with smooth scrolling instead of page transitions
     """
@@ -9968,14 +10012,19 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
         max_text_width_override = max(0, text_col_w - (2 * side_margin))
 
     # NEW: Pre-compute text layout (all lines with Y positions)
-    print("Pre-computing text layout...")
-    preserve_paragraphs = (highlight_mode == 'none')
-    layout = precompute_text_layout(
-        text, width, height,
-        preserve_paragraphs=preserve_paragraphs,
-        max_text_width_override=max_text_width_override
-    )
-    print(f"Pre-computed {len(layout['lines'])} wrapped lines, total height: {layout['total_height']}px")
+    if show_text:
+        print("Pre-computing text layout...")
+        preserve_paragraphs = (highlight_mode == 'none')
+        layout = precompute_text_layout(
+            text, width, height,
+            preserve_paragraphs=preserve_paragraphs,
+            max_text_width_override=max_text_width_override
+        )
+        print(f"Pre-computed {len(layout['lines'])} wrapped lines, total height: {layout['total_height']}px")
+    else:
+        # Create minimal layout structure for compatibility
+        layout = {'lines': [], 'total_height': 0, 'padding': 0, 'fonts': load_ereader_fonts(width, height)}
+        print("Text rendering disabled - skipping layout computation")
     
     # Parse SRT if provided (regardless of highlight mode) so scene images and timing can work in no-highlight mode
     srt_entries = parse_srt_entries(srt_data) if srt_data else []
@@ -9985,13 +10034,15 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
         srt_entries = remove_srt_gaps(srt_entries)
         print(f"After gap removal: {len(srt_entries)} SRT entries")
     
-    # Create similarity-based SRT-to-sentence mapping (only needed for highlight modes)
+    # Create similarity-based SRT-to-sentence mapping (for highlighting and accurate scrolling)
     srt_to_sentence_map = None
-    if srt_entries and layout['lines'] and highlight_mode != 'none':
+    if show_text and srt_entries and layout['lines']:
         print("Creating similarity-based SRT-to-sentence mapping (difflib)...")
+        if highlight_mode != 'none':
+            print("  (for highlighting)")
+        else:
+            print("  (for accurate scrolling)")
         srt_to_sentence_map = create_srt_to_sentence_map(srt_entries, layout['lines'])
-    elif highlight_mode == 'none':
-        print("Skipping SRT-to-sentence mapping (not needed for no-highlight mode)")
     
     # Calculate scene timings (NEW) - now with preprocessing!
     scene_timings = []
@@ -10013,18 +10064,61 @@ def create_video_with_srt_optimized(audio_path, text, book_title, chapter_title,
         srt_to_sentence_map,
         scene_timings,
         scene_layout=scene_layout,
-        image_side=image_side
+        image_side=image_side,
+        show_text=show_text
     )
     
     # STEP 2: Encode video using the correct interpolation method
-    print("Encoding video with FFmpeg interpolation...")
+    logger.info("Encoding video with FFmpeg interpolation...")
     return create_video_with_ffmpeg_interpolated(
         frames_dir, audio_path, width, height, fps, num_keyframes, duration, 23
     )
 
+import logging
+import sys
+
+class StreamToLogger(object):
+    """
+    Fake file-like stream object that redirects writes to a logger instance.
+    """
+    def __init__(self, logger, level):
+       self.logger = logger
+       self.level = level
+       self.linebuf = ''
+
+    def write(self, buf):
+       for line in buf.rstrip().splitlines():
+          self.logger.log(self.level, line.rstrip())
+
+    def flush(self):
+       pass
+
+    def isatty(self):
+        return False
+
+def setup_logging():
+    # Try to set stdout to utf-8 to handle special chars like checkmarks
+    try:
+        if hasattr(sys.__stdout__, 'reconfigure'):
+            sys.__stdout__.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler("server_optimized.log", encoding='utf-8')
+        ]
+    )
+    
+    sys.stdout = StreamToLogger(logging.getLogger('STDOUT'), logging.INFO)
+    sys.stderr = StreamToLogger(logging.getLogger('STDERR'), logging.ERROR)
+
 if __name__ == "__main__":
+    setup_logging()
     import uvicorn
-    print("Starting Optimized YouTube Video Generator with Smart Frame Generation...")
-    print("API docs available at: http://localhost:8000/docs")
+    logger.info("Starting Optimized YouTube Video Generator with Smart Frame Generation...")
+    logger.info("API docs available at: http://localhost:8000/docs")
     uvicorn.run(app, host="0.0.0.0", port=8000)
 

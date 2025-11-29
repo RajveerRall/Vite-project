@@ -7,6 +7,19 @@ import uuid
 import os
 import tempfile
 import shutil
+import logging
+import sys
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("server.log"),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -51,8 +64,8 @@ async def generate_video(
         MP4 video file
     """
     
-    print(f"Generating video for: {chapter_title}")
-    print(f"Text length: {len(text)} characters")
+    logger.info(f"Generating video for: {chapter_title}")
+    logger.info(f"Text length: {len(text)} characters")
     
     # Create temp directory for this video
     temp_dir = tempfile.mkdtemp()
@@ -65,7 +78,7 @@ async def generate_video(
         
         # Use audio duration from frontend (more accurate)
         duration = float(audio_duration)
-        print(f"Audio duration: {duration}s (from frontend metadata)")
+        logger.info(f"Audio duration: {duration}s (from frontend metadata)")
         
         # Generate video
         video_path = create_video_with_srt(
@@ -95,7 +108,7 @@ async def generate_video(
         return response
         
     except Exception as e:
-        print(f"Error generating video: {e}")
+        logger.error(f"Error generating video: {e}")
         shutil.rmtree(temp_dir, ignore_errors=True)
         raise
 
@@ -140,7 +153,7 @@ def get_audio_duration(audio_path: str) -> float:
         )
         return float(result.stdout.strip())
     except Exception as e:
-        print(f"Error getting audio duration: {e}")
+        logger.error(f"Error getting audio duration: {e}")
         return 10.0  # Default fallback
 
 def wrap_text(text: str, font, max_width: int) -> list:
@@ -207,19 +220,19 @@ def create_frame(
                 header_font = ImageFont.truetype(font_path, 32)
                 text_font = ImageFont.truetype(font_path, 48)
                 time_font = ImageFont.truetype(font_path, 20)
-                print(f"Loaded font: {font_path}")
+                logger.info(f"Loaded font: {font_path}")
                 break
             except:
                 continue
         
         if not header_font:
-            print("No system fonts found, using default")
+            logger.warning("No system fonts found, using default")
             header_font = ImageFont.load_default()
             text_font = ImageFont.load_default()
             time_font = ImageFont.load_default()
             
     except Exception as e:
-        print(f"Font loading error: {e}")
+        logger.error(f"Font loading error: {e}")
         header_font = ImageFont.load_default()
         text_font = ImageFont.load_default()
         time_font = ImageFont.load_default()
@@ -322,21 +335,21 @@ def create_video_with_ffmpeg(
         for font_path in font_paths:
             try:
                 font = ImageFont.truetype(font_path, 48)
-                print(f"Loaded font for text wrapping: {font_path}")
+                logger.info(f"Loaded font for text wrapping: {font_path}")
                 break
             except:
                 continue
         
         if not font:
-            print("No system fonts found for text wrapping, using default")
+            logger.warning("No system fonts found for text wrapping, using default")
             font = ImageFont.load_default()
             
     except Exception as e:
-        print(f"Font loading error for text wrapping: {e}")
+        logger.error(f"Font loading error for text wrapping: {e}")
         font = ImageFont.load_default()
     
     lines = wrap_text(text, font, WIDTH - 200)
-    print(f"Wrapped into {len(lines)} lines")
+    logger.info(f"Wrapped into {len(lines)} lines")
     
     # Calculate total frames
     total_frames = int(duration * FPS)
@@ -344,18 +357,18 @@ def create_video_with_ffmpeg(
     # Create frames directory
     frames_dir = os.path.join(temp_dir, "frames")
     os.makedirs(frames_dir, exist_ok=True)
-    print(f"Frames directory created: {frames_dir}")
+    logger.info(f"Frames directory created: {frames_dir}")
     
     # Check if directory exists
     if not os.path.exists(frames_dir):
         raise Exception(f"Failed to create frames directory: {frames_dir}")
     
     # Generate frames
-    print(f"Generating {total_frames} frames at {FPS} FPS...")
+    logger.info(f"Generating {total_frames} frames at {FPS} FPS...")
     frames_generated = 0
     for i in range(total_frames):
         if i % 100 == 0:
-            print(f"  Frame {i}/{total_frames} ({(i/total_frames)*100:.1f}%)")
+            logger.info(f"  Frame {i}/{total_frames} ({(i/total_frames)*100:.1f}%)")
         
         try:
             frame = create_frame(
@@ -373,22 +386,22 @@ def create_video_with_ffmpeg(
             frame.save(frame_path, 'PNG')
             frames_generated += 1
         except Exception as e:
-            print(f"Error generating frame {i}: {e}")
+            logger.error(f"Error generating frame {i}: {e}")
             continue
     
-    print(f"Frames generated: {frames_generated}/{total_frames}")
+    logger.info(f"Frames generated: {frames_generated}/{total_frames}")
     
     if frames_generated == 0:
         raise Exception("No frames were generated successfully")
     
     # Verify frames were actually saved
     frame_files = [f for f in os.listdir(frames_dir) if f.startswith('frame_') and f.endswith('.png')]
-    print(f"Frame files found in directory: {len(frame_files)}")
+    logger.info(f"Frame files found in directory: {len(frame_files)}")
     
     if len(frame_files) == 0:
         raise Exception("No frame files were saved to disk")
     
-    print("Frames generated, encoding video with FFmpeg...")
+    logger.info("Frames generated, encoding video with FFmpeg...")
     
     # Output video path
     output_path = os.path.join(temp_dir, "output.mp4")
@@ -414,10 +427,10 @@ def create_video_with_ffmpeg(
     result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
     
     if result.returncode != 0:
-        print(f"FFmpeg error: {result.stderr}")
+        logger.error(f"FFmpeg error: {result.stderr}")
         raise Exception(f"FFmpeg failed: {result.stderr}")
     
-    print(f"Video created successfully: {output_path}")
+    logger.info(f"Video created successfully: {output_path}")
     return output_path
 
 def parse_srt(srt_content: str):
@@ -604,34 +617,34 @@ def create_video_with_srt(
         width, height = 1080, 1920  # Vertical format for mobile/social media
         fps = 30
         crf = 23  # Standard quality for mobile
-        print(f"Using mobile format: {width}x{height} (vertical)")
+        logger.info(f"Using mobile format: {width}x{height} (vertical)")
     else:  # youtube format (default)
         width, height = 1920, 1080  # Horizontal format for YouTube
         fps = 10  # Reduced from 30 to 10 for faster generation
         crf = 20  # Higher quality for YouTube
-        print(f"Using YouTube format: {width}x{height} (horizontal)")
+        logger.info(f"Using YouTube format: {width}x{height} (horizontal)")
     
-    print(f"Parsing SRT data...")
+    logger.info(f"Parsing SRT data...")
     segments = parse_srt(srt_data)
-    print(f"Parsed {len(segments)} SRT segments")
+    logger.info(f"Parsed {len(segments)} SRT segments")
     
     if not segments:
-        print("No SRT segments found, falling back to basic video generation")
+        logger.warning("No SRT segments found, falling back to basic video generation")
         return create_video_with_ffmpeg(audio_path, text, book_title, chapter_title, author, duration, temp_dir, width, height, fps, crf)
     
-    print(f"Grouping sentences into pages...")
+    logger.info(f"Grouping sentences into pages...")
     pages = group_sentences_into_pages(segments)
-    print(f"Created {len(pages)} pages")
+    logger.info(f"Created {len(pages)} pages")
     
     # Debug: Print first few pages with their timing
     for i, page in enumerate(pages[:3]):
         page_start = page[0]['start']
         page_end = page[-1]['end']
-        print(f"  Page {i+1}: {page_start:.2f}s - {page_end:.2f}s ({len(page)} sentences)")
+        logger.debug(f"  Page {i+1}: {page_start:.2f}s - {page_end:.2f}s ({len(page)} sentences)")
     
     # Calculate total frames needed
     total_frames = int(duration * fps)
-    print(f"Generating {total_frames} frames at {fps} FPS...")
+    logger.info(f"Generating {total_frames} frames at {fps} FPS...")
     
     frames_dir = os.path.join(temp_dir, "frames")
     os.makedirs(frames_dir, exist_ok=True)
@@ -674,9 +687,9 @@ def create_video_with_srt(
         frame.save(frame_path)
         
         if frame_num % 100 == 0:
-            print(f"Frame {frame_num}/{total_frames} ({frame_num/total_frames*100:.1f}%) - Page {current_page_index + 1}/{len(pages)} - Time: {current_time:.2f}s")
+            logger.info(f"Frame {frame_num}/{total_frames} ({frame_num/total_frames*100:.1f}%) - Page {current_page_index + 1}/{len(pages)} - Time: {current_time:.2f}s")
     
-    print("Frames generated, encoding video with FFmpeg...")
+    logger.info("Frames generated, encoding video with FFmpeg...")
     
     # Encode video with FFmpeg
     output_path = os.path.join(temp_dir, "output.mp4")
@@ -698,15 +711,15 @@ def create_video_with_srt(
     try:
         subprocess.run(cmd, check=True, capture_output=True)
     except subprocess.CalledProcessError as e:
-        print(f"FFmpeg error: {e}")
-        print(f"FFmpeg stderr: {e.stderr.decode()}")
+        logger.error(f"FFmpeg error: {e}")
+        logger.error(f"FFmpeg stderr: {e.stderr.decode()}")
         raise
     
-    print(f"Video created successfully: {output_path}")
+    logger.info(f"Video created successfully: {output_path}")
     return output_path
 
 if __name__ == "__main__":
     import uvicorn
-    print("Starting YouTube Video Generator with FFmpeg...")
-    print("API docs available at: http://localhost:8000/docs")
+    logger.info("Starting YouTube Video Generator with FFmpeg...")
+    logger.info("API docs available at: http://localhost:8000/docs")
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -14,6 +14,7 @@ interface VideoSettings {
   highlightMode: 'none' | 'sentence' | 'word';  // Changed from enableHighlight boolean
   enableSceneImages: boolean;  // NEW: Toggle for AI-generated scene images
   useMultiVoice: boolean;  // NEW: Toggle for multi-voice casting
+  showText: boolean;  // NEW: Toggle for showing text in video
 }
 
 interface VideoProgress {
@@ -40,7 +41,8 @@ const EpubToVideo: React.FC = () => {
     style: 'ereader',
     highlightMode: 'none',  // Default to no highlighting
     enableSceneImages: true,  // Default: AI scene images enabled
-    useMultiVoice: true  // Default: Multi-voice casting enabled
+    useMultiVoice: true,  // Default: Multi-voice casting enabled
+    showText: true  // Default: Show text in video
   });
   // Queue state
   const [videoQueue, setVideoQueue] = useState<QueueItem[]>([]);
@@ -561,7 +563,7 @@ const EpubToVideo: React.FC = () => {
                 text: chapter.content,
                 bookTitle: uploadedFile?.name || 'Unknown',
                 chapter: chapter.title,
-                maxScenes: Math.ceil(chapter.content.length / 1500), // Let LLM decide optimal scene count (no hard limit)
+                maxScenes: null, // Let LLM decide optimal scene count based on content
                 bookTheme: 'atmospheric narrative',
                 colorPalette: 'muted tones with dramatic contrasts',
                 videoFormat: settings.format,
@@ -1041,6 +1043,7 @@ const EpubToVideo: React.FC = () => {
       formData.append('format', settings.format);
       formData.append('style', settings.style);
       formData.append('highlight_mode', settings.highlightMode);
+      formData.append('show_text', settings.showText.toString());
       // New split layout controls for Python backend
       formData.append('scene_layout', settings.style === 'split' ? 'split' : 'overlay');
       formData.append('image_side', 'left'); // change to 'right' to flip columns
@@ -1120,15 +1123,15 @@ const EpubToVideo: React.FC = () => {
       } else {
         console.warn('[Video Generation] Failed to save video:', saveResult.error);
         // Fallback to direct download
-        const videoUrl = URL.createObjectURL(videoBlob);
-        const a = document.createElement('a');
-        a.href = videoUrl;
-        a.download = `${chapter.title}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(videoUrl);
-        
+      const videoUrl = URL.createObjectURL(videoBlob);
+      const a = document.createElement('a');
+      a.href = videoUrl;
+      a.download = `${chapter.title}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(videoUrl);
+
         // Still mark as completed
         setVideoQueue(prev => prev.map(item => 
           item.id === queueItem.id 
@@ -1666,7 +1669,7 @@ const EpubToVideo: React.FC = () => {
                         {mergeProgress.message}
                       </div>
                     )}
-
+                    
                     {/* Clear Queue Button */}
                     <button
                       onClick={() => {
@@ -1802,6 +1805,30 @@ const EpubToVideo: React.FC = () => {
                   </label>
                   <p className="text-xs text-gray-500 mt-1">
                     Enable to assign different voices to different characters. Disable for single narrator mode.
+                  </p>
+                </div>
+
+                {/* Show Text Toggle */}
+                <div>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={settings.showText}
+                      onChange={(e) => {
+                        console.log('[Settings] showText checkbox changed to:', e.target.checked);
+                        setSettings(prev => ({
+                          ...prev,
+                          showText: e.target.checked
+                        }));
+                      }}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm text-gray-700">
+                      Show text in video
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    When disabled, video will only show scene images (if enabled) with audio, no text overlay
                   </p>
                 </div>
               </div>

@@ -50,8 +50,43 @@ def create_split_scroll_frame(
     srt_to_sentence_map: Optional[Dict[int, int]] = None,
     last_highlighted_sentence_id: Optional[int] = None,
     scene_timings: Optional[List[Dict]] = None,
-    image_side: str = "left"
+    image_side: str = "left",
+    show_text: bool = True
 ) -> Tuple[Image.Image, Optional[int]]:
+    if not show_text:
+        # Text-free mode: show scene image full-width
+        img = Image.new('RGB', (width, height), color='#f8f9fa')
+        
+        # Scene image full-width
+        full_img = None
+        if scene_timings:
+            for scene in scene_timings:
+                if scene['start_time'] <= current_time < scene['end_time']:
+                    src = scene.get('preprocessed_image')
+                    if src is not None:
+                        # Resize to full width/height
+                        if src.size != (width, height):
+                            src_w, src_h = src.size
+                            if src_w > 0 and src_h > 0:
+                                scale = max(width / src_w, height / src_h)
+                                new_w = int(src_w * scale)
+                                new_h = int(src_h * scale)
+                                resized = src.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                                left = max((new_w - width) // 2, 0)
+                                top = max((new_h - height) // 2, 0)
+                                full_img = resized.crop((left, top, left + width, top + height))
+                            else:
+                                full_img = Image.new('RGB', (width, height), '#111111')
+                        else:
+                            full_img = src
+                    break
+        if full_img is None:
+            full_img = Image.new('RGB', (width, height), '#111111')
+        
+        img.paste(full_img, (0, 0))
+        return img, last_highlighted_sentence_id
+    
+    # Original split layout code when text is enabled
     geo = calculate_split_geometry(width, height, image_side)
     image_w, text_w = geo["image_w"], geo["text_w"]
     image_x, text_x = geo["image_x"], geo["text_x"]
