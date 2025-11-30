@@ -138,9 +138,9 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
                 <div className="flex items-center gap-x-1 text-xs text-gray-700">
                   <span className="font-medium">
                     {usageLimit ? (
-                      // Backend returns minutes_remaining in seconds, so divide by 3600 to get hours
+                      // ✅ FIX: Backend returns minutes_remaining in MINUTES, so divide by 60 to get hours
                       usageLimit.minutes_remaining !== null && usageLimit.minutes_remaining !== undefined
-                        ? `${(usageLimit.minutes_remaining / 3600).toFixed(1)}h`
+                        ? `${(usageLimit.minutes_remaining / 60).toFixed(1)}h`
                         : '0h'
                     ) : subscriptionInfo?.profile ? (
                       // Fallback: calculate from profile data if usageLimit not available
@@ -279,9 +279,9 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
               <div className="flex items-center gap-x-2 text-sm text-gray-700">
                 <span className="font-medium">
                   {usageLimit ? (
-                    // Backend returns minutes_remaining in seconds, so divide by 3600 to get hours
+                    // ✅ FIX: Backend returns minutes_remaining in MINUTES, so divide by 60 to get hours
                     usageLimit.minutes_remaining !== null && usageLimit.minutes_remaining !== undefined
-                      ? `${(usageLimit.minutes_remaining / 3600).toFixed(1)} hrs`
+                      ? `${(usageLimit.minutes_remaining / 60).toFixed(1)} hrs`
                       : '0 hrs'
                   ) : subscriptionInfo?.profile ? (
                     // Fallback: calculate from profile data if usageLimit not available

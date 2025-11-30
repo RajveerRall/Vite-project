@@ -215,10 +215,9 @@ const Header: React.FC = () => {
                   <div className="flex items-center gap-x-2 text-sm text-gray-700">
                     <span className="font-medium">
                       {usageLimit ? (
-                        // Show remaining seconds converted to hours (e.g., "2.6 hrs")
-                        // minutes_remaining is in seconds, so divide by 3600 to get hours
+                        // ✅ FIX: Backend returns minutes_remaining in MINUTES, so divide by 60 to get hours
                         usageLimit.minutes_remaining !== null && usageLimit.minutes_remaining > 0
-                          ? `${(usageLimit.minutes_remaining / 3600).toFixed(1)} hrs`
+                          ? `${(usageLimit.minutes_remaining / 60).toFixed(1)} hrs`
                           : '0 hrs'
                       ) : subscriptionInfo?.profile ? (
                         // Fallback: calculate from profile data
@@ -443,10 +442,9 @@ const Header: React.FC = () => {
                   <div className="flex items-center gap-x-2">
                     <span className="text-sm font-medium text-gray-700">
                       {usageLimit ? (
-                        // Show remaining seconds converted to hours (e.g., "2.6 hrs")
-                        // minutes_remaining is in seconds, so divide by 3600 to get hours
+                        // ✅ FIX: Backend returns minutes_remaining in MINUTES, so divide by 60 to get hours
                         usageLimit.minutes_remaining !== null && usageLimit.minutes_remaining > 0
-                          ? `${(usageLimit.minutes_remaining / 3600).toFixed(1)} hrs`
+                          ? `${(usageLimit.minutes_remaining / 60).toFixed(1)} hrs`
                           : '0 hrs'
                       ) : subscriptionInfo?.profile ? (
                         // Fallback: calculate from profile data
