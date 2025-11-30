@@ -198,6 +198,7 @@ const EpubToVideo: React.FC = () => {
   /**
    * Split long text into optimal chunks for TTS
    * Based on ModularTTS chunkText logic: maxLength = 1700 chars (conservative)
+   * FIXED: Now handles sentences that individually exceed maxLength by splitting them by words
    */
   const chunkScriptLine = useCallback((text: string, maxLength: number = 1000): string[] => {
     if (!text || text.trim().length === 0) return [];
@@ -215,7 +216,39 @@ const EpubToVideo: React.FC = () => {
       const trimmedSentence = sentence.trim();
       if (!trimmedSentence) continue;
       
-      // Check if adding this sentence would exceed maxLength
+      // FIX: If a single sentence exceeds maxLength, split it by words
+      if (trimmedSentence.length > maxLength) {
+        // First, save current chunk if it exists
+        if (currentChunk.trim()) {
+          chunks.push(currentChunk.trim());
+          currentChunk = '';
+        }
+        
+        // Split the long sentence by words
+        const words = trimmedSentence.split(/\s+/);
+        let wordChunk = '';
+        
+        for (const word of words) {
+          const potentialWordChunk = wordChunk 
+            ? (wordChunk + ' ' + word)
+            : word;
+          
+          if (potentialWordChunk.length > maxLength && wordChunk) {
+            chunks.push(wordChunk.trim());
+            wordChunk = word;
+          } else {
+            wordChunk = potentialWordChunk;
+          }
+        }
+        
+        // Add remaining word chunk
+        if (wordChunk.trim()) {
+          currentChunk = wordChunk.trim();
+        }
+        continue;
+      }
+      
+      // Normal case: sentence fits within limit
       const potentialChunk = currentChunk 
         ? (currentChunk + ' ' + trimmedSentence)
         : trimmedSentence;
@@ -229,9 +262,27 @@ const EpubToVideo: React.FC = () => {
       }
     }
     
-    // Add remaining chunk
+    // Add remaining chunk (but check it's not too long)
     if (currentChunk.trim()) {
-      chunks.push(currentChunk.trim());
+      if (currentChunk.trim().length > maxLength) {
+        // Final safety check: split if still too long
+        const words = currentChunk.trim().split(/\s+/);
+        let wordChunk = '';
+        for (const word of words) {
+          const potential = wordChunk ? (wordChunk + ' ' + word) : word;
+          if (potential.length > maxLength && wordChunk) {
+            chunks.push(wordChunk.trim());
+            wordChunk = word;
+          } else {
+            wordChunk = potential;
+          }
+        }
+        if (wordChunk.trim()) {
+          chunks.push(wordChunk.trim());
+        }
+      } else {
+        chunks.push(currentChunk.trim());
+      }
     }
     
     return chunks.filter(chunk => chunk.trim().length > 0);
