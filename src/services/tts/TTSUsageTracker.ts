@@ -537,20 +537,37 @@ export class TTSUsageTracker {
       throw error;
     }
 
+    // ✅ FIX: Capture userId and sessionId ONCE at the start to prevent race conditions
+    // This ensures that if updateUserId() is called during retries, we still use the original values
     const { getAnonymousSessionId } = await import('../../utils/anonymousSession');
-    const sessionId = this.userId ? undefined : getAnonymousSessionId();
-    const usageEvent = this.createUsageEvent(seconds, source, sessionId);
+    const capturedUserId = this.userId; // Capture once
+    const capturedSessionId = capturedUserId ? undefined : getAnonymousSessionId(); // Capture once
+    
+    // ✅ FIX: Validate that we have at least one identifier
+    if (!capturedUserId && !capturedSessionId) {
+      const error = new Error('Either userId or sessionId must be provided');
+      console.error('[TTS Usage] No userId or sessionId available:', {
+        trackerUserId: this.userId,
+        capturedUserId,
+        capturedSessionId
+      });
+      callbacks?.onError?.(error);
+      throw error;
+    }
+    
+    const usageEvent = this.createUsageEvent(seconds, source, capturedSessionId);
 
     // Try immediate tracking with circuit breaker and retry
     try {
       await this.circuitBreaker.execute(async () => {
         await this.retryStrategy.execute(
           async () => {
+            // ✅ FIX: Use captured values, not this.userId (which might change during retries)
             await this.trackUsageDirect(
               seconds,
               source,
-              this.userId,
-              sessionId,
+              capturedUserId,
+              capturedSessionId,
               callbacks?.skipLimitCheck ?? false
             );
           },
@@ -563,13 +580,13 @@ export class TTSUsageTracker {
       this.metrics.recordSuccess();
 
       console.log('[TTS Usage] Recorded successfully:', {
-        userId: this.userId || sessionId,
+        userId: capturedUserId || capturedSessionId,
         seconds,
         source,
-        isAnonymous: !this.userId,
+        isAnonymous: !capturedUserId,
       });
 
-      callbacks?.onSuccess?.(seconds, !this.userId);
+      callbacks?.onSuccess?.(seconds, !capturedUserId);
 
       // Notify UI components
       window.dispatchEvent(
@@ -577,7 +594,7 @@ export class TTSUsageTracker {
           detail: {
             seconds,
             source,
-            isAnonymous: !this.userId,
+            isAnonymous: !capturedUserId,
           },
         })
       );
@@ -589,8 +606,8 @@ export class TTSUsageTracker {
         await this.usageQueue.enqueue('usage_tracking', {
           seconds,
           source,
-          userId: this.userId,
-          sessionId,
+          userId: capturedUserId, // ✅ FIX: Use captured value
+          sessionId: capturedSessionId, // ✅ FIX: Use captured value
         });
 
         console.log('[TTS Usage] Event queued for retry');

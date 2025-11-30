@@ -763,6 +763,9 @@ DECLARE
   v_needs_reset BOOLEAN := FALSE;
   v_minutes_remaining INTEGER;
   v_limit_exceeded BOOLEAN := FALSE;
+  v_has_active_subscription BOOLEAN := FALSE;
+  v_subscription_status TEXT;
+  v_free_tier_limit INTEGER := 360; -- 6 hours in minutes
 BEGIN
   -- Get user ID
   v_user_id := COALESCE(p_user_id, auth.uid());
@@ -779,27 +782,40 @@ BEGIN
     COALESCE(p.subscription_minutes_used, 0),
     COALESCE(p.prepaid_minutes, 0),
     p.last_reset_date,
-    s.current_period_end
+    s.current_period_end,
+    s.status,
+    CASE WHEN s.id IS NOT NULL AND s.status IN ('active', 'trial') THEN TRUE ELSE FALSE END
   INTO 
     v_minutes_limit,
     v_subscription_seconds_used,
     v_prepaid_minutes,
     v_last_reset_date,
-    v_current_period_end
+    v_current_period_end,
+    v_subscription_status,
+    v_has_active_subscription
   FROM profiles p
   LEFT JOIN subscriptions s ON s.id = p.subscription_id
   WHERE p.id = v_user_id;
 
-  -- If profile doesn't exist, create it with default limits
+  -- If profile doesn't exist, create it with free tier limit
   IF v_minutes_limit IS NULL THEN
     INSERT INTO profiles (id, tts_minutes_limit, tts_minutes_used, subscription_minutes_used, prepaid_minutes)
-    VALUES (v_user_id, 0, 0, 0, 0)
+    VALUES (v_user_id, v_free_tier_limit, 0, 0, 0)
     ON CONFLICT (id) DO NOTHING;
     
     SELECT tts_minutes_limit, COALESCE(subscription_minutes_used, 0), COALESCE(prepaid_minutes, 0), last_reset_date
     INTO v_minutes_limit, v_subscription_seconds_used, v_prepaid_minutes, v_last_reset_date
     FROM profiles
     WHERE id = v_user_id;
+  END IF;
+
+  -- Apply free tier limit if user has no active subscription and limit is 0
+  IF NOT v_has_active_subscription AND v_minutes_limit = 0 THEN
+    v_minutes_limit := v_free_tier_limit;
+    -- Update profile to persist the free tier limit
+    UPDATE profiles
+    SET tts_minutes_limit = v_free_tier_limit
+    WHERE id = v_user_id AND tts_minutes_limit = 0;
   END IF;
 
   -- Convert subscription seconds to minutes
@@ -1009,7 +1025,7 @@ BEGIN
     RAISE EXCEPTION 'increment_tts_usage: user id is required';
   END IF;
 
-  -- Check usage limits first
+  -- Check usage limits first (this may apply free tier limit and update profile)
   v_limit_check := check_tts_usage_limit(v_user_id);
   v_minutes_limit := (v_limit_check->>'minutes_limit')::INTEGER;
   v_needs_reset := (v_limit_check->>'needs_reset')::BOOLEAN;
@@ -1024,6 +1040,7 @@ BEGIN
 
   -- Get current balances (prepaid in seconds, subscription used in seconds, total used in seconds)
   -- NOTE: prepaid_minutes column now stores SECONDS (not minutes) for precision
+  -- Re-fetch limit from profile as check_tts_usage_limit may have updated it (free tier limit)
   SELECT 
     COALESCE(prepaid_minutes, 0),
     COALESCE(subscription_minutes_used, 0),
@@ -1038,6 +1055,11 @@ BEGIN
     v_subscription_id
   FROM profiles p
   WHERE p.id = v_user_id;
+  
+  -- If limit was 0 but check_tts_usage_limit applied free tier limit, use the updated limit
+  IF v_minutes_limit = 0 AND (v_limit_check->>'minutes_limit')::INTEGER > 0 THEN
+    v_minutes_limit := (v_limit_check->>'minutes_limit')::INTEGER;
+  END IF;
   
   -- Defensive check: If user has active subscription but limit is 0, try to fix it
   IF v_subscription_id IS NOT NULL THEN
@@ -1079,7 +1101,8 @@ BEGIN
   -- Calculate remaining prepaid (in seconds)
   v_prepaid_remaining := v_prepaid_minutes - v_prepaid_to_consume;
 
-  -- Check subscription limit only if prepaid exhausted
+  -- Check subscription/free tier limit only if prepaid exhausted
+  -- Note: Free tier limit is now enforced here (v_minutes_limit will be 360 for free tier users)
   IF v_subscription_to_consume > 0 AND v_minutes_limit > 0 THEN
     -- Calculate subscription minutes used (from subscription_minutes_used field)
     v_subscription_minutes_used := v_subscription_seconds_used / 60.0;
