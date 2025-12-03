@@ -5,12 +5,42 @@ import type { FormatAdapter, OpenResult, ParsedBookMeta } from './types';
 import type { TOCItem } from '../../../types/books';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 
-// Use CDN worker for better production reliability
-GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.mjs`;
+// Use local worker instead of CDN to avoid compatibility issues
+GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
 
 const isPdf = (name: string, type: string) => name.toLowerCase().endsWith('.pdf') || type === 'application/pdf';
 
-// No dynamic loader needed with ESM + worker URL
+/**
+ * Safely await a PDF.js render task promise
+ * Handles cases where the promise property may not be a valid Promise
+ */
+async function safeAwaitRenderTask(renderTask: any): Promise<void> {
+  if (!renderTask) {
+    throw new Error('Render task is null or undefined');
+  }
+
+  if (!renderTask.promise) {
+    throw new Error('Render task does not have a promise property');
+  }
+
+  // Check if it's a Promise-like object (has then method)
+  if (typeof renderTask.promise.then === 'function') {
+    await renderTask.promise;
+    return;
+  }
+
+  // If it's already a Promise instance
+  if (renderTask.promise instanceof Promise) {
+    await renderTask.promise;
+    return;
+  }
+
+  // Fallback: wrap in Promise.resolve if it's a value
+  await Promise.resolve(renderTask.promise);
+}
 
 export const pdfAdapter: FormatAdapter = {
   id: 'pdf',
@@ -29,7 +59,9 @@ export const pdfAdapter: FormatAdapter = {
         if (info.Title) title = info.Title;
         if (info.Author) author = info.Author;
       }
-    } catch {}
+    } catch (error) {
+      console.warn('[PDF Adapter] Error extracting metadata, using filename as title:', error);
+    }
 
     // Render first page to a cover data URL
     let coverUrl: string | null = null;
@@ -41,10 +73,14 @@ export const pdfAdapter: FormatAdapter = {
       if (canvas && ctx) {
         canvas.width = Math.ceil(viewport.width);
         canvas.height = Math.ceil(viewport.height);
-        await page1.render({ canvasContext: ctx as any, viewport }).promise;
+        const renderTask = page1.render({ canvasContext: ctx as any, viewport });
+        await safeAwaitRenderTask(renderTask);
         coverUrl = canvas.toDataURL('image/jpeg', 0.85);
       }
-    } catch {}
+    } catch (error) {
+      console.warn('[PDF Adapter] Error rendering cover image, continuing without cover:', error);
+      // Continue without cover - book can still be added successfully
+    }
 
     const totalPages = pdf.numPages || 0;
     const meta: ParsedBookMeta = {
@@ -74,7 +110,10 @@ export const pdfAdapter: FormatAdapter = {
       try {
         const textContent = await page.getTextContent();
         extractedText = (textContent.items || []).map((i: any) => (i?.str || '').trim()).filter(Boolean).join(' ');
-      } catch {}
+      } catch (error) {
+        console.warn(`[PDF Adapter] Error extracting text from page ${pageNumber}, continuing without text:`, error);
+        // Continue without extracted text - page can still be rendered as image
+      }
 
       // Simple HTML: render page to canvas -> embed as image, plus text for accessibility/search
       let html = '';
@@ -85,14 +124,16 @@ export const pdfAdapter: FormatAdapter = {
         if (canvas && ctx) {
           canvas.width = Math.ceil(viewport.width);
           canvas.height = Math.ceil(viewport.height);
-          await page.render({ canvasContext: ctx as any, viewport }).promise;
+          const renderTask = page.render({ canvasContext: ctx as any, viewport });
+          await safeAwaitRenderTask(renderTask);
           const dataUrl = canvas.toDataURL('image/png');
           html = `<div class="pdf-page" style="display:flex;justify-content:center;">
   <img alt="PDF page ${pageNumber}" src="${dataUrl}" style="max-width:100%;height:auto;" />
   <div class="sr-only" aria-hidden="false">${(extractedText || '').replace(/</g, '&lt;')}</div>
 </div>`;
         }
-      } catch {
+      } catch (error) {
+        console.warn(`[PDF Adapter] Error rendering page ${pageNumber} to canvas, falling back to text-only:`, error);
         // Fallback to text-only if render fails
         html = `<div class="pdf-page"><p>${(extractedText || '').replace(/</g, '&lt;')}</p></div>`;
       }
@@ -101,7 +142,11 @@ export const pdfAdapter: FormatAdapter = {
     };
 
     const dispose = () => {
-      try { pdf.destroy(); } catch {}
+      try {
+        pdf.destroy();
+      } catch (error) {
+        console.warn('[PDF Adapter] Error disposing PDF document:', error);
+      }
     };
 
     return { meta, loadPage, getToc, dispose } as OpenResult;

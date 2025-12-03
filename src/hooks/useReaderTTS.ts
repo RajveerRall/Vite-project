@@ -1428,14 +1428,14 @@ export const useReaderTTS = ({
     } else if (resumeIndex !== null) {
       // ✅ FIX: Only restart if not already playing this chunk
       if (isChunkPlayingRef.current !== resumeIndex) {
-        // Fallback: If no audio ref or strategy resume failed, restart playback from saved index
-        console.log(`[${readerInstanceId}][resumePlayback] Restarting playback from chunk ${resumeIndex}`);
-        // Stop strategy if it's still active but in error state
-        if (strategy && (strategy.isPlaying() || strategy.isPaused())) {
-          strategy.stop();
-        }
+      // Fallback: If no audio ref or strategy resume failed, restart playback from saved index
+      console.log(`[${readerInstanceId}][resumePlayback] Restarting playback from chunk ${resumeIndex}`);
+      // Stop strategy if it's still active but in error state
+      if (strategy && (strategy.isPlaying() || strategy.isPaused())) {
+        strategy.stop();
+      }
         isChunkPlayingRef.current = resumeIndex;
-        playChunk(resumeIndex);
+      playChunk(resumeIndex);
       } else {
         console.log(`[${readerInstanceId}][resumePlayback] Already playing chunk ${resumeIndex}, skipping restart`);
       }
@@ -1744,7 +1744,7 @@ export const useReaderTTS = ({
       console.log(`[${readerInstanceId}][handleTTS] Starting playback from chunk ${startChunk}`);
       // ✅ Reset buffered chunks count when starting new playback
       setBufferedChunksCount(0);
-      setIsProcessing(true);
+      setIsProcessing(true); 
       
       // ✅ OPTIMISTIC PLAYBACK: Fetch first 2 chunks in parallel, then start playing immediately
       const firstChunkPromise = fetchSingleChunk(startChunk);
@@ -2114,26 +2114,53 @@ export const useReaderTTS = ({
     // Reset all TTS state
     setIsSpeaking(false);
     setIsPaused(false);
-    setIsProcessing(false);
+    setIsProcessing(true); // Show loading state while prefetching
     setHasFinishedPlayback(false);
     
     // Don't set currentChunkIndex here - let onPlay callback set it when audio actually starts
     // This ensures highlight is synchronized with audio playback, not with the seek action
     setResumeIndex(null); // Clear resume so it starts fresh
     
-    // Activate TTS intent and start playback
+    // Activate TTS intent
     ttsIntentActiveRef.current = true;
     
-    // Start playback from target chunk
-    // Use requestAnimationFrame to ensure state updates are processed before playChunk
-    requestAnimationFrame(() => {
-      setTimeout(() => {
+    // Prefetch target chunk (and next one) before playing to avoid delay
+    const startPlayback = async () => {
+      console.log(`[${readerInstanceId}][handleSeekToPercentage] Prefetching chunk ${safeChunkIndex} before playback`);
+      
+      try {
+        // ✅ OPTIMISTIC PLAYBACK: Fetch first 2 chunks in parallel, then start playing immediately
+        const firstChunkPromise = fetchSingleChunk(safeChunkIndex);
+        const secondChunkPromise = safeChunkIndex + 1 < chunks.length 
+          ? fetchSingleChunk(safeChunkIndex + 1) 
+          : Promise.resolve();
+        
+        // Wait for first chunk to be ready, then start playing
+        await firstChunkPromise;
+        setIsProcessing(false);
         playChunk(safeChunkIndex);
-      }, 50); // Reduced delay since we're not setting currentChunkIndex here
-    });
+        
+        // Prefetch second chunk and remaining chunks in background (non-blocking)
+        secondChunkPromise.catch(err => 
+          console.warn('[handleSeekToPercentage] Background prefetch of second chunk failed:', err)
+        );
+        // ✅ Only prefetch next chunks (reduced to prevent buffer bloat)
+        prefetchChunks(safeChunkIndex + INITIAL_PREFETCH_COUNT).catch(err => 
+          console.warn('[handleSeekToPercentage] Background prefetch failed:', err)
+        );
+      } catch (error) {
+        console.error(`[${readerInstanceId}][handleSeekToPercentage] Error starting playback:`, error);
+        setIsProcessing(false);
+        setIsSpeaking(false);
+        setIsPaused(false);
+        ttsIntentActiveRef.current = false;
+        addToast?.('Failed to start playback. Please try again.', 'error');
+      }
+    };
+    startPlayback();
     
     addToast?.(`Starting from ${Math.round(clampedPercentage)}% of chapter`, 'success');
-  }, [chunks, readerInstanceId, addToast, haltPlayback, playChunk]);
+  }, [chunks, readerInstanceId, addToast, haltPlayback, playChunk, fetchSingleChunk, prefetchChunks]);
 
   return {
     // States
