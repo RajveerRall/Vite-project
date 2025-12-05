@@ -80,11 +80,13 @@ import { useFullCastUsage } from "../../hooks/useFullCastUsage";
 import { useAnonymousUsageLimit } from "../../hooks/useAnonymousUsageLimit";
 import { useSubscription } from "../../context/SubscriptionContext";
 import { SubscriptionModal } from "../Subscription/SubscriptionModal";
+import { UsageLimitModal } from "../UsageLimitModal";
 import { Menu, X, RefreshCw, Sparkles, User, LogOut, Settings } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { isAuthenticated, user, signOut } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUsageLimitModal, setShowUsageLimitModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showAccountDrawer, setShowAccountDrawer] = useState(false);
   const { usedMinutes: fcUsed, totalMinutes: fcTotal, loading: fcLoading, refresh: fcRefresh } = useFullCastUsage();
@@ -265,7 +267,7 @@ const Header: React.FC = () => {
                       </span>
                     </div>
                     <button
-                      onClick={() => setShowAuthModal(true)}
+                      onClick={() => setShowUsageLimitModal(true)}
                       className="text-blue-600 hover:text-blue-700 font-medium"
                     >
                       Get more →
@@ -544,6 +546,18 @@ const Header: React.FC = () => {
         isOpen={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
       />
+
+      {/* Usage Limit Modal for anonymous users */}
+      {!isAuthenticated && (
+        <UsageLimitModal
+          isOpen={showUsageLimitModal}
+          onClose={() => setShowUsageLimitModal(false)}
+          onSignIn={() => {
+            setShowUsageLimitModal(false);
+            setShowAuthModal(true);
+          }}
+        />
+      )}
     </header>
   );
 };

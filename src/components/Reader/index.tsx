@@ -1,12 +1,13 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { useBook } from '../../context/BookContext';
 import SimplePlayMode from './SimplePlayMode';
-import TableOfContents from '../Library/TableOfContents';
 import EnhancedLoader from './EnhancedLoader';
 import FeatureHighlight from './FeatureHighlight';
 import FloatingReadButton from './FloatingReadButton';
 import VideoQuoteModal from './VideoQuoteModal';
 import SettingsWidget from './SettingsWidget';
+import SidePanelBar from './SidePanelBar';
+import SidePanelContent from './SidePanelContent';
 import './Reader.css';
 import './ReaderThemes.css';
 import { useReaderSettings } from '../../hooks/useReaderSettings';
@@ -66,6 +67,102 @@ const Reader: React.FC = () => {
   // Subscription context for limit checking
   const { isLimitExceeded, refreshUsageLimit } = useSubscription();
   const [showLimitModal, setShowLimitModal] = React.useState(false);
+  
+  // Side panel state - replace old sidebar state
+  const [activePanel, setActivePanel] = useState<'toc' | 'ai-chat' | null>('toc');
+  const [isDraggingHandle, setIsDraggingHandle] = useState<boolean>(false);
+  const [dragStartX, setDragStartX] = useState<number>(0);
+  const [dragStartWidth, setDragStartWidth] = useState<number>(350);
+  const contentPanelRef = useRef<HTMLDivElement>(null);
+  
+  // Handle drag start
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    setIsDraggingHandle(true);
+    setDragStartX(clientX);
+    setDragStartWidth(activePanel !== null ? 350 : 0);
+    
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ew-resize';
+  };
+
+  // Handle drag move
+  const handleDragMove = useCallback((e: MouseEvent | TouchEvent) => {
+    if (!isDraggingHandle) return;
+    
+    e.preventDefault();
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+    const deltaX = clientX - dragStartX;
+    const newWidth = Math.max(0, Math.min(350, dragStartWidth + deltaX));
+    
+    if (contentPanelRef.current) {
+      contentPanelRef.current.style.width = `${newWidth}px`;
+      contentPanelRef.current.style.padding = newWidth > 0 ? '1rem' : '0';
+      contentPanelRef.current.style.overflow = newWidth > 0 ? 'auto' : 'hidden';
+      
+      // Visual feedback
+      if (newWidth < 175) {
+        contentPanelRef.current.classList.add('will-collapse');
+        contentPanelRef.current.classList.remove('will-expand');
+      } else {
+        contentPanelRef.current.classList.add('will-expand');
+        contentPanelRef.current.classList.remove('will-collapse');
+      }
+    }
+  }, [isDraggingHandle, dragStartX, dragStartWidth]);
+
+  // Handle drag end
+  const handleDragEnd = useCallback(() => {
+    if (!isDraggingHandle) return;
+    
+    setIsDraggingHandle(false);
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+    
+    if (contentPanelRef.current) {
+      const finalWidth = parseInt(contentPanelRef.current.style.width) || 0;
+      const threshold = 175;
+      
+      if (finalWidth > threshold) {
+        // Keep panel open (don't change activePanel if it's already set)
+        if (activePanel === null) {
+          setActivePanel('toc');
+        }
+        contentPanelRef.current.style.width = '350px';
+        contentPanelRef.current.style.padding = '1rem';
+        contentPanelRef.current.style.overflow = 'auto';
+      } else {
+        // Close panel
+        setActivePanel(null);
+        contentPanelRef.current.style.width = '0px';
+        contentPanelRef.current.style.padding = '0';
+        contentPanelRef.current.style.overflow = 'hidden';
+      }
+      
+      // Clean up visual feedback classes
+      contentPanelRef.current.classList.remove('will-collapse', 'will-expand');
+    }
+  }, [isDraggingHandle, activePanel]);
+
+  // Add event listeners for drag
+  useEffect(() => {
+    if (isDraggingHandle) {
+      window.addEventListener('mousemove', handleDragMove);
+      window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('touchmove', handleDragMove);
+      window.addEventListener('touchend', handleDragEnd);
+      
+      return () => {
+        window.removeEventListener('mousemove', handleDragMove);
+        window.removeEventListener('mouseup', handleDragEnd);
+        window.removeEventListener('touchmove', handleDragMove);
+        window.removeEventListener('touchend', handleDragEnd);
+      };
+    }
+  }, [isDraggingHandle, handleDragMove, handleDragEnd]);
   
   // Listen for limit exceeded events from TTS tracker
   React.useEffect(() => {
@@ -416,9 +513,22 @@ const Reader: React.FC = () => {
           hasStartedPlaying={hasStartedPlaying}
         />
 
-      <div className="reader-sidebar hidden md:block">
-        <TableOfContents items={toc} onItemClick={handleNavigateToTocItem} />
-      </div>
+      <SidePanelBar
+        activePanel={activePanel}
+        onPanelChange={setActivePanel}
+        theme={theme}
+      />
+
+      <SidePanelContent
+        activePanel={activePanel}
+        onClose={() => setActivePanel(null)}
+        toc={toc}
+        onNavigateToTocItem={handleNavigateToTocItem}
+        theme={theme}
+        contentPanelRef={contentPanelRef}
+        isDraggingHandle={isDraggingHandle}
+        onDragStart={handleDragStart}
+      />
 
         <ReaderContent
           content={currentContent}

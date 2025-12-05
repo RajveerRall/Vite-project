@@ -31,18 +31,21 @@ export interface AnonymousUsageLimit {
 export function useAnonymousUsageLimit(): AnonymousUsageLimit | null {
   const { user } = useAuth();
   const [usedSeconds, setUsedSeconds] = useState<number>(0);
+  const [limitSeconds, setLimitSeconds] = useState<number>(ANONYMOUS_MONTHLY_LIMIT_MINUTES * 60);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  const limitSeconds = ANONYMOUS_MONTHLY_LIMIT_MINUTES * 60;
   const remainingSeconds = Math.max(0, limitSeconds - usedSeconds);
   const usedMinutes = Math.floor(usedSeconds / 60);
   const remainingMinutes = Math.floor(remainingSeconds / 60);
-  const percentageUsed = (usedSeconds / limitSeconds) * 100;
+  const limitMinutes = Math.floor(limitSeconds / 60);
+  const percentageUsed = limitSeconds > 0 ? (usedSeconds / limitSeconds) * 100 : 0;
   
   const isLimitReached = usedSeconds >= limitSeconds;
-  const isNearLimit = usedMinutes >= WARNING_THRESHOLD_80;
-  const isCritical = usedMinutes >= WARNING_THRESHOLD_90;
+  const warningThreshold80 = limitMinutes * 0.8;
+  const warningThreshold90 = limitMinutes * 0.9;
+  const isNearLimit = usedMinutes >= warningThreshold80;
+  const isCritical = usedMinutes >= warningThreshold90;
   
   // Fetch current usage from Supabase
   const refreshUsage = useCallback(async () => {
@@ -70,12 +73,20 @@ export function useAnonymousUsageLimit(): AnonymousUsageLimit | null {
       if (error) throw error;
       
       const totalSeconds = data?.total_seconds || 0;
+      // Use effective limit from RPC (includes bonus minutes)
+      const effectiveLimitSeconds = data?.limit_seconds || (ANONYMOUS_MONTHLY_LIMIT_MINUTES * 60);
+      const remainingSecondsFromRPC = data?.remaining_seconds || Math.max(0, effectiveLimitSeconds - totalSeconds);
+      
       setUsedSeconds(totalSeconds);
+      setLimitSeconds(effectiveLimitSeconds);
       
       console.log('[AnonymousUsageLimit] Current usage:', {
         usedMinutes: Math.floor(totalSeconds / 60),
-        remainingMinutes: Math.floor((limitSeconds - totalSeconds) / 60),
-        percentageUsed: ((totalSeconds / limitSeconds) * 100).toFixed(1) + '%'
+        limitMinutes: Math.floor(effectiveLimitSeconds / 60),
+        remainingMinutes: Math.floor(remainingSecondsFromRPC / 60),
+        percentageUsed: ((totalSeconds / effectiveLimitSeconds) * 100).toFixed(1) + '%',
+        hasBonus: data?.has_bonus || false,
+        bonusMinutes: data?.bonus_minutes || 0
       });
     } catch (err: any) {
       // Handle timeout gracefully - don't block TTS if usage check fails
@@ -88,7 +99,7 @@ export function useAnonymousUsageLimit(): AnonymousUsageLimit | null {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, limitSeconds]);
+  }, [user?.id]);
   
   // Check if user can use TTS (under limit)
   const checkLimit = useCallback(async (): Promise<boolean> => {
@@ -140,7 +151,7 @@ export function useAnonymousUsageLimit(): AnonymousUsageLimit | null {
   return {
     usedMinutes,
     usedSeconds,
-    limitMinutes: ANONYMOUS_MONTHLY_LIMIT_MINUTES,
+    limitMinutes,
     limitSeconds,
     remainingMinutes,
     remainingSeconds,

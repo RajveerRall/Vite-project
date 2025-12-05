@@ -70,6 +70,117 @@
   border-right: 1px solid var(--reader-border);
 }
 
+/* Side Panel Bar Theme Support */
+.side-panel-bar {
+  background-color: var(--reader-sidebar-bg);
+  border-right: 1px solid var(--reader-border);
+}
+
+.theme-dark .side-panel-icon {
+  color: #9ca3af;
+}
+
+.theme-dark .side-panel-icon:hover {
+  background-color: #374151;
+  color: #e2e8f0;
+}
+
+.theme-dark .side-panel-icon.active {
+  background-color: #4b5563;
+  color: #fff;
+}
+
+.theme-dark .side-panel-icon.active:hover {
+  background-color: #6b7280;
+}
+
+.theme-sepia .side-panel-icon {
+  color: #8b6914;
+}
+
+.theme-sepia .side-panel-icon:hover {
+  background-color: #f3f0e1;
+  color: #3c2e26;
+}
+
+.theme-sepia .side-panel-icon.active {
+  background-color: #d97706;
+  color: #fff;
+}
+
+.theme-sepia .side-panel-icon.active:hover {
+  background-color: #f59e0b;
+}
+
+/* Side Panel Content Theme Support */
+.side-panel-content {
+  background-color: var(--reader-sidebar-bg);
+  border-right: 1px solid var(--reader-border);
+  color: var(--reader-text);
+}
+
+.side-panel-content-header {
+  border-bottom: 1px solid var(--reader-border);
+}
+
+.side-panel-content-title {
+  color: var(--reader-text);
+}
+
+.side-panel-close-btn {
+  color: var(--reader-text-secondary);
+}
+
+.side-panel-close-btn:hover {
+  background-color: var(--reader-hover);
+  color: var(--reader-text);
+}
+
+.theme-dark .side-panel-close-btn:hover {
+  background-color: #374151;
+}
+
+.theme-sepia .side-panel-close-btn:hover {
+  background-color: #f3f0e1;
+}
+
+/* AI Chat Panel Theme Support */
+.ai-chat-title {
+  color: var(--reader-text);
+}
+
+.ai-chat-message {
+  color: var(--reader-text-secondary);
+}
+
+.ai-chat-description {
+  color: var(--reader-text-secondary);
+}
+
+/* Theme support for floating toggle */
+.theme-dark .sidebar-float-toggle {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #e2e8f0;
+}
+
+.theme-dark .sidebar-float-toggle:hover {
+  background-color: #374151;
+}
+
+.theme-dark .sidebar-float-toggle .arrow-icon {
+  color: #d1d5db;
+}
+
+.theme-sepia .sidebar-float-toggle {
+  background-color: #fef3c7;
+  border-color: #fde68a;
+}
+
+.theme-sepia .sidebar-float-toggle:hover {
+  background-color: #fde68a;
+}
+
 .reader-main {
   background-color: var(--reader-bg);
 }

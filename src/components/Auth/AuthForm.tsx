@@ -151,8 +151,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
           </div>
         </form>
 
-        {/* Google Sign-In Section - DISABLED */}
-        {/* <div className="mt-4 relative">
+        {/* Google Sign-In Section */}
+        <div className="mt-4 relative">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-300"></div>
           </div>
@@ -167,7 +167,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
           ) : (
             <GoogleSignIn onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
           )}
-        </div> */}
+        </div>
       </div>
     </div>
   );

@@ -554,8 +554,21 @@ DECLARE
   v_total_seconds integer;
   v_tts_seconds integer;
   v_full_cast_seconds integer;
+  v_bonus_seconds integer := 0;
+  v_base_limit_seconds integer := 600; -- 10 minutes base limit
+  v_limit_seconds integer;
+  v_remaining_seconds integer;
 BEGIN
   v_month_start := date_trunc('month', now())::date;
+  
+  -- Get bonus minutes from session
+  SELECT COALESCE(bonus_minutes_seconds, 0)
+  INTO v_bonus_seconds
+  FROM anonymous_tts_sessions
+  WHERE session_id = p_session_id;
+  
+  -- Calculate effective limit (base + bonus)
+  v_limit_seconds := v_base_limit_seconds + v_bonus_seconds;
   
   -- Get total usage for this session this month
   SELECT 
@@ -574,13 +587,24 @@ BEGIN
   WHERE session_id = p_session_id
     AND month_start = v_month_start;
   
+  -- Calculate remaining seconds
+  v_remaining_seconds := GREATEST(0, v_limit_seconds - v_total_seconds);
+  
   RETURN jsonb_build_object(
     'session_id', p_session_id,
     'total_seconds', v_total_seconds,
     'total_minutes', ROUND(v_total_seconds / 60.0, 2),
     'tts_seconds', v_tts_seconds,
     'full_cast_seconds', v_full_cast_seconds,
-    'month_start', v_month_start
+    'month_start', v_month_start,
+    'bonus_seconds', v_bonus_seconds,
+    'bonus_minutes', ROUND(v_bonus_seconds / 60.0, 2),
+    'base_limit_seconds', v_base_limit_seconds,
+    'limit_seconds', v_limit_seconds,
+    'limit_minutes', ROUND(v_limit_seconds / 60.0, 2),
+    'remaining_seconds', v_remaining_seconds,
+    'remaining_minutes', ROUND(v_remaining_seconds / 60.0, 2),
+    'has_bonus', v_bonus_seconds > 0
   );
 END;
 $$;

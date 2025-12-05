@@ -10,6 +10,7 @@ import { useSubscription } from '../../context/SubscriptionContext';
 import { useAnonymousUsageLimit } from '../../hooks/useAnonymousUsageLimit';
 import { AuthForm } from '../Auth/AuthForm';
 import { SubscriptionModal } from '../Subscription/SubscriptionModal';
+import { UsageLimitModal } from '../UsageLimitModal';
 
 export interface ReaderHeaderProps {
   // Book info
@@ -51,6 +52,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
 }) => {
   const { isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUsageLimitModal, setShowUsageLimitModal] = useState(false);
   const anonymousLimit = useAnonymousUsageLimit();
   const { 
     isSubscribed, 
@@ -246,7 +248,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
                 </span>
               </div>
               <button
-                onClick={() => setShowAuthModal(true)}
+                onClick={() => setShowUsageLimitModal(true)}
                 className="text-blue-600 hover:text-blue-700 font-medium text-sm"
               >
                 Get more →
@@ -375,6 +377,18 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         isOpen={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
       />
+
+      {/* Usage Limit Modal for anonymous users */}
+      {!isAuthenticated && (
+        <UsageLimitModal
+          isOpen={showUsageLimitModal}
+          onClose={() => setShowUsageLimitModal(false)}
+          onSignIn={() => {
+            setShowUsageLimitModal(false);
+            setShowAuthModal(true);
+          }}
+        />
+      )}
     </header>
   );
 };
