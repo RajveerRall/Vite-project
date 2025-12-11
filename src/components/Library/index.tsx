@@ -1,5 +1,6 @@
 // src/components/Library/index.tsx
 import React, { useRef, useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useBook } from '../../context/BookContext';
 import BookGrid from './BookGrid';
 import './Library.css';

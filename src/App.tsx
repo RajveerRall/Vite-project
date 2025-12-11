@@ -33,6 +33,8 @@ const BlogExample = React.lazy(() => import('./components/Blog/BlogExample'));
 const AuthCallback = React.lazy(() => import('./pages/auth/callback'));
 const TermsOfService = React.lazy(() => import('./pages/TermsOfService'));
 const EpubToAudiobook = React.lazy(() => import('./pages/EpubToAudiobook'));
+const AIPDFReader = React.lazy(() => import('./pages/AIPDFReader'));
+const SpeechifyAlternative = React.lazy(() => import('./pages/SpeechifyAlternative'));
 const AccountPage = React.lazy(() => import('./pages/account/AccountPage'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 
@@ -208,6 +210,16 @@ const AppContent: React.FC = () => {
       <Route path="/epub-to-audiobook" element={
         <React.Suspense fallback={<LazyRouteFallback />}>
           <EpubToAudiobook />
+        </React.Suspense>
+      } />
+      <Route path="/ai-pdf-reader" element={
+        <React.Suspense fallback={<LazyRouteFallback />}>
+          <AIPDFReader />
+        </React.Suspense>
+      } />
+      <Route path="/speechify-alternative" element={
+        <React.Suspense fallback={<LazyRouteFallback />}>
+          <SpeechifyAlternative />
         </React.Suspense>
       } />
       

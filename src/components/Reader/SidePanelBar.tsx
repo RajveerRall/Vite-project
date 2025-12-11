@@ -48,3 +48,5 @@ const SidePanelBar: React.FC<SidePanelBarProps> = ({ activePanel, onPanelChange,
 
 export default SidePanelBar;
 
+
+

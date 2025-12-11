@@ -4,7 +4,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Headphones, RefreshCw, Sparkles } from 'lucide-react';
 import { TOCItem } from '../../types/books';
-import MobileTOCDrawer from './MobileTOCDrawer';
 import { useAuth } from '../../context/AuthContext';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useAnonymousUsageLimit } from '../../hooks/useAnonymousUsageLimit';
@@ -182,15 +181,6 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         </div>
 
         <div className="flex items-center justify-center gap-3 mt-2">
-          {isEnhanced && (
-            <MobileTOCDrawer
-              toc={toc}
-              onItemClick={onNavigateToTocItem}
-              theme={theme}
-              openByDefault={isMobile && isFirstOpen}
-            />
-          )}
-
           {showTTSHighlight && (
             <button
               onClick={onScrollToHighlight}

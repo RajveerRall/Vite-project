@@ -579,6 +579,12 @@ const Reader: React.FC = () => {
         onFullCastPause={fullCastPause}
         onFullCastResume={fullCastResume}
           anonymousLimit={anonymousLimit}
+          toc={toc}
+          onNavigateToTocItem={handleNavigateToTocItem}
+          theme={theme}
+          isEnhanced={isEnhanced}
+          isMobile={isMobile}
+          isFirstOpen={isFirstOpen}
         />
     {showFeatureHighlight && (<FeatureHighlight onClose={closeFeatureHighlight} />)}
 

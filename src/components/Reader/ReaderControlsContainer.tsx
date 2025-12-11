@@ -5,11 +5,19 @@
 import React from 'react';
 import { trackEvent } from '../../lib/analytics';
 import Controls, { ControlsProps } from './Controls';
+import { TOCItem } from '../../types/books';
 
 export interface ReaderControlsContainerProps extends ControlsProps {
   // These are already in ControlsProps, but we document them here for clarity
   fullCastStatus: string;
   fullCastBuffered: number;
+  // TOC props for chapters button
+  toc?: TOCItem[];
+  onNavigateToTocItem?: (item: TOCItem) => void;
+  theme?: 'light' | 'dark' | 'sepia';
+  isEnhanced?: boolean;
+  isMobile?: boolean;
+  isFirstOpen?: boolean;
 }
 
 /**
@@ -22,6 +30,12 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
   onFullCastResume,
   fullCastStatus,
   fullCastBuffered,
+  toc,
+  onNavigateToTocItem,
+  theme,
+  isEnhanced,
+  isMobile,
+  isFirstOpen,
   ...controlsProps
 }) => {
   // Create handlers that include analytics tracking
@@ -59,6 +73,12 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
             onFullCastStop={handleFullCastStop}
             onFullCastPause={handleFullCastPause}
             onFullCastResume={handleFullCastResume}
+            toc={toc}
+            onNavigateToTocItem={onNavigateToTocItem}
+            theme={theme}
+            isEnhanced={isEnhanced}
+            isMobile={isMobile}
+            isFirstOpen={isFirstOpen}
           />
         </div>
       </div>
@@ -71,6 +91,12 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
             onFullCastStop={handleFullCastStop}
             onFullCastPause={handleFullCastPause}
             onFullCastResume={handleFullCastResume}
+            toc={toc}
+            onNavigateToTocItem={onNavigateToTocItem}
+            theme={theme}
+            isEnhanced={isEnhanced}
+            isMobile={isMobile}
+            isFirstOpen={isFirstOpen}
           />
         </div>
       </div>

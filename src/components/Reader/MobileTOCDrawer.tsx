@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Menu, X } from 'lucide-react';
 import TableOfContents from '../Library/TableOfContents';
 import { TOCItem } from '../../types/books';
@@ -56,7 +57,7 @@ export const MobileTOCDrawer: React.FC<MobileTOCDrawerProps> = ({
       {/* Mobile TOC Button - Now positioned next to settings icon */}
       <button 
         onClick={toggleTocDrawer}
-        className="mobile-toc-button md:hidden flex items-center gap-2 px-3 py-2 transition-colors rounded-lg hover:bg-gray-50 mobile-toc-btn"
+        className="mobile-toc-button md:hidden flex items-center gap-2 px-3 py-2 transition-colors rounded-lg bg-amber-50 hover:bg-amber-100 mobile-toc-btn border border-amber-300 text-amber-800"
         aria-label="Toggle Table of Contents"
         title="Table of Contents"
       >
@@ -64,17 +65,17 @@ export const MobileTOCDrawer: React.FC<MobileTOCDrawerProps> = ({
         <span className="text-sm font-medium">Chapters</span>
       </button>
       
-      {/* Mobile TOC Drawer */}
-      {isTocDrawerOpen && (
+      {/* Mobile TOC Drawer - Rendered via Portal to avoid clipping */}
+      {isTocDrawerOpen && typeof document !== 'undefined' && createPortal(
         <>
           {/* Backdrop */}
           <div 
-            className="toc-drawer-backdrop md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="toc-drawer-backdrop md:hidden fixed inset-0 bg-black bg-opacity-50 z-[60]"
             onClick={closeTocDrawer}
           />
           
           {/* Drawer */}
-          <div className={`toc-drawer md:hidden fixed left-0 top-0 h-full w-80 max-w-[85vw] z-50 transform transition-transform duration-300 ease-in-out shadow-xl flex flex-col theme-${theme}`}>
+          <div className={`toc-drawer md:hidden fixed left-0 top-0 h-full w-80 max-w-[85vw] z-[70] transform transition-transform duration-300 ease-in-out shadow-xl flex flex-col theme-${theme}`}>
             {/* Drawer Header */}
             <div className="flex items-center justify-between p-4 border-b flex-shrink-0 toc-drawer-header">
               <h3 className="text-lg font-semibold toc-drawer-title">Table of Contents</h3>
@@ -92,7 +93,8 @@ export const MobileTOCDrawer: React.FC<MobileTOCDrawerProps> = ({
               <TableOfContents items={toc} onItemClick={handleNavigateToTocItem} />
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </>
   );

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 // Book collage now uses optimized sprite sheet instead of individual images
 
@@ -61,9 +62,21 @@ const Footer: React.FC = () => {
           </div>
         </div>
 
-          <div className="border-t border-gray-200 mt-6 pt-6 text-center">
-            <p className="text-gray-500 text-sm">
-              © 2025 YoRead. All rights reserved. · <a href="/terms" className="text-gray-600 hover:text-gray-900 underline">Terms of Service</a>
+          {/* Navigation Links */}
+          <div className="border-t border-gray-200 mt-6 pt-6">
+            <div className="flex flex-wrap justify-center gap-4 mb-4">
+              <Link to="/ai-pdf-reader" className="text-gray-600 hover:text-gray-900 underline text-sm transition-colors">
+                PDF Reader
+              </Link>
+              <Link to="/speechify-alternative" className="text-gray-600 hover:text-gray-900 underline text-sm transition-colors">
+                Speechify Alternative
+              </Link>
+              <a href="/terms" className="text-gray-600 hover:text-gray-900 underline text-sm transition-colors">
+                Terms of Service
+              </a>
+            </div>
+            <p className="text-gray-500 text-sm text-center">
+              © 2025 YoRead. All rights reserved.
             </p>
           </div>
         </div>

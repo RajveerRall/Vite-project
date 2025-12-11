@@ -11,6 +11,8 @@ import {
   Loader2, Square, SkipBack, SkipForward, Settings
 } from 'lucide-react';
 import InteractiveProgressBar from './InteractiveProgressBar';
+import MobileTOCDrawer from './MobileTOCDrawer';
+import { TOCItem } from '../../types/books';
 
 // Import the stylesheet. It will now handle all the appearance styling.
 import './Controls.css'; 
@@ -52,6 +54,13 @@ export interface ControlsProps {
   anonymousLimit?: any;
   // Buffering state
   bufferedChunksCount?: number;
+  // TOC props for chapters button
+  toc?: TOCItem[];
+  onNavigateToTocItem?: (item: TOCItem) => void;
+  theme?: 'light' | 'dark' | 'sepia';
+  isEnhanced?: boolean;
+  isMobile?: boolean;
+  isFirstOpen?: boolean;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -88,7 +97,13 @@ const Controls: React.FC<ControlsProps> = ({
   onFullCastPause,
   onFullCastResume,
   anonymousLimit,
-  bufferedChunksCount = 0
+  bufferedChunksCount = 0,
+  toc,
+  onNavigateToTocItem,
+  theme,
+  isEnhanced,
+  isMobile,
+  isFirstOpen
 }) => {
   const { usedMinutes: fcUsed, totalMinutes: fcTotal } = useFullCastUsage();
   const { isLimitExceeded } = useSubscription();
@@ -343,6 +358,16 @@ const Controls: React.FC<ControlsProps> = ({
 
       {/* Original Action Buttons */}
       <div className="flex items-center gap-x-2 flex-shrink-0">
+        {/* Chapters Button - Mobile Only */}
+        {isEnhanced && isMobile && (
+          <MobileTOCDrawer
+            toc={toc || []}
+            onItemClick={onNavigateToTocItem || (() => {})}
+            theme={theme || 'light'}
+            openByDefault={isFirstOpen || false}
+          />
+        )}
+
         {/* Read Aloud Button */}
         <button
           onClick={handleReadAloudClick}
