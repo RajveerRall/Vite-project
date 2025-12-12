@@ -63,7 +63,7 @@ const SidePanelContent: React.FC<SidePanelContentProps> = ({
       case 'toc':
         return 'Table of Contents';
       case 'ai-chat':
-        return 'AI Summary';
+        return 'AI Chat';
       default:
         return '';
     }

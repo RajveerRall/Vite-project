@@ -20,7 +20,7 @@ import './Controls.css';
 
 export interface ControlsProps {
   readingProgress: number;
-  onReadAloud: (text?: string) => void;
+  onReadAloud: () => void;
   onStopTTS: () => void;
   onPreviousSentence: () => void;
   onNextSentence: () => void;
@@ -67,6 +67,8 @@ export interface ControlsProps {
   currentChapterTitle?: string;
   bookId?: string;
   onSummarizeChapter?: () => void;
+  // TTS for summary
+  onReadAloudSummary?: (text?: string) => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -113,7 +115,8 @@ const Controls: React.FC<ControlsProps> = ({
   currentPageText,
   currentChapterTitle,
   bookId,
-  onSummarizeChapter
+  onSummarizeChapter,
+  onReadAloudSummary
 }) => {
   const { usedMinutes: fcUsed, totalMinutes: fcTotal } = useFullCastUsage();
   const { isLimitExceeded } = useSubscription();
@@ -386,7 +389,7 @@ const Controls: React.FC<ControlsProps> = ({
             currentPageText={currentPageText}
             currentChapterTitle={currentChapterTitle}
             bookId={bookId}
-            onReadAloud={onReadAloud}
+            onReadAloud={onReadAloudSummary}
             isOpen={isAIChatDrawerOpen}
             onOpenChange={setIsAIChatDrawerOpen}
           />

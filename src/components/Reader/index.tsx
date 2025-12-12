@@ -563,6 +563,7 @@ const Reader: React.FC = () => {
       <ReaderControlsContainer
           readingProgress={readingProgress}
           onReadAloud={handleTTS}
+          onReadAloudSummary={handleTTS}
           onStopTTS={handleStopTTSWithReset}
           onPreviousSentence={handlePreviousSentence}
           onNextSentence={handleNextSentence}

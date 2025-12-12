@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, AlertCircle, RefreshCw, Headphones } from 'lucide-react';
 import { loadChapterSummary, saveChapterSummary } from '../../utils/chapterSummaryStorage';
+import { useSubscription } from '../../context/SubscriptionContext';
+import { useAnonymousUsageLimit } from '../../hooks/useAnonymousUsageLimit';
+import { trackEvent } from '../../lib/analytics';
+import { playStandaloneTTS } from '../../utils/standaloneTTS';
+import { useAuth } from '../../context/AuthContext';
+import { getAnonymousSessionId } from '../../utils/anonymousSession';
 
 interface AIChatPanelProps {
   chapterText?: string;
@@ -26,6 +32,22 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
   const [lastChapterText, setLastChapterText] = useState<string | undefined>(undefined);
   const hasAutoSummarizedRef = useRef(false);
   const isRequestInProgressRef = useRef(false);
+  
+  // Subscription and usage limit hooks
+  const { usageLimit, isLimitExceeded, minutesRemaining } = useSubscription();
+  const anonymousLimit = useAnonymousUsageLimit();
+  const { user } = useAuth();
+  
+  // Calculate display minutes
+  const displayMinutes = minutesRemaining !== null && minutesRemaining > 0
+    ? `${(minutesRemaining / 60).toFixed(1)}h`
+    : '0h';
+  
+  // Check if Read Aloud button should be disabled
+  const isReadAloudDisabled = isLimitExceeded || 
+    (minutesRemaining !== null && minutesRemaining < 1) || 
+    anonymousLimit?.isLimitReached || 
+    false;
 
   const handleSummarize = useCallback(async () => {
     if (!chapterText || !bookId) {
@@ -141,6 +163,46 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
     handleSummarize();
   }, [isLoading, handleSummarize]);
 
+  const handleReadAloudClick = useCallback(async () => {
+    if (!summary) {
+      return;
+    }
+
+    // Check limits before proceeding
+    if (isReadAloudDisabled) {
+      return;
+    }
+
+    // Track the event
+    trackEvent('ai_summary_read_aloud', {
+      summary_length: summary.length,
+      chapter_title: chapterTitle || 'Unknown',
+      book_id: bookId || 'Unknown',
+    });
+
+    try {
+      // Use standalone TTS instead of onReadAloud to avoid interfering with main controls
+      const sessionId = user?.id ? undefined : getAnonymousSessionId();
+      await playStandaloneTTS(summary, {
+        userId: user?.id,
+        sessionId,
+        onError: (error) => {
+          console.error('[AIChatPanel] Standalone TTS error:', error);
+          // Optionally show a toast or error message to user
+        },
+        onPlaybackStart: () => {
+          console.log('[AIChatPanel] Summary playback started');
+        },
+        onPlaybackEnd: () => {
+          console.log('[AIChatPanel] Summary playback ended');
+        },
+      });
+    } catch (error) {
+      console.error('[AIChatPanel] Failed to play summary:', error);
+      // Error is already handled by onError callback
+    }
+  }, [summary, chapterTitle, bookId, isReadAloudDisabled, user?.id]);
+
   // Loading State
   if (isLoading) {
     return (
@@ -188,18 +250,27 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
                 {chapterTitle}
               </h3>
             )}
-            {onReadAloud && summary && summary.trim().length > 0 && (
+            {summary && summary.trim().length > 0 && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onReadAloud(summary);
-                }}
-                className="flex items-center gap-2 px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium"
+                onClick={handleReadAloudClick}
+                disabled={isReadAloudDisabled}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
+                  isReadAloudDisabled
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-amber-600 text-white hover:bg-amber-700'
+                }`}
                 aria-label="Read summary aloud"
-                title="Read summary aloud"
+                title={
+                  isReadAloudDisabled
+                    ? (anonymousLimit?.isLimitReached
+                        ? 'Free limit reached. Please sign up to continue.'
+                        : 'TTS usage limit reached. Please upgrade your subscription to continue.')
+                    : `Read summary aloud (${displayMinutes} remaining)`
+                }
               >
                 <Headphones className="w-4 h-4" />
                 <span>Read Aloud</span>
+                <span className="text-xs opacity-90">({displayMinutes})</span>
               </button>
             )}
           </div>
@@ -223,7 +294,7 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
   return (
     <div className="ai-chat-panel">
       <div className="ai-chat-placeholder">
-        <h3 className="ai-chat-title">AI Summary</h3>
+        <h3 className="ai-chat-title">AI Chat</h3>
         <p className="ai-chat-message">
           {chapterText 
             ? 'Click "Summarize Chapter" to get a summary of the current chapter.'

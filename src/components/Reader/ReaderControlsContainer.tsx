@@ -23,6 +23,8 @@ export interface ReaderControlsContainerProps extends ControlsProps {
   currentChapterTitle?: string;
   bookId?: string;
   onSummarizeChapter?: () => void;
+  // TTS for summary
+  onReadAloudSummary?: (text?: string) => void;
 }
 
 /**
@@ -45,7 +47,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
   currentChapterTitle,
   bookId,
   onSummarizeChapter,
-  onReadAloud,
+  onReadAloudSummary,
   ...controlsProps
 }) => {
   // Create handlers that include analytics tracking
@@ -93,7 +95,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
             currentChapterTitle={currentChapterTitle}
             bookId={bookId}
             onSummarizeChapter={onSummarizeChapter}
-            onReadAloud={onReadAloud}
+            onReadAloudSummary={onReadAloudSummary}
           />
         </div>
       </div>
@@ -116,7 +118,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
             currentChapterTitle={currentChapterTitle}
             bookId={bookId}
             onSummarizeChapter={onSummarizeChapter}
-            onReadAloud={onReadAloud}
+            onReadAloudSummary={onReadAloudSummary}
           />
         </div>
       </div>
