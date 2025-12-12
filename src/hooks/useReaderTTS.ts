@@ -1646,6 +1646,129 @@ export const useReaderTTS = ({
       isInEpubContent: selection?.anchorNode?.parentElement?.closest('.epub-content') ? true : false
     });
 
+    // ✅ NEW: If textOverride is provided and it's not found in currentPageText, use it directly
+    // This handles cases like AI summaries that aren't part of the chapter text
+    if (textOverride && typeof textOverride === 'string' && textOverride.length > 0) {
+      // Helper function to normalize text for comparison
+      const normalizeText = (text: string): string => {
+        return text.trim().replace(/\s+/g, ' ').replace(/\n+/g, ' ');
+      };
+      
+      const normalizedOverride = normalizeText(textOverride);
+      const normalizedPageText = normalizeText(currentPageText);
+      
+      // Check if override text exists in page text (exact or normalized match)
+      const isInPageText = currentPageText.includes(textOverride) || 
+                           normalizedPageText.includes(normalizedOverride) ||
+                           (normalizedOverride.length > 50 && normalizedPageText.includes(normalizedOverride.substring(0, 50)));
+      
+      if (!isInPageText) {
+        // Override text is NOT in page text (e.g., summary) - use it directly
+        console.log(`[${readerInstanceId}][handleTTS] Using override text directly (summary or custom text, not found in page)`);
+        
+        // Create chunks from override text
+        const overrideChunks = splitTextIntoChunks(textOverride);
+        
+        // Update both state and ref immediately (ref updates synchronously)
+        setChunks(overrideChunks);
+        chunksRef.current = overrideChunks;
+        
+        const overrideStartChunk = 0;
+        
+        // Start playback with the override text chunks
+        // Use overrideChunks directly in closure to avoid stale state issues
+        const startPlayback = async () => {
+          console.log(`[${readerInstanceId}][handleTTS] Starting playback from override text, chunk ${overrideStartChunk}, total chunks: ${overrideChunks.length}`);
+          setBufferedChunksCount(0);
+          setIsProcessing(true);
+          
+          // Create wrapper functions that use overrideChunks instead of state chunks
+          const fetchOverrideChunk = async (chunkIndex: number): Promise<void> => {
+            if (overrideChunks.length === 0 || chunkIndex < 0 || chunkIndex >= overrideChunks.length) return;
+            if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex) return;
+            if (inFlightPrefetchRef.current.has(chunkIndex)) return;
+            
+            inFlightPrefetchRef.current.add(chunkIndex);
+            
+            try {
+              const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
+              const textChunk = overrideChunks[chunkIndex];
+              const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
+              
+              const params = new URLSearchParams({
+                text: textChunk,
+                voice: selectedVoiceRef.current,
+                format: 'audio-24khz-48kbitrate-mono-mp3'
+              });
+              
+              if (ttsSpeed !== 1) {
+                const speedPercent = Math.round((ttsSpeed - 1) * 100);
+                const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
+                params.set('rate', speedParam);
+              }
+              
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 30000);
+              
+              let response;
+              try {
+                response = await fetch(`${apiUrl}?${params.toString()}`, {
+                  signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+              } catch (fetchError: any) {
+                clearTimeout(timeoutId);
+                if (fetchError.name === 'AbortError') {
+                  console.warn(`[FetchOverride] TTS request timeout for chunk #${chunkIndex} after 30 seconds`);
+                  return;
+                }
+                throw fetchError;
+              }
+              
+              if (!response.ok) return;
+              
+              const audioBlob = await response.blob();
+              const audioUrl = URL.createObjectURL(audioBlob);
+              audioBuffer.current[chunkIndex] = audioUrl;
+            } catch (error) {
+              console.error(`[FetchOverride] Failed to fetch chunk #${chunkIndex}:`, error);
+            } finally {
+              inFlightPrefetchRef.current.delete(chunkIndex);
+            }
+          };
+          
+          const firstChunkPromise = fetchOverrideChunk(overrideStartChunk);
+          const secondChunkPromise = overrideStartChunk + 1 < overrideChunks.length 
+            ? fetchOverrideChunk(overrideStartChunk + 1) 
+            : Promise.resolve();
+          
+          await firstChunkPromise;
+          setIsProcessing(false);
+          
+          // Use setTimeout to ensure state update is processed before calling playChunk
+          // playChunk depends on chunks, so we need to wait for the state update
+          setTimeout(() => {
+            playChunk(overrideStartChunk);
+          }, 0);
+          
+          secondChunkPromise.catch(err => 
+            console.warn('[handleTTS] Background prefetch of second chunk failed:', err)
+          );
+          
+          // Prefetch remaining chunks
+          for (let i = overrideStartChunk + INITIAL_PREFETCH_COUNT; i < Math.min(overrideStartChunk + INITIAL_PREFETCH_COUNT + 3, overrideChunks.length); i++) {
+            fetchOverrideChunk(i).catch(err => 
+              console.warn(`[handleTTS] Background prefetch of chunk ${i} failed:`, err)
+            );
+          }
+        };
+        
+        startPlayback();
+        return; // Exit early - don't continue with page text logic
+      }
+      // If override text IS in page text, continue with existing selection matching logic below
+    }
+
     // Type guard: ensure selectedText is a non-empty string
     if (typeof selectedText === 'string' && selectedText.length > 0 && 
         selection?.anchorNode?.parentElement?.closest('.epub-content')) {
