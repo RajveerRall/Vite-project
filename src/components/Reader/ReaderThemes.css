@@ -225,19 +225,25 @@
 
 .theme-light .settings-button,
 .theme-light .mobile-toc-button,
+.theme-light .mobile-ai-chat-button,
 .theme-dark .settings-button,
 .theme-dark .mobile-toc-button,
+.theme-dark .mobile-ai-chat-button,
 .theme-sepia .settings-button,
-.theme-sepia .mobile-toc-button {
+.theme-sepia .mobile-toc-button,
+.theme-sepia .mobile-ai-chat-button {
   color: var(--reader-text-secondary);
 }
 
 .theme-light .settings-button:hover,
 .theme-light .mobile-toc-button:hover,
+.theme-light .mobile-ai-chat-button:hover,
 .theme-dark .settings-button:hover,
 .theme-dark .mobile-toc-button:hover,
+.theme-dark .mobile-ai-chat-button:hover,
 .theme-sepia .settings-button:hover,
-.theme-sepia .mobile-toc-button:hover {
+.theme-sepia .mobile-toc-button:hover,
+.theme-sepia .mobile-ai-chat-button:hover {
   color: #d97706;
 }
 
@@ -278,13 +284,17 @@
 
 /* Theme-aware TOC drawer */
 .theme-dark .toc-drawer,
-.theme-sepia .toc-drawer {
+.theme-sepia .toc-drawer,
+.theme-dark .ai-chat-drawer,
+.theme-sepia .ai-chat-drawer {
   background-color: var(--reader-sidebar-bg);
   color: var(--reader-text);
 }
 
 .theme-dark .toc-drawer .border-gray-200,
-.theme-sepia .toc-drawer .border-gray-200 {
+.theme-sepia .toc-drawer .border-gray-200,
+.theme-dark .ai-chat-drawer .border-gray-200,
+.theme-sepia .ai-chat-drawer .border-gray-200 {
   border-color: var(--reader-border);
 }
 

@@ -13,6 +13,11 @@ interface SidePanelContentProps {
   contentPanelRef: React.RefObject<HTMLDivElement>;
   isDraggingHandle: boolean;
   onDragStart: (e: React.MouseEvent | React.TouchEvent) => void;
+  currentPageText?: string;
+  currentChapterTitle?: string;
+  bookId?: string;
+  onReadAloud?: (text?: string) => void;
+  autoSummarize?: boolean;
 }
 
 const SidePanelContent: React.FC<SidePanelContentProps> = ({
@@ -24,6 +29,11 @@ const SidePanelContent: React.FC<SidePanelContentProps> = ({
   contentPanelRef,
   isDraggingHandle,
   onDragStart,
+  currentPageText,
+  currentChapterTitle,
+  bookId,
+  onReadAloud,
+  autoSummarize,
 }) => {
   const isOpen = activePanel !== null;
 
@@ -53,7 +63,7 @@ const SidePanelContent: React.FC<SidePanelContentProps> = ({
       case 'toc':
         return 'Table of Contents';
       case 'ai-chat':
-        return 'AI Chat';
+        return 'AI Summary';
       default:
         return '';
     }
@@ -82,7 +92,15 @@ const SidePanelContent: React.FC<SidePanelContentProps> = ({
             {activePanel === 'toc' && (
               <TableOfContents items={toc} onItemClick={onNavigateToTocItem || (() => {})} />
             )}
-            {activePanel === 'ai-chat' && <AIChatPanel />}
+            {activePanel === 'ai-chat' && (
+              <AIChatPanel 
+                chapterText={currentPageText}
+                chapterTitle={currentChapterTitle}
+                bookId={bookId}
+                onReadAloud={onReadAloud}
+                autoSummarize={autoSummarize}
+              />
+            )}
           </div>
         </>
       )}

@@ -472,6 +472,122 @@ app.post('/api/chat-thread', async (req, res) => {
   }
 });
 
+// --- Chapter Summarization endpoint ---
+// Body: { text: string, llm?: string, chapterTitle?: string }
+app.post('/api/summarize-chapter', async (req, res) => {
+  const { text, llm, chapterTitle } = req.body || {};
+  if (!text || typeof text !== 'string') {
+    return res.status(400).json({ error: 'text is required' });
+  }
+
+  try {
+    const chosen = llm || DEFAULT_LLM;
+    if (!chosen) {
+      return res.status(400).json({ error: 'No LLM configured. Set OPENAI_API_KEY or GEMINI_API_KEY.' });
+    }
+
+    // Truncate text if too long to prevent token limits (keep first 50k chars)
+    const truncatedText = text.length > 50000 ? text.substring(0, 50000) + '...' : text;
+
+    // Create summarization prompt
+    const prompt = `Please provide a concise summary of the following chapter${chapterTitle ? ` titled "${chapterTitle}"` : ''}. 
+Focus on the main events, key characters, and important plot points. 
+Keep the summary to 3-5 paragraphs. Be specific and avoid generic statements.
+
+Chapter content:
+${truncatedText}`;
+
+    console.log(`[summarize-chapter] [req ${req.reqId}] textLen=${text.length}${truncatedText.length < text.length ? ` (truncated to ${truncatedText.length})` : ''} chapterTitle="${chapterTitle || 'none'}" llm=${chosen}`);
+
+    // Use createAndExecuteChain with singleNarratorParser to get plain text output
+    // The singleNarratorParser should give us a simpler output format
+    let summary;
+    try {
+      // Use the prompt directly as raw text input
+      // The singleNarratorParser will assign everything to "Narrator" which we can then extract
+      const result = await sharedFactory.createAndExecuteChain({
+        llmIds: [chosen],
+        parserId: 'singleNarratorParser',
+        rawTextInput: prompt,
+        context: {
+          summarizationMode: true,
+          instruction: 'Provide a concise 3-5 paragraph summary. Return only the summary text.'
+        }
+      });
+
+      // Log result type and structure before extraction
+      console.log(`[summarize-chapter] [req ${req.reqId}] result type:`, Array.isArray(result) ? 'array' : typeof result);
+      console.log(`[summarize-chapter] [req ${req.reqId}] result length:`, Array.isArray(result) ? result.length : 'N/A');
+      if (Array.isArray(result) && result.length > 0) {
+        console.log(`[summarize-chapter] [req ${req.reqId}] first item preview:`, JSON.stringify(result[0]).substring(0, 200));
+      }
+
+      // Extract summary from result
+      // singleNarratorParser returns an array of dialogue lines, all assigned to "Narrator"
+      if (Array.isArray(result) && result.length > 0) {
+        // Combine all dialogue lines into a single summary
+        summary = result
+          .map(line => {
+            // Extract text from dialogue line
+            if (typeof line === 'string') return line;
+            if (line.dialogue) return line.dialogue;
+            if (line.text) return line.text;
+            return '';
+          })
+          .filter(text => text.trim().length > 0)
+          .join(' ')
+          .trim();
+      } else if (typeof result === 'string') {
+        summary = result.trim();
+      } else {
+        // Fallback: try to stringify and extract
+        const resultStr = JSON.stringify(result);
+        // Try to extract text from JSON structure
+        const match = resultStr.match(/"dialogue"\s*:\s*"([^"]+)"/);
+        if (match) {
+          summary = match[1];
+        } else {
+          summary = resultStr;
+        }
+      }
+
+      // Clean up summary - remove any JSON formatting or extra whitespace
+      if (summary) {
+        summary = String(summary)
+          .replace(/^```json\s*/i, '')
+          .replace(/^```\s*/i, '')
+          .replace(/\s*```$/i, '')
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"')
+          .trim();
+      }
+
+      if (!summary || summary.length === 0) {
+        throw new Error('LLM returned empty summary');
+      }
+    } catch (llmError) {
+      console.error('[summarize-chapter] LLM call failed:', llmError);
+      throw new Error('Failed to generate summary: ' + (llmError.message || 'Unknown error'));
+    }
+
+    // Clean up summary - remove any JSON formatting or extra whitespace
+    if (summary) {
+      summary = String(summary)
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+    }
+
+    console.log(`[summarize-chapter] [req ${req.reqId}] extracted summary length:`, summary?.length || 0);
+    console.log(`[summarize-chapter] [req ${req.reqId}] summaryLen=${summary?.length || 0}`);
+    res.json({ summary: summary || 'Unable to generate summary', chapterTitle: chapterTitle || null });
+  } catch (err) {
+    console.error('[summarize-chapter] failed:', err);
+    res.status(500).json({ error: 'Failed to summarize chapter: ' + (err.message || 'Unknown error') });
+  }
+});
+
 // --- TTS endpoint (per-line synthesis) ---
 
 app.post('/api/tts', async (req, res) => {

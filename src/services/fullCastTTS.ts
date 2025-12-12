@@ -109,4 +109,46 @@ export async function ttsForLine(text: string, provider?: string, voiceId?: stri
   return await response.blob();
 }
 
+export async function summarizeChapter(
+  text: string, 
+  chapterTitle?: string, 
+  llm?: string
+): Promise<{ summary: string; chapterTitle: string | null }> {
+  const baseURL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
+  let userId: string | undefined;
+  let userEmail: string | undefined;
+  try {
+    const { getUserSafely } = await import('../lib/authToken');
+    const { user } = await getUserSafely(5000);
+    userId = user?.id;
+    userEmail = user?.email as string | undefined;
+  } catch (error) {
+    console.error('[fullCastTTS] Failed to get user for summarize request:', error);
+    // Continue with undefined userId - request will work without auth
+  }
+
+  const response = await fetch(`${baseURL}/api/summarize-chapter`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(userId ? { 'X-User-Id': userId } : {}),
+      ...(userEmail ? { 'X-User-Email': userEmail } : {}),
+    },
+    body: JSON.stringify({ text, chapterTitle, llm })
+  });
+
+  if (!response.ok) {
+    let detail = '';
+    try { 
+      const errorData = await response.json();
+      detail = errorData.error || response.statusText;
+    } catch {
+      try { detail = await response.text(); } catch {}
+    }
+    throw new Error(`Chapter summarization failed: ${response.status} ${detail}`.trim());
+  }
+
+  return await response.json();
+}
+
 

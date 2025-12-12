@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import InteractiveProgressBar from './InteractiveProgressBar';
 import MobileTOCDrawer from './MobileTOCDrawer';
+import MobileAIChatDrawer from './MobileAIChatDrawer';
 import { TOCItem } from '../../types/books';
 
 // Import the stylesheet. It will now handle all the appearance styling.
@@ -19,7 +20,7 @@ import './Controls.css';
 
 export interface ControlsProps {
   readingProgress: number;
-  onReadAloud: () => void;
+  onReadAloud: (text?: string) => void;
   onStopTTS: () => void;
   onPreviousSentence: () => void;
   onNextSentence: () => void;
@@ -61,6 +62,11 @@ export interface ControlsProps {
   isEnhanced?: boolean;
   isMobile?: boolean;
   isFirstOpen?: boolean;
+  // Chapter summarization props
+  currentPageText?: string;
+  currentChapterTitle?: string;
+  bookId?: string;
+  onSummarizeChapter?: () => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -103,12 +109,17 @@ const Controls: React.FC<ControlsProps> = ({
   theme,
   isEnhanced,
   isMobile,
-  isFirstOpen
+  isFirstOpen,
+  currentPageText,
+  currentChapterTitle,
+  bookId,
+  onSummarizeChapter
 }) => {
   const { usedMinutes: fcUsed, totalMinutes: fcTotal } = useFullCastUsage();
   const { isLimitExceeded } = useSubscription();
   const { addToast } = useToast();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isAIChatDrawerOpen, setIsAIChatDrawerOpen] = useState(false);
 
   // Calculate chapter progress percentage
   const chapterProgress = totalChunks > 0 && currentChunkIndex !== null 
@@ -365,6 +376,19 @@ const Controls: React.FC<ControlsProps> = ({
             onItemClick={onNavigateToTocItem || (() => {})}
             theme={theme || 'light'}
             openByDefault={isFirstOpen || false}
+          />
+        )}
+
+        {/* AI Chat Button - Mobile Only */}
+        {isMobile && (
+          <MobileAIChatDrawer 
+            theme={theme || 'light'}
+            currentPageText={currentPageText}
+            currentChapterTitle={currentChapterTitle}
+            bookId={bookId}
+            onReadAloud={onReadAloud}
+            isOpen={isAIChatDrawerOpen}
+            onOpenChange={setIsAIChatDrawerOpen}
           />
         )}
 

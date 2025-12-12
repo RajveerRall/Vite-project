@@ -70,6 +70,7 @@ const Reader: React.FC = () => {
   
   // Side panel state - replace old sidebar state
   const [activePanel, setActivePanel] = useState<'toc' | 'ai-chat' | null>('toc');
+  const [shouldAutoSummarize, setShouldAutoSummarize] = useState(false);
   const [isDraggingHandle, setIsDraggingHandle] = useState<boolean>(false);
   const [dragStartX, setDragStartX] = useState<number>(0);
   const [dragStartWidth, setDragStartWidth] = useState<number>(350);
@@ -521,13 +522,21 @@ const Reader: React.FC = () => {
 
       <SidePanelContent
         activePanel={activePanel}
-        onClose={() => setActivePanel(null)}
+        onClose={() => {
+          setActivePanel(null);
+          setShouldAutoSummarize(false);
+        }}
         toc={toc}
         onNavigateToTocItem={handleNavigateToTocItem}
         theme={theme}
         contentPanelRef={contentPanelRef}
         isDraggingHandle={isDraggingHandle}
         onDragStart={handleDragStart}
+        currentPageText={currentPageText}
+        currentChapterTitle={currentChapterTitle}
+        bookId={currentBook?.id}
+        onReadAloud={handleTTS}
+        autoSummarize={shouldAutoSummarize && activePanel === 'ai-chat'}
       />
 
         <ReaderContent
@@ -585,6 +594,15 @@ const Reader: React.FC = () => {
           isEnhanced={isEnhanced}
           isMobile={isMobile}
           isFirstOpen={isFirstOpen}
+          currentPageText={currentPageText}
+          currentChapterTitle={currentChapterTitle}
+          bookId={currentBook?.id}
+          onSummarizeChapter={() => {
+            // Open AI Chat panel/drawer and trigger summarization
+            setActivePanel('ai-chat');
+            setShouldAutoSummarize(true);
+            // The AIChatPanel will handle the actual summarization via props
+          }}
         />
     {showFeatureHighlight && (<FeatureHighlight onClose={closeFeatureHighlight} />)}
 

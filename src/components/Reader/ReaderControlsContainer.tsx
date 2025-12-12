@@ -18,6 +18,11 @@ export interface ReaderControlsContainerProps extends ControlsProps {
   isEnhanced?: boolean;
   isMobile?: boolean;
   isFirstOpen?: boolean;
+  // Chapter summarization props
+  currentPageText?: string;
+  currentChapterTitle?: string;
+  bookId?: string;
+  onSummarizeChapter?: () => void;
 }
 
 /**
@@ -36,6 +41,11 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
   isEnhanced,
   isMobile,
   isFirstOpen,
+  currentPageText,
+  currentChapterTitle,
+  bookId,
+  onSummarizeChapter,
+  onReadAloud,
   ...controlsProps
 }) => {
   // Create handlers that include analytics tracking
@@ -79,6 +89,11 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
             isEnhanced={isEnhanced}
             isMobile={isMobile}
             isFirstOpen={isFirstOpen}
+            currentPageText={currentPageText}
+            currentChapterTitle={currentChapterTitle}
+            bookId={bookId}
+            onSummarizeChapter={onSummarizeChapter}
+            onReadAloud={onReadAloud}
           />
         </div>
       </div>
@@ -97,6 +112,11 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
             isEnhanced={isEnhanced}
             isMobile={isMobile}
             isFirstOpen={isFirstOpen}
+            currentPageText={currentPageText}
+            currentChapterTitle={currentChapterTitle}
+            bookId={bookId}
+            onSummarizeChapter={onSummarizeChapter}
+            onReadAloud={onReadAloud}
           />
         </div>
       </div>
