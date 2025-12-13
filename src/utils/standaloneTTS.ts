@@ -244,21 +244,29 @@ async function fetchChunkAudio(
 }
 
 /**
- * Fetch chunks with limited concurrency (2 at a time) to avoid overwhelming the server
+ * Fetch remaining chunks in background (2 at a time) starting from startIndex
+ * Returns array of ChunkData in order (index 0 = chunk[startIndex], index 1 = chunk[startIndex+1], etc.)
  */
-async function fetchAllChunks(
+async function fetchRemainingChunks(
   chunks: string[],
-  config: TTSConfig
+  config: TTSConfig,
+  startIndex: number
 ): Promise<ChunkData[]> {
-  console.log('[Standalone TTS] Fetching chunks with limited concurrency (2 at a time)', {
+  if (startIndex >= chunks.length) {
+    return [];
+  }
+  
+  console.log('[Standalone TTS] Fetching remaining chunks in background (2 at a time)', {
+    startIndex,
     totalChunks: chunks.length,
+    remaining: chunks.length - startIndex,
   });
   
-  const chunkData: ChunkData[] = new Array(chunks.length);
+  const chunkData: (ChunkData | null)[] = new Array(chunks.length - startIndex).fill(null);
   const CONCURRENT_LIMIT = 2; // Fetch 2 chunks at a time
   
   // Fetch chunks in batches of 2
-  for (let i = 0; i < chunks.length; i += CONCURRENT_LIMIT) {
+  for (let i = startIndex; i < chunks.length; i += CONCURRENT_LIMIT) {
     const batch = [];
     const batchEnd = Math.min(i + CONCURRENT_LIMIT, chunks.length);
     
@@ -267,7 +275,7 @@ async function fetchAllChunks(
       batch.push(
         fetchChunkAudio(j, chunks[j], config)
           .then(data => {
-            chunkData[j] = data;
+            chunkData[j - startIndex] = data;
             console.log(`[Standalone TTS] Fetched chunk ${j + 1}/${chunks.length}`);
             return data;
           })
@@ -282,8 +290,10 @@ async function fetchAllChunks(
     await Promise.all(batch);
   }
   
-  console.log('[Standalone TTS] All chunks fetched');
-  return chunkData;
+  // Filter out any null values (shouldn't happen, but safety check)
+  const result = chunkData.filter((chunk): chunk is ChunkData => chunk !== null);
+  console.log('[Standalone TTS] All remaining chunks fetched');
+  return result;
 }
 
 /**
@@ -328,7 +338,134 @@ function setupPlaybackEventHandlers(
 }
 
 /**
- * Play chunks using seamless strategy (Web Audio API)
+ * Play chunks using seamless strategy with streaming (start immediately, fetch in background)
+ */
+async function playChunksWithSeamlessStreaming(
+  strategy: IPlaybackStrategy,
+  chunks: string[],
+  config: TTSConfig,
+  firstChunk: ChunkData,
+  backgroundFetchPromise: Promise<ChunkData[]>
+): Promise<void> {
+  console.log('[Standalone TTS] Using seamless playback with streaming (Web Audio API)');
+  
+  // Prepare and play first chunk immediately
+  await strategy.prepareChunk(0, firstChunk.blob);
+  console.log('[Standalone TTS] First chunk prepared, starting playback...');
+  
+  // Start playing first chunk while fetching continues in background
+  await playChunkWithSeamless(strategy, 0, firstChunk.blob);
+  
+  // Wait for background fetch to complete, then play remaining chunks
+  const remainingChunks = await backgroundFetchPromise;
+  console.log(`[Standalone TTS] Background fetch complete, ${remainingChunks.length} chunks ready`);
+  
+  // Prepare all remaining chunks
+  for (let i = 0; i < remainingChunks.length; i++) {
+    const chunkIndex = i + 1; // Chunk indices start from 1 (0 was already played)
+    await strategy.prepareChunk(chunkIndex, remainingChunks[i].blob);
+  }
+  
+  // Play remaining chunks sequentially
+  for (let i = 0; i < remainingChunks.length; i++) {
+    const chunkIndex = i + 1; // Chunk indices start from 1
+    await playChunkWithSeamless(strategy, chunkIndex, remainingChunks[i].blob);
+  }
+  
+  console.log('[Standalone TTS] All chunks played successfully');
+}
+
+/**
+ * Play a single chunk using seamless strategy and wait for completion
+ */
+async function playChunkWithSeamless(
+  strategy: IPlaybackStrategy,
+  chunkIndex: number,
+  blob: Blob
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    // Get the underlying seamless strategy service
+    // The strategy might be wrapped in AdaptivePlaybackStrategy
+    let seamlessStrategy: any = strategy;
+    
+    // If it's an AdaptivePlaybackStrategy, get the underlying strategy
+    if ((strategy as any).strategy) {
+      seamlessStrategy = (strategy as any).strategy;
+    }
+    
+    // Get the service from the seamless strategy
+    // Try getService() method first (SeamlessPlaybackStrategy has this)
+    // Otherwise fall back to direct service property
+    const service = seamlessStrategy.getService?.() || seamlessStrategy.service;
+    
+    if (!service || !service.eventHandlers) {
+      console.error('[Standalone TTS] Seamless strategy service not available', {
+        hasGetService: !!seamlessStrategy.getService,
+        hasService: !!seamlessStrategy.service,
+        strategyType: (strategy as any).getStrategyType?.(),
+        isAdaptive: !!(strategy as any).strategy,
+      });
+      reject(new Error('Seamless strategy service not available'));
+      return;
+    }
+    
+    const originalOnComplete = service.eventHandlers.onChunkComplete;
+    const originalOnError = service.eventHandlers.onError;
+    
+    let isResolved = false;
+    const timeoutId = setTimeout(() => {
+      if (!isResolved) {
+        console.error(`[Standalone TTS] Timeout waiting for chunk ${chunkIndex} to complete (30s)`);
+        isResolved = true;
+        service.eventHandlers.onChunkComplete = originalOnComplete;
+        service.eventHandlers.onError = originalOnError;
+        reject(new Error(`Timeout waiting for chunk ${chunkIndex} to complete`));
+      }
+    }, 30000);
+    
+    const tempOnComplete = async (completedChunkIndex: number) => {
+      if (originalOnComplete) {
+        await originalOnComplete(completedChunkIndex);
+      }
+      
+      if (completedChunkIndex === chunkIndex && !isResolved) {
+        clearTimeout(timeoutId);
+        isResolved = true;
+        service.eventHandlers.onChunkComplete = originalOnComplete;
+        service.eventHandlers.onError = originalOnError;
+        resolve();
+      }
+    };
+    
+    const tempOnError = (error: Error) => {
+      if (isResolved) return;
+      clearTimeout(timeoutId);
+      isResolved = true;
+      service.eventHandlers.onChunkComplete = originalOnComplete;
+      service.eventHandlers.onError = originalOnError;
+      if (originalOnError) {
+        originalOnError(error);
+      }
+      reject(error);
+    };
+    
+    service.eventHandlers.onChunkComplete = tempOnComplete;
+    service.eventHandlers.onError = tempOnError;
+    
+    strategy.play(blob, chunkIndex).catch((err) => {
+      if (!isResolved) {
+        clearTimeout(timeoutId);
+        isResolved = true;
+        service.eventHandlers.onChunkComplete = originalOnComplete;
+        service.eventHandlers.onError = originalOnError;
+        reject(err);
+      }
+    });
+  });
+}
+
+/**
+ * Play chunks using seamless strategy (Web Audio API) - OLD VERSION (kept for reference)
  * Note: The seamless strategy doesn't auto-advance, so we play chunks sequentially
  */
 async function playChunksWithSeamless(
@@ -440,7 +577,81 @@ async function playChunksWithSeamless(
 }
 
 /**
- * Play chunks using HTML5 Audio (fallback)
+ * Play chunks using HTML5 Audio with streaming (start immediately, fetch in background)
+ */
+async function playChunksWithHTML5Streaming(
+  chunks: string[],
+  config: TTSConfig,
+  firstChunk: ChunkData,
+  backgroundFetchPromise: Promise<ChunkData[]>,
+  options: StandaloneTTSOptions
+): Promise<void> {
+  console.log('[Standalone TTS] Using HTML5 Audio playback with streaming');
+  
+  const audioUrls: string[] = [];
+  
+  try {
+    // Play first chunk immediately
+    const firstUrl = URL.createObjectURL(firstChunk.blob);
+    audioUrls.push(firstUrl);
+    
+    await new Promise<void>((resolve, reject) => {
+      const audio = new Audio(firstUrl);
+      
+      audio.addEventListener('play', () => {
+        console.log('[Standalone TTS] HTML5 playback started');
+        options.onPlaybackStart?.();
+      }, { once: true });
+      
+      audio.addEventListener('ended', () => {
+        console.log('[Standalone TTS] First chunk completed');
+        resolve();
+      }, { once: true });
+      
+      audio.addEventListener('error', (e) => {
+        reject(new Error(`Failed to play audio chunk 1`));
+      }, { once: true });
+      
+      audio.play().catch(reject);
+    });
+    
+    // Wait for background fetch to complete
+    const remainingChunks = await backgroundFetchPromise;
+    const allChunks = [firstChunk, ...remainingChunks];
+    
+    // Play remaining chunks sequentially
+    for (let i = 1; i < allChunks.length; i++) {
+      const url = URL.createObjectURL(allChunks[i].blob);
+      audioUrls.push(url);
+      
+      await new Promise<void>((resolve, reject) => {
+        const audio = new Audio(url);
+        
+        if (i === allChunks.length - 1) {
+          audio.addEventListener('ended', () => {
+            console.log('[Standalone TTS] HTML5 playback ended');
+            options.onPlaybackEnd?.();
+            resolve();
+          }, { once: true });
+        } else {
+          audio.addEventListener('ended', () => resolve(), { once: true });
+        }
+        
+        audio.addEventListener('error', (e) => {
+          reject(new Error(`Failed to play audio chunk ${i + 1}`));
+        }, { once: true });
+        
+        audio.play().catch(reject);
+      });
+    }
+  } finally {
+    // Cleanup URLs
+    audioUrls.forEach(url => URL.revokeObjectURL(url));
+  }
+}
+
+/**
+ * Play chunks using HTML5 Audio (fallback) - OLD VERSION (kept for reference)
  */
 async function playChunksWithHTML5(
   chunkData: ChunkData[],
@@ -608,6 +819,7 @@ export async function playStandaloneTTS(
   let totalSeconds = 0;
   const originalOnEnd = options.onPlaybackEnd;
   options.onPlaybackEnd = () => {
+    // Calculate total duration from all chunks (will be updated as chunks complete)
     // Track usage asynchronously (don't block callback)
     if (totalSeconds > 0) {
       trackTTSUsage(totalSeconds, options).catch(err => {
@@ -618,17 +830,26 @@ export async function playStandaloneTTS(
   };
 
   try {
-    // Fetch all chunks
-    const chunkData = await fetchAllChunks(chunks, config);
+    // Fetch first chunk immediately and start playback
+    console.log('[Standalone TTS] Fetching first chunk to start playback immediately...');
+    const firstChunk = await fetchChunkAudio(0, chunks[0], config);
+    totalSeconds += firstChunk.duration;
+    console.log('[Standalone TTS] First chunk ready, starting playback...');
     
-    // Calculate total duration
-    totalSeconds = chunkData.reduce((sum, chunk) => sum + chunk.duration, 0);
-    console.log('[Standalone TTS] Total duration:', totalSeconds, 'seconds');
-
-    // Start playback (non-blocking)
+    // Start fetching remaining chunks in background (2 at a time)
+    const backgroundFetchPromise = fetchRemainingChunks(chunks, config, 1).then(remainingChunks => {
+      // Add remaining chunks duration to total
+      const remainingDuration = remainingChunks.reduce((sum, chunk) => sum + chunk.duration, 0);
+      totalSeconds += remainingDuration;
+      console.log('[Standalone TTS] Total duration calculated:', totalSeconds, 'seconds');
+      return remainingChunks;
+    });
+    
+    // Start playback immediately with first chunk
+    // Continue fetching and playing remaining chunks as they become available
     const playbackPromise = isSeamless
-      ? playChunksWithSeamless(playbackStrategy, chunkData, options)
-      : playChunksWithHTML5(chunkData, options);
+      ? playChunksWithSeamlessStreaming(playbackStrategy, chunks, config, firstChunk, backgroundFetchPromise)
+      : playChunksWithHTML5Streaming(chunks, config, firstChunk, backgroundFetchPromise, options);
 
     // Return controller immediately
     return {
