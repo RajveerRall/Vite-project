@@ -244,21 +244,46 @@ async function fetchChunkAudio(
 }
 
 /**
- * Fetch all chunks in parallel
+ * Fetch chunks with limited concurrency (2 at a time) to avoid overwhelming the server
  */
 async function fetchAllChunks(
   chunks: string[],
   config: TTSConfig
 ): Promise<ChunkData[]> {
-  console.log('[Standalone TTS] Fetching all chunks in parallel', {
+  console.log('[Standalone TTS] Fetching chunks with limited concurrency (2 at a time)', {
     totalChunks: chunks.length,
   });
   
-  const fetchPromises = chunks.map((chunk, index) =>
-    fetchChunkAudio(index, chunk, config)
-  );
+  const chunkData: ChunkData[] = new Array(chunks.length);
+  const CONCURRENT_LIMIT = 2; // Fetch 2 chunks at a time
   
-  return Promise.all(fetchPromises);
+  // Fetch chunks in batches of 2
+  for (let i = 0; i < chunks.length; i += CONCURRENT_LIMIT) {
+    const batch = [];
+    const batchEnd = Math.min(i + CONCURRENT_LIMIT, chunks.length);
+    
+    // Create promises for this batch
+    for (let j = i; j < batchEnd; j++) {
+      batch.push(
+        fetchChunkAudio(j, chunks[j], config)
+          .then(data => {
+            chunkData[j] = data;
+            console.log(`[Standalone TTS] Fetched chunk ${j + 1}/${chunks.length}`);
+            return data;
+          })
+          .catch(error => {
+            console.error(`[Standalone TTS] Failed to fetch chunk ${j + 1}:`, error);
+            throw error;
+          })
+      );
+    }
+    
+    // Wait for this batch to complete before starting next batch
+    await Promise.all(batch);
+  }
+  
+  console.log('[Standalone TTS] All chunks fetched');
+  return chunkData;
 }
 
 /**
