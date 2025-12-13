@@ -343,14 +343,19 @@ async function playChunksWithSeamless(
     await strategy.prepareChunk(i, chunkData[i].blob);
   }
   
+  console.log('[Standalone TTS] All chunks prepared, starting playback...');
+  
   // Play chunks sequentially - the seamless strategy doesn't auto-advance
   // We need to manually play each chunk after the previous one completes
   for (let i = 0; i < chunkData.length; i++) {
+    console.log(`[Standalone TTS] Attempting to play chunk ${i + 1}/${chunkData.length}`);
+    
     // Wait for this chunk to complete before playing the next
     await new Promise<void>((resolve, reject) => {
       // Get the service to access event handlers
       const service = (strategy as any).service;
       if (!service || !service.eventHandlers) {
+        console.error('[Standalone TTS] Seamless strategy service not available');
         reject(new Error('Seamless strategy service not available'));
         return;
       }
@@ -359,15 +364,31 @@ async function playChunksWithSeamless(
       const originalOnComplete = service.eventHandlers.onChunkComplete;
       const originalOnError = service.eventHandlers.onError;
       
+      let isResolved = false;
+      const timeoutId = setTimeout(() => {
+        if (!isResolved) {
+          console.error(`[Standalone TTS] Timeout waiting for chunk ${i} to complete (30s)`);
+          isResolved = true;
+          service.eventHandlers.onChunkComplete = originalOnComplete;
+          service.eventHandlers.onError = originalOnError;
+          reject(new Error(`Timeout waiting for chunk ${i} to complete`));
+        }
+      }, 30000);
+      
       // Set up temporary handler for this chunk
       const tempOnComplete = async (chunkIndex: number) => {
+        console.log(`[Standalone TTS] onChunkComplete fired: chunkIndex=${chunkIndex}, waiting for=${i}`);
+        
         // Call original handler first
         if (originalOnComplete) {
           await originalOnComplete(chunkIndex);
         }
         
         // If this is the chunk we're waiting for, resolve
-        if (chunkIndex === i) {
+        if (chunkIndex === i && !isResolved) {
+          console.log(`[Standalone TTS] Chunk ${i} completed, resolving promise`);
+          clearTimeout(timeoutId);
+          isResolved = true;
           // Restore original handlers
           service.eventHandlers.onChunkComplete = originalOnComplete;
           service.eventHandlers.onError = originalOnError;
@@ -376,6 +397,10 @@ async function playChunksWithSeamless(
       };
       
       const tempOnError = (error: Error) => {
+        if (isResolved) return;
+        console.error(`[Standalone TTS] Error in chunk ${i}:`, error);
+        clearTimeout(timeoutId);
+        isResolved = true;
         // Restore original handlers
         service.eventHandlers.onChunkComplete = originalOnComplete;
         service.eventHandlers.onError = originalOnError;
@@ -390,14 +415,28 @@ async function playChunksWithSeamless(
       service.eventHandlers.onError = tempOnError;
       
       // Start playing this chunk
-      strategy.play(chunkData[i].blob, i).catch((err) => {
-        // Restore handlers on error
-        service.eventHandlers.onChunkComplete = originalOnComplete;
-        service.eventHandlers.onError = originalOnError;
-        reject(err);
-      });
+      console.log(`[Standalone TTS] Calling strategy.play() for chunk ${i}`);
+      strategy.play(chunkData[i].blob, i)
+        .then(() => {
+          console.log(`[Standalone TTS] strategy.play() resolved for chunk ${i}`);
+        })
+        .catch((err) => {
+          console.error(`[Standalone TTS] strategy.play() rejected for chunk ${i}:`, err);
+          if (!isResolved) {
+            clearTimeout(timeoutId);
+            isResolved = true;
+            // Restore handlers on error
+            service.eventHandlers.onChunkComplete = originalOnComplete;
+            service.eventHandlers.onError = originalOnError;
+            reject(err);
+          }
+        });
     });
+    
+    console.log(`[Standalone TTS] Chunk ${i + 1} playback completed`);
   }
+  
+  console.log('[Standalone TTS] All chunks played successfully');
 }
 
 /**
