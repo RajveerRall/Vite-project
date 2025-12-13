@@ -1,10 +1,13 @@
 /**
  * Standalone TTS utility for AI Chat summaries
  * Uses the same TTS API and method as the main reader TTS
+ * Supports pause/resume functionality via AdaptivePlaybackStrategy
  */
 
 import { getUsageTracker, initializeUsageTracking } from '../services/tts/index';
 import { getAnonymousSessionId } from './anonymousSession';
+import { createAdaptivePlaybackStrategy } from '../services/tts/strategies/AdaptivePlaybackStrategy';
+import { IPlaybackStrategy } from '../services/tts/strategies/IPlaybackStrategy';
 
 // Helper: split text into sentence chunks (same as main reader)
 function splitTextIntoChunks(text: string): string[] {
@@ -125,21 +128,304 @@ export interface StandaloneTTSOptions {
   onError?: (error: Error) => void;
   onPlaybackStart?: () => void;
   onPlaybackEnd?: () => void;
+  onPlaybackPause?: () => void;
+  onPlaybackResume?: () => void;
   voice?: string;
   speed?: number;
 }
+
+export interface StandaloneTTSController {
+  pause: () => void;
+  resume: () => Promise<void>;
+  stop: () => void;
+  isPlaying: () => boolean;
+  isPaused: () => boolean;
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+interface TTSConfig {
+  apiUrl: string;
+  voice: string;
+  speed: number;
+}
+
+interface ChunkData {
+  blob: Blob;
+  duration: number;
+}
+
+/**
+ * Build TTS configuration from options
+ */
+function buildTTSConfig(options: StandaloneTTSOptions): TTSConfig {
+  const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
+  const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
+  const voice = options.voice || 'en-US-BrianMultilingualNeural';
+  const speed = options.speed || 1;
+  
+  return { apiUrl, voice, speed };
+}
+
+/**
+ * Build query parameters for TTS request
+ */
+function buildTTSRequestParams(text: string, config: TTSConfig): URLSearchParams {
+  const params = new URLSearchParams({
+    text,
+    voice: config.voice,
+    format: 'audio-24khz-48kbitrate-mono-mp3'
+  });
+  
+  if (config.speed !== 1) {
+    const speedPercent = Math.round((config.speed - 1) * 100);
+    const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
+    params.set('rate', speedParam);
+  }
+  
+  return params;
+}
+
+/**
+ * Fetch audio for a single chunk
+ */
+async function fetchChunkAudio(
+  chunkIndex: number,
+  text: string,
+  config: TTSConfig
+): Promise<ChunkData> {
+  const params = buildTTSRequestParams(text, config);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  
+  try {
+    const response = await fetch(`${config.apiUrl}?${params.toString()}`, {
+      signal: controller.signal,
+      credentials: 'omit',
+      headers: { 'Accept': '*/*' },
+    });
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch chunk ${chunkIndex + 1}: ${response.statusText}`);
+    }
+    
+    const audioBlob = await response.blob();
+    if (audioBlob.size === 0) {
+      throw new Error(`Empty blob for chunk ${chunkIndex + 1}`);
+    }
+    
+    // Calculate duration
+    let duration = 0;
+    try {
+      const headerSeconds = Number(response.headers.get('X-Audio-Duration') || 0);
+      if (headerSeconds > 0) {
+        duration = headerSeconds;
+      } else {
+        // Fallback: estimate based on text length (150 words per minute)
+        const words = text.split(/\s+/).length;
+        duration = Math.round((words / 150) * 60);
+      }
+    } catch (err) {
+      // Fallback estimation
+      const words = text.split(/\s+/).length;
+      duration = Math.round((words / 150) * 60);
+    }
+    
+    return { blob: audioBlob, duration };
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`TTS request timeout after 30 seconds`);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Fetch all chunks in parallel
+ */
+async function fetchAllChunks(
+  chunks: string[],
+  config: TTSConfig
+): Promise<ChunkData[]> {
+  console.log('[Standalone TTS] Fetching all chunks in parallel', {
+    totalChunks: chunks.length,
+  });
+  
+  const fetchPromises = chunks.map((chunk, index) =>
+    fetchChunkAudio(index, chunk, config)
+  );
+  
+  return Promise.all(fetchPromises);
+}
+
+/**
+ * Setup event handlers for playback strategy
+ */
+function setupPlaybackEventHandlers(
+  strategy: IPlaybackStrategy,
+  options: StandaloneTTSOptions,
+  totalChunks: number
+): void {
+  let playbackStarted = false;
+
+  strategy.setEventHandlers({
+    onPlay: (chunkIndex: number) => {
+      if (chunkIndex === 0 && !playbackStarted) {
+        playbackStarted = true;
+        console.log('[Standalone TTS] Playback started');
+        options.onPlaybackStart?.();
+      }
+    },
+    onChunkComplete: async (chunkIndex: number) => {
+      console.log(`[Standalone TTS] Chunk ${chunkIndex + 1} completed`);
+
+      if (chunkIndex === totalChunks - 1) {
+        console.log('[Standalone TTS] Playback ended');
+        options.onPlaybackEnd?.();
+      }
+    },
+    onPause: () => {
+      console.log('[Standalone TTS] Playback paused');
+      options.onPlaybackPause?.();
+    },
+    onResume: () => {
+      console.log('[Standalone TTS] Playback resumed');
+      options.onPlaybackResume?.();
+    },
+    onError: (error: Error) => {
+      console.error('[Standalone TTS] Playback error:', error);
+      options.onError?.(error);
+    },
+  });
+}
+
+/**
+ * Play chunks using seamless strategy (Web Audio API)
+ */
+async function playChunksWithSeamless(
+  strategy: IPlaybackStrategy,
+  chunkData: ChunkData[],
+  options: StandaloneTTSOptions
+): Promise<void> {
+  console.log('[Standalone TTS] Using seamless playback (Web Audio API)');
+  
+  // Pre-decode all chunks for seamless playback
+  for (let i = 0; i < chunkData.length; i++) {
+    await strategy.prepareChunk(i, chunkData[i].blob);
+  }
+  
+  // Start playback with first chunk - strategy handles auto-advance
+  // The strategy will automatically play subsequent chunks in sequence
+  await strategy.play(chunkData[0].blob, 0);
+  
+  // Note: The strategy handles auto-advance between chunks
+  // The onPlaybackEnd callback will be triggered when all chunks complete
+}
+
+/**
+ * Play chunks using HTML5 Audio (fallback)
+ */
+async function playChunksWithHTML5(
+  chunkData: ChunkData[],
+  options: StandaloneTTSOptions
+): Promise<void> {
+  console.log('[Standalone TTS] Using HTML5 Audio playback');
+  
+  const audioUrls: string[] = [];
+  
+  try {
+    for (let i = 0; i < chunkData.length; i++) {
+      const url = URL.createObjectURL(chunkData[i].blob);
+      audioUrls.push(url);
+      
+      await new Promise<void>((resolve, reject) => {
+        const audio = new Audio(url);
+        
+        if (i === 0) {
+          audio.addEventListener('play', () => {
+            options.onPlaybackStart?.();
+          }, { once: true });
+        }
+        
+        if (i === chunkData.length - 1) {
+          audio.addEventListener('ended', () => {
+            options.onPlaybackEnd?.();
+            resolve();
+          }, { once: true });
+        } else {
+          audio.addEventListener('ended', () => resolve(), { once: true });
+        }
+        
+        audio.addEventListener('error', (e) => {
+          reject(new Error(`Failed to play audio chunk ${i + 1}`));
+        }, { once: true });
+        
+        audio.play().catch(reject);
+      });
+    }
+  } finally {
+    // Cleanup URLs
+    audioUrls.forEach(url => URL.revokeObjectURL(url));
+  }
+}
+
+/**
+ * Track TTS usage
+ */
+async function trackTTSUsage(
+  totalSeconds: number,
+  options: StandaloneTTSOptions
+): Promise<void> {
+  const tracker = getUsageTracker();
+  
+  if (tracker) {
+    await tracker.recordUsageSeconds(totalSeconds, 'ai-summary', {
+      onSuccess: () => {
+        console.log('[Standalone TTS] Usage tracked successfully');
+      },
+      onError: (err) => {
+        console.error('[Standalone TTS] Usage tracking failed:', err);
+      },
+    });
+  } else {
+    // Initialize tracker if needed
+    if (options.userId) {
+      await initializeUsageTracking(options.userId);
+      const newTracker = getUsageTracker();
+      if (newTracker && totalSeconds > 0) {
+        await newTracker.recordUsageSeconds(totalSeconds, 'ai-summary');
+      }
+    } else {
+      const sessionId = options.sessionId || getAnonymousSessionId();
+      await initializeUsageTracking();
+      const newTracker = getUsageTracker();
+      if (newTracker && totalSeconds > 0) {
+        await newTracker.recordUsageSeconds(totalSeconds, 'ai-summary');
+      }
+    }
+  }
+}
+
+// ============================================================================
+// Main Function
+// ============================================================================
 
 /**
  * Play TTS audio independently without affecting main reader TTS controls
  * Uses the exact same TTS API method as the main reader
  * Chunks long text into sentences (same as main reader) to avoid URL length limits
+ * Returns a controller object for pause/resume/stop functionality
  * @param text - The text to convert to speech
  * @param options - Configuration options including user tracking and callbacks
+ * @returns Controller object with pause, resume, stop, and state methods
  */
 export async function playStandaloneTTS(
   text: string,
   options: StandaloneTTSOptions = {}
-): Promise<void> {
+): Promise<StandaloneTTSController> {
   console.log('[Standalone TTS] playStandaloneTTS called', {
     textLength: text?.length,
     hasText: !!text,
@@ -149,6 +435,7 @@ export async function playStandaloneTTS(
     speed: options.speed,
   });
 
+  // Validate input
   if (!text || text.trim().length === 0) {
     const error = new Error('Text is required for TTS');
     console.error('[Standalone TTS] Text validation failed:', { text, textLength: text?.length });
@@ -156,7 +443,7 @@ export async function playStandaloneTTS(
     throw error;
   }
 
-  // Split text into chunks (same as main reader)
+  // Split text into chunks
   const chunks = splitTextIntoChunks(text);
   console.log('[Standalone TTS] Split text into chunks', {
     totalChunks: chunks.length,
@@ -171,225 +458,72 @@ export async function playStandaloneTTS(
     throw error;
   }
 
-  // Use the same TTS API as the main reader
-  const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
-  const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
+  // Build configuration
+  const config = buildTTSConfig(options);
   
-  const voice = options.voice || 'en-US-BrianMultilingualNeural';
-  const speed = options.speed || 1;
-  
-  // Track total usage across all chunks
+  // Initialize playback strategy
+  const instanceId = `StandaloneTTS_${Date.now()}`;
+  const playbackStrategy = createAdaptivePlaybackStrategy({
+    playbackRate: config.speed,
+    instanceId,
+    forceStrategy: 'auto',
+  });
+
+  const isSeamless = playbackStrategy.getStrategyType() === 'seamless';
+  console.log('[Standalone TTS] Strategy:', isSeamless ? 'seamless (Web Audio)' : 'html5 (fallback)');
+
+  // Setup event handlers
+  setupPlaybackEventHandlers(playbackStrategy, options, chunks.length);
+
+  // Track usage when playback ends
   let totalSeconds = 0;
-  const audioElements: HTMLAudioElement[] = [];
-  const audioUrls: string[] = [];
-  
-  // Buffer to store prefetched chunks
-  const chunkBuffer: Map<number, { audio: HTMLAudioElement; url: string; seconds: number }> = new Map();
-  
-  // Helper to prefetch a chunk
-  const prefetchChunk = async (chunkIndex: number): Promise<void> => {
-    if (chunkIndex >= chunks.length || chunkBuffer.has(chunkIndex)) {
-      return; // Already prefetched or out of bounds
-    }
-
-    const textChunk = chunks[chunkIndex];
-    
-    // Build query parameters (same format as main reader)
-    const params = new URLSearchParams({
-      text: textChunk,
-      voice: voice,
-      format: 'audio-24khz-48kbitrate-mono-mp3'
-    });
-    
-    // Add speed parameter if not 1
-    if (speed !== 1) {
-      const speedPercent = Math.round((speed - 1) * 100);
-      const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
-      params.set('rate', speedParam);
-    }
-    
-    // Add timeout protection (same as main reader: 30 seconds)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-    
-    try {
-      const response = await fetch(`${apiUrl}?${params.toString()}`, {
-        signal: controller.signal,
-        credentials: 'omit',
-        headers: { 'Accept': '*/*' },
+  const originalOnEnd = options.onPlaybackEnd;
+  options.onPlaybackEnd = () => {
+    // Track usage asynchronously (don't block callback)
+    if (totalSeconds > 0) {
+      trackTTSUsage(totalSeconds, options).catch(err => {
+        console.error('[Standalone TTS] Usage tracking error:', err);
       });
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch chunk ${chunkIndex + 1}: ${response.statusText}`);
-      }
-      
-      const audioBlob = await response.blob();
-      if (audioBlob.size === 0) {
-        throw new Error(`Empty blob for chunk ${chunkIndex + 1}`);
-      }
-
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      
-      // Track duration for this chunk
-      let chunkSeconds = 0;
-      try {
-        const headerSeconds = Number(response.headers.get('X-Audio-Duration') || 0);
-        if (headerSeconds > 0) {
-          chunkSeconds = headerSeconds;
-        } else if (audio.duration && !isNaN(audio.duration)) {
-          chunkSeconds = Math.round(audio.duration);
-        }
-      } catch (err) {
-        // Fallback: estimate based on text length (rough estimate: 150 words per minute)
-        const words = textChunk.split(/\s+/).length;
-        chunkSeconds = Math.round((words / 150) * 60);
-      }
-      
-      chunkBuffer.set(chunkIndex, { audio, url: audioUrl, seconds: chunkSeconds });
-      audioUrls.push(audioUrl);
-      audioElements.push(audio);
-      
-      console.log(`[Standalone TTS] Prefetched chunk ${chunkIndex + 1}/${chunks.length}`);
-    } catch (error) {
-      console.error(`[Standalone TTS] Failed to prefetch chunk ${chunkIndex + 1}:`, error);
-      // Don't throw - we'll try to fetch it when needed
     }
+    originalOnEnd?.();
   };
-  
+
   try {
-    // Prefetch first chunk immediately
-    await prefetchChunk(0);
+    // Fetch all chunks
+    const chunkData = await fetchAllChunks(chunks, config);
     
-    // Play chunks sequentially
-    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
-      // Prefetch next chunk while current one is playing (if not already prefetched)
-      if (chunkIndex + 1 < chunks.length) {
-        prefetchChunk(chunkIndex + 1).catch(err => {
-          console.warn(`[Standalone TTS] Background prefetch failed for chunk ${chunkIndex + 2}:`, err);
-        });
-      }
-      
-      // Get chunk from buffer or fetch it now
-      let chunkData = chunkBuffer.get(chunkIndex);
-      
-      if (!chunkData) {
-        // Not prefetched yet, fetch it now
-        console.log(`[Standalone TTS] Chunk ${chunkIndex + 1} not prefetched, fetching now...`);
-        await prefetchChunk(chunkIndex);
-        chunkData = chunkBuffer.get(chunkIndex);
-        
-        if (!chunkData) {
-          throw new Error(`Failed to fetch chunk ${chunkIndex + 1}`);
-        }
-      }
-      
-      const { audio, seconds: chunkSeconds } = chunkData;
-      totalSeconds += chunkSeconds;
-      
-      console.log(`[Standalone TTS] Playing chunk ${chunkIndex + 1}/${chunks.length}`);
+    // Calculate total duration
+    totalSeconds = chunkData.reduce((sum, chunk) => sum + chunk.duration, 0);
+    console.log('[Standalone TTS] Total duration:', totalSeconds, 'seconds');
 
-      // Play chunk and wait for it to finish
-      await new Promise<void>((resolve, reject) => {
-        // First chunk triggers onPlaybackStart
-        if (chunkIndex === 0) {
-          audio.addEventListener('play', () => {
-            console.log('[Standalone TTS] Playback started');
-            options.onPlaybackStart?.();
-          }, { once: true });
-        }
+    // Start playback (non-blocking)
+    const playbackPromise = isSeamless
+      ? playChunksWithSeamless(playbackStrategy, chunkData, options)
+      : playChunksWithHTML5(chunkData, options);
 
-        // Last chunk triggers onPlaybackEnd
-        if (chunkIndex === chunks.length - 1) {
-          audio.addEventListener('ended', () => {
-            console.log('[Standalone TTS] Playback ended');
-            options.onPlaybackEnd?.();
-            resolve();
-          }, { once: true });
-        } else {
-          // Middle chunks just resolve when ended
-          audio.addEventListener('ended', () => {
-            resolve();
-          }, { once: true });
-        }
-
-        audio.addEventListener('error', (e) => {
-          const error = new Error(`Failed to play audio chunk ${chunkIndex + 1}`);
-          console.error('[Standalone TTS] Audio playback error', {
-            chunkIndex: chunkIndex + 1,
-            error: e,
-            audioError: (audio as any)?.error,
-          });
-          reject(error);
-        }, { once: true });
-
-        // Start playback immediately (chunk is already loaded)
-        audio.play().catch((playError) => {
-          reject(new Error(`Failed to play audio chunk ${chunkIndex + 1}: ${playError.message}`));
-        });
-      });
-      
-      // Remove from buffer after playing to free memory
-      chunkBuffer.delete(chunkIndex);
-    }
-
-    // Track total usage (same as main reader)
-    console.log('[Standalone TTS] Tracking total usage', {
-      totalSeconds,
-      totalChunks: chunks.length,
-    });
-
-    const tracker = getUsageTracker();
-    if (tracker) {
-      await tracker.recordUsageSeconds(totalSeconds, 'ai-summary', {
-        onSuccess: () => {
-          console.log('[Standalone TTS] Usage tracked successfully');
-        },
-        onError: (err) => {
-          console.error('[Standalone TTS] Usage tracking failed:', err);
-        },
-      });
-    } else {
-      // Initialize tracker if needed
-      if (options.userId) {
-        await initializeUsageTracking(options.userId);
-        const newTracker = getUsageTracker();
-        if (newTracker && totalSeconds > 0) {
-          await newTracker.recordUsageSeconds(totalSeconds, 'ai-summary');
-        }
-      } else {
-        const sessionId = options.sessionId || getAnonymousSessionId();
-        await initializeUsageTracking();
-        const newTracker = getUsageTracker();
-        if (newTracker && totalSeconds > 0) {
-          await newTracker.recordUsageSeconds(totalSeconds, 'ai-summary');
-        }
-      }
-    }
-
-    console.log('[Standalone TTS] All chunks played successfully');
+    // Return controller immediately
+    return {
+      pause: () => {
+        console.log('[Standalone TTS] Pause requested');
+        playbackStrategy.pause();
+      },
+      resume: async () => {
+        console.log('[Standalone TTS] Resume requested');
+        await playbackStrategy.resume();
+      },
+      stop: () => {
+        console.log('[Standalone TTS] Stop requested');
+        playbackStrategy.stop();
+        playbackStrategy.cleanup();
+      },
+      isPlaying: () => playbackStrategy.isPlaying(),
+      isPaused: () => playbackStrategy.isPaused(),
+    };
   } catch (error) {
-    console.error('[Standalone TTS] Error in playStandaloneTTS', {
-      error,
-      message: error instanceof Error ? error.message : String(error),
-    });
-    
-    // Stop any playing audio
-    audioElements.forEach(audio => {
-      audio.pause();
-      audio.src = '';
-    });
-    
-    // Cleanup
-    audioUrls.forEach(url => URL.revokeObjectURL(url));
-    
+    playbackStrategy.cleanup();
     const err = error instanceof Error ? error : new Error(String(error));
     options.onError?.(err);
     throw err;
-  } finally {
-    // Cleanup all audio URLs
-    audioUrls.forEach(url => URL.revokeObjectURL(url));
   }
 }
 

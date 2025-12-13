@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Loader2, AlertCircle, RefreshCw, Headphones } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, Volume2, Pause, Play } from 'lucide-react';
 import { loadChapterSummary, saveChapterSummary } from '../../utils/chapterSummaryStorage';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useAnonymousUsageLimit } from '../../hooks/useAnonymousUsageLimit';
 import { trackEvent } from '../../lib/analytics';
-import { playStandaloneTTS } from '../../utils/standaloneTTS';
+import { playStandaloneTTS, StandaloneTTSController } from '../../utils/standaloneTTS';
 import { useAuth } from '../../context/AuthContext';
 import { getAnonymousSessionId } from '../../utils/anonymousSession';
+import './Controls.css';
 
 interface AIChatPanelProps {
   chapterText?: string;
@@ -34,6 +35,9 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
   const isRequestInProgressRef = useRef(false);
   const [isTTSLoading, setIsTTSLoading] = useState(false);
   const [ttsError, setTtsError] = useState<string | null>(null);
+  const [isTTSPlaying, setIsTTSPlaying] = useState(false);
+  const [isTTSPaused, setIsTTSPaused] = useState(false);
+  const ttsControllerRef = useRef<StandaloneTTSController | null>(null);
   
   // Subscription and usage limit hooks
   const { usageLimit, isLimitExceeded, minutesRemaining } = useSubscription();
@@ -171,35 +175,50 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
       summaryLength: summary?.length,
       isReadAloudDisabled,
       isTTSLoading,
+      isTTSPlaying,
+      isTTSPaused,
       userId: user?.id,
       chapterTitle,
       bookId,
     });
 
+    // If paused, resume
+    if (isTTSPaused && ttsControllerRef.current) {
+      try {
+        await ttsControllerRef.current.resume();
+        setIsTTSPaused(false);
+        setIsTTSPlaying(true);
+      } catch (error) {
+        console.error('[AIChatPanel] Failed to resume:', error);
+        setTtsError(error instanceof Error ? error.message : 'Failed to resume playback');
+      }
+      return;
+    }
+
+    // If playing, pause
+    if (isTTSPlaying && ttsControllerRef.current) {
+      ttsControllerRef.current.pause();
+      setIsTTSPaused(true);
+      setIsTTSPlaying(false);
+      return;
+    }
+
+    // Start new playback
     if (!summary) {
       console.warn('[AIChatPanel] No summary available, cannot play');
       return;
     }
 
-    // Prevent multiple clicks
-    if (isTTSLoading) {
-      console.log('[AIChatPanel] TTS already loading, ignoring click');
-      return;
-    }
-
-    // Check limits before proceeding
     if (isReadAloudDisabled) {
-      console.warn('[AIChatPanel] Read Aloud is disabled due to limits', {
-        isLimitExceeded,
-        minutesRemaining,
-        anonymousLimitReached: anonymousLimit?.isLimitReached,
-      });
+      console.warn('[AIChatPanel] Read Aloud is disabled due to limits');
       return;
     }
 
     console.log('[AIChatPanel] Starting TTS playback for summary');
     setIsTTSLoading(true);
     setTtsError(null);
+    setIsTTSPlaying(false);
+    setIsTTSPaused(false);
 
     // Track the event
     trackEvent('ai_summary_read_aloud', {
@@ -209,47 +228,74 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
     });
 
     try {
-      // Use standalone TTS instead of onReadAloud to avoid interfering with main controls
       const sessionId = user?.id ? undefined : getAnonymousSessionId();
-      console.log('[AIChatPanel] Calling playStandaloneTTS', {
-        summaryLength: summary.length,
-        userId: user?.id,
-        sessionId,
-      });
       
-      await playStandaloneTTS(summary, {
+      const controller = await playStandaloneTTS(summary, {
         userId: user?.id,
         sessionId,
         onError: (error) => {
           console.error('[AIChatPanel] Standalone TTS error:', error);
-          console.error('[AIChatPanel] Error details:', {
-            message: error.message,
-            stack: error.stack,
-          });
           setTtsError(error.message);
           setIsTTSLoading(false);
+          setIsTTSPlaying(false);
+          setIsTTSPaused(false);
+          ttsControllerRef.current = null;
         },
         onPlaybackStart: () => {
           console.log('[AIChatPanel] Summary playback started');
-          setIsTTSLoading(false); // Stop loading when playback actually starts
+          setIsTTSLoading(false);
+          setIsTTSPlaying(true);
+          setIsTTSPaused(false);
         },
         onPlaybackEnd: () => {
           console.log('[AIChatPanel] Summary playback ended');
+          setIsTTSPlaying(false);
+          setIsTTSPaused(false);
+          ttsControllerRef.current = null;
+        },
+        onPlaybackPause: () => {
+          setIsTTSPaused(true);
+          setIsTTSPlaying(false);
+        },
+        onPlaybackResume: () => {
+          setIsTTSPaused(false);
+          setIsTTSPlaying(true);
         },
       });
-      
-      console.log('[AIChatPanel] playStandaloneTTS call completed');
+
+      ttsControllerRef.current = controller;
     } catch (error) {
       console.error('[AIChatPanel] Failed to play summary:', error);
-      console.error('[AIChatPanel] Error details:', {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      });
       const errorMessage = error instanceof Error ? error.message : 'Failed to play summary';
       setTtsError(errorMessage);
       setIsTTSLoading(false);
+      setIsTTSPlaying(false);
+      setIsTTSPaused(false);
+      ttsControllerRef.current = null;
     }
-  }, [summary, chapterTitle, bookId, isReadAloudDisabled, user?.id, isLimitExceeded, minutesRemaining, anonymousLimit, isTTSLoading]);
+  }, [
+    summary, 
+    chapterTitle, 
+    bookId, 
+    isReadAloudDisabled, 
+    user?.id, 
+    isTTSLoading, 
+    isTTSPlaying, 
+    isTTSPaused,
+    isLimitExceeded,
+    minutesRemaining,
+    anonymousLimit
+  ]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (ttsControllerRef.current) {
+        ttsControllerRef.current.stop();
+        ttsControllerRef.current = null;
+      }
+    };
+  }, []);
 
   // Loading State
   if (isLoading) {
@@ -302,32 +348,50 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
               <button
                 onClick={handleReadAloudClick}
                 disabled={isReadAloudDisabled || isTTSLoading}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
-                  isReadAloudDisabled || isTTSLoading
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-amber-600 text-white hover:bg-amber-700'
+                className={`control-button flex items-center gap-2 ${
+                  isTTSPlaying ? 'active' : ''
                 }`}
-                aria-label="Read summary aloud"
+                aria-label={
+                  isTTSPaused 
+                    ? 'Resume playback' 
+                    : isTTSPlaying 
+                    ? 'Pause playback' 
+                    : 'Listen to summary'
+                }
                 title={
                   isTTSLoading
                     ? 'Loading audio...'
+                    : isTTSPaused
+                    ? 'Resume playback'
+                    : isTTSPlaying
+                    ? 'Pause playback'
                     : isReadAloudDisabled
                     ? (anonymousLimit?.isLimitReached
                         ? 'Free limit reached. Please sign up to continue.'
                         : 'TTS usage limit reached. Please upgrade your subscription to continue.')
-                    : `Read summary aloud (${displayMinutes} remaining)`
+                    : `Listen to summary (${displayMinutes} remaining)`
                 }
               >
                 {isTTSLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Loading...</span>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="button-text text-sm font-medium">Loading...</span>
+                  </>
+                ) : isTTSPaused ? (
+                  <>
+                    <Play className="w-5 h-5" />
+                    <span className="button-text text-sm font-medium">Resume</span>
+                  </>
+                ) : isTTSPlaying ? (
+                  <>
+                    <Pause className="w-5 h-5" />
+                    <span className="button-text text-sm font-medium">Pause</span>
                   </>
                 ) : (
                   <>
-                    <Headphones className="w-4 h-4" />
-                    <span>Read Aloud</span>
-                    <span className="text-xs opacity-90">({displayMinutes})</span>
+                    <Volume2 className="w-5 h-5" />
+                    <span className="button-text text-sm font-medium">Listen</span>
+                    <span className="button-text text-xs opacity-90">({displayMinutes})</span>
                   </>
                 )}
               </button>
