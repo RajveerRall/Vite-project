@@ -353,20 +353,29 @@ async function playChunksWithSeamlessStreaming(
   await strategy.prepareChunk(0, firstChunk.blob);
   console.log('[Standalone TTS] First chunk prepared, starting playback...');
   
-  // Start playing first chunk while fetching continues in background
-  await playChunkWithSeamless(strategy, 0, firstChunk.blob);
+  // Start playing first chunk (non-blocking - don't wait for it to complete yet)
+  const firstChunkPlayPromise = playChunkWithSeamless(strategy, 0, firstChunk.blob);
   
-  // Wait for background fetch to complete, then play remaining chunks
+  // While first chunk is playing, wait for background fetch and prepare chunks as they arrive
+  // This ensures chunks are ready in the queue before they're needed
   const remainingChunks = await backgroundFetchPromise;
   console.log(`[Standalone TTS] Background fetch complete, ${remainingChunks.length} chunks ready`);
   
-  // Prepare all remaining chunks
+  // Prepare all remaining chunks immediately (while first chunk is still playing)
+  // This ensures they're in the queue when the seamless service needs them
   for (let i = 0; i < remainingChunks.length; i++) {
-    const chunkIndex = i + 1; // Chunk indices start from 1 (0 was already played)
+    const chunkIndex = i + 1; // Chunk indices: 1, 2, 3, ...
     await strategy.prepareChunk(chunkIndex, remainingChunks[i].blob);
   }
   
-  // Play remaining chunks sequentially
+  console.log('[Standalone TTS] All chunks prepared and enqueued');
+  
+  // Wait for first chunk to complete
+  await firstChunkPlayPromise;
+  console.log('[Standalone TTS] First chunk completed');
+  
+  // Now play remaining chunks sequentially
+  // The seamless service doesn't auto-advance, so we need to manually play each chunk
   for (let i = 0; i < remainingChunks.length; i++) {
     const chunkIndex = i + 1; // Chunk indices start from 1
     await playChunkWithSeamless(strategy, chunkIndex, remainingChunks[i].blob);
