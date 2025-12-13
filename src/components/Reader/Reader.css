@@ -851,16 +851,13 @@
   /* Remove overflow-y: auto - parent container handles scrolling */
   overflow: visible; /* Explicitly prevent scrolling on this element */
   overflow-y: visible; /* Ensure vertical overflow is visible */
-  padding: 2rem;
-  background-color: var(--reader-content-bg, #FAF8F0);
+  padding: 20px; /* Warm off-white background */
+  background-color: #fcf8f0; /* Warm off-white background */
+  background-image: url('/assets/images/subtle-paper-texture.png'); /* Paper texture */
+  background-repeat: repeat;
   margin: 1rem;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  
-  /* === APPLY YOUR DESIRED GLOBAL/DESKTOP STYLES HERE === */
-  font-family: "Your Desired Font", sans-serif; /* e.g., Arial, Verdana */
-  line-height: 1.8; /* e.g., your preferred line height */
-  font-size: 16px; /* Default fallback - will be overridden by inline style */
+  box-shadow: 0 0 10px rgba(0,0,0,0.1); /* Subtle shadow for depth */
   
   max-width: 800px;
   width: 100%;
@@ -875,42 +872,37 @@
   overflow-y: visible;
 }
 
-/* .epub-content h1, 
-.epub-content h2, 
-.epub-content h3, 
-.epub-content h4, 
-.epub-content h5, 
-.epub-content h6 {
+.epub-content h1 {
+  color: #333333; /* Dark grey for titles */
+  font-family: 'Georgia', serif; /* Serif font for titles */
   text-align: center;
-  margin: 1.5rem 0 1rem;
-} */
-
-/* .epub-content p {
-  margin-bottom: 1rem;
-  text-align: justify;
-} */
-
-
-.epub-content p {
-  margin-bottom: 1rem;
-  text-align: justify;
-  font-family: "Your Desired Font", sans-serif !important; /* Add !important */
-  line-height: 1.8 !important; /* Add !important & your desired value */
-  /* font-size removed - inherits from parent .epub-content inline style */
+  margin-bottom: 10px;
 }
 
+.epub-content h2 { /* For subtitles or chapter names */
+  color: #605c5c;
+  font-family: 'Arial', sans-serif;
+  text-align: center;
+  font-size: 0.9em;
+  margin-bottom: 30px;
+}
 
-/* You might want to do this for headings too if they are affected */
-.epub-content h1, 
-.epub-content h2, 
 .epub-content h3, 
 .epub-content h4, 
 .epub-content h5, 
 .epub-content h6 {
   text-align: center;
   margin: 1.5rem 0 1rem;
-  font-family: "Your Desired Font", sans-serif !important; /* If you want consistent font */
-  /* Add !important to other properties like line-height if needed */
+  font-family: 'Georgia', serif;
+}
+
+.epub-content p {
+  color: #4a4a4a; /* Softer dark grey for body text */
+  font-family: 'Merriweather', serif; /* Serif font for body text */
+  font-size: 1.1em;
+  line-height: 1.6;
+  margin-bottom: 1em;
+  text-align: justify; /* Justify text for a book-like feel */
 }
 
 
@@ -927,6 +919,16 @@
   /* Ensure images maintain their space even when loading */
   min-width: 0;
   min-height: 0;
+}
+
+/* Adjust margins for mobile responsiveness */
+@media (max-width: 768px) {
+  .epub-content {
+    padding: 15px; /* Smaller padding on mobile */
+  }
+  .epub-content p {
+    font-size: 1em; /* Slightly smaller font on mobile */
+  }
 }
 
 /* Search highlighting */

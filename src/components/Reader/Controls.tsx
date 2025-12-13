@@ -372,17 +372,7 @@ const Controls: React.FC<ControlsProps> = ({
 
       {/* Original Action Buttons */}
       <div className="flex items-center gap-x-2 flex-shrink-0">
-        {/* Chapters Button - Mobile Only */}
-        {isEnhanced && isMobile && (
-          <MobileTOCDrawer
-            toc={toc || []}
-            onItemClick={onNavigateToTocItem || (() => {})}
-            theme={theme || 'light'}
-            openByDefault={isFirstOpen || false}
-          />
-        )}
-
-        {/* AI Chat Button - Mobile Only */}
+        {/* AI Summary Button - Mobile Only */}
         {isMobile && (
           <MobileAIChatDrawer 
             theme={theme || 'light'}
@@ -392,6 +382,16 @@ const Controls: React.FC<ControlsProps> = ({
             onReadAloud={onReadAloudSummary}
             isOpen={isAIChatDrawerOpen}
             onOpenChange={setIsAIChatDrawerOpen}
+          />
+        )}
+
+        {/* Chapters Button - Mobile Only */}
+        {isEnhanced && isMobile && (
+          <MobileTOCDrawer
+            toc={toc || []}
+            onItemClick={onNavigateToTocItem || (() => {})}
+            theme={theme || 'light'}
+            openByDefault={isFirstOpen || false}
           />
         )}
 

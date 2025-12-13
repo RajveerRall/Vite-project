@@ -187,7 +187,7 @@ const Library: React.FC = () => {
             <section className="pt-6">
               <div className="max-w-4xl mx-auto text-center">
                 <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{ fontFamily: "'Source Sans 3', sans-serif" }}>
-                  AI Narrator to read aloud your ebooks
+                  Listen to your books, Powered by AI
                 </h1>
                 <p className="mt-2 sm:mt-3 text-base sm:text-lg text-gray-700 max-w-3xl mx-auto">
             Upload an EPUB to convert it to audio and follow along with synchronized text highlighting.

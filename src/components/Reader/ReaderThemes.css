@@ -14,7 +14,7 @@
   --reader-border: #e5e7eb;
   --reader-header-bg: #ffffff;
   --reader-sidebar-bg: #f9fafb;
-  --reader-content-bg: #FAF8F0;
+  --reader-content-bg: #fcf8f0; /* Updated to match new background */
   --reader-hover: #f3f4f6;
   --reader-shadow: rgba(0, 0, 0, 0.1);
   --reader-highlight: #fffb91;

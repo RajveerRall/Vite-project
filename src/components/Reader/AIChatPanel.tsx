@@ -32,6 +32,8 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
   const [lastChapterText, setLastChapterText] = useState<string | undefined>(undefined);
   const hasAutoSummarizedRef = useRef(false);
   const isRequestInProgressRef = useRef(false);
+  const [isTTSLoading, setIsTTSLoading] = useState(false);
+  const [ttsError, setTtsError] = useState<string | null>(null);
   
   // Subscription and usage limit hooks
   const { usageLimit, isLimitExceeded, minutesRemaining } = useSubscription();
@@ -164,14 +166,40 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
   }, [isLoading, handleSummarize]);
 
   const handleReadAloudClick = useCallback(async () => {
+    console.log('[AIChatPanel] Read Aloud button clicked', {
+      hasSummary: !!summary,
+      summaryLength: summary?.length,
+      isReadAloudDisabled,
+      isTTSLoading,
+      userId: user?.id,
+      chapterTitle,
+      bookId,
+    });
+
     if (!summary) {
+      console.warn('[AIChatPanel] No summary available, cannot play');
+      return;
+    }
+
+    // Prevent multiple clicks
+    if (isTTSLoading) {
+      console.log('[AIChatPanel] TTS already loading, ignoring click');
       return;
     }
 
     // Check limits before proceeding
     if (isReadAloudDisabled) {
+      console.warn('[AIChatPanel] Read Aloud is disabled due to limits', {
+        isLimitExceeded,
+        minutesRemaining,
+        anonymousLimitReached: anonymousLimit?.isLimitReached,
+      });
       return;
     }
+
+    console.log('[AIChatPanel] Starting TTS playback for summary');
+    setIsTTSLoading(true);
+    setTtsError(null);
 
     // Track the event
     trackEvent('ai_summary_read_aloud', {
@@ -183,25 +211,45 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
     try {
       // Use standalone TTS instead of onReadAloud to avoid interfering with main controls
       const sessionId = user?.id ? undefined : getAnonymousSessionId();
+      console.log('[AIChatPanel] Calling playStandaloneTTS', {
+        summaryLength: summary.length,
+        userId: user?.id,
+        sessionId,
+      });
+      
       await playStandaloneTTS(summary, {
         userId: user?.id,
         sessionId,
         onError: (error) => {
           console.error('[AIChatPanel] Standalone TTS error:', error);
-          // Optionally show a toast or error message to user
+          console.error('[AIChatPanel] Error details:', {
+            message: error.message,
+            stack: error.stack,
+          });
+          setTtsError(error.message);
+          setIsTTSLoading(false);
         },
         onPlaybackStart: () => {
           console.log('[AIChatPanel] Summary playback started');
+          setIsTTSLoading(false); // Stop loading when playback actually starts
         },
         onPlaybackEnd: () => {
           console.log('[AIChatPanel] Summary playback ended');
         },
       });
+      
+      console.log('[AIChatPanel] playStandaloneTTS call completed');
     } catch (error) {
       console.error('[AIChatPanel] Failed to play summary:', error);
-      // Error is already handled by onError callback
+      console.error('[AIChatPanel] Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to play summary';
+      setTtsError(errorMessage);
+      setIsTTSLoading(false);
     }
-  }, [summary, chapterTitle, bookId, isReadAloudDisabled, user?.id]);
+  }, [summary, chapterTitle, bookId, isReadAloudDisabled, user?.id, isLimitExceeded, minutesRemaining, anonymousLimit, isTTSLoading]);
 
   // Loading State
   if (isLoading) {
@@ -253,27 +301,49 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
             {summary && summary.trim().length > 0 && (
               <button
                 onClick={handleReadAloudClick}
-                disabled={isReadAloudDisabled}
+                disabled={isReadAloudDisabled || isTTSLoading}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
-                  isReadAloudDisabled
+                  isReadAloudDisabled || isTTSLoading
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-amber-600 text-white hover:bg-amber-700'
                 }`}
                 aria-label="Read summary aloud"
                 title={
-                  isReadAloudDisabled
+                  isTTSLoading
+                    ? 'Loading audio...'
+                    : isReadAloudDisabled
                     ? (anonymousLimit?.isLimitReached
                         ? 'Free limit reached. Please sign up to continue.'
                         : 'TTS usage limit reached. Please upgrade your subscription to continue.')
                     : `Read summary aloud (${displayMinutes} remaining)`
                 }
               >
-                <Headphones className="w-4 h-4" />
-                <span>Read Aloud</span>
-                <span className="text-xs opacity-90">({displayMinutes})</span>
+                {isTTSLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Headphones className="w-4 h-4" />
+                    <span>Read Aloud</span>
+                    <span className="text-xs opacity-90">({displayMinutes})</span>
+                  </>
+                )}
               </button>
             )}
           </div>
+          
+          {/* Error message if TTS failed */}
+          {ttsError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {ttsError}
+              </p>
+            </div>
+          )}
+          
           <div className="ai-chat-summary">
             {summary.split('\n\n').map((paragraph, idx) => {
               const trimmed = paragraph.trim();
@@ -294,20 +364,22 @@ const AIChatPanel: React.FC<AIChatPanelProps> = ({
   return (
     <div className="ai-chat-panel">
       <div className="ai-chat-placeholder">
-        <h3 className="ai-chat-title">AI Chat</h3>
+        <h3 className="ai-chat-title">AI Summary</h3>
         <p className="ai-chat-message">
           {chapterText 
             ? 'Click "Summarize Chapter" to get a summary of the current chapter.'
             : 'No chapter content available. Open a book to get started.'}
         </p>
         {chapterText && (
-          <button
-            onClick={handleRequestSummarize}
-            className="mt-4 flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-            <span>Summarize Chapter</span>
-          </button>
+          <div className="flex justify-center mt-4">
+            <button
+              onClick={handleRequestSummarize}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Summarize Chapter</span>
+            </button>
+          </div>
         )}
       </div>
     </div>
