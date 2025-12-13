@@ -304,6 +304,7 @@ function setupPlaybackEventHandlers(
 
 /**
  * Play chunks using seamless strategy (Web Audio API)
+ * Note: The seamless strategy doesn't auto-advance, so we play chunks sequentially
  */
 async function playChunksWithSeamless(
   strategy: IPlaybackStrategy,
@@ -317,12 +318,61 @@ async function playChunksWithSeamless(
     await strategy.prepareChunk(i, chunkData[i].blob);
   }
   
-  // Start playback with first chunk - strategy handles auto-advance
-  // The strategy will automatically play subsequent chunks in sequence
-  await strategy.play(chunkData[0].blob, 0);
-  
-  // Note: The strategy handles auto-advance between chunks
-  // The onPlaybackEnd callback will be triggered when all chunks complete
+  // Play chunks sequentially - the seamless strategy doesn't auto-advance
+  // We need to manually play each chunk after the previous one completes
+  for (let i = 0; i < chunkData.length; i++) {
+    // Wait for this chunk to complete before playing the next
+    await new Promise<void>((resolve, reject) => {
+      // Get the service to access event handlers
+      const service = (strategy as any).service;
+      if (!service || !service.eventHandlers) {
+        reject(new Error('Seamless strategy service not available'));
+        return;
+      }
+      
+      // Store original handlers
+      const originalOnComplete = service.eventHandlers.onChunkComplete;
+      const originalOnError = service.eventHandlers.onError;
+      
+      // Set up temporary handler for this chunk
+      const tempOnComplete = async (chunkIndex: number) => {
+        // Call original handler first
+        if (originalOnComplete) {
+          await originalOnComplete(chunkIndex);
+        }
+        
+        // If this is the chunk we're waiting for, resolve
+        if (chunkIndex === i) {
+          // Restore original handlers
+          service.eventHandlers.onChunkComplete = originalOnComplete;
+          service.eventHandlers.onError = originalOnError;
+          resolve();
+        }
+      };
+      
+      const tempOnError = (error: Error) => {
+        // Restore original handlers
+        service.eventHandlers.onChunkComplete = originalOnComplete;
+        service.eventHandlers.onError = originalOnError;
+        if (originalOnError) {
+          originalOnError(error);
+        }
+        reject(error);
+      };
+      
+      // Temporarily override handlers
+      service.eventHandlers.onChunkComplete = tempOnComplete;
+      service.eventHandlers.onError = tempOnError;
+      
+      // Start playing this chunk
+      strategy.play(chunkData[i].blob, i).catch((err) => {
+        // Restore handlers on error
+        service.eventHandlers.onChunkComplete = originalOnComplete;
+        service.eventHandlers.onError = originalOnError;
+        reject(err);
+      });
+    });
+  }
 }
 
 /**
@@ -344,26 +394,41 @@ async function playChunksWithHTML5(
       await new Promise<void>((resolve, reject) => {
         const audio = new Audio(url);
         
+        // Set up event listeners BEFORE calling play()
         if (i === 0) {
           audio.addEventListener('play', () => {
+            console.log('[Standalone TTS] HTML5 playback started');
             options.onPlaybackStart?.();
           }, { once: true });
         }
         
         if (i === chunkData.length - 1) {
           audio.addEventListener('ended', () => {
+            console.log('[Standalone TTS] HTML5 playback ended');
             options.onPlaybackEnd?.();
             resolve();
           }, { once: true });
         } else {
-          audio.addEventListener('ended', () => resolve(), { once: true });
+          audio.addEventListener('ended', () => {
+            console.log(`[Standalone TTS] HTML5 chunk ${i + 1} completed`);
+            resolve();
+          }, { once: true });
         }
         
         audio.addEventListener('error', (e) => {
-          reject(new Error(`Failed to play audio chunk ${i + 1}`));
+          const errorMsg = (e.target as HTMLAudioElement)?.error?.message || 'Unknown error';
+          console.error(`[Standalone TTS] HTML5 audio error for chunk ${i + 1}:`, errorMsg);
+          reject(new Error(`Failed to play audio chunk ${i + 1}: ${errorMsg}`));
         }, { once: true });
         
-        audio.play().catch(reject);
+        // Start playback
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((playError) => {
+            console.error(`[Standalone TTS] HTML5 play() failed for chunk ${i + 1}:`, playError);
+            reject(new Error(`Failed to start playback for chunk ${i + 1}: ${playError.message}`));
+          });
+        }
       });
     }
   } finally {
