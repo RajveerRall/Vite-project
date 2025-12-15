@@ -422,6 +422,7 @@ const Reader: React.FC = () => {
 
   const handleVoiceChange = (voice: string) => {
     console.log(`[Reader] Voice change requested: ${voice}`);
+    // setSelectedVoice will trigger the toast notification via useReaderSettings hook
     setSelectedVoice(voice);
   };
 

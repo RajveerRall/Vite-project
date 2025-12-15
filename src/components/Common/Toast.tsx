@@ -13,14 +13,14 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
     switch (toast.type) {
       case 'error':
         return {
-          container: 'bg-red-50 border-2 border-red-200',
+          container: 'bg-red-50 border-2 border-red-400 shadow-lg',
           text: 'text-red-900',
           icon: 'text-red-600',
           close: 'text-red-400 hover:text-red-600'
         };
       case 'success':
         return {
-          container: 'bg-green-50 border-2 border-green-200',
+          container: 'bg-green-50 border-2 border-green-400 shadow-lg',
           text: 'text-green-900',
           icon: 'text-green-600',
           close: 'text-green-400 hover:text-green-600'
@@ -28,10 +28,10 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
       case 'info':
       default:
         return {
-          container: 'bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200',
-          text: 'text-gray-900',
-          icon: 'text-blue-600',
-          close: 'text-gray-400 hover:text-gray-600'
+          container: 'bg-amber-50 border-2 border-amber-400 shadow-lg',
+          text: 'text-amber-900',
+          icon: 'text-amber-600',
+          close: 'text-amber-500 hover:text-amber-700'
         };
     }
   };
@@ -53,25 +53,27 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
 
   return (
     <div
-      className={`max-w-sm w-full rounded-lg shadow-xl ${styles.container} p-4 transform transition-all duration-300 ease-in-out`}
+      className={`max-w-sm w-full rounded-lg ${styles.container} p-4 transform transition-all duration-300 ease-in-out backdrop-blur-sm`}
       style={{
         animation: 'slideInRight 0.3s ease-out',
+        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
       }}
     >
-      <div className="flex items-start">
-        <div className="flex-shrink-0">
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0 mt-0.5">
           {getIcon()}
         </div>
-        <div className="ml-3 flex-1">
-          <p className={`text-sm font-medium ${styles.text}`}>{toast.message}</p>
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-medium leading-relaxed ${styles.text}`}>{toast.message}</p>
         </div>
-        <div className="ml-4 flex-shrink-0">
+        <div className="flex-shrink-0">
           <button
             onClick={() => onRemove(toast.id)}
-            className={`inline-flex ${styles.close} focus:outline-none transition ease-in-out duration-150`}
+            className={`inline-flex ${styles.close} focus:outline-none transition ease-in-out duration-150 rounded p-1 hover:bg-opacity-10 hover:bg-current`}
+            aria-label="Close notification"
           >
             <span className="sr-only">Close</span>
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       </div>

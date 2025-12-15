@@ -1647,8 +1647,22 @@ export const useReaderTTS = ({
     });
 
     // Type guard: ensure selectedText is a non-empty string
+    // If textOverride is provided, allow text matching even if DOM selection is cleared
+    // (FloatingReadButton passes text but may clear selection)
+    // If no override, require active DOM selection in epub-content (Controls button)
+    const hasTextOverride = textOverride !== undefined;
+    const hasValidDOMSelection = selection?.anchorNode?.parentElement?.closest('.epub-content');
+
     if (typeof selectedText === 'string' && selectedText.length > 0 && 
-        selection?.anchorNode?.parentElement?.closest('.epub-content')) {
+        (hasTextOverride || hasValidDOMSelection)) {
+      
+      console.log(`[${readerInstanceId}][handleTTS] Text matching enabled:`, {
+        hasTextOverride,
+        hasValidDOMSelection,
+        selectedTextLength: selectedText.length,
+        selectedTextPreview: selectedText.substring(0, 50),
+        source: hasTextOverride ? 'FloatingReadButton (textOverride)' : 'Controls button (DOM selection)'
+      });
       // Helper function to normalize text for comparison
       const normalizeText = (text: string): string => {
         return text
@@ -1659,6 +1673,14 @@ export const useReaderTTS = ({
 
       // Step 1: Try exact match FIRST (existing behavior)
       let startIndexInPage = currentPageText.indexOf(selectedText);
+      
+      console.log(`[${readerInstanceId}][handleTTS] Text matching attempt:`, {
+        method: 'exact',
+        found: startIndexInPage !== -1,
+        index: startIndexInPage,
+        pageTextLength: currentPageText.length,
+        selectedTextLength: selectedText.length
+      });
 
       // Step 2: ONLY if exact match fails, try normalized fallback
       if (startIndexInPage === -1 && currentPageText && selectedText) {
@@ -1697,7 +1719,7 @@ export const useReaderTTS = ({
 
       // Step 4: Map found index to chunk
       if (startIndexInPage !== -1) {
-        console.log(`[${readerInstanceId}][handleTTS] User selected text. Index: ${startIndexInPage}.`);
+        console.log(`[${readerInstanceId}][handleTTS] Text found in page content at index: ${startIndexInPage}. Mapping to chunk...`);
         let accumulatedLength = 0;
         let foundChunk = false;
         for (let i = 0; i < chunks.length; i++) {
@@ -1709,18 +1731,32 @@ export const useReaderTTS = ({
           accumulatedLength += chunks[i].length + 1;
         }
         if (foundChunk) {
-          console.log(`[${readerInstanceId}][handleTTS] Starting from selected text in chunk #${startChunk}.`);
+          console.log(`[${readerInstanceId}][handleTTS] Successfully mapped text to chunk #${startChunk} (out of ${chunks.length} total chunks)`, {
+            textIndex: startIndexInPage,
+            chunkIndex: startChunk,
+            source: hasTextOverride ? 'FloatingReadButton' : 'Controls button'
+          });
           // Success feedback with type safety
           if (typeof selectedText === 'string') {
             const preview = selectedText.substring(0, 30);
             addToast?.(`Starting from: "${preview}${selectedText.length > 30 ? '...' : ''}"`, 'success');
           }
         } else {
-          console.warn(`[${readerInstanceId}][handleTTS] Could not map selected text to a chunk. Starting from beginning.`);
+          console.warn(`[${readerInstanceId}][handleTTS] Could not map selected text index ${startIndexInPage} to a chunk. Starting from beginning.`, {
+            totalChunks: chunks.length,
+            accumulatedLength,
+            textIndex: startIndexInPage
+          });
           addToast?.('Could not locate text position. Starting from beginning.', 'info');
         }
       } else {
-        console.warn(`[${readerInstanceId}][handleTTS] Could not find selected text in page content. Starting from beginning.`);
+        console.warn(`[${readerInstanceId}][handleTTS] Could not find selected text in page content after all matching attempts. Starting from beginning.`, {
+          source: hasTextOverride ? 'FloatingReadButton' : 'Controls button',
+          selectedTextLength: selectedText.length,
+          pageTextLength: currentPageText.length,
+          selectedTextPreview: selectedText.substring(0, 100),
+          pageTextPreview: currentPageText.substring(0, 100)
+        });
         addToast?.('Selected text not found. Starting from beginning of page.', 'info');
       }
     }

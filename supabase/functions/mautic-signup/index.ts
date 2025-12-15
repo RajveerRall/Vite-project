@@ -7,20 +7,18 @@ import { corsHeaders, handleCors } from '../_shared/cors.ts'
 // supabase secrets set MAUTIC_USER=mautic_db
 // supabase secrets set MAUTIC_PW=mautic_password
 // supabase secrets set MAUTIC_SEGMENT_ID=1
-// supabase secrets set MAUTIC_WELCOME_EMAIL_ID=1
+// Note: MAUTIC_WELCOME_EMAIL_ID is no longer needed - campaigns handle email sending
 
 const MAUTIC_URL = Deno.env.get('MAUTIC_URL')
 const MAUTIC_USER = Deno.env.get('MAUTIC_USER')
 const MAUTIC_PW = Deno.env.get('MAUTIC_PW')
 const MAUTIC_SEGMENT_ID = Deno.env.get('MAUTIC_SEGMENT_ID')
-const MAUTIC_WELCOME_EMAIL_ID = Deno.env.get('MAUTIC_WELCOME_EMAIL_ID') || '1'
 
 if (!MAUTIC_URL || !MAUTIC_USER || !MAUTIC_PW || !MAUTIC_SEGMENT_ID) {
   throw new Error('Missing required Mautic configuration. Please set MAUTIC_URL, MAUTIC_USER, MAUTIC_PW, and MAUTIC_SEGMENT_ID as Supabase secrets.')
 }
 
 const SEGMENT_ID = parseInt(MAUTIC_SEGMENT_ID, 10)
-const EMAIL_ID = parseInt(MAUTIC_WELCOME_EMAIL_ID, 10)
 // ---------------------
 
 serve(async (req) => {
@@ -92,6 +90,7 @@ serve(async (req) => {
     console.log(`[Mautic] Contact created with ID: ${contactId}`)
 
     // 5. Add to the Welcome Segment
+    // This will trigger the campaign to send the welcome email automatically
     const segmentRes = await fetch(`${MAUTIC_URL}/api/segments/${SEGMENT_ID}/contact/${contactId}/add`, {
       method: 'POST',
       headers: headers
@@ -102,43 +101,18 @@ serve(async (req) => {
       console.error(`[Mautic] Segment Error (${segmentRes.status}):`, errorText)
     } else {
       console.log(`[Mautic] Contact ${contactId} added to segment ${SEGMENT_ID}`)
+      console.log(`[Mautic] Campaign will automatically send welcome email to ${record.email}`)
     }
 
-    // 6. Send Welcome Email Directly via API
-    // Mautic API format: POST /api/emails/{id}/send with contactId in body
-    const emailRes = await fetch(`${MAUTIC_URL}/api/emails/${EMAIL_ID}/send`, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify({
-        contactId: contactId
-      })
-    })
-
-    if (!emailRes.ok) {
-      const errorText = await emailRes.text()
-      console.error(`[Mautic] Email Send Error (${emailRes.status}):`, errorText)
-      // Try alternative endpoint format if first one fails
-      const altEmailRes = await fetch(`${MAUTIC_URL}/api/contacts/${contactId}/email/${EMAIL_ID}/send`, {
-        method: 'POST',
-        headers: headers
-      })
-      
-      if (!altEmailRes.ok) {
-        const altErrorText = await altEmailRes.text()
-        console.error(`[Mautic] Alternative Email Send Error (${altEmailRes.status}):`, altErrorText)
-      } else {
-        const altEmailData = await altEmailRes.json()
-        console.log(`[Mautic] Welcome email sent via alternative endpoint to contact ${contactId}:`, altEmailData)
-      }
-    } else {
-      const emailData = await emailRes.json()
-      console.log(`[Mautic] Welcome email sent to contact ${contactId}:`, emailData)
-    }
-
-    console.log(`[Mautic] Success! User ${record.email} added to Mautic ID ${contactId}, Segment ${SEGMENT_ID}, and welcome email sent`)
+    console.log(`[Mautic] Success! User ${record.email} added to Mautic ID ${contactId}, Segment ${SEGMENT_ID}. Campaign will handle email sending.`)
 
     return new Response(
-      JSON.stringify({ success: true, id: contactId, emailSent: emailRes.ok }),
+      JSON.stringify({ 
+        success: true, 
+        contactId: contactId,
+        segmentId: SEGMENT_ID,
+        message: 'Contact added to segment. Campaign will send welcome email automatically.'
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

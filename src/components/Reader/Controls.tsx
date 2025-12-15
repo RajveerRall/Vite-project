@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useFullCastUsage } from '../../hooks/useFullCastUsage';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useToast } from '../../context/ToastContext';
@@ -14,6 +14,7 @@ import InteractiveProgressBar from './InteractiveProgressBar';
 import MobileTOCDrawer from './MobileTOCDrawer';
 import MobileAIChatDrawer from './MobileAIChatDrawer';
 import { TOCItem } from '../../types/books';
+import { useSmoothProgress } from '../../hooks/tts/useSmoothProgress';
 
 // Import the stylesheet. It will now handle all the appearance styling.
 import './Controls.css'; 
@@ -124,10 +125,20 @@ const Controls: React.FC<ControlsProps> = ({
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isAIChatDrawerOpen, setIsAIChatDrawerOpen] = useState(false);
 
-  // Calculate chapter progress percentage
-  const chapterProgress = totalChunks > 0 && currentChunkIndex !== null 
-    ? Math.round(((currentChunkIndex + 1) / totalChunks) * 100)
-    : 0;
+  // Calculate raw chapter progress percentage (memoized)
+  const rawChapterProgress = useMemo(() => {
+    return totalChunks > 0 && currentChunkIndex !== null 
+      ? Math.round(((currentChunkIndex + 1) / totalChunks) * 100)
+      : 0;
+  }, [currentChunkIndex, totalChunks]);
+
+  // Smooth progress animation for progress bar
+  const chapterProgress = useSmoothProgress({
+    currentValue: rawChapterProgress,
+    targetValue: rawChapterProgress,
+    duration: 200,
+    enabled: isReading || isPaused, // Only animate when TTS is active
+  });
 
   const showStopButton = isReading || isPaused || isProcessing;
   
@@ -135,32 +146,73 @@ const Controls: React.FC<ControlsProps> = ({
   const isReadModeActive = isReading || isPaused || isProcessing || canResume;
   // const isAudiobookModeActive = isPlayModeActive;
 
-  // Button title logic
-  let readButtonTitle: string;
-  if (isProcessing && !isReading && !isPaused) {
-    readButtonTitle = 'Preparing audio...';
-  } else if (isPaused) {
-    readButtonTitle = 'Resume paused reading';
-  } else if (isReading) {
-    readButtonTitle = 'Pause reading';
-  } else if (canResume) {
-    readButtonTitle = 'Resume reading from last TTS position';
-  } else {
-    readButtonTitle = 'Read aloud (select text or from start of page)';
-  }
-
   // Check if TTS is disabled due to limit (anonymous or authenticated)
   const isDisabledDueToLimit = anonymousLimit?.isLimitReached || isLimitExceeded || false;
-  if (isDisabledDueToLimit) {
-    if (anonymousLimit?.isLimitReached) {
-      readButtonTitle = 'Free limit reached. Please sign up to continue.';
-    } else if (isLimitExceeded) {
-      readButtonTitle = 'TTS usage limit reached. Please upgrade your subscription to continue.';
+
+  // Unified button state calculation (memoized for performance)
+  const buttonState = useMemo(() => {
+    if (isDisabledDueToLimit) {
+      return {
+        icon: 'disabled',
+        title: anonymousLimit?.isLimitReached 
+          ? 'Free limit reached. Please sign up to continue.'
+          : 'TTS usage limit reached. Please upgrade your subscription to continue.',
+        disabled: true,
+      };
     }
-  }
+
+    if (isProcessing && !isReading && !isPaused) {
+      return {
+        icon: 'loading',
+        title: 'Preparing audio...',
+        disabled: true,
+      };
+    }
+
+    if (isPaused) {
+      return {
+        icon: 'play',
+        title: 'Resume paused reading',
+        disabled: false,
+      };
+    }
+
+    if (isReading) {
+      return {
+        icon: 'pause',
+        title: 'Pause reading',
+        disabled: false,
+      };
+    }
+
+    if (canResume) {
+      return {
+        icon: 'resume',
+        title: 'Resume reading from last TTS position',
+        disabled: false,
+      };
+    }
+
+    return {
+      icon: 'play',
+      title: 'Read aloud (select text or from start of page)',
+      disabled: false,
+    };
+  }, [isDisabledDueToLimit, isProcessing, isReading, isPaused, canResume, anonymousLimit, isLimitExceeded]);
+
+  // Debounced click handler to prevent rapid clicks
+  const lastClickTimeRef = useRef<number>(0);
+  const DEBOUNCE_MS = 300;
 
   // Handle read aloud button click - show toast if disabled due to anonymous limit
   const handleReadAloudClick = () => {
+    // Debounce rapid clicks
+    const now = Date.now();
+    if (now - lastClickTimeRef.current < DEBOUNCE_MS) {
+      return;
+    }
+    lastClickTimeRef.current = now;
+
     // If disabled due to anonymous limit, show toast
     if (isDisabledDueToLimit && anonymousLimit?.isLimitReached) {
       addToast('Sign up to listen for free', 'info');
@@ -283,23 +335,23 @@ const Controls: React.FC<ControlsProps> = ({
           <button
             onClick={handleReadAloudClick}
             className={`p-3 md:p-4 rounded-full transition-all duration-200 ${
-              isDisabledDueToLimit
+              buttonState.disabled
                 ? 'bg-gray-300 cursor-not-allowed text-gray-500'
                 : isReadButtonActive 
                   ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg' 
                   : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
             }`}
-            aria-label={readButtonTitle}
-            title={readButtonTitle}
-            disabled={isProcessing && !isReading && !isPaused}
+            aria-label={buttonState.title}
+            title={buttonState.title}
+            disabled={buttonState.disabled}
           >
-            {isProcessing && !isReading && !isPaused ? (
+            {buttonState.icon === 'loading' ? (
               <Loader2 size={22} className="animate-spin md:text-[26px]" />
-            ) : isPaused ? (
+            ) : buttonState.icon === 'play' ? (
               <PlayCircle size={22} className="md:text-[26px]" />
-            ) : isReading ? (
+            ) : buttonState.icon === 'pause' ? (
               <PauseCircle size={22} className="md:text-[26px]" />
-            ) : canResume ? (
+            ) : buttonState.icon === 'resume' ? (
               <RotateCcw size={22} className="md:text-[26px]" />
             ) : (
               <PlayCircle size={22} className="md:text-[26px]" />
@@ -399,11 +451,11 @@ const Controls: React.FC<ControlsProps> = ({
         <button
           onClick={handleReadAloudClick}
           className={`control-button flex items-center gap-2 px-3 py-2 ${
-            isDisabledDueToLimit ? 'opacity-50 cursor-not-allowed' : ''
+            buttonState.disabled ? 'opacity-50 cursor-not-allowed' : ''
           }`}
-          aria-label={readButtonTitle}
-          title={readButtonTitle}
-          disabled={isProcessing && !isReading && !isPaused}
+          aria-label={buttonState.title}
+          title={buttonState.title}
+          disabled={buttonState.disabled}
         >
           <Headphones size={20} />
           <span className="button-text text-sm font-medium">Read Aloud</span>

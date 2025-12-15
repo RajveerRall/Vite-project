@@ -208,3 +208,75 @@
     font-size: 0.875rem;
   }
 }
+
+/* ============================================
+   Smooth TTS Controls Enhancements
+   ============================================ */
+
+/* Smooth button state transitions */
+.control-button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.control-button:active {
+  transform: scale(0.95);
+  transition: transform 0.1s;
+}
+
+/* Smooth music player controls container */
+.music-player-controls {
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+/* Smooth progress bar fill animation */
+.progress-bar-fill {
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Smooth loading spinner rotation */
+@keyframes smooth-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: smooth-spin 1s linear infinite;
+}
+
+/* Smooth button hover transitions */
+.control-button:hover:not(:disabled) {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Smooth icon transitions in buttons */
+.control-button svg,
+.music-player-controls button svg {
+  transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+}
+
+.control-button:hover:not(:disabled) svg,
+.music-player-controls button:hover:not(:disabled) svg {
+  transform: scale(1.05);
+}
+
+/* Smooth progress bar handle transitions */
+.music-player-controls .progress-bar-fill {
+  will-change: width;
+}
+
+/* Smooth state change animations */
+.music-player-controls button {
+  transition: background-color 0.2s ease-in-out, 
+              color 0.2s ease-in-out,
+              transform 0.1s ease-in-out,
+              box-shadow 0.2s ease-in-out;
+}
+
+.music-player-controls button:active {
+  transform: scale(0.95);
+  transition: transform 0.1s;
+}

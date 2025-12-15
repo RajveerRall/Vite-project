@@ -1058,3 +1058,16 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
     grid-template-columns: repeat(10, 1fr);
   }
 }
+
+/* Hero Title */
+.hero-title {
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 2.75rem; /* Increased from text-3xl (1.875rem) */
+  letter-spacing: 0.025em; /* Slight letter spacing for better readability */
+}
+
+@media (min-width: 640px) {
+  .hero-title {
+    font-size: 2.5rem; /* Increased from text-4xl (2.25rem) */
+  }
+}

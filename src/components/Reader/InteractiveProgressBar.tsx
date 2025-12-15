@@ -1,5 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useSmoothProgress } from '../../hooks/tts/useSmoothProgress';
+import { useThrottle } from '../../hooks/useThrottle';
 
 interface InteractiveProgressBarProps {
   progress: number; // Current TTS position (0-100)
@@ -19,6 +21,19 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showPulseHint, setShowPulseHint] = useState(false);
   const progressBarRef = useRef<HTMLDivElement>(null);
+
+  // Throttle preview updates to prevent excessive scrolling (50ms throttle)
+  const throttledPreview = useThrottle((percentage: number) => {
+    onPreview(percentage);
+  }, 50);
+
+  // Smooth progress animation (disabled during drag for immediate feedback)
+  const smoothProgress = useSmoothProgress({
+    currentValue: progress,
+    targetValue: progress,
+    duration: 200,
+    enabled: isActive && !isDragging, // No animation while dragging
+  });
 
   // Calculate percentage from mouse/touch position
   const calculatePercentage = useCallback((clientX: number) => {
@@ -40,7 +55,7 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
     setIsDragging(true);
     const percentage = calculatePercentage(e.clientX);
     setPreviewPosition(percentage);
-    onPreview(percentage); // Scroll to preview position
+    throttledPreview(percentage); // Use throttled preview
   };
 
   // Handle drag move
@@ -48,9 +63,9 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
     if (isDragging) {
       const percentage = calculatePercentage(e.clientX);
       setPreviewPosition(percentage);
-      onPreview(percentage); // Scroll as user drags
+      throttledPreview(percentage); // Use throttled preview
     }
-  }, [isDragging, calculatePercentage, onPreview]);
+  }, [isDragging, calculatePercentage, throttledPreview]);
 
   // Handle drag end (commit)
   const handleMouseUp = useCallback(() => {
@@ -85,7 +100,7 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
     setIsDragging(true);
     const percentage = calculatePercentage(touch.clientX);
     setPreviewPosition(percentage);
-    onPreview(percentage);
+    throttledPreview(percentage); // Use throttled preview
   };
 
   // Handle touch move
@@ -94,9 +109,9 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
       e.preventDefault();
       const percentage = calculatePercentage(e.touches[0].clientX);
       setPreviewPosition(percentage);
-      onPreview(percentage);
+      throttledPreview(percentage); // Use throttled preview
     }
-  }, [isDragging, calculatePercentage, onPreview]);
+  }, [isDragging, calculatePercentage, throttledPreview]);
 
   // Handle touch end
   const handleTouchEnd = useCallback(() => {
@@ -145,8 +160,8 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
     }
   }, [isActive]);
 
-  // Display position: preview while dragging, actual progress otherwise
-  const displayPosition = isDragging && previewPosition !== null ? previewPosition : progress;
+  // Display position: preview while dragging, smooth progress otherwise
+  const displayPosition = isDragging && previewPosition !== null ? previewPosition : smoothProgress;
 
   return (
     <div className="relative mb-1">
@@ -160,8 +175,8 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
       >
         {/* Actual progress (background) */}
         <div 
-          className="absolute top-0 left-0 h-2 bg-gray-400 rounded-full transition-all duration-300"
-          style={{ width: `${progress}%` }}
+          className="absolute top-0 left-0 h-2 bg-gray-400 rounded-full transition-all duration-300 progress-bar-fill"
+          style={{ width: `${smoothProgress}%` }}
         />
         
         {/* Preview/current position (foreground) */}

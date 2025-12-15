@@ -1,4 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useToast } from '../context/ToastContext';
+import { getVoiceDisplayName } from '../utils/voiceUtils';
 
 export type Theme = 'light' | 'dark' | 'sepia';
 
@@ -36,6 +38,9 @@ export interface UseReaderSettingsReturn {
  * Handles localStorage persistence and keyboard shortcuts automatically
  */
 export const useReaderSettings = (): UseReaderSettingsReturn => {
+  const { addToast } = useToast();
+  const previousVoiceRef = useRef<string | null>(null);
+  
   // Font size state - persisted in localStorage
   const [fontSize, setFontSize] = useState<number>(() => {
     const savedFontSize = localStorage.getItem('reader-font-size');
@@ -51,7 +56,9 @@ export const useReaderSettings = (): UseReaderSettingsReturn => {
   // TTS Voice state - persisted in localStorage
   const [selectedVoice, setSelectedVoice] = useState<string>(() => {
     const savedVoice = localStorage.getItem('reader-tts-voice');
-    return savedVoice || 'en-US-BrianMultilingualNeural'; // Default voice
+    const defaultVoice = savedVoice || 'en-US-BrianMultilingualNeural';
+    previousVoiceRef.current = defaultVoice; // Initialize ref
+    return defaultVoice; // Default voice
   });
   
   // TTS Speed state - persisted in localStorage
@@ -100,9 +107,23 @@ export const useReaderSettings = (): UseReaderSettingsReturn => {
 
   // TTS Voice management function
   const handleVoiceChange = useCallback((voice: string) => {
+    const previousVoice = previousVoiceRef.current;
     setSelectedVoice(voice);
     localStorage.setItem('reader-tts-voice', voice);
-  }, []);
+    
+    // Show toast notification when voice changes (skip on initial load)
+    if (previousVoice !== null && previousVoice !== voice) {
+      const voiceDisplayName = getVoiceDisplayName(voice);
+      addToast(
+        `Voice changed to ${voiceDisplayName}. Will be applied in the next sentence.`,
+        'info',
+        4000
+      );
+    }
+    
+    // Update ref for next comparison
+    previousVoiceRef.current = voice;
+  }, [addToast]);
 
   // TTS Speed management function
   const handleSpeedChange = useCallback((speed: number) => {

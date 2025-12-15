@@ -301,32 +301,48 @@ const FloatingReadButton: React.FC<FloatingReadButtonProps> = ({ onRead, onCreat
 
     // On mobile, restore the selection range as backup
     // (though we're now passing text directly)
+    let selectionRestored = false;
     if (selectionData?.range) {
       try {
         const selection = window.getSelection();
         selection?.removeAllRanges();
         selection?.addRange(selectionData.range);
+        selectionRestored = true;
+        console.log('[FloatingReadButton] Selection range restored successfully');
       } catch (e) {
         console.warn('[FloatingReadButton] Could not restore selection range:', e);
       }
     } else {
       restoreSelectionIfNeeded();
+      selectionRestored = true;
     }
     
     // Call onRead with the stored text
-    console.log('[FloatingReadButton] Calling onRead function with text parameter...');
+    // Note: We pass text as parameter, so handleTTS will use textOverride mode
+    // even if selection is cleared after this call
+    console.log('[FloatingReadButton] Calling onRead with text parameter:', {
+      textLength: textToUse.length,
+      textPreview: textToUse.substring(0, 50),
+      selectionRestored,
+      hasSelectionData: !!selectionData
+    });
     try {
-      onRead(textToUse); // Pass text directly as parameter
+      onRead(textToUse); // Pass text directly as parameter - handleTTS will use textOverride mode
     } finally {
       // Reset loading state after a short delay
       setTimeout(() => setIsStarting(false), 500);
     }
 
     // After starting TTS, clear selection and hide the button
+    // Note: This happens after onRead is called, but handleTTS uses textOverride
+    // so it doesn't depend on DOM selection being active
     try {
       const selection = window.getSelection();
       selection?.removeAllRanges();
-    } catch {}
+      console.log('[FloatingReadButton] Selection cleared after calling onRead');
+    } catch (e) {
+      console.warn('[FloatingReadButton] Error clearing selection:', e);
+    }
     
     // Clear both old and new state
     setSelectedText('');

@@ -853,8 +853,8 @@
   overflow-y: visible; /* Ensure vertical overflow is visible */
   padding: 20px; /* Warm off-white background */
   background-color: #fcf8f0; /* Warm off-white background */
-  background-image: url('/assets/images/subtle-paper-texture.png'); /* Paper texture */
-  background-repeat: repeat;
+  /* background-image: url('/assets/images/subtle-paper-texture.png'); */ /* Paper texture - commented out, image not available */
+  /* background-repeat: repeat; */
   margin: 1rem;
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0,0,0,0.1); /* Subtle shadow for depth */
