@@ -167,10 +167,11 @@ export class TTSAudioPlayer implements IAudioPlayer {
    * Set playback rate
    */
   setPlaybackRate(rate: number): void {
-    this.playbackRate = rate;
+    // Clamp speed between 0.5x and 1.5x
+    this.playbackRate = Math.max(0.5, Math.min(1.5, rate));
     if (this.audioElement) {
-      this.audioElement.playbackRate = rate;
-      console.log(`[${this.instanceId}] Changed playback rate to ${rate}x`);
+      this.audioElement.playbackRate = this.playbackRate;
+      console.log(`[${this.instanceId}] Changed playback rate to ${this.playbackRate}x`);
     }
   }
 

@@ -408,7 +408,8 @@ export class TTSSeamlessPlaybackService {
    */
   setPlaybackRate(rate: number): void {
     // Store rate for reference (but don't use it)
-    this.playbackRate = Math.max(0.5, Math.min(2.0, rate));
+    // Clamp speed between 0.5x and 1.5x
+    this.playbackRate = Math.max(0.5, Math.min(1.5, rate));
     
     // ✅ FIX: Always keep Web Audio playbackRate at 1.0
     // Speed is already encoded in the audio by TTS API (preserves pitch)

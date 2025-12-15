@@ -101,9 +101,10 @@ export class HTML5PlaybackStrategy implements IPlaybackStrategy {
   }
 
   setPlaybackRate(rate: number): void {
-    this.playbackRate = rate;
+    // Clamp speed between 0.5x and 1.5x
+    this.playbackRate = Math.max(0.5, Math.min(1.5, rate));
     if (this.audioElement) {
-      this.audioElement.playbackRate = rate;
+      this.audioElement.playbackRate = this.playbackRate;
     }
   }
 

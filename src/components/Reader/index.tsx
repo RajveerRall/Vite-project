@@ -427,12 +427,14 @@ const Reader: React.FC = () => {
   };
 
   const handleSpeedChangeWithStop = (speed: number) => {
-    setTtsSpeed(speed);
+    // Clamp speed between 0.5x and 1.5x
+    const clampedSpeed = Math.max(0.5, Math.min(1.5, speed));
+    setTtsSpeed(clampedSpeed);
     
     // If TTS is currently playing, change the playback rate instead of stopping
     if (isSpeaking || isPaused) {
-      setPlaybackRate(speed);
-      console.log(`Changed playback rate to ${speed}x while playing`);
+      setPlaybackRate(clampedSpeed);
+      console.log(`Changed playback rate to ${clampedSpeed}x while playing`);
       return; // Don't stop playback
     }
   };

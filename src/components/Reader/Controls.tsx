@@ -11,6 +11,7 @@ import {
   Loader2, Square, SkipBack, SkipForward, Settings
 } from 'lucide-react';
 import InteractiveProgressBar from './InteractiveProgressBar';
+import SpeedControlDropdown from './SpeedControlDropdown';
 import MobileTOCDrawer from './MobileTOCDrawer';
 import MobileAIChatDrawer from './MobileAIChatDrawer';
 import { TOCItem } from '../../types/books';
@@ -334,7 +335,7 @@ const Controls: React.FC<ControlsProps> = ({
           {/* Main Play/Pause Button */}
           <button
             onClick={handleReadAloudClick}
-            className={`p-3 md:p-4 rounded-full transition-all duration-200 ${
+            className={`p-3 md:p-4 rounded-full flex items-center gap-2 transition-all duration-200 ${
               buttonState.disabled
                 ? 'bg-gray-300 cursor-not-allowed text-gray-500'
                 : isReadButtonActive 
@@ -346,15 +347,30 @@ const Controls: React.FC<ControlsProps> = ({
             disabled={buttonState.disabled}
           >
             {buttonState.icon === 'loading' ? (
-              <Loader2 size={22} className="animate-spin md:text-[26px]" />
+              <>
+                <Loader2 size={22} className="animate-spin md:text-[26px]" />
+                <span className="text-xs font-medium"  >Loading</span>
+              </>
             ) : buttonState.icon === 'play' ? (
-              <PlayCircle size={22} className="md:text-[26px]" />
+              <>
+                <PlayCircle size={22} className="md:text-[26px]" />
+                <span className="text-xs font-medium" >Play</span>
+              </>
             ) : buttonState.icon === 'pause' ? (
-              <PauseCircle size={22} className="md:text-[26px]" />
+              <>
+                <PauseCircle size={22} className="md:text-[26px]" />
+                <span className="text-xs font-medium" >Pause</span>
+              </>
             ) : buttonState.icon === 'resume' ? (
-              <RotateCcw size={22} className="md:text-[26px]" />
+              <>
+                <RotateCcw size={22} className="md:text-[26px]" />
+                <span className="text-xs font-medium"  >Resume</span>
+              </>
             ) : (
-              <PlayCircle size={22} className="md:text-[26px]" />
+              <>
+                <PlayCircle size={22} className="md:text-[26px]" />
+                <span className="text-xs font-medium"  >Play</span>
+              </>
             )}
           </button>
 
@@ -372,27 +388,15 @@ const Controls: React.FC<ControlsProps> = ({
 
           {/* Right Side - Speed Control and Stop Button */}
           <div className="flex items-center gap-3 md:gap-4">
-            {/* Speed Control - Compact Design */}
+            {/* Speed Control - Compact Dropdown */}
             {onSpeedChange && (
-              <div className="flex items-center gap-2 md:gap-2.5">
-                <button
-                  onClick={() => onSpeedChange(Math.max(0.5, ttsSpeed - 0.1))}
-                  className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gray-100 hover:bg-amber-100 border border-gray-200 hover:border-amber-300 flex items-center justify-center text-sm md:text-base font-medium transition-colors text-gray-600 hover:text-amber-700"
-                  disabled={ttsSpeed <= 0.5}
-                >
-                  -
-                </button>
-                <span className="text-sm md:text-base font-medium mx-2 md:mx-3 text-amber-700 min-w-[1.5rem] md:min-w-[2rem] text-center">
-                  {Math.round(ttsSpeed * 10) / 10}x
-                </span>
-                <button
-                  onClick={() => onSpeedChange(Math.min(2.0, ttsSpeed + 0.1))}
-                  className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gray-100 hover:bg-amber-100 border border-gray-200 hover:border-amber-300 flex items-center justify-center text-sm md:text-base font-medium transition-colors text-gray-600 hover:text-amber-700"
-                  disabled={ttsSpeed >= 2.0}
-                >
-                  +
-                </button>
-              </div>
+              <SpeedControlDropdown
+                currentSpeed={ttsSpeed}
+                onSpeedChange={onSpeedChange}
+                minSpeed={0.5}
+                maxSpeed={1.5}
+                speeds={[0.5, 0.75, 1.0, 1.25, 1.5]}
+              />
             )}
 
             {/* Stop Button */}

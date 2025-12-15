@@ -184,7 +184,8 @@ class BackgroundAudioService {
 
   // Set playback rate
   setPlaybackRate(rate: number) {
-    this.playbackRate = Math.max(0.5, Math.min(2.0, rate));
+    // Clamp speed between 0.5x and 1.5x
+    this.playbackRate = Math.max(0.5, Math.min(1.5, rate));
     
     if (this.currentSource) {
       this.currentSource.playbackRate.value = this.playbackRate;

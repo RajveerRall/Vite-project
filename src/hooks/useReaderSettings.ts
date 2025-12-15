@@ -115,7 +115,7 @@ export const useReaderSettings = (): UseReaderSettingsReturn => {
     if (previousVoice !== null && previousVoice !== voice) {
       const voiceDisplayName = getVoiceDisplayName(voice);
       addToast(
-        `Voice changed to ${voiceDisplayName}. Will be applied in the next sentence.`,
+        `Voice changed to ${voiceDisplayName}. Will be applied after 3 sentences.`,
         'info',
         4000
       );
@@ -127,8 +127,10 @@ export const useReaderSettings = (): UseReaderSettingsReturn => {
 
   // TTS Speed management function
   const handleSpeedChange = useCallback((speed: number) => {
-    setTtsSpeed(speed);
-    localStorage.setItem('reader-tts-speed', speed.toString());
+    // Clamp speed between 0.5x and 1.5x
+    const clampedSpeed = Math.max(0.5, Math.min(1.5, speed));
+    setTtsSpeed(clampedSpeed);
+    localStorage.setItem('reader-tts-speed', clampedSpeed.toString());
   }, []);
   
   // Auto-continue chapters management function
