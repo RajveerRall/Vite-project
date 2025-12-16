@@ -8506,48 +8506,53 @@ def remove_srt_gaps(srt_entries):
     cumulative_shift = 0.0
     gaps_removed = 0
     
-    for i in range(1, len(validated_entries)):
-        # CRITICAL FIX: Use ORIGINAL previous entry (not compressed) for gap calculation
-        # The compressed entry has already been shifted, so using its end time would double-count shifts
-        prev_entry_original = validated_entries[i - 1]
-        current_entry = validated_entries[i]
-        
-        # Calculate gap between ORIGINAL previous entry end and current entry start
-        gap = current_entry['start'] - prev_entry_original['end']
-        
-        # Validate gap is reasonable (not astronomical)
-        if gap > 3600:  # More than 1 hour gap is likely an error
-            print(f"[SRT Gap Removal] WARNING: Suspiciously large gap ({gap:.2f}s) at entry {i+1}, skipping gap removal for this entry")
-            # Don't accumulate this gap, just use the entry as-is (preserve the gap)
-            compressed.append(current_entry.copy())
-            continue
-        
-        # If gap is significant (>100ms), it's likely a false gap that needs removal
-        if gap > 0.1:
-            # Accumulate shift amount
-            cumulative_shift += gap
-            gaps_removed += 1
-            print(f"[SRT Gap Removal] Entry {i+1}: Removing {gap:.2f}s gap (total shift: {cumulative_shift:.2f}s)")
-        
-        # Shift entry forward by cumulative shift amount
-        compressed_entry = {
-            'start': current_entry['start'] - cumulative_shift,
-            'end': current_entry['end'] - cumulative_shift,
-            'text': current_entry['text']
-        }
-        
-        # Final validation: ensure shifted times are still valid
-        if compressed_entry['start'] < 0:
-            print(f"[SRT Gap Removal] WARNING: Shifted start time is negative: {compressed_entry['start']}, clamping to 0")
-            duration = compressed_entry['end'] - compressed_entry['start']
-            compressed_entry['start'] = 0.0
-            compressed_entry['end'] = duration
-        
-        if compressed_entry['end'] <= compressed_entry['start']:
-            print(f"[SRT Gap Removal] WARNING: Shifted entry has end <= start, skipping")
-            continue
-        
-        compressed.append(compressed_entry)
+    # [DISABLED] SRT Gap Removal - This was causing sync issues by compressing SRT time
+    # without compressing audio time. The frontend now handles duration accurately.
+    # for i in range(1, len(validated_entries)):
+    #     # CRITICAL FIX: Use ORIGINAL previous entry (not compressed) for gap calculation
+    #     # The compressed entry has already been shifted, so using its end time would double-count shifts
+    #     prev_entry_original = validated_entries[i - 1]
+    #     current_entry = validated_entries[i]
+    #     
+    #     # Calculate gap between ORIGINAL previous entry end and current entry start
+    #     gap = current_entry['start'] - prev_entry_original['end']
+    #     
+    #     # Validate gap is reasonable (not astronomical)
+    #     if gap > 3600:  # More than 1 hour gap is likely an error
+    #         print(f"[SRT Gap Removal] WARNING: Suspiciously large gap ({gap:.2f}s) at entry {i+1}, skipping gap removal for this entry")
+    #         # Don't accumulate this gap, just use the entry as-is (preserve the gap)
+    #         compressed.append(current_entry.copy())
+    #         continue
+    #     
+    #     # If gap is significant (>100ms), it's likely a false gap that needs removal
+    #     if gap > 0.1:
+    #         # Accumulate shift amount
+    #         cumulative_shift += gap
+    #         gaps_removed += 1
+    #         print(f"[SRT Gap Removal] Entry {i+1}: Removing {gap:.2f}s gap (total shift: {cumulative_shift:.2f}s)")
+    #     
+    #     # Shift entry forward by cumulative shift amount
+    #     compressed_entry = {
+    #         'start': current_entry['start'] - cumulative_shift,
+    #         'end': current_entry['end'] - cumulative_shift,
+    #         'text': current_entry['text']
+    #     }
+    #     
+    #     # Final validation: ensure shifted times are still valid
+    #     if compressed_entry['start'] < 0:
+    #         print(f"[SRT Gap Removal] WARNING: Shifted start time is negative: {compressed_entry['start']}, clamping to 0")
+    #         duration = compressed_entry['end'] - compressed_entry['start']
+    #         compressed_entry['start'] = 0.0
+    #         compressed_entry['end'] = duration
+    #     
+    #     if compressed_entry['end'] <= compressed_entry['start']:
+    #         print(f"[SRT Gap Removal] WARNING: Shifted entry has end <= start, skipping")
+    #         continue
+    #     
+    #     compressed.append(compressed_entry)
+
+    # Just return the validated entries as-is, preserving original timing
+    return validated_entries
     
     if gaps_removed > 0:
         print(f"[SRT Gap Removal] Removed {gaps_removed} gaps, total time removed: {cumulative_shift:.2f}s")

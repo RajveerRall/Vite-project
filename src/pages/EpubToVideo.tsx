@@ -57,11 +57,11 @@ const EpubToVideo: React.FC = () => {
   const [directoryAccessGranted, setDirectoryAccessGranted] = useState(false);
 
   // Use the EPUB extraction hook (no TTS initialization)
-  const { 
-    isInitializing, 
-    chapters, 
-    extractChapters, 
-    reset 
+  const {
+    isInitializing,
+    chapters,
+    extractChapters,
+    reset
   } = useEpubExtraction();
 
   // Format duration from seconds to readable format
@@ -98,7 +98,7 @@ const EpubToVideo: React.FC = () => {
   const extractLastSrtEndTime = (srtContent: string): number | null => {
     const lines = srtContent.split('\n');
     let lastEndTime: number | null = null;
-    
+
     // Search from end to find the last timestamp entry
     for (let i = lines.length - 1; i >= 0; i--) {
       const line = lines[i].trim();
@@ -108,7 +108,7 @@ const EpubToVideo: React.FC = () => {
         break;
       }
     }
-    
+
     return lastEndTime;
   };
 
@@ -120,11 +120,11 @@ const EpubToVideo: React.FC = () => {
     if (!srtContent || srtContent.trim().length === 0) {
       return 0;
     }
-    
+
     // Normalize line endings and split by double newlines
     const normalized = srtContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     const blocks = normalized.trim().split('\n\n');
-    
+
     // Count blocks that contain a timestamp (-->)
     let count = 0;
     for (const block of blocks) {
@@ -132,21 +132,21 @@ const EpubToVideo: React.FC = () => {
         count++;
       }
     }
-    
+
     return count;
   };
 
   const adjustSrtTimestamps = (srtContent: string, offsetSeconds: number, startIndex: number): string => {
     console.log(`[adjustSrtTimestamps] Called with offset=${offsetSeconds.toFixed(3)}s, startIndex=${startIndex}`);
-    
+
     const lines = srtContent.split('\n');
     let adjustedLines = [];
     let currentIndex = startIndex;
     let timestampCount = 0;
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
+
       if (/^\d+$/.test(line)) {
         adjustedLines.push(currentIndex.toString());
         currentIndex++;
@@ -157,18 +157,18 @@ const EpubToVideo: React.FC = () => {
         const originalEndSeconds = parseTimeToSeconds(endTime);
         const newStartSeconds = originalStartSeconds + offsetSeconds;
         const newEndSeconds = originalEndSeconds + offsetSeconds;
-        
+
         if (timestampCount === 1) {
           // Log first timestamp for debugging
           console.log(`[adjustSrtTimestamps] First entry: ${startTime} -> ${formatTime(newStartSeconds)} (offset: ${offsetSeconds.toFixed(3)}s)`);
         }
-        
+
         adjustedLines.push(`${formatTime(newStartSeconds)} --> ${formatTime(newEndSeconds)}`);
       } else {
         adjustedLines.push(line);
       }
     }
-    
+
     console.log(`[adjustSrtTimestamps] Adjusted ${timestampCount} timestamp entries`);
     return adjustedLines.join('\n');
   };
@@ -178,10 +178,10 @@ const EpubToVideo: React.FC = () => {
     if (file) {
       // Check both MIME type and file extension for better compatibility
       // Some browsers/systems report EPUB with different MIME types or empty string
-      const isValidEpub = 
-        file.type === 'application/epub+zip' || 
+      const isValidEpub =
+        file.type === 'application/epub+zip' ||
         file.name.toLowerCase().endsWith('.epub');
-      
+
       if (isValidEpub) {
         setUploadedFile(file);
         reset(); // Reset any previous state
@@ -202,20 +202,20 @@ const EpubToVideo: React.FC = () => {
    */
   const chunkScriptLine = useCallback((text: string, maxLength: number = 1000): string[] => {
     if (!text || text.trim().length === 0) return [];
-    
+
     if (text.length <= maxLength) {
       return [text];
     }
-    
+
     // Split by sentence boundaries first
     const sentences = text.match(/[^.!?]+[.!?]*|[^.!?\s]+/g) || [text];
     const chunks: string[] = [];
     let currentChunk = '';
-    
+
     for (const sentence of sentences) {
       const trimmedSentence = sentence.trim();
       if (!trimmedSentence) continue;
-      
+
       // FIX: If a single sentence exceeds maxLength, split it by words
       if (trimmedSentence.length > maxLength) {
         // First, save current chunk if it exists
@@ -223,16 +223,16 @@ const EpubToVideo: React.FC = () => {
           chunks.push(currentChunk.trim());
           currentChunk = '';
         }
-        
+
         // Split the long sentence by words
         const words = trimmedSentence.split(/\s+/);
         let wordChunk = '';
-        
+
         for (const word of words) {
-          const potentialWordChunk = wordChunk 
+          const potentialWordChunk = wordChunk
             ? (wordChunk + ' ' + word)
             : word;
-          
+
           if (potentialWordChunk.length > maxLength && wordChunk) {
             chunks.push(wordChunk.trim());
             wordChunk = word;
@@ -240,19 +240,19 @@ const EpubToVideo: React.FC = () => {
             wordChunk = potentialWordChunk;
           }
         }
-        
+
         // Add remaining word chunk
         if (wordChunk.trim()) {
           currentChunk = wordChunk.trim();
         }
         continue;
       }
-      
+
       // Normal case: sentence fits within limit
-      const potentialChunk = currentChunk 
+      const potentialChunk = currentChunk
         ? (currentChunk + ' ' + trimmedSentence)
         : trimmedSentence;
-      
+
       if (potentialChunk.length > maxLength && currentChunk) {
         // Save current chunk and start new one
         chunks.push(currentChunk.trim());
@@ -261,7 +261,7 @@ const EpubToVideo: React.FC = () => {
         currentChunk = potentialChunk;
       }
     }
-    
+
     // Add remaining chunk (but check it's not too long)
     if (currentChunk.trim()) {
       if (currentChunk.trim().length > maxLength) {
@@ -284,7 +284,7 @@ const EpubToVideo: React.FC = () => {
         chunks.push(currentChunk.trim());
       }
     }
-    
+
     return chunks.filter(chunk => chunk.trim().length > 0);
   }, []);
 
@@ -312,7 +312,7 @@ const EpubToVideo: React.FC = () => {
         content: chapter.content,
         settings
       });
-      
+
       const status = await videoCacheService.getCacheStatus(cacheKey);
       setCacheStatuses(prev => {
         const newMap = new Map(prev);
@@ -339,7 +339,7 @@ const EpubToVideo: React.FC = () => {
         content: chapter.content,
         settings
       });
-      
+
       await videoCacheService.clearCache(cacheKey);
       setCacheStatuses(prev => {
         const newMap = new Map(prev);
@@ -372,7 +372,7 @@ const EpubToVideo: React.FC = () => {
 
     setVideoQueue(prev => [...prev, queueItem]);
     console.log(`[Queue] Added "${chapter.title}" to queue`);
-    
+
     // Check cache status when adding to queue
     checkCacheStatus(chapterIndex);
   }, [chapters, checkCacheStatus]);
@@ -389,7 +389,7 @@ const EpubToVideo: React.FC = () => {
   // Generate video for a specific queue item
   const generateVideoForQueueItem = useCallback(async (queueItem: QueueItem) => {
     const chapter = chapters.find(c => c.index === queueItem.chapterIndex);
-    
+
     if (!chapter || !chapter.content) {
       throw new Error('Chapter content not available');
     }
@@ -399,21 +399,21 @@ const EpubToVideo: React.FC = () => {
 
     // Helper to update this specific queue item's progress
     const updateProgress = (progress: VideoProgress) => {
-      setVideoQueue(prev => prev.map(item => 
-        item.id === queueItem.id 
+      setVideoQueue(prev => prev.map(item =>
+        item.id === queueItem.id
           ? { ...item, progress }
           : item
       ));
     };
-    
+
     try {
       // Step 1: Generate script with Full Cast TTS
       const isMultiVoice = settings.useMultiVoice;
       updateProgress({
         stage: 'parsing',
         percentage: 20,
-        message: isMultiVoice 
-          ? 'Analyzing text with Full Cast...' 
+        message: isMultiVoice
+          ? 'Analyzing text with Full Cast...'
           : 'Preparing text with single narrator...'
       });
 
@@ -423,8 +423,8 @@ const EpubToVideo: React.FC = () => {
 
       let script;
       try {
-        const result = await requestFullCast(chapter.content, { 
-          llm: 'gemini-2.0-flash', 
+        const result = await requestFullCast(chapter.content, {
+          llm: 'gemini-2.0-flash',
           parser: isMultiVoice ? 'chatThread' : 'singleNarrator',
           useVoiceCasting: isMultiVoice
         });
@@ -481,7 +481,7 @@ const EpubToVideo: React.FC = () => {
 
       // Check cache before generating audio
       const cachedData = await videoCacheService.loadCache(cacheKey);
-      
+
       // Diagnostic: Verify cached data belongs to this chapter
       if (cachedData && cachedData.metadata) {
         console.log(`[Video Generation] Cached data metadata:`, {
@@ -503,7 +503,7 @@ const EpubToVideo: React.FC = () => {
           });
         }
       }
-      
+
       let audioBlobs: Blob[] = [];
       console.log(`[Video Generation] Initialized audioBlobs as empty array (length: ${audioBlobs.length})`);
       let durations: number[] = [];
@@ -518,7 +518,7 @@ const EpubToVideo: React.FC = () => {
         console.log(`[Video Generation] BEFORE assignment: audioBlobs.length = ${audioBlobs.length}`);
         audioBlobs = cachedData.audioBlobs;
         console.log(`[Video Generation] AFTER assignment: audioBlobs.length = ${audioBlobs.length}`);
-        
+
         // Check for duplicate blob sizes (potential duplicates)
         const blobSizes = audioBlobs.map(b => b.size);
         const sizeCounts = new Map<number, number>();
@@ -533,13 +533,13 @@ const EpubToVideo: React.FC = () => {
             console.warn(`  - Size ${size} bytes appears ${count} times at indices: ${indices.slice(0, 10).join(', ')}`);
           });
         }
-        
+
         durations = cachedData.durations || [];
         combinedSrt = cachedData.srtData || '';
         cumulativeDuration = cachedData.metadata?.totalDuration || durations.reduce((sum, d) => sum + d, 0);
         sceneImageFiles = cachedData.sceneImages || [];
         useCachedAudio = true;
-        
+
         // Calculate SRT entry counts from cached SRT data
         // Parse combined SRT to count entries per chunk (approximate)
         // Note: This is an approximation since we don't have exact chunk boundaries in cached data
@@ -549,14 +549,14 @@ const EpubToVideo: React.FC = () => {
           // The SRT is stored with actual \n\n characters, not the string "\\n\\n"
           const chunkSrts = combinedSrt.split(/\n\n+/).filter(s => s.trim().length > 0);
           console.log(`[Video Generation] Split cached SRT into ${chunkSrts.length} chunks`);
-          
+
           for (let i = 0; i < chunkSrts.length; i++) {
             const chunkSrt = chunkSrts[i];
             const count = countSrtEntries(chunkSrt);
             console.log(`[Video Generation] Cached chunk ${i}: ${count} SRT entries (preview: ${chunkSrt.substring(0, 50)}...)`);
             srtEntryCounts.push(count);
           }
-          
+
           // Ensure we have counts for all chunks (pad with 0 if needed)
           while (srtEntryCounts.length < audioBlobs.length) {
             srtEntryCounts.push(0);
@@ -570,7 +570,7 @@ const EpubToVideo: React.FC = () => {
             srtEntryCounts.push(0);
           }
         }
-        
+
         updateProgress({
           stage: 'audio',
           percentage: 75,
@@ -601,130 +601,130 @@ const EpubToVideo: React.FC = () => {
           sceneAnalysisPromise = Promise.resolve(cachedData.sceneAnalysis);
         } else {
           // Call API only if not cached
-        console.log('[Video Generation] Starting parallel scene analysis...');
-        // Derive a stable style key from book title/file name
-        const rawTitle = uploadedFile?.name || chapter.title || 'Unknown';
-        const normalized = rawTitle.toLowerCase().replace(/[^a-z0-9\-]+/g, '-').replace(/^-+|-+$/g, '');
-        const styleKey = `yoread-${normalized}`;
+          console.log('[Video Generation] Starting parallel scene analysis...');
+          // Derive a stable style key from book title/file name
+          const rawTitle = uploadedFile?.name || chapter.title || 'Unknown';
+          const normalized = rawTitle.toLowerCase().replace(/[^a-z0-9\-]+/g, '-').replace(/^-+|-+$/g, '');
+          const styleKey = `yoread-${normalized}`;
 
-        sceneAnalysisPromise = (async () => {
-          const makeRequest = async () => {
-            const response = await fetch(`${FULL_CAST_TTS_URL}/api/analyze-scenes`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                text: chapter.content,
-                bookTitle: uploadedFile?.name || 'Unknown',
-                chapter: chapter.title,
-                maxScenes: null, // Let LLM decide optimal scene count based on content
-                bookTheme: 'atmospheric narrative',
-                colorPalette: 'muted tones with dramatic contrasts',
-                videoFormat: settings.format,
-                styleKey,
-                bibleMode: 'use',
-                strictImageCompliance: true,
-                detailLevel: 'high'
-              })
-            });
-            
-            if (!response.ok) {
-              throw new Error(`Scene analysis API returned ${response.status}: ${response.statusText}`);
-            }
-            
-            return await response.json();
-          };
+          sceneAnalysisPromise = (async () => {
+            const makeRequest = async () => {
+              const response = await fetch(`${FULL_CAST_TTS_URL}/api/analyze-scenes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text: chapter.content,
+                  bookTitle: uploadedFile?.name || 'Unknown',
+                  chapter: chapter.title,
+                  maxScenes: null, // Let LLM decide optimal scene count based on content
+                  bookTheme: 'atmospheric narrative',
+                  colorPalette: 'muted tones with dramatic contrasts',
+                  videoFormat: settings.format,
+                  styleKey,
+                  bibleMode: 'use',
+                  strictImageCompliance: true,
+                  detailLevel: 'high'
+                })
+              });
 
-          try {
-            // First attempt
-            return await makeRequest();
-          } catch (err) {
-            console.warn('[Video Generation] Scene analysis failed (attempt 1):', err);
-            console.log('[Video Generation] Retrying scene analysis...');
-            
+              if (!response.ok) {
+                throw new Error(`Scene analysis API returned ${response.status}: ${response.statusText}`);
+              }
+
+              return await response.json();
+            };
+
             try {
-              // Retry once with 1 second delay
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              // First attempt
               return await makeRequest();
-            } catch (retryErr) {
-              console.warn('[Video Generation] Scene analysis failed (retry attempt):', retryErr);
-              return { scenes: [] }; // Fallback to empty scenes
+            } catch (err) {
+              console.warn('[Video Generation] Scene analysis failed (attempt 1):', err);
+              console.log('[Video Generation] Retrying scene analysis...');
+
+              try {
+                // Retry once with 1 second delay
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return await makeRequest();
+              } catch (retryErr) {
+                console.warn('[Video Generation] Scene analysis failed (retry attempt):', retryErr);
+                return { scenes: [] }; // Fallback to empty scenes
+              }
             }
-          }
-        })();
+          })();
         }
       }
 
       // Step 2: Generate audio for each script line with SRT (batched parallel processing)
       // Skip if we have cached audio
       if (!useCachedAudio) {
-      updateProgress({
-        stage: 'audio',
-        percentage: 50,
-        message: 'Preparing audio generation...'
-      });
+        updateProgress({
+          stage: 'audio',
+          percentage: 50,
+          message: 'Preparing audio generation...'
+        });
 
-      // Flatten all chunks into tasks with metadata
-      interface TtsTask {
-        lineIndex: number;
-        chunkIndex: number;
-        totalChunksForLine: number;
-        text: string;
-        provider?: string;
-        voiceId?: string;
-        lineDialogue: string;
-      }
-
-      const ttsTasks: TtsTask[] = [];
-      for (let i = 0; i < script.length; i++) {
-        const line = script[i];
-        const textChunks = chunkScriptLine(line.dialogue);
-        
-        for (let chunkIdx = 0; chunkIdx < textChunks.length; chunkIdx++) {
-          ttsTasks.push({
-            lineIndex: i,
-            chunkIndex: chunkIdx,
-            totalChunksForLine: textChunks.length,
-            text: textChunks[chunkIdx],
-            provider: line.provider,
-            voiceId: line.voiceId,
-            lineDialogue: line.dialogue
-          });
+        // Flatten all chunks into tasks with metadata
+        interface TtsTask {
+          lineIndex: number;
+          chunkIndex: number;
+          totalChunksForLine: number;
+          text: string;
+          provider?: string;
+          voiceId?: string;
+          lineDialogue: string;
         }
-      }
 
-      console.log(`[Video Generation] Prepared ${ttsTasks.length} TTS tasks from ${script.length} script lines`);
+        const ttsTasks: TtsTask[] = [];
+        for (let i = 0; i < script.length; i++) {
+          const line = script[i];
+          const textChunks = chunkScriptLine(line.dialogue);
 
-      // Check for duplicate TTS task text
-      const taskTexts = ttsTasks.map(task => task.text);
-      const duplicateTasks: number[] = [];
-      const seenTaskTexts = new Map<string, number[]>();
-      taskTexts.forEach((text, idx) => {
-        if (!seenTaskTexts.has(text)) {
-          seenTaskTexts.set(text, [idx]);
-        } else {
-          seenTaskTexts.get(text)!.push(idx);
-          if (seenTaskTexts.get(text)!.length === 2) {
-            duplicateTasks.push(...seenTaskTexts.get(text)!);
-          } else {
-            duplicateTasks.push(idx);
+          for (let chunkIdx = 0; chunkIdx < textChunks.length; chunkIdx++) {
+            ttsTasks.push({
+              lineIndex: i,
+              chunkIndex: chunkIdx,
+              totalChunksForLine: textChunks.length,
+              text: textChunks[chunkIdx],
+              provider: line.provider,
+              voiceId: line.voiceId,
+              lineDialogue: line.dialogue
+            });
           }
         }
-      });
-      if (duplicateTasks.length > 0) {
-        console.warn(`[Video Generation] ⚠️  Found ${duplicateTasks.length} duplicate TTS tasks!`);
-        console.warn(`[Video Generation] Duplicate task indices:`, duplicateTasks.slice(0, 10));
-        // Show first 3 duplicates
-        duplicateTasks.slice(0, 3).forEach(idx => {
-          const task = ttsTasks[idx];
-          console.warn(`  - Task ${idx} (Line ${task.lineIndex + 1}, Chunk ${task.chunkIndex + 1}): "${task.text.substring(0, 60)}..."`);
+
+        console.log(`[Video Generation] Prepared ${ttsTasks.length} TTS tasks from ${script.length} script lines`);
+
+        // Check for duplicate TTS task text
+        const taskTexts = ttsTasks.map(task => task.text);
+        const duplicateTasks: number[] = [];
+        const seenTaskTexts = new Map<string, number[]>();
+        taskTexts.forEach((text, idx) => {
+          if (!seenTaskTexts.has(text)) {
+            seenTaskTexts.set(text, [idx]);
+          } else {
+            seenTaskTexts.get(text)!.push(idx);
+            if (seenTaskTexts.get(text)!.length === 2) {
+              duplicateTasks.push(...seenTaskTexts.get(text)!);
+            } else {
+              duplicateTasks.push(idx);
+            }
+          }
         });
-      } else {
-        console.log(`[Video Generation] ✓ No duplicate TTS tasks found`);
-      }
+        if (duplicateTasks.length > 0) {
+          console.warn(`[Video Generation] ⚠️  Found ${duplicateTasks.length} duplicate TTS tasks!`);
+          console.warn(`[Video Generation] Duplicate task indices:`, duplicateTasks.slice(0, 10));
+          // Show first 3 duplicates
+          duplicateTasks.slice(0, 3).forEach(idx => {
+            const task = ttsTasks[idx];
+            console.warn(`  - Task ${idx} (Line ${task.lineIndex + 1}, Chunk ${task.chunkIndex + 1}): "${task.text.substring(0, 60)}..."`);
+          });
+        } else {
+          console.log(`[Video Generation] ✓ No duplicate TTS tasks found`);
+        }
 
-      console.log(`[Video Generation] Processing with batch size of 3 (max concurrent requests)`);
+        console.log(`[Video Generation] Processing with batch size of 3 (max concurrent requests)`);
 
-      // Collect audio blobs and metadata
+        // Collect audio blobs and metadata
         console.log(`[Video Generation] NOT using cached audio - resetting audioBlobs`);
         audioBlobs = [];
         console.log(`[Video Generation] Reset audioBlobs.length = ${audioBlobs.length}`);
@@ -733,127 +733,146 @@ const EpubToVideo: React.FC = () => {
         cumulativeDuration = 0;
         srtEntryCounts = [];  // Reset for non-cached audio generation
 
-      // Process TTS tasks in batches of 3
-      interface TtsResult {
-        taskIndex: number;
-        blob: Blob;
-        duration: number;
-        srtContent?: string;
-        lineIndex: number;
-        chunkIndex: number;
-      }
+        // Process TTS tasks in batches of 3
+        interface TtsResult {
+          taskIndex: number;
+          blob: Blob;
+          duration: number;
+          srtContent?: string;
+          lineIndex: number;
+          chunkIndex: number;
+        }
 
-      const allResults: TtsResult[] = [];
-      const batchSize = 2;
-      let completedTasks = 0;
+        const allResults: TtsResult[] = [];
+        const batchSize = 2;
+        let completedTasks = 0;
 
-      for (let i = 0; i < ttsTasks.length; i += batchSize) {
-        const batch = ttsTasks.slice(i, i + batchSize);
-        const batchPromises = batch.map(async (task, batchIdx) => {
-          const taskIndex = i + batchIdx;
-          try {
-            const { blob, srtContent, duration } = await ttsForLine(
-              task.text, 
-              task.provider, 
-              task.voiceId, 
-              { includeSrt: true, includeTiming: true }
+        console.log(`[DEBUG] Starting loop. ttsTasks length: ${ttsTasks.length}, batchSize: ${batchSize}`);
+
+        for (let i = 0; i < ttsTasks.length; i += batchSize) {
+          console.log(`[DEBUG] Processing batch starting at index ${i}`);
+          const batch = ttsTasks.slice(i, i + batchSize);
+          const batchPromises = batch.map(async (task, batchIdx) => {
+            const taskIndex = i + batchIdx;
+            try {
+              const { blob, srtContent, duration } = await ttsForLine(
+                task.text,
+                task.provider,
+                task.voiceId,
+                { includeSrt: true, includeTiming: true }
+              );
+
+              // Log chunk details
+              console.log(`[Video Generation] Line ${task.lineIndex + 1}, Chunk ${task.chunkIndex + 1}/${task.totalChunksForLine} (Task ${taskIndex + 1}/${ttsTasks.length}):`);
+              console.log(`  - Text length: ${task.text.length} chars`);
+              console.log(`  - Audio blob size: ${blob.size} bytes`);
+              console.log(`  - Duration: ${duration || 'undefined'} seconds`);
+              console.log(`  - SRT content length: ${srtContent ? srtContent.length : 'undefined'} characters`);
+
+              if (!blob || blob.size === 0) {
+                console.error(`[Video Generation] Line ${task.lineIndex + 1}, Chunk ${task.chunkIndex + 1} returned empty blob!`);
+                throw new Error(`Audio generation failed for line ${task.lineIndex + 1}, chunk ${task.chunkIndex + 1}`);
+              }
+
+              // Calculate ACTUAL duration from the blob to prevent sync drift
+              // Server headers are often estimates or missing, leading to cumulative errors
+              let actualDuration = duration;
+              try {
+                if (blob && blob.size > 0) {
+                  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                  const arrayBuffer = await blob.arrayBuffer();
+                  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                  actualDuration = audioBuffer.duration;
+                  console.log(`[Video Generation] Client-side duration calc: ${actualDuration.toFixed(3)}s (Server said: ${duration}s)`);
+                  await audioContext.close();
+                }
+              } catch (e) {
+                console.warn('[Video Generation] Failed to calculate client-side duration, falling back to server header:', e);
+              }
+
+              return {
+                taskIndex,
+                blob,
+                duration: actualDuration || 0, // Use the accurate client-side duration
+                srtContent: srtContent || undefined,
+                lineIndex: task.lineIndex,
+                chunkIndex: task.chunkIndex
+              };
+            } catch (error) {
+              console.error(`[Video Generation] Failed to generate audio for line ${task.lineIndex + 1}, chunk ${task.chunkIndex + 1}:`, error);
+              throw error; // Don't continue with incomplete audio
+            }
+          });
+
+          const batchResults = await Promise.all(batchPromises);
+          allResults.push(...batchResults);
+
+          // Update progress after each batch completes
+          completedTasks += batchResults.length;
+          const audioProgress = 50 + (completedTasks / ttsTasks.length) * 30;
+          updateProgress({
+            stage: 'audio',
+            percentage: Math.round(audioProgress),
+            message: `Generating audio ${completedTasks}/${ttsTasks.length}...`
+          });
+        }
+
+        // Sort results by taskIndex to maintain original order
+        allResults.sort((a, b) => a.taskIndex - b.taskIndex);
+
+        // Process results in order and update cumulative tracking
+        for (const result of allResults) {
+          audioBlobs.push(result.blob);
+          console.log(`[Video Generation] Pushed blob ${audioBlobs.length - 1}: ${result.blob.size} bytes, audioBlobs.length now = ${audioBlobs.length}`);
+          durations.push(result.duration);
+
+          if (result.srtContent && result.duration > 0) {
+            // Count SRT entries in this chunk (for sequence correlation)
+            const srtEntryCount = countSrtEntries(result.srtContent);
+            srtEntryCounts.push(srtEntryCount);
+            console.log(`[Video Generation] Chunk ${audioBlobs.length}: ${srtEntryCount} SRT entries (preview: ${result.srtContent.substring(0, 50)}...)`);
+
+            // Extract last SRT end time BEFORE adjustment to determine actual SRT span
+            const lastSrtEndTime = extractLastSrtEndTime(result.srtContent);
+
+            // Adjust SRT timestamps for this chunk
+            const adjustedSrt = adjustSrtTimestamps(
+              result.srtContent,
+              cumulativeDuration,
+              audioBlobs.length  // Use total chunk index
             );
 
-            // Log chunk details
-            console.log(`[Video Generation] Line ${task.lineIndex + 1}, Chunk ${task.chunkIndex + 1}/${task.totalChunksForLine} (Task ${taskIndex + 1}/${ttsTasks.length}):`);
-            console.log(`  - Text length: ${task.text.length} chars`);
-            console.log(`  - Audio blob size: ${blob.size} bytes`);
-            console.log(`  - Duration: ${duration || 'undefined'} seconds`);
-            console.log(`  - SRT content length: ${srtContent ? srtContent.length : 'undefined'} characters`);
+            combinedSrt += adjustedSrt + '\n\n';
 
-            if (!blob || blob.size === 0) {
-              console.error(`[Video Generation] Line ${task.lineIndex + 1}, Chunk ${task.chunkIndex + 1} returned empty blob!`);
-              throw new Error(`Audio generation failed for line ${task.lineIndex + 1}, chunk ${task.chunkIndex + 1}`);
+            // CRITICAL FIX: Use ACTUAL AUDIO DURATION to advance cumulative duration
+            // SRT end time may be shorter than audio due to gaps/pauses, causing drift accumulation
+            // Using audio duration ensures accurate timing tracking and prevents drift
+            if (lastSrtEndTime !== null) {
+              // Use actual audio duration, not SRT end time, to prevent drift
+              cumulativeDuration += result.duration;
+
+              const srtSpan = lastSrtEndTime;
+              console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added: audio=${result.duration}s, SRT span=${srtSpan.toFixed(3)}s, total=${cumulativeDuration.toFixed(2)}s`);
+            } else {
+              // Fallback to audio duration if SRT extraction fails
+              cumulativeDuration += result.duration;
+              console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added: duration=${result.duration}s (fallback, SRT extraction failed), total=${cumulativeDuration.toFixed(2)}s`);
             }
-
-            return {
-              taskIndex,
-              blob,
-              duration: duration || 0,
-              srtContent: srtContent || undefined,
-              lineIndex: task.lineIndex,
-              chunkIndex: task.chunkIndex
-            };
-          } catch (error) {
-            console.error(`[Video Generation] Failed to generate audio for line ${task.lineIndex + 1}, chunk ${task.chunkIndex + 1}:`, error);
-            throw error; // Don't continue with incomplete audio
-          }
-        });
-
-        const batchResults = await Promise.all(batchPromises);
-        allResults.push(...batchResults);
-        
-        // Update progress after each batch completes
-        completedTasks += batchResults.length;
-        const audioProgress = 50 + (completedTasks / ttsTasks.length) * 30;
-        updateProgress({
-          stage: 'audio',
-          percentage: Math.round(audioProgress),
-          message: `Generating audio ${completedTasks}/${ttsTasks.length}...`
-        });
-      }
-
-      // Sort results by taskIndex to maintain original order
-      allResults.sort((a, b) => a.taskIndex - b.taskIndex);
-
-      // Process results in order and update cumulative tracking
-      for (const result of allResults) {
-        audioBlobs.push(result.blob);
-        console.log(`[Video Generation] Pushed blob ${audioBlobs.length - 1}: ${result.blob.size} bytes, audioBlobs.length now = ${audioBlobs.length}`);
-        durations.push(result.duration);
-
-        if (result.srtContent && result.duration > 0) {
-          // Count SRT entries in this chunk (for sequence correlation)
-          const srtEntryCount = countSrtEntries(result.srtContent);
-          srtEntryCounts.push(srtEntryCount);
-          console.log(`[Video Generation] Chunk ${audioBlobs.length}: ${srtEntryCount} SRT entries (preview: ${result.srtContent.substring(0, 50)}...)`);
-          
-          // Extract last SRT end time BEFORE adjustment to determine actual SRT span
-          const lastSrtEndTime = extractLastSrtEndTime(result.srtContent);
-          
-          // Adjust SRT timestamps for this chunk
-          const adjustedSrt = adjustSrtTimestamps(
-            result.srtContent, 
-            cumulativeDuration, 
-            audioBlobs.length  // Use total chunk index
-          );
-          
-          combinedSrt += adjustedSrt + '\n\n';
-          
-          // CRITICAL FIX: Use ACTUAL AUDIO DURATION to advance cumulative duration
-          // SRT end time may be shorter than audio due to gaps/pauses, causing drift accumulation
-          // Using audio duration ensures accurate timing tracking and prevents drift
-          if (lastSrtEndTime !== null) {
-            // Use actual audio duration, not SRT end time, to prevent drift
+          } else if (result.duration > 0) {
+            // No SRT content for this chunk
+            srtEntryCounts.push(0);
             cumulativeDuration += result.duration;
-            
-            const srtSpan = lastSrtEndTime;
-            console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added: audio=${result.duration}s, SRT span=${srtSpan.toFixed(3)}s, total=${cumulativeDuration.toFixed(2)}s`);
+            console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added (no SRT): duration=${result.duration}s, total=${cumulativeDuration.toFixed(2)}s`);
           } else {
-            // Fallback to audio duration if SRT extraction fails
-            cumulativeDuration += result.duration;
-            console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added: duration=${result.duration}s (fallback, SRT extraction failed), total=${cumulativeDuration.toFixed(2)}s`);
+            srtEntryCounts.push(0);
+            console.warn(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} missing both data: duration=${result.duration}, srtContent=${!!result.srtContent}`);
           }
-        } else if (result.duration > 0) {
-          // No SRT content for this chunk
-          srtEntryCounts.push(0);
-          cumulativeDuration += result.duration;
-          console.log(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} added (no SRT): duration=${result.duration}s, total=${cumulativeDuration.toFixed(2)}s`);
-        } else {
-          srtEntryCounts.push(0);
-          console.warn(`[Video Generation] Line ${result.lineIndex + 1}, Chunk ${result.chunkIndex + 1} missing both data: duration=${result.duration}, srtContent=${!!result.srtContent}`);
         }
-      }
 
-      console.log('[Video Generation] Audio collection complete:');
-      console.log(`  - Total chunks: ${audioBlobs.length}`);
-      console.log(`  - Individual sizes:`, audioBlobs.map(b => b.size));
-      console.log(`  - Total duration: ${cumulativeDuration}s`);
+        console.log('[Video Generation] Audio collection complete:');
+        console.log(`  - Total chunks: ${audioBlobs.length}`);
+        console.log(`  - Individual sizes:`, audioBlobs.map(b => b.size));
+        console.log(`  - Total duration: ${cumulativeDuration}s`);
 
         // Save to cache after successful generation (non-blocking)
         const cacheData = {
@@ -870,7 +889,7 @@ const EpubToVideo: React.FC = () => {
             version: 'v1'
           }
         };
-        
+
         // Save cache (non-blocking, won't throw errors)
         videoCacheService.saveCacheSafe(cacheKey, cacheData).then(success => {
           if (success) {
@@ -886,12 +905,12 @@ const EpubToVideo: React.FC = () => {
         console.log(`  - Total chunks: ${audioBlobs.length}`);
         console.log(`  - Total duration: ${cumulativeDuration}s`);
       }
-      
+
       // Phase 2: Log chunk metadata before upload
       console.log(`[Video Generation] Final audioBlobs check before upload:`);
       console.log(`  - Total chunks: ${audioBlobs.length}`);
       console.log(`  - Chapter: ${chapter.title} (index ${chapter.index})`);
-      
+
       // Check for duplicate blob sizes
       const finalBlobSizes = audioBlobs.map(b => b.size);
       const finalSizeCounts = new Map<number, number[]>();
@@ -910,14 +929,14 @@ const EpubToVideo: React.FC = () => {
       } else {
         console.log(`[Video Generation] ✓ No duplicate blob sizes found in final audioBlobs`);
       }
-      
+
       console.log(`[Video Generation] Preparing to upload ${audioBlobs.length} audio chunks`);
       let totalSize = 0;
       audioBlobs.forEach((blob, i) => {
         totalSize += blob.size;
-        console.log(`[Video Generation] Chunk ${i}: ${blob.size} bytes (${(blob.size/1024/1024).toFixed(2)} MB), duration=${durations[i]?.toFixed(2) || 'unknown'}s`);
+        console.log(`[Video Generation] Chunk ${i}: ${blob.size} bytes (${(blob.size / 1024 / 1024).toFixed(2)} MB), duration=${durations[i]?.toFixed(2) || 'unknown'}s`);
       });
-      console.log(`[Video Generation] Total audio size: ${totalSize} bytes (${(totalSize/1024/1024).toFixed(2)} MB)`);
+      console.log(`[Video Generation] Total audio size: ${totalSize} bytes (${(totalSize / 1024 / 1024).toFixed(2)} MB)`);
 
       // Validation before sending to Python server
       if (cumulativeDuration === 0) {
@@ -968,8 +987,8 @@ const EpubToVideo: React.FC = () => {
             console.log('[Video Generation] Reconstructing scene images metadata from cache...');
             sceneImages = sceneImageFiles.map((file, index) => {
               // Try to match cached file to scene by index or filename
-              const matchingScene = scenes[index] || scenes.find((s: any) => 
-                file.name.includes(s.anchor_text?.substring(0, 20) || '') || 
+              const matchingScene = scenes[index] || scenes.find((s: any) =>
+                file.name.includes(s.anchor_text?.substring(0, 20) || '') ||
                 file.name.includes(`scene-${index}`)
               );
               return {
@@ -983,11 +1002,11 @@ const EpubToVideo: React.FC = () => {
           } else if (scenes.length > 0) {
             // Generate images if we have scenes but no cached images
             // (regardless of whether audio is cached)
-        updateProgress({
-          stage: 'audio',
-          percentage: 75,
-          message: 'Generating scene images...'
-        });
+            updateProgress({
+              stage: 'audio',
+              percentage: 75,
+              message: 'Generating scene images...'
+            });
 
             // Generate images for scenes
             const imageResponse = await fetch(`${FULL_CAST_TTS_URL}/api/generate-scene-images`, {
@@ -1054,19 +1073,19 @@ const EpubToVideo: React.FC = () => {
 
       // Estimate FormData size (rough calculation)
       const estimatedFormDataSize = totalSize + combinedSrt.length + chapter.content.length;
-      console.log(`[Video Generation] Estimated FormData size: ~${(estimatedFormDataSize/1024/1024).toFixed(2)} MB`);
+      console.log(`[Video Generation] Estimated FormData size: ~${(estimatedFormDataSize / 1024 / 1024).toFixed(2)} MB`);
       if (estimatedFormDataSize > 100 * 1024 * 1024) {
-        console.warn(`⚠️  WARNING: FormData size (${(estimatedFormDataSize/1024/1024).toFixed(2)} MB) exceeds typical FastAPI limit (100 MB)`);
+        console.warn(`⚠️  WARNING: FormData size (${(estimatedFormDataSize / 1024 / 1024).toFixed(2)} MB) exceeds typical FastAPI limit (100 MB)`);
       }
 
       const formData = new FormData();
-      
+
       // Send individual audio chunks instead of combining them
       audioBlobs.forEach((blob, index) => {
         console.log(`[Video Generation] Appending chunk ${index} to FormData: ${blob.size} bytes`);
         formData.append('audio_chunks', blob, `audio_${index}.mp3`);
       });
-      
+
       // Send metadata about each chunk (including SRT entry counts for course correction)
       const audioMetadata = audioBlobs.map((blob, index) => ({
         index,
@@ -1076,16 +1095,16 @@ const EpubToVideo: React.FC = () => {
       }));
       formData.append('audio_metadata', JSON.stringify(audioMetadata));
       console.log(`[Video Generation] Sending SRT entry counts:`, srtEntryCounts);
-      
+
       formData.append('text', chapter.content);
       formData.append('srt_data', combinedSrt);
-      
+
       // CRITICAL FIX: Use actual audio duration (sum of durations) instead of SRT-based cumulativeDuration
       // The cumulativeDuration is used for SRT timeline continuity, but can be wrong if SRT contains
       // malformed entries (like JSON). The actual audio durations are always accurate.
       const actualTotalDuration = durations.reduce((sum, d) => sum + d, 0);
       formData.append('total_duration', actualTotalDuration.toString());
-      
+
       // Log both for debugging
       console.log(`[Video Generation] SRT-based cumulative duration: ${cumulativeDuration.toFixed(2)}s`);
       console.log(`[Video Generation] Actual audio duration (sum): ${actualTotalDuration.toFixed(2)}s`);
@@ -1128,7 +1147,7 @@ const EpubToVideo: React.FC = () => {
       } catch (e) {
         videoGeneratorUrl = import.meta.env.VITE_VIDEO_GENERATOR_URL || 'http://localhost:8000';
       }
-      
+
       const response = await fetch(`${videoGeneratorUrl}/generate-video`, {
         method: 'POST',
         body: formData
@@ -1147,7 +1166,7 @@ const EpubToVideo: React.FC = () => {
 
       const videoBlob = await response.blob();
       const bookTitle = uploadedFile?.name || 'Unknown';
-      
+
       // Request directory access on first video (if File System API is available)
       if (!directoryAccessGranted && 'showDirectoryPicker' in window) {
         const granted = await videoStorageService.requestDirectoryAccess(bookTitle);
@@ -1167,28 +1186,28 @@ const EpubToVideo: React.FC = () => {
 
       if (saveResult.success) {
         console.log('[Video Generation] Video saved to:', saveResult.filePath);
-        
+
         // Update queue item with saved path
-        setVideoQueue(prev => prev.map(item => 
-          item.id === queueItem.id 
+        setVideoQueue(prev => prev.map(item =>
+          item.id === queueItem.id
             ? { ...item, status: 'completed', savedPath: saveResult.filePath }
             : item
         ));
       } else {
         console.warn('[Video Generation] Failed to save video:', saveResult.error);
         // Fallback to direct download
-      const videoUrl = URL.createObjectURL(videoBlob);
-      const a = document.createElement('a');
-      a.href = videoUrl;
-      a.download = `${chapter.title}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(videoUrl);
+        const videoUrl = URL.createObjectURL(videoBlob);
+        const a = document.createElement('a');
+        a.href = videoUrl;
+        a.download = `${chapter.title}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(videoUrl);
 
         // Still mark as completed
-        setVideoQueue(prev => prev.map(item => 
-          item.id === queueItem.id 
+        setVideoQueue(prev => prev.map(item =>
+          item.id === queueItem.id
             ? { ...item, status: 'completed' }
             : item
         ));
@@ -1214,7 +1233,7 @@ const EpubToVideo: React.FC = () => {
       const cacheKey = generateCacheKey(uploadedFile?.name || 'Unknown', chapterIndex);
       await videoCacheService.init();
       const cachedData = await videoCacheService.loadCache(cacheKey);
-      
+
       if (!cachedData?.audioBlobs || cachedData.audioBlobs.length === 0) {
         alert('No audio found. Please generate video first.');
         return;
@@ -1243,7 +1262,7 @@ const EpubToVideo: React.FC = () => {
       }
 
       const result = await response.json();
-      
+
       if (result.success) {
         // Update cache with new SRT
         const updatedCache = {
@@ -1251,10 +1270,10 @@ const EpubToVideo: React.FC = () => {
           srtData: result.srt_content
         };
         await videoCacheService.saveCacheSafe(cacheKey, updatedCache);
-        
+
         console.log(`[STT] SRT regenerated successfully! ${result.entry_count} entries created.`);
         alert(`SRT regenerated successfully! ${result.entry_count} entries created. You can now regenerate the video with accurate text sync.`);
-        
+
         // Optionally trigger video regeneration here if desired
         // For now, user can manually regenerate video
       } else {
@@ -1288,7 +1307,7 @@ const EpubToVideo: React.FC = () => {
 
         // Find next queued item from FRESH state
         const nextItem = currentQueueState.find(item => item.status === 'queued');
-        
+
         if (!nextItem) {
           console.log('[Queue] No more items to process');
           break;
@@ -1298,8 +1317,8 @@ const EpubToVideo: React.FC = () => {
         setCurrentProcessingId(nextItem.id);
 
         // Mark as processing
-        setVideoQueue(prev => prev.map(item => 
-          item.id === nextItem.id 
+        setVideoQueue(prev => prev.map(item =>
+          item.id === nextItem.id
             ? { ...item, status: 'processing' as const }
             : item
         ));
@@ -1310,16 +1329,16 @@ const EpubToVideo: React.FC = () => {
         try {
           // Generate video for this item
           await generateVideoForQueueItem(nextItem);
-          
+
           // Mark as completed
           console.log(`[Queue] ✓ Completed: ${nextItem.chapterTitle}`);
-          setVideoQueue(prev => prev.map(item => 
-            item.id === nextItem.id 
-              ? { 
-                  ...item, 
-                  status: 'completed' as const,
-                  progress: { stage: 'complete', percentage: 100, message: 'Complete!' }
-                }
+          setVideoQueue(prev => prev.map(item =>
+            item.id === nextItem.id
+              ? {
+                ...item,
+                status: 'completed' as const,
+                progress: { stage: 'complete', percentage: 100, message: 'Complete!' }
+              }
               : item
           ));
 
@@ -1329,17 +1348,17 @@ const EpubToVideo: React.FC = () => {
         } catch (error) {
           // Mark as failed - STOP processing queue
           console.error(`[Queue] ✗ Failed: ${nextItem.chapterTitle}`, error);
-          setVideoQueue(prev => prev.map(item => 
-            item.id === nextItem.id 
-              ? { 
-                  ...item, 
-                  status: 'failed' as const,
-                  error: error instanceof Error ? error.message : String(error),
-                  progress: { stage: 'idle', percentage: 0, message: 'Failed' }
-                }
+          setVideoQueue(prev => prev.map(item =>
+            item.id === nextItem.id
+              ? {
+                ...item,
+                status: 'failed' as const,
+                error: error instanceof Error ? error.message : String(error),
+                progress: { stage: 'idle', percentage: 0, message: 'Failed' }
+              }
               : item
           ));
-          
+
           // STOP processing on failure
           console.log('[Queue] Stopped due to failure');
           break;
@@ -1366,7 +1385,7 @@ const EpubToVideo: React.FC = () => {
     try {
       // Get all saved videos for this book
       const videos = await videoStorageService.getBookVideos(bookTitle);
-      
+
       if (videos.length === 0) {
         alert('No videos found to merge. Please generate videos first.');
         setIsMerging(false);
@@ -1390,7 +1409,7 @@ const EpubToVideo: React.FC = () => {
       const formData = new FormData();
       formData.append('book_title', bookTitle);
       formData.append('video_count', videos.length.toString());
-      
+
       // Add video blobs in order
       videos.forEach((video, index) => {
         formData.append('videos', video.blob, video.fileName);
@@ -1414,13 +1433,13 @@ const EpubToVideo: React.FC = () => {
 
       // The server will return the merged video
       const mergedBlob = await response.blob();
-      
+
       setMergeProgress({ percentage: 90, message: 'Downloading merged video...' });
 
       // Save merged video
       const sanitizedBookTitle = bookTitle.replace(/\.[^/.]+$/, '').replace(/[<>:"/\\|?*]/g, '_');
       const mergedFileName = `${sanitizedBookTitle}_Complete.mp4`;
-      
+
       const saveResult = await videoStorageService.saveVideo(
         bookTitle,
         -1, // Special index for merged video
@@ -1443,7 +1462,7 @@ const EpubToVideo: React.FC = () => {
       }
 
       setMergeProgress({ percentage: 100, message: 'Merge complete!' });
-      
+
       setTimeout(() => {
         alert(`Successfully merged ${videos.length} chapters into complete video!`);
       }, 500);
@@ -1461,22 +1480,22 @@ const EpubToVideo: React.FC = () => {
   // Auto-start queue when items are added (only when queue length changes)
   const queueLengthRef = useRef(videoQueue.length);
   const hasQueuedRef = useRef(false);
-  
+
   useEffect(() => {
     const queuedItems = videoQueue.filter(item => item.status === 'queued');
     const hasQueuedItems = queuedItems.length > 0;
-    
+
     // Only trigger if:
     // 1. We have queued items AND
     // 2. (Queue length changed OR we didn't have queued items before) AND
     // 3. Not already processing
-    const shouldStart = hasQueuedItems && 
-                       (queueLengthRef.current !== videoQueue.length || !hasQueuedRef.current) &&
-                       !isProcessingQueue;
-    
+    const shouldStart = hasQueuedItems &&
+      (queueLengthRef.current !== videoQueue.length || !hasQueuedRef.current) &&
+      !isProcessingQueue;
+
     queueLengthRef.current = videoQueue.length;
     hasQueuedRef.current = hasQueuedItems;
-    
+
     if (shouldStart) {
       console.log('[Queue] Auto-starting queue processing');
       processQueue();
@@ -1485,13 +1504,13 @@ const EpubToVideo: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <SEO 
+      <SEO
         title="EPUB to Video Generator - YoRead (Free)"
         description="Transform your EPUB books into engaging videos with AI voices and synchronized text highlighting - completely free!"
         keywords={['epub to video', 'ebook video', 'video generator', 'AI voices', 'text to video', 'free video converter']}
         url="https://yoread.com/epub-to-video"
       />
-      
+
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1507,7 +1526,7 @@ const EpubToVideo: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="text-center mb-8">
@@ -1525,7 +1544,7 @@ const EpubToVideo: React.FC = () => {
             </span>
           </div>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Transform your EPUB books into engaging videos with AI voices, synchronized text highlighting, 
+            Transform your EPUB books into engaging videos with AI voices, synchronized text highlighting,
             and professional quality. <span className="font-semibold text-green-700">Completely free to use!</span>
           </p>
         </div>
@@ -1542,7 +1561,7 @@ const EpubToVideo: React.FC = () => {
                   FREE
                 </span>
               </h2>
-              
+
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-red-400 transition-colors">
                 <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
                 <div className="space-y-3">
@@ -1576,7 +1595,7 @@ const EpubToVideo: React.FC = () => {
                       </span>
                     </div>
                   </div>
-                  
+
                   {chapters.length === 0 && (
                     <button
                       onClick={handleExtractChapters}
@@ -1604,49 +1623,48 @@ const EpubToVideo: React.FC = () => {
             {chapters.length > 0 && (
               <div className="space-y-6">
                 {/* Chapters List */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <FileText className="w-5 h-5 mr-2 text-red-800" />
-                  Chapters ({chapters.length})
-                </h3>
-                
-                <div className="space-y-3">
-                  {chapters.map((chapter) => {
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <FileText className="w-5 h-5 mr-2 text-red-800" />
+                    Chapters ({chapters.length})
+                  </h3>
+
+                  <div className="space-y-3">
+                    {chapters.map((chapter) => {
                       const queueItem = videoQueue.find(item => item.chapterIndex === chapter.index);
                       const isInQueue = !!queueItem;
                       const isProcessing = queueItem?.status === 'processing';
-                      
-                    return (
+
+                      return (
                         <div key={chapter.index} className="border border-gray-200 rounded-lg p-3">
                           <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 text-sm">
-                            {chapter.title}
-                          </h4>
-                          <p className="text-xs text-gray-500 mt-1">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 text-sm">
+                                {chapter.title}
+                              </h4>
+                              <p className="text-xs text-gray-500 mt-1">
                                 {chapter.content.length} characters • ~{formatDuration(chapter.estimatedDuration)}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {chapter.content.substring(0, 100)}...
-                          </p>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {chapter.content.substring(0, 100)}...
+                              </p>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
                               {!isInQueue ? (
-                          <button
+                                <button
                                   onClick={() => addToQueue(chapter.index)}
                                   className="flex items-center px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs"
                                 >
-                                <Video className="w-3 h-3 mr-1" />
+                                  <Video className="w-3 h-3 mr-1" />
                                   Add to Queue
-                          </button>
+                                </button>
                               ) : (
-                                <span className={`px-3 py-1 rounded-md text-xs font-medium ${
-                                  queueItem.status === 'queued' ? 'bg-gray-200 text-gray-700' :
+                                <span className={`px-3 py-1 rounded-md text-xs font-medium ${queueItem.status === 'queued' ? 'bg-gray-200 text-gray-700' :
                                   queueItem.status === 'processing' ? 'bg-blue-200 text-blue-700' :
-                                  queueItem.status === 'completed' ? 'bg-green-200 text-green-700' :
-                                  'bg-red-200 text-red-700'
-                                }`}>
+                                    queueItem.status === 'completed' ? 'bg-green-200 text-green-700' :
+                                      'bg-red-200 text-red-700'
+                                  }`}>
                                   {queueItem.status === 'queued' && '⏳ Queued'}
                                   {queueItem.status === 'processing' && '⚙️ Processing'}
                                   {queueItem.status === 'completed' && '✓ Complete'}
@@ -1654,29 +1672,29 @@ const EpubToVideo: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                        </div>
-                        
+                          </div>
+
                           {/* Progress Bar */}
                           {isProcessing && queueItem.progress.percentage > 0 && (
                             <div className="mt-3">
                               <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div 
+                                <div
                                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                                   style={{ width: `${queueItem.progress.percentage}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-gray-600 mt-1">
+                                />
+                              </div>
+                              <p className="text-xs text-gray-600 mt-1">
                                 {queueItem.progress.message}
-                            </p>
-                          </div>
-                        )}
+                              </p>
+                            </div>
+                          )}
 
                           {/* Error Message */}
                           {queueItem?.status === 'failed' && queueItem.error && (
                             <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                               {queueItem.error}
-                          </div>
-                        )}
+                            </div>
+                          )}
 
                           {/* Cache Status */}
                           {(() => {
@@ -1718,7 +1736,7 @@ const EpubToVideo: React.FC = () => {
                             }
                             return null;
                           })()}
-                          
+
                           {/* STT SRT Regeneration Button (show even if no cache) */}
                           {queueItem?.status === 'completed' && (
                             <div className="mt-2">
@@ -1731,9 +1749,9 @@ const EpubToVideo: React.FC = () => {
                               </button>
                             </div>
                           )}
-                      </div>
-                    );
-                  })}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1743,7 +1761,7 @@ const EpubToVideo: React.FC = () => {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
                       Queue Status
                     </h3>
-                    
+
                     <div className="grid grid-cols-4 gap-4 text-center">
                       <div>
                         <div className="text-2xl font-bold text-gray-700">
@@ -1770,7 +1788,7 @@ const EpubToVideo: React.FC = () => {
                         <div className="text-xs text-gray-500">Failed</div>
                       </div>
                     </div>
-                    
+
                     {isProcessingQueue && (
                       <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <div className="flex items-center">
@@ -1778,39 +1796,39 @@ const EpubToVideo: React.FC = () => {
                           <span className="text-blue-800 font-medium text-sm">
                             Processing queue... ({videoQueue.filter(i => i.status === 'completed').length}/{videoQueue.length} complete)
                           </span>
-                </div>
+                        </div>
                       </div>
                     )}
-                    
+
                     {/* Merge Videos Button */}
-                    {videoQueue.length > 0 && 
-                     videoQueue.every(item => item.status === 'completed' || item.status === 'failed') &&
-                     videoQueue.filter(item => item.status === 'completed').length > 0 && (
-                      <button
-                        onClick={handleMergeVideos}
-                        disabled={isMerging}
-                        className="mt-4 w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm disabled:opacity-50 flex items-center justify-center"
-                      >
-                        {isMerging ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Merging... {mergeProgress.percentage}%
-                          </>
-                        ) : (
-                          <>
-                            <Video className="w-4 h-4 mr-2" />
-                            Merge All Videos ({videoQueue.filter(i => i.status === 'completed').length} chapters)
-                          </>
-                        )}
-                      </button>
-                    )}
+                    {videoQueue.length > 0 &&
+                      videoQueue.every(item => item.status === 'completed' || item.status === 'failed') &&
+                      videoQueue.filter(item => item.status === 'completed').length > 0 && (
+                        <button
+                          onClick={handleMergeVideos}
+                          disabled={isMerging}
+                          className="mt-4 w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm disabled:opacity-50 flex items-center justify-center"
+                        >
+                          {isMerging ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Merging... {mergeProgress.percentage}%
+                            </>
+                          ) : (
+                            <>
+                              <Video className="w-4 h-4 mr-2" />
+                              Merge All Videos ({videoQueue.filter(i => i.status === 'completed').length} chapters)
+                            </>
+                          )}
+                        </button>
+                      )}
 
                     {isMerging && (
                       <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
                         {mergeProgress.message}
                       </div>
                     )}
-                    
+
                     {/* Clear Queue Button */}
                     <button
                       onClick={() => {
@@ -1836,7 +1854,7 @@ const EpubToVideo: React.FC = () => {
                 <Settings className="w-5 h-5 mr-2 text-red-800" />
                 Video Settings
               </h3>
-              
+
               <div className="space-y-6">
                 {/* Video Format */}
                 <div>
@@ -1852,8 +1870,8 @@ const EpubToVideo: React.FC = () => {
                     <option value="mobile">Mobile (1080x1920)</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    {settings.format === 'youtube' 
-                      ? 'Horizontal format for YouTube, TikTok, etc.' 
+                    {settings.format === 'youtube'
+                      ? 'Horizontal format for YouTube, TikTok, etc.'
                       : 'Vertical format for Instagram Stories, TikTok, etc.'
                     }
                   </p>
@@ -1873,8 +1891,8 @@ const EpubToVideo: React.FC = () => {
                     <option value="split">Split Screen (Image Left, Text Right)</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    {settings.style === 'ereader' 
-                      ? 'Scene image as background with semi-transparent text container' 
+                    {settings.style === 'ereader'
+                      ? 'Scene image as background with semi-transparent text container'
                       : 'Scene image on left half, text container on right half'
                     }
                   </p>
