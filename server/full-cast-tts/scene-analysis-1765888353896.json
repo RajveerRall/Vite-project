@@ -1,0 +1,135 @@
+{
+  "bookTitle": "Hyperion (Dan Simmons) (Z-Library).epub",
+  "chapter": "Prologue",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": null,
+  "styleKey": "yoread-hyperion-dan-simmons-z-library-epub",
+  "textLength": 10877,
+  "processingTime": 17217,
+  "timestamp": "2025-12-16T12:32:33.896Z",
+  "scenes": [
+    {
+      "anchor_text": "The Hegemony Consul sat on the balcony of his ebony spaceship and played Rachmaninoff’s Prelude in C-sharp Minor on an ancient but well-maintained Steinway while great, green, saurian things surged and bellowed in the swamps below. A thunderstorm was brewing to the north.",
+      "scene_description": "The Hegemony Consul plays Rachmaninoff on a Steinway piano on the balcony of his ebony spaceship. Below, a vast, primordial swamp teems with large, green, saurian creatures. A thunderstorm gathers in the distance with black clouds silhouetting a forest of giant gymnosperms under a violent sky.",
+      "image_prompt": "Cinematic digital painting, Hegemony Consul playing piano on ebony spaceship balcony, primordial swamps below, green, saurian things, brewing thunderstorm in distance, Painterly brushwork, stylized realism, highly detailed, evocative, visible brushstrokes, moody, volumetric, soft rim light, rule of thirds, leading lines, balanced foreground/midground/background, low angle, 35mm cinematic, moderate depth of field, Steinway: present",
+      "mood": "ominous",
+      "elements": [
+        "Hegemony Consul",
+        "ebony spaceship",
+        "Steinway",
+        "green, saurian things",
+        "swamps",
+        "thunderstorm",
+        "gymnosperms"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "Bruise-black clouds silhouetted a forest of giant gymnosperms while stratocumulus towered nine kilometers high in a violent sky. Lightning rippled along the horizon. Closer to the ship, occasional vague, reptilian shapes would blunder into the interdiction field, cry out, and then crash away through indigo mists.",
+      "scene_description": "View from the Consul's spaceship balcony showing a forest of giant gymnosperms silhouetted against bruise-black clouds. Stratocumulus clouds tower nine kilometers high in the violent sky, with lightning rippling along the horizon. Vague, reptilian shapes blunder into an interdiction field near the ship, creating indigo mists.",
+      "image_prompt": "Cinematic digital painting, View from spaceship balcony of a gymnosperm forest under a stormy sky, occasional reptilian shapes crashing into an interdiction field, indigo mists, Lightning rippling along the horizon, Painterly brushwork, stylized realism, highly detailed, evocative, visible brushstrokes, moody, volumetric, soft rim light, rule of thirds, leading lines, balanced foreground/midground/background, eye-level, 50mm cinematic, moderate depth of field, Location: Unspecified alien forest",
+      "mood": "violent",
+      "elements": [
+        "gymnosperms",
+        "stratocumulus",
+        "lightning",
+        "reptilian shapes",
+        "interdiction field",
+        "indigo mists",
+        "spaceship"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "From the direction of the gymnosperm forest there came the mournful ululation of a carrion-breed pack. Somewhere in the darkness below, a small-brained beast trumpeted its answering challenge and fell quiet. The interdiction field added its sonic undertones to the sudden silence.",
+      "scene_description": "Exterior night scene near the Consul's spaceship. A gymnosperm forest is visible in the background. The mournful ululation of a carrion-breed pack echoes from the forest, answered by a trumpet-like challenge from a small-brained beast in the darkness below. The hum of the interdiction field adds a sonic undertone.",
+      "image_prompt": "Cinematic digital painting, Gymnosperm forest at night, carrion-breed pack howling, interdiction field humming, Painterly brushwork, stylized realism, highly detailed, evocative, visible brushstrokes, moody, volumetric, soft rim light, rule of thirds, leading lines, balanced foreground/midground/background, low angle, 35mm cinematic, moderate depth of field, Carrion-breed pack: unspecified, Location: Alien forest at night",
+      "mood": "eerie",
+      "elements": [
+        "gymnosperm forest",
+        "carrion-breed pack",
+        "small-brained beast",
+        "interdiction field"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "The consulate and Home Rule Council fatlined us three standard weeks ago with the news that the Time Tombs showed signs of opening. The anti-entropic fields around them were expanding rapidly and the Shrike has begun ranging as far south as the Bridle Range.",
+      "scene_description": "Distant shot of the Time Tombs from afar. Visible are the strange, alien architecture and the expanding anti-entropic fields distorting the landscape around them. The Bridle Range mountains are visible in the distance. The Shrike roams the area south of the tombs, almost appearing as a blur, creating streaks of reflected light.",
+      "image_prompt": "Cinematic digital painting, Distant view of Time Tombs, expanding anti-entropic fields, Shrike ranging, Bridle Range mountains in distance, Painterly brushwork, stylized realism, highly detailed, evocative, visible brushstrokes, moody, volumetric, soft rim light, rule of thirds, leading lines, balanced foreground/midground/background, high angle, 50mm cinematic, moderate depth of field, Shrike: unspecified, Location: Hyperion Time Tombs and Bridle Range",
+      "mood": "apocalyptic",
+      "elements": [
+        "Time Tombs",
+        "anti-entropic fields",
+        "Shrike",
+        "Bridle Range"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "He remembered the glint of ice crystals blowing through the tumbled ruins on the low hills near the Time Tombs and the colder gleam of steel on the Shrike’s impossible tree of metal thorns. He remembered screams in the night and the hundred-facet, ruby-and-blood gaze of the Shrike itself.",
+      "scene_description": "Wide shot of tumbled ruins on low hills near the Time Tombs, with ice crystals blowing through the air. A tree made of metal thorns gleams coldly in the distance. Suggestion of screams echoing through the night. The Shrike’s ruby-and-blood gaze is seen indirectly from behind the trees, and a sense of dread fills the scene.",
+      "image_prompt": "Cinematic digital painting, Tumbled ruins near Time Tombs, ice crystals, tree of metal thorns in the distance, Painterly brushwork, stylized realism, highly detailed, evocative, visible brushstrokes, moody, volumetric, soft rim light, rule of thirds, leading lines, balanced foreground/midground/background, eye-level, 35mm cinematic, moderate depth of field, Shrike: unspecified, Location: Hyperion Time Tombs ruins",
+      "mood": "dread",
+      "elements": [
+        "ice crystals",
+        "ruins",
+        "Time Tombs",
+        "tree of metal thorns",
+        "Shrike"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "Just before first light, the Consuls ebony spaceship rose on a tail of blue plasma and punched through thickening clouds as it climbed toward space and rendezvous.",
+      "scene_description": "The Consul's ebony spaceship rises on a tail of blue plasma, punching through the thickening clouds just before dawn. The surrounding landscape is dimly lit, revealing a few scattered gymnosperms. The overall mood is one of departure and anticipation of events to come.",
+      "image_prompt": "Cinematic digital painting, Consul's spaceship rising on blue plasma tail, punching through clouds, Painterly brushwork, stylized realism, highly detailed, evocative, visible brushstrokes, moody, volumetric, soft rim light, rule of thirds, leading lines, balanced foreground/midground/background, low angle, 50mm cinematic, moderate depth of field, Spaceship: Ebony",
+      "mood": "departure",
+      "elements": [
+        "spaceship",
+        "blue plasma",
+        "clouds",
+        "gymnosperms"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "bookTitle": "Hyperion (Dan Simmons) (Z-Library).epub",
+  "chapter": "Chapter 2",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": null,
+  "styleKey": "yoread-hyperion-dan-simmons-z-library-epub",
+  "textLength": 1387,
+  "processingTime": 13425,
+  "timestamp": "2025-12-16T09:49:08.320Z",
+  "scenes": [
+    {
+      "anchor_text": "On the eve of Armageddon, with the entire galaxy at war, seven pilgrims set forth on a voyage to the Time Tombs. They seek the answers to the unsolved riddles of their lives … and what they find may hold the key to the deliverance of humanity itself.",
+      "scene_description": "On the eve of Armageddon, seven pilgrims embark on a voyage to the Time Tombs amidst a galaxy consumed by war. The scene depicts a vast, star-strewn expanse with distant nebulae swirling in vibrant colors. A lone, sleek starship, dwarfed by the immensity of space, streaks toward a cluster of ancient, enigmatic structures floating near a black hole. The structures are geometric and alien, hinting at advanced, long-lost civilizations. The overall mood is one of foreboding and desperate hope.",
+      "image_prompt": "Cinematic digital painting, seven pilgrims set forth on a voyage, galaxy at war, Time Tombs, distant nebulae swirling in the background, vast, star-strewn expanse, evocative, painterly brushwork, stylized realism, highly detailed, muted tones with dramatic contrasts, low angle, 35mm cinematic, moderate depth of field",
+      "mood": "foreboding",
+      "elements": [
+        "starship",
+        "Time Tombs",
+        "nebulae",
+        "galaxy"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "THE PRIEST—When he was young, Father Lenar Hoyt honestly believed in the Roman Catholic Church—despite the fact that history and change had made the Church wither away. But now his faith is shaken, troubled by the fate suffered on Hyperion by a man he once admired.",
+      "scene_description": "Interior of a dilapidated, ancient cathedral on a forgotten planet. Father Lenar Hoyt, middle-aged and burdened, stands amidst crumbling stone pillars and faded frescoes. Sunlight streams through shattered stained-glass windows, illuminating dust motes dancing in the air. Hoyt is in contemplation, his face etched with doubt. The cathedral, a skeletal reminder of a bygone era, reflects the decay of his faith. Palette is dominated by greys, browns, and the faded hues of the stained glass.",
+      "image_prompt": "Cinematic digital painting, Father Lenar Hoyt standing in a cathedral, painterly brushwork, stylized realism, highly detailed, muted tones with dramatic contrasts, eye-level, 50mm cinematic, moderate depth of field, Father Lenar Hoyt: middle-aged, gaunt, weary expression, wearing priestly robes, cathedral",
+      "mood": "doubtful",
+      "elements": [
+        "Father Lenar Hoyt",
+        "Roman Catholic Church",
+        "cathedral",
+        "stained-glass windows"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "scene_description",
+        "scene_description"
+      ]
+    },
+    {
+      "anchor_text": "THE SOLDIER—Colonel Fedmahn Kassad was one of the brightest, most capable, and toughest young officers in the entire Hegemony military—until chance brought him to Hyperion.",
+      "scene_description": "The desolate battlefield on Hyperion stretches out before Colonel Fedmahn Kassad as he strides forward. The time is late afternoon, the sun low on the horizon, casting a crimson glow across the smoke-filled sky. Dust and debris swirl in the air, illuminated by streaks of laser fire. The lighting is dramatic, with strong contrasts between light and shadow. The mood is tense and foreboding. The composition is centered on Kassad, his silhouette dominating the scene. A low-angle shot, taken with a wide lens, emphasizes his determination. Colonel Fedmahn Kassad, a young officer in his late twenties with a lean build, strides forward, his expression resolute. His skin is lightly tanned, his dark hair cropped short. His eyes are obscured by the helmet of his powered armor. He wears battle-worn Hegemony powered armor, scratched and dented, with visible scorch marks. He carries a pulse rifle in his hands. In the background, the Time Tombs loom ominously, their dark shapes casting long shadows across the battlefield. The color palette is dominated by crimson, grey, black, and orange, reflecting the fiery destruction. The setting is a war-torn landscape, a testament to the battles fought on Hyperion.",
+      "image_prompt": "Wide shot, Colonel Fedmahn Kassad strides across a desolate battlefield on Hyperion, the Time Tombs in the distance, atmospheric narrative + STYLE_KEY:yoread-hyperion-dan-simmons-z-library-epub, dramatic lighting, low angle, centered composition, 35mm cinematic lens, Colonel Fedmahn Kassad: young, tough Hegemony officer, Hyperion battlefield: war-torn, desolate",
+      "mood": "determined",
+      "elements": [
+        "Colonel Fedmahn Kassad",
+        "Hyperion",
+        "Time Tombs",
+        "battlefield"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "scene_description",
+        "scene_description"
+      ]
+    }
+  ]
+}

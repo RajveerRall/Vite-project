@@ -1,0 +1,123 @@
+{
+  "bookTitle": "Hyperion (Dan Simmons) (Z-Library).epub",
+  "chapter": "Prologue",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": null,
+  "styleKey": "yoread-hyperion-dan-simmons-z-library-epub",
+  "textLength": 10877,
+  "processingTime": 17047,
+  "timestamp": "2025-12-16T13:39:44.830Z",
+  "scenes": [
+    {
+      "anchor_text": "The Hegemony Consul sat on the balcony of his ebony spaceship and played Rachmaninoff’s Prelude in C-sharp Minor on an ancient but well-maintained Steinway while great, green, saurian things surged and bellowed in the swamps below. A thunderstorm was brewing to the north.",
+      "scene_description": "The Hegemony Consul is seated at a Steinway piano on the balcony of his ebony spaceship. Below, a swamp teems with large, green, saurian creatures. A thunderstorm gathers in the north, with bruise-black clouds silhouetting a distant forest. Indigo mists rise from the swamp. Lightning flashes on the horizon, while the consul plays the piano.",
+      "image_prompt": "Cinematic digital painting, Hegemony Consul plays Steinway on spaceship balcony, vast swamp below with saurian creatures, brewing thunderstorm, STYLE_THEME_KEYWORDS: dramatic, painterly, muted tones, LIGHTING_ATMOSPHERE: storm lighting, volumetric, moody, COMPOSITION: rule of thirds, leading lines, CAMERA: wide shot, 35mm, moderate depth of field",
+      "mood": "ominous",
+      "elements": [
+        "Hegemony Consul",
+        "Steinway piano",
+        "ebony spaceship",
+        "saurian creatures",
+        "swamp",
+        "thunderstorm",
+        "balcony"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "While the computer took a few seconds to convert and decode the burst of decaying tachyons, the Consul poured himself a glass of Scotch. He settled into the cushions of the projection pit just as the diskey blinked green.",
+      "scene_description": "The Consul is in the projection pit of his spaceship, pouring himself a glass of Scotch while the ship's computer decodes a fatline message. The projection pit is dimly lit, with thick carpeting, and cushions surrounding a diskey that has just blinked green, signaling the message is ready. The atmosphere is tense as the Consul prepares to listen to the decoded message.",
+      "image_prompt": "Cinematic digital painting, Consul pours Scotch in projection pit, computer decodes message, diskey blinks, STYLE_THEME_KEYWORDS: atmospheric, painterly brushwork, muted tones, LIGHTING_ATMOSPHERE: dim, indirect light, volumetric, moody, COMPOSITION: rule of thirds, leading lines, balanced foreground/midground/background, CAMERA: medium shot, 50mm, moderate depth of field",
+      "mood": "tense",
+      "elements": [
+        "Consul",
+        "Scotch",
+        "projection pit",
+        "computer",
+        "diskey",
+        "spaceship"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "The Consul walked through the holo of Meina Gladstone, retrieved his glass, and went to pour another Scotch.“You have been chosen to join the pilgrimage to the Shrike,” said the image of the old CEO whom the press loved to compare to Lincoln or Churchill or Alvarez-Temp or whatever other pre-Hegira legend was in historical vogue at the time.",
+      "scene_description": "The Consul walks through a holographic projection of Meina Gladstone, holding an empty glass, on his way to pour more Scotch. The holo shows Gladstone's aged face with tired eyes. She speaks of the pilgrimage to the Shrike. The ship's projection pit is visible, with thick carpeting. The mood is somber and reflective.",
+      "image_prompt": "Cinematic digital painting, Consul walks through Meina Gladstone holo, empty glass, Scotch, STYLE_THEME_KEYWORDS: atmospheric, painterly, muted tones, LIGHTING_ATMOSPHERE: dim, volumetric, moody, COMPOSITION: rule of thirds, leading lines, balanced foreground/midground/background, CAMERA: medium shot, 35mm, moderate depth of field, CHARACTER_REFERENCE: Consul, unspecified age/build/skin/hair/eyes, unspecified wardrobe; Meina Gladstone, unspecified age/build/skin/hair/eyes, unspecified wardrobe",
+      "mood": "somber",
+      "elements": [
+        "Consul",
+        "Meina Gladstone",
+        "Scotch",
+        "holo",
+        "glass",
+        "projection pit"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "The circular room was dark except for silent explosions of lightning which outlined rivulets of rain coursing the skylight. The Consul stripped, lay back on the firm mattress, and switched on the sound system and external audio pickups. He listened as the fury of the storm blended with the violence of Wagners “Flight of the Valkyries.”",
+      "scene_description": "The Consul lies on a firm mattress in his circular sleeping cabin atop the ebony spaceship, stripped down to his undergarments. Lightning flashes illuminate rivulets of rain coursing down the skylight above him. He listens to Wagner's \"Flight of the Valkyries\" as the storm rages outside. The room is mostly dark, with brief flashes of light from the storm.",
+      "image_prompt": "Cinematic digital painting, Consul in circular room during storm, lightning outlines rain on skylight, Wagner's Valkyries, mattress, sound system, cabin, STYLE_THEME_KEYWORDS: atmospheric, painterly, muted tones, LIGHTING_ATMOSPHERE: storm lighting, stark contrast, volumetric, moody, COMPOSITION: rule of thirds, leading lines, balanced foreground/midground/background, CAMERA: medium shot, 50mm, moderate depth of field, CHARACTER_REFERENCE: Consul, unspecified age/build/skin/hair/eyes, unspecified undergarments, LOCATION_REFERENCE: circular sleeping cabin",
+      "mood": "turbulent",
+      "elements": [
+        "Consul",
+        "lightning",
+        "rain",
+        "skylight",
+        "mattress",
+        "sound system",
+        "circular room",
+        "cabin"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "Just before first light, the Consuls ebony spaceship rose on a tail of blue plasma and punched through thickening clouds as it climbed toward space and rendezvous.",
+      "scene_description": "The Consul's ebony spaceship ascends into space just before dawn, leaving a tail of blue plasma. The ship punches through thick clouds as it climbs. The pre-dawn sky is visible above the clouds. The overall scene emphasizes the power and scale of the spaceship as it leaves the planet's atmosphere.",
+      "image_prompt": "Cinematic digital painting, ebony spaceship ascends with blue plasma trail, punches through clouds, STYLE_THEME_KEYWORDS: atmospheric, painterly, muted tones, LIGHTING_ATMOSPHERE: pre-dawn light, volumetric, moody, COMPOSITION: rule of thirds, leading lines, balanced foreground/midground/background, CAMERA: wide shot, 35mm, moderate depth of field, CHARACTER_REFERENCE: Consul (unseen, inside the ship), unspecified age/build/skin/hair/eyes, unspecified wardrobe, LOCATION_REFERENCE: above unnamed world",
+      "mood": "determined",
+      "elements": [
+        "spaceship",
+        "blue plasma",
+        "clouds"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    }
+  ]
+}

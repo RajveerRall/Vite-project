@@ -1,0 +1,135 @@
+{
+  "bookTitle": "Hyperion (Dan Simmons) (Z-Library).epub",
+  "chapter": "Prologue",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": null,
+  "styleKey": "yoread-hyperion-dan-simmons-z-library-epub",
+  "textLength": 10877,
+  "processingTime": 21135,
+  "timestamp": "2025-12-16T13:54:27.336Z",
+  "scenes": [
+    {
+      "anchor_text": "The Hegemony Consul sat on the balcony of his ebony spaceship and played Rachmaninoff’s Prelude in C-sharp Minor on an ancient but well-maintained Steinway while great, green, saurian things surged and bellowed in the swamps below. A thunderstorm was brewing to the north.",
+      "scene_description": "The Hegemony Consul sits on the balcony of his ebony spaceship playing a Steinway piano. Below, a vast swamp teems with large, green, saurian creatures. A thunderstorm gathers in the distance, casting shadows across the primeval landscape. The scene is lit by the ambient light of the brewing storm and the soft glow emanating from the spaceship's interior. The mood is ominous and contemplative.",
+      "image_prompt": "Cinematic digital painting, Hegemony Consul plays piano on spaceship balcony, primordial swamp with saurian creatures, brewing thunderstorm, moody atmospheric illustration, volumetric lighting, rule of thirds composition, wide-angle shot, 35mm cinematic lens, Consul: unspecified age/build/skin/hair/eyes, playing piano, wardrobe silhouette/color unspecified, Steinway piano on balcony, LOCATION_REFERENCE: swamp planet",
+      "mood": "ominous",
+      "elements": [
+        "Hegemony Consul",
+        "ebony spaceship",
+        "Steinway",
+        "saurian things",
+        "swamps",
+        "thunderstorm"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "Bruise-black clouds silhouetted a forest of giant gymnosperms while stratocumulus towered nine kilometers high in a violent sky. Lightning rippled along the horizon. Closer to the ship, occasional vague, reptilian shapes would blunder into the interdiction field, cry out, and then crash away through indigo mists.",
+      "scene_description": "A wide shot showcasing a prehistoric world. The sky is dominated by towering stratocumulus clouds reaching nine kilometers high, silhouetted by bruise-black storm clouds. Giant gymnosperms form a dense forest. Lightning flashes along the horizon. Close to the Consul's ship, vague, reptilian shapes stumble into an interdiction field, creating swirling indigo mists. The lighting is dramatic, with flashes of lightning illuminating the scene. The overall mood is foreboding.",
+      "image_prompt": "Cinematic digital painting, Reptilian shapes in interdiction field near Consul's ship, primeval forest of gymnosperms, stratocumulus clouds, rippling lightning, indigo mists, moody atmospheric illustration, volumetric lighting, rule of thirds composition, wide-angle shot, 35mm cinematic lens, character unspecified, LOCATION_REFERENCE: swamp planet",
+      "mood": "foreboding",
+      "elements": [
+        "bruise-black clouds",
+        "forest",
+        "giant gymnosperms",
+        "stratocumulus",
+        "lightning",
+        "ship",
+        "reptilian shapes",
+        "interdiction field",
+        "indigo mists"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "The Consul was suddenly very aware that he was, at that, second, the only sentient being on an unnamed world. He listened to the antediluvian night sounds rising from the swamps and he thought about morning, about setting out in the Vikken EMV at first light, about spending the day in sunshine, about hunting big game in the fern forests to the south and then returning to the ship in the evening for a good steak and a cold beer.",
+      "scene_description": "The Consul's sleek, ebony spaceship, the Vikken EMV, rests solitary on an unnamed, swampy world. It is night, and the landscape stretches into the distance under an overcast sky, the air thick with humidity. The primary illumination comes from soft, eerie phosphorescence rising from the marshes, casting an otherworldly glow on the fern forests to the south. This light creates dramatic contrasts, highlighting the ship's polished hull against the dark, primeval environment. The sound of antediluvian creatures echoes in the air. The mood is one of isolation and primordial wilderness. The composition follows the rule of thirds, with the spaceship placed slightly off-center. A wide-angle lens captures the vastness of the swamp and the smallness of the ship. The color palette consists of muted greens, browns, and blacks, punctuated by the ghostly green of the phosphorescent light. In the background, silhouettes of tall, alien trees loom against the horizon.",
+      "image_prompt": "Cinematic digital painting, ebony spaceship on an alien world, primeval swamp stretching into the distance, antediluvian night sounds, fern forests to the south, soft phosphorescence rising from the swamps, moody atmospheric illustration, dramatic contrasts, muted tones with dramatic contrasts, yoread-hyperion-dan-simmons-z-library-epub, eerie glow, volumetric lighting, rule of thirds composition, wide-angle shot, Vikken EMV, 35mm cinematic lens, unnamed world, Consul",
+      "mood": "isolated",
+      "elements": [
+        "Consul",
+        "unnamed world",
+        "antediluvian night sounds",
+        "swamps",
+        "Vikken EMV",
+        "fern forests",
+        "spaceship"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "The circular room was dark except for silent explosions of lightning which outlined rivulets of rain coursing the skylight. The Consul stripped, lay back on the firm mattress, and switched on the sound system and external audio pickups. He listened as the fury of the storm blended with the violence of Wagners “Flight of the Valkyries.”",
+      "scene_description": "The Consul's circular sleeping cabin at the apex of his ebony spaceship during a thunderstorm. Lightning flashes intermittently, illuminating rivulets of rain coursing down the skylight. The room is otherwise dark. The Consul lies on the mattress, listening to Wagner's \"Flight of the Valkyries\". The lighting is dramatic and chaotic due to the lightning strikes.",
+      "image_prompt": "Cinematic digital painting, Consul in sleeping cabin during storm, rivulets of rain on skylight, flashing lightning, Wagner's \"Flight of the Valkyries\", moody atmospheric illustration, volumetric lighting, rule of thirds composition, wide-angle shot, 35mm cinematic lens, Consul: unspecified age/build/skin/hair/eyes, stripped, laying on mattress, wardrobe silhouette/color unspecified, spaceship interior",
+      "mood": "stormy",
+      "elements": [
+        "circular room",
+        "lightning",
+        "rivulets of rain",
+        "skylight",
+        "Consul",
+        "mattress",
+        "sound system",
+        "external audio pickups",
+        "storm"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "Just before first light, the Consuls ebony spaceship rose on a tail of blue plasma and punched through thickening clouds as it climbed toward space and rendezvous.",
+      "scene_description": "The Consul's sleek, ebony spaceship, its hull gleaming faintly in the pre-dawn light, rises with controlled power from a swampy clearing. It is just before first light; the eastern horizon is beginning to glow with a pale, diffused radiance. The predominant light source is the intense blue plasma trail erupting from the ship's engines, casting an ethereal glow on the surrounding clouds. Thickening layers of grey and indigo clouds obscure the upper atmosphere, creating a moody, atmospheric setting. The composition follows the rule of thirds, with the spaceship occupying the right third of the frame. The camera captures a wide-angle view, using a 35mm lens, emphasizing the scale of the spacecraft against the vast sky. No characters are visible outside the ship. The swampy planet is the background, its details muted by the low light. The overall color palette is dominated by muted tones of grey, indigo, and black, punctuated by the vibrant blue of the plasma trail.",
+      "image_prompt": "Cinematic digital painting, ebony spaceship ascending through thickening clouds, a tail of vibrant blue plasma illuminating the surroundings, swamp planet below, first light of dawn breaking on the horizon, yoread-hyperion-dan-simmons-z-library-epub, volumetric lighting, dramatic contrasts, rule of thirds composition, wide-angle shot, 35mm cinematic lens, character unspecified, LOCATION_REFERENCE: swamp planet, moody atmospheric illustration, dynamic perspective, dark and foreboding, ethereal glow, sense of departure, technological prowess, pre-dawn setting, emphasize the scale, realistic rendering, detailed textures, 8k resolution, intricate details on the spaceship hull, stylized rendering, painterly brushstrokes, digital artwork",
+      "mood": "departure",
+      "elements": [
+        "Consul",
+        "ebony spaceship",
+        "blue plasma",
+        "thickening clouds",
+        "light"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    }
+  ]
+}

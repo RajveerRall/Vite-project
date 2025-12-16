@@ -1,0 +1,29 @@
+{
+  "bookTitle": "Hyperion (Dan Simmons) (Z-Library).epub",
+  "chapter": "Chapter 3",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": null,
+  "styleKey": "yoread-hyperion-dan-simmons-z-library-epub",
+  "textLength": 1573,
+  "processingTime": 7153,
+  "timestamp": "2025-12-15T10:55:07.404Z",
+  "scenes": [
+    {
+      "anchor_text": "Hyperion\nPRAISE FORHYPERIONand THE FALL OF HYPERION“Generously conceived and stylistically sure-handed … an unfailingly inventive narrative that bears comparison with such classics as Isaac Asimov’s ‘Foundation’ series, Frank Herbert’s ‘Dune’ and Gene Wolfe’s ‘Book of the New Sun.’ ”—The New York Times Book Review“Dan Simmons has brilliantly conceptualized a future 700 years distant.",
+      "scene_description": "A visualization of the Hyperion planetary system, vast and nebulous, reflecting the complex future conceived by Dan Simmons. The setting is deep space, seemingly timeless. Light is predominantly volumetric, with dramatic contrasts playing across swirling cosmic dust and planetary surfaces. The mood is awe-inspiring and slightly ominous, suggesting both the beauty and peril inherent in the Hyperion universe. The composition is wide and panoramic, emphasizing the grand scale. A wide-angle lens captures the immense scope. There are no characters visible, focusing solely on the environment. No props are directly visible, only implied by the celestial bodies. The color palette consists of muted tones, primarily blues, purples, and grays, with occasional flashes of more intense color to highlight points of interest. The background features distant galaxies and nebulae, further contributing to the sense of vastness.",
+      "image_prompt": "Cinematic digital painting, Depicting the Hyperion planetary system as a sprawling nebula, Deep space, atmospheric narrative + yoread-hyperion-dan-simmons-z-library-epub, Volumetric lighting with dramatic contrasts, Wide and panoramic composition, Wide-angle lens, No character reference, No location reference",
+      "mood": "grand",
+      "elements": [
+        "planets",
+        "nebula",
+        "cosmic dust"
+      ],
+      "sourceJustification": [
+        "from 'Hyperion' text",
+        "from 'future 700 years distant' text",
+        "from 'future 700 years distant' text"
+      ]
+    }
+  ]
+}

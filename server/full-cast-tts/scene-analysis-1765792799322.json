@@ -1,0 +1,189 @@
+{
+  "bookTitle": "Hyperion (Dan Simmons) (Z-Library).epub",
+  "chapter": "Prologue",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": null,
+  "styleKey": "yoread-hyperion-dan-simmons-z-library-epub",
+  "textLength": 10877,
+  "processingTime": 43874,
+  "timestamp": "2025-12-15T09:59:59.322Z",
+  "scenes": [
+    {
+      "anchor_text": "The Hegemony Consul sat on the balcony of his ebony spaceship and played Rachmaninoff’s Prelude in C-sharp Minor on an ancient but well-maintained Steinway while great, green, saurian things surged and bellowed in the swamps below. A thunderstorm was brewing to the north.",
+      "scene_description": "The Hegemony Consul, a man in his late 50s with a lean build, pale skin, silver hair, and piercing blue eyes, sits on the balcony of his ebony spaceship. He is elegantly dressed in a dark gray, tailored suit. On the balcony, a meticulously maintained Steinway piano sits center stage. The Consul's fingers dance across the keys, playing Rachmaninoff’s Prelude in C-sharp Minor. The time of day is late afternoon. The light is fading. The setting is a vast swamp, teeming with giant, green, saurian creatures bellowing and surging in the murky water below. The air is thick with humidity. A thunderstorm is brewing to the north, casting long shadows across the landscape. The mood is foreboding and isolated. The color palette is muted, dominated by greens, browns, and grays, with dramatic contrasts created by the gathering storm. The composition is wide, capturing the scale of the swamp and the smallness of the Consul in the grand landscape. The camera angle is low, looking up at the Consul and his spaceship. The lens is wide to capture the scope of the environment.",
+      "image_prompt": "Medium shot, Hegemony Consul playing Steinway piano, ebony spaceship balcony overlooking swamp, atmospheric narrative + yoread-hyperion-dan-simmons-z-library-epub, moody volumetric lighting, wide composition, low angle, wide lens, Character: late 50s, lean build, pale skin, silver hair, piercing blue eyes, dark gray tailored suit, Location: vast swamp teeming with saurian creatures, thunderstorm brewing to the north, murky water, muted greens, browns, grays",
+      "mood": "foreboding",
+      "elements": [
+        "Hegemony Consul",
+        "Steinway piano",
+        "spaceship balcony",
+        "swamp",
+        "saurian creatures",
+        "thunderstorm"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "Bruise-black clouds silhouetted a forest of giant gymnosperms while stratocumulus towered nine kilometers high in a violent sky. Lightning rippled along the horizon. Closer to the ship, occasional vague, reptilian shapes would blunder into the interdiction field, cry out, and then crash away through indigo mists.",
+      "scene_description": "A wide shot of a prehistoric landscape dominated by giant gymnosperm trees silhouetted against bruise-black storm clouds, stratocumulus formations tower in the background at nine kilometers high. Lightning ripples across the horizon. Vague, reptilian shapes blunder into an unseen interdiction field closer to the spaceship, surrounded by indigo mists.",
+      "image_prompt": "Cinematic digital painting, Gymnosperm forest silhouetted against bruise-black clouds, lightning, vague, reptilian shapes blunder into interdiction field amidst indigo mists, painterly brushwork, stylized realism, highly detailed, evocative, dramatic contrasts, moody, volumetric lighting, rule of thirds, leading lines, balanced composition, wide-angle shot, 35mm cinematic, moderate depth of field",
+      "mood": "violent",
+      "elements": [
+        "clouds",
+        "gymnosperms",
+        "lightning",
+        "reptilian shapes",
+        "interdiction field",
+        "indigo mists",
+        "spaceship"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "The Consul concentrated on a difficult section of the Prelude and ignored the approach of storm and nightfall.The fatline receiver chimed.The Consul stopped, fingers hovering above the keyboard, and listened. Thunder rumbled through the heavy air.",
+      "scene_description": "The Hegemony Consul, a man of indeterminate age and average build, with closely-cropped dark hair and intense, dark eyes, sits at the Steinway piano inside his spaceship. His skin is pale, reflecting the dim interior light. He wears a simple, dark grey tunic. His hands, fingers slightly long and elegant, hover just above the ivory keys of the Steinway. The fatline receiver, a small, rectangular device with a single blinking amber light, has just chimed, interrupting his playing. The interior is dimly lit by soft, indirect lighting, with a sense of an impending storm outside; subtle flashes illuminate the walls. Thunder rumbles ominously. The setting is intimate and focused on the Consul's reaction. The camera angle is low, looking up at the Consul, with a 50mm lens, emphasizing his thoughtful expression. One ornate, antique music stand with a single, tattered sheet of music (Prelude) stands to his left. The color palette is muted greys, blacks, and ambers, with the occasional flash of lightning providing stark contrast. Background elements include the ship's metallic walls and various instrument displays, all subtly out of focus.",
+      "image_prompt": "Medium close-up, Consul's hands hover over piano keys, spaceship interior at twilight, atmospheric narrative + yoread-hyperion-dan-simmons-z-library-epub, dim lighting with dramatic contrast, low angle, 50mm lens, Consul: dark hair, pale skin, dark tunic, intense gaze, Steinway piano: antique, polished wood, fatline receiver: small, rectangular, blinking amber light",
+      "mood": "intimate",
+      "elements": [
+        "Consul",
+        "piano keys",
+        "fatline receiver",
+        "spaceship"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "The Consul walked through the holo of Meina Gladstone, retrieved his glass, and went to pour another Scotch.“You have been chosen to join the pilgrimage to the Shrike,” said the image of the old CEO whom the press loved to compare to Lincoln or Churchill or Alvarez-Temp or whatever other pre-Hegira legend was in historical vogue at the time.",
+      "scene_description": "The Hegemony Consul walks through a holographic projection of Meina Gladstone inside his spaceship. The projection shows Gladstone's ancient face, weary and grim. He is retrieving a glass to pour another Scotch. The holopit provides a source of light. The scene conveys a sense of isolation and grim determination.",
+      "image_prompt": "Cinematic digital painting, Consul walks through Meina Gladstone holo, pours Scotch, spaceship holopit, painterly brushwork, stylized realism, highly detailed, dramatic contrasts, moody, volumetric lighting, rule of thirds, medium shot, 35mm cinematic, moderate depth of field, Consul: unspecified details, Scotch glass",
+      "mood": "grim",
+      "elements": [
+        "Consul",
+        "Meina Gladstone holo",
+        "Scotch glass",
+        "spaceship",
+        "holopit"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "The Consul was suddenly very aware that he was, at that, second, the only sentient being on an unnamed world. He listened to the antediluvian night sounds rising from the swamps and he thought about morning, about setting out in the Vikken EMV at first light, about spending the day in sunshine, about hunting big game in the fern forests to the south and then returning to the ship in the evening for a good steak and a cold beer.",
+      "scene_description": "The Hegemony Consul, a man perhaps in his late forties, with a wiry build honed by years of travel and adventure, stands on the narrow balcony of his sleek, ebony spaceship. It is night, the time just before the dawn on this unnamed world. The only light comes from the ship's soft internal glow and the faint shimmer reflecting from the swamp. The mood is one of profound loneliness, mixed with a simmering anticipation for the hunt. The composition is simple, focusing on the Consul as a solitary figure against the vast, dark landscape. A long shot, almost a silhouette. He is dressed in simple, durable clothing – dark trousers, a long-sleeved shirt, and sturdy boots, appropriate for the wilderness. He leans slightly on the railing, his gaze fixed on the swamp below. The air is thick with moisture and the cacophony of the alien swamp. A Vikken EMV, a rugged all-terrain vehicle, is visible parked a short distance away in the ship's landing bay. The color palette is dominated by muted greens, browns, and blacks, with occasional flashes of bioluminescence from the swamp. The background is a wall of dense, primeval vegetation, hinting at the dangers and mysteries that lie within.",
+      "image_prompt": "Long shot, Hegemony Consul stands on spaceship balcony, gazing at swamp, night, atmospheric narrative + yoread-hyperion-dan-simmons-z-library-epub, soft internal glow of ship, faint swamp bioluminescence, moody, volumetric lighting, rule of thirds, 35mm cinematic, moderate depth of field, Consul: wiry build, late forties, dark trousers, long-sleeved shirt, sturdy boots, unspecified details, swamp: dense vegetation, primeval, muted greens, browns, blacks",
+      "mood": "lonely",
+      "elements": [
+        "Consul",
+        "spaceship balcony",
+        "swamp",
+        "Vikken EMV"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "The circular room was dark except for silent explosions of lightning which outlined rivulets of rain coursing the skylight. The Consul stripped, lay back on the firm mattress, and switched on the sound system and external audio pickups. He listened as the fury of the storm blended with the violence of Wagners “Flight of the Valkyries.”",
+      "scene_description": "The scene unfolds inside the Consul's private circular sleeping cabin, situated at the apex of a Hegemony spaceship. It is night, the sole illumination stemming from violent lightning flashes intermittently revealing streaks of rain lacing the skylight. The mood is one of brooding introspection amidst impending chaos. The Consul, middle-aged with a lean build, pale skin, dark hair, and intense eyes, lies naked on the firm mattress. His wardrobe is nonexistent, reflecting vulnerability. The sound system, a sleek console with intricate glowing interfaces (1), emanates Wagner's \"Flight of the Valkyries,\" a soundtrack merging with the storm's raw power. Rain streaks the skylight above. Muted tones of gray, blue, and black dominate, punctuated by stark white bursts of lightning. The overall composition is intimate, the camera positioned for a medium shot to capture the Consul's emotional state against the backdrop of elemental fury.",
+      "image_prompt": "Medium shot, Consul lying on mattress, lightning illuminating rain-streaked skylight in circular cabin, atmospheric narrative + yoread-hyperion-dan-simmons-z-library-epub, dramatic contrasts and muted tones, rule of thirds, 35mm cinematic lens, naked man with dark hair, pale skin, lean build, circular cabin interior with skylight and sound system, volumetric lighting, highly detailed spaceship interior",
+      "mood": "chaotic",
+      "elements": [
+        "Consul",
+        "sleeping cabin",
+        "lightning",
+        "rain",
+        "skylight",
+        "sound system"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "He remembered the glint of ice crystals blowing through the tumbled ruins on the low hills near the Time Tombs and the colder gleam of steel on the Shrike’s impossible tree of metal thorns. He remembered screams in the night and the hundred-facet, ruby-and-blood gaze of the Shrike itself.",
+      "scene_description": "A desolate landscape on Hyperion. The setting is the low hills near the Time Tombs, now tumbled ruins. It is night, the only light source being the cold, ethereal glow reflecting off the ice crystals swirling through the air. The mood is overwhelmingly terrifying and dread-filled. The composition focuses on the ruins, partially obscured by blowing ice, leading to the Shrike's impossible tree of metal thorns, its steel glinting menacingly. The Shrike's hundred-facet ruby-and-blood eyes are a focal point, piercing through the gloom. A wide, sweeping camera angle captures the vastness of the desolation. No characters are visible, only the implied presence of past horrors. The color palette is dominated by muted grays and blues, punctuated by the harsh red of the Shrike's eyes. In the background, the vague shapes of the Time Tombs loom, adding to the oppressive atmosphere. The overall effect is a haunting reminder of past trauma.",
+      "image_prompt": "Wide shot, Ice crystals blowing through ruins, Shrike's metal tree gleaming with cold steel, ruby-and-blood gaze piercing the darkness, Hyperion near the Time Tombs at night, atmospheric narrative + yoread-hyperion-dan-simmons-z-library-epub, volumetric lighting, dramatic composition, panoramic lens, No characters present, reference Time Tombs",
+      "mood": "terrifying",
+      "elements": [
+        "ice crystals",
+        "ruins",
+        "Time Tombs",
+        "metal tree",
+        "ruby gaze",
+        "Shrike"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "Hyperion.The Consul silently commanded the computer to shut off all speakers and raised his wrist to cover his eyes. In the sudden silence he lay thinking about how insane it would be to return to Hyperion.",
+      "scene_description": "The Hegemony Consul, a man appearing to be in his late 50s with a weary face and close-cropped grey hair, lies in his circular sleeping cabin aboard his consular ship. It's night, with only the faintest sliver of light bleeding through the automated window shades. The muted illumination casts long, dramatic shadows across the cabin's smooth, metallic surfaces. He covers his eyes with a pale, aged hand, the sudden absence of sound amplifying the internal dread he feels about returning to Hyperion. The cabin is sparsely furnished with only the integrated sleeping berth, a small, polished control panel built into the wall, and a personal effects alcove holding three neatly stacked datapads. The color palette is dominated by dark blues, grays, and blacks, with small splashes of reflected light. The overall composition is claustrophobic, emphasizing the Consul's isolation and the weight of his decision. A medium shot focuses on the Consul's face, conveying his resignation and fear. The background shows blurred details of the cabin's interior, subtly suggesting advanced technology.",
+      "image_prompt": "Medium shot, Hegemony Consul lying in sleeping berth, covering eyes, circular spaceship cabin, atmospheric narrative + yoread-hyperion-dan-simmons-z-library-epub, dramatic volumetric lighting, rule of thirds, 50mm cinematic lens, weary face, close-cropped grey hair, pale skin, integrated sleeping berth, small polished control panel, datapads, dark blues, grays, blacks, blurred cabin interior",
+      "mood": "dread",
+      "elements": [
+        "Consul",
+        "sleeping cabin"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "Just before first light, the Consuls ebony spaceship rose on a tail of blue plasma and punched through thickening clouds as it climbed toward space and rendezvous.",
+      "scene_description": "The Hegemony Consul's ebony spaceship ascends through thick clouds just before dawn, propelled by a tail of blue plasma. The scene depicts the ship's departure from the unnamed world, symbolizing a return to the chaos and conflicts of the Hegemony.",
+      "image_prompt": "Cinematic digital painting, Spaceship rising on blue plasma, thick clouds, dawn, painterly brushwork, stylized realism, highly detailed, dramatic contrasts, moody, volumetric lighting, rule of thirds, wide shot, 35mm cinematic, moderate depth of field, Consul: unspecified details, Location: Unspecified swamp",
+      "mood": "soaring",
+      "elements": [
+        "spaceship",
+        "plasma",
+        "clouds"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    }
+  ]
+}

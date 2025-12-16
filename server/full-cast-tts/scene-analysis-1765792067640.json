@@ -1,0 +1,65 @@
+{
+  "bookTitle": "pg2500-images.epub",
+  "chapter": "AWAKENING",
+  "bookTheme": "atmospheric narrative",
+  "colorPalette": "muted tones with dramatic contrasts",
+  "maxScenes": null,
+  "styleKey": "yoread-pg2500-images-epub",
+  "textLength": 8051,
+  "processingTime": 10832,
+  "timestamp": "2025-12-15T09:47:47.640Z",
+  "scenes": [
+    {
+      "anchor_text": "When Siddhartha left the grove, where the Buddha, the perfected one, stayed\nbehind, where Govinda stayed behind, then he felt that in this grove his past\nlife also stayed behind and parted from him.",
+      "scene_description": "Siddhartha departs from a serene grove at dawn. The air is misty, with shafts of sunlight piercing the foliage. Govinda and Buddha are blurred figures in the background, diminishing in size as Siddhartha walks away. The grove is a mix of lush greens and browns, with dappled light on the forest floor. Siddhartha, a young man, walks towards the open path. The overall atmosphere is one of quiet contemplation and departure. The composition emphasizes the path ahead, suggesting a journey into the unknown. The light is soft and diffused, creating a sense of peace and tranquility.",
+      "image_prompt": "Cinematic digital painting, Siddhartha departing a forest grove, lush green forest at dawn with misty air, stylized realism, painterly brushwork, soft lighting, rule of thirds composition, eye-level wide shot, 35mm lens, moderate depth of field, Siddhartha: young man walking away, unspecified attire, LOCATION_REFERENCE: grove with Buddha and Govinda in background blurred and diminishing",
+      "mood": "contemplative",
+      "elements": [
+        "Siddhartha",
+        "grove",
+        "Buddha",
+        "Govinda"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "He looked around, as if he was seeing the world for the first time. Beautiful\nwas the world, colourful was the world, strange and mysterious was the world!\nHere was blue, here was yellow, here was green, the sky and the river flowed,\nthe forest and the mountains were rigid, all of it was beautiful, all of it was\nmysterious and magical, and in its midst was he, Siddhartha, the awakening one,\non the path to himself.",
+      "scene_description": "Siddhartha stands on a riverbank, gazing at the landscape as if seeing it anew. The scene is vibrant with colors - blue sky reflected in the flowing river, yellow flowers in the foreground, and green forest covering the distant mountains. The atmosphere is clear and bright, with a sense of wonder and awakening. Siddhartha is small in the frame, emphasizing the vastness and beauty of the world around him. The composition follows the rule of thirds, balancing the sky, river, and landscape. The light is natural and warm, enhancing the colors and creating a sense of joy and discovery. The scene is devoid of specific architectural details, focusing on the natural elements.",
+      "image_prompt": "Cinematic digital painting, Siddhartha standing on riverbank, vibrant landscape with blue sky, flowing river, yellow flowers, and green mountains, painterly brushwork, stylized realism, bright natural lighting, rule of thirds composition, eye-level wide shot, 35mm lens, moderate depth of field, Siddhartha: unspecified attire, riverbank landscape",
+      "mood": "awakening",
+      "elements": [
+        "Siddhartha",
+        "sky",
+        "river",
+        "forest",
+        "mountains"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text",
+        "anchor_text"
+      ]
+    },
+    {
+      "anchor_text": "Motionless, Siddhartha remained standing there, and for the time of one moment\nand breath, his heart felt cold, he felt a cold in his chest, as a small\nanimal, a bird or a rabbit, would when seeing how alone he was.",
+      "scene_description": "The setting is a desolate, cracked path winding through a barren landscape at twilight. The time of day is late evening, just before complete darkness. The lighting is fading, dominated by long shadows cast by withered trees. The overall mood is one of cold isolation and foreboding. The composition emphasizes the vastness of the landscape, making Siddhartha appear small and vulnerable. A wide-angle lens is used, capturing the immensity of the environment. Siddhartha, a man of indeterminate age, stands motionless. His build is lean. His skin appears weathered from exposure to the elements. His hair is dark. His eyes reflect the somber hues of the sky. His wardrobe consists of simple, worn robes, reflecting a life of asceticism. The only props are the cracked earth beneath his feet and the sparse, skeletal trees dotting the horizon, numbering less than ten within the immediate foreground. The environment evokes a sense of emptiness. The color palette consists of muted tones of gray, brown, and orange, with dramatic contrasts created by the fading light. The background is a blurred horizon line, suggesting endless desolation.",
+      "image_prompt": "Medium shot, Siddhartha standing motionless on a desolate path, barren landscape at twilight, atmospheric narrative + yoread-pg2500-images-epub, fading light, long shadows, wide-angle lens, vulnerability and loneliness, Siddhartha with weathered skin and dark hair, desolate path and sparse withered trees",
+      "mood": "isolated",
+      "elements": [
+        "Siddhartha",
+        "path"
+      ],
+      "sourceJustification": [
+        "anchor_text",
+        "anchor_text"
+      ]
+    }
+  ]
+}
