@@ -12,9 +12,9 @@ interface SpeedControlDropdownProps {
 const SpeedControlDropdown: React.FC<SpeedControlDropdownProps> = ({
   currentSpeed,
   onSpeedChange,
-  minSpeed = 0.5,
+  minSpeed = 0.8,
   maxSpeed = 1.5,
-  speeds = [0.5, 0.75, 1.0, 1.25, 1.5]
+  speeds = [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);

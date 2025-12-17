@@ -187,10 +187,10 @@ const Library: React.FC = () => {
             <section className="pt-6">
               <div className="max-w-4xl mx-auto text-center">
                 <h1 className="hero-title font-bold text-gray-900">
-                  Listen to your books, Powered by AI
+                Listen to all your eBooks in Natural Voice!
                 </h1>
                 <p className="mt-2 sm:mt-3 text-base sm:text-lg text-gray-700 max-w-3xl mx-auto">
-            Upload an EPUB to convert it to audio and follow along with synchronized text highlighting.
+                A Platform that supports your reading habits, anywhere and everywhere
           </p>
               </div>
         </section>
