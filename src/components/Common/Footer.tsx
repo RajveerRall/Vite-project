@@ -71,6 +71,9 @@ const Footer: React.FC = () => {
               <Link to="/speechify-alternative" className="text-gray-600 hover:text-gray-900 underline text-sm transition-colors">
                 Speechify Alternative
               </Link>
+              <Link to="/privacy" className="text-gray-600 hover:text-gray-900 underline text-sm transition-colors">
+                Privacy Policy
+              </Link>
               <a href="/terms" className="text-gray-600 hover:text-gray-900 underline text-sm transition-colors">
                 Terms of Service
               </a>
