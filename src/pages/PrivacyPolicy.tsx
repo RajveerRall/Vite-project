@@ -49,7 +49,27 @@ const PrivacyPolicy: React.FC = () => {
 
         <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">4. Data Retention and Deletion</h2>
         <p className="mb-4">
-          We retain your data as long as your account is active. You may request the deletion of your account and all associated data by contacting us. Upon deletion, your books and reading data will be removed from our servers.
+          We retain your data as long as your YoRead account is active. You have the right to request the deletion of your account and all associated personal data at any time.
+        </p>
+        <h3 className="text-lg font-medium text-gray-900 mt-4 mb-2">How to Request Account Deletion:</h3>
+        <ul className="list-disc pl-5 space-y-2">
+          <li><strong>Via Email:</strong> You can send an email to our support team at <a href="mailto:rajveer@yoread.com" className="text-blue-600 hover:underline">rajveer@yoread.com</a>. Please include "Account Deletion Request" in the subject line and provide your registered email address for verification.</li>
+          <li><strong>In-App (Coming Soon):</strong> We are working on providing an in-app option for direct account deletion. Please check back for updates.</li>
+        </ul>
+        <h3 className="text-lg font-medium text-gray-900 mt-4 mb-2">What Data is Deleted:</h3>
+        <ul className="list-disc pl-5 space-y-2">
+          <li><strong>User Account Information:</strong> Your email address and basic profile data used for authentication.</li>
+          <li><strong>Uploaded Content:</strong> All EPUB files you have uploaded to YoRead.</li>
+          <li><strong>Reading Progress Data:</strong> Your bookmarks, highlights, current page, and other reading session data associated with your books.</li>
+          <li><strong>Text-to-Speech (TTS) Usage Records:</strong> Individual usage records for TTS minutes.</li>
+        </ul>
+        <h3 className="text-lg font-medium text-gray-900 mt-4 mb-2">What Data May Be Retained:</h3>
+        <ul className="list-disc pl-5 space-y-2">
+          <li><strong>Anonymized Analytics Data:</strong> We may retain anonymized usage data for service improvement, which cannot be linked back to you.</li>
+          <li><strong>Legal & Financial Records:</strong> Data necessary to comply with legal obligations (e.g., tax or billing records for past subscriptions) may be retained for a period required by law, typically 7 years, before permanent deletion.</li>
+        </ul>
+        <p className="mt-4 mb-4">
+          Upon receiving a valid account deletion request, we will process it within a reasonable timeframe (typically within 30 days). Once deleted, your account and associated personal data cannot be recovered.
         </p>
 
         <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">5. Children's Privacy</h2>
