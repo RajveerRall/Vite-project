@@ -22,7 +22,8 @@
     "supabase:functions:dev": "supabase functions serve",
     "supabase:functions:deploy": "supabase functions deploy",
     "supabase:functions:deploy:webhook": "supabase functions deploy dodo-webhook",
-    "supabase:functions:logs": "supabase functions logs"
+    "supabase:functions:logs": "supabase functions logs",
+    "clean-dist": "rm -rf dist"
   },
   "dependencies": {
     "@capacitor/app": "^7.1.0",
