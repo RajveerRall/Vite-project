@@ -1,7 +1,7 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "yoread",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -39,6 +39,7 @@
     "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/supabase-js": "^2.55.0",
     "@types/localforage": "^0.0.34",
+    "@types/node": "^25.0.3",
     "@types/react-router-dom": "^5.3.3",
     "adm-zip": "^0.5.16",
     "axios": "^1.8.3",
@@ -55,7 +56,6 @@
     "kokoro-js": "^1.2.0",
     "localforage": "^1.10.0",
     "lucide-react": "^0.344.0",
-    "modular-tts": "./modular-tts-0.1.0.tgz",
     "msedge-tts": "^2.0.0",
     "pdfjs-dist": "4.6.82",
     "posthog-js": "^1.298.1",
