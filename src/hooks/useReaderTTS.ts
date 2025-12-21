@@ -2203,6 +2203,76 @@ export const useReaderTTS = ({
     }
   }, [chunks, readerInstanceId]);
 
+  // // Seek and start TTS (called on release)
+  // const handleSeekToPercentage = useCallback((percentage: number) => {
+  //   console.log(`[${readerInstanceId}][handleSeekToPercentage] SEEK CALLED - percentage: ${percentage}`);
+    
+  //   if (!chunks || chunks.length === 0) {
+  //     console.warn(`[${readerInstanceId}][handleSeekToPercentage] No chunks available`);
+  //     return;
+  //   }
+    
+  //   const clampedPercentage = Math.max(0, Math.min(100, percentage));
+  //   const targetChunkIndex = Math.floor((clampedPercentage / 100) * chunks.length);
+  //   const safeChunkIndex = Math.max(0, Math.min(targetChunkIndex, chunks.length - 1));
+    
+  //   console.log(`[${readerInstanceId}][handleSeekToPercentage] Seeking to ${Math.round(clampedPercentage)}% (chunk ${safeChunkIndex})`);
+    
+  //   // Stop current playback first
+  //   haltPlayback();
+    
+  //   // Reset all TTS state
+  //   setIsSpeaking(false);
+  //   setIsPaused(false);
+  //   setIsProcessing(true); // Show loading state while prefetching
+  //   setHasFinishedPlayback(false);
+    
+  //   // Don't set currentChunkIndex here - let onPlay callback set it when audio actually starts
+  //   // This ensures highlight is synchronized with audio playback, not with the seek action
+  //   setResumeIndex(null); // Clear resume so it starts fresh
+    
+  //   // Activate TTS intent
+  //   ttsIntentActiveRef.current = true;
+    
+  //   // Prefetch target chunk (and next one) before playing to avoid delay
+  //   const startPlayback = async () => {
+  //     console.log(`[${readerInstanceId}][handleSeekToPercentage] Prefetching chunk ${safeChunkIndex} before playback`);
+      
+  //     try {
+  //       // ✅ OPTIMISTIC PLAYBACK: Fetch first 2 chunks in parallel, then start playing immediately
+  //       const firstChunkPromise = fetchSingleChunk(safeChunkIndex);
+  //       const secondChunkPromise = safeChunkIndex + 1 < chunks.length 
+  //         ? fetchSingleChunk(safeChunkIndex + 1) 
+  //         : Promise.resolve();
+        
+  //       // Wait for first chunk to be ready, then start playing
+  //       await firstChunkPromise;
+  //       setIsProcessing(false);
+  //       playChunk(safeChunkIndex);
+        
+  //       // Prefetch second chunk and remaining chunks in background (non-blocking)
+  //       secondChunkPromise.catch(err => 
+  //         console.warn('[handleSeekToPercentage] Background prefetch of second chunk failed:', err)
+  //       );
+  //       // ✅ Only prefetch next chunks (reduced to prevent buffer bloat)
+  //       prefetchChunks(safeChunkIndex + INITIAL_PREFETCH_COUNT).catch(err => 
+  //         console.warn('[handleSeekToPercentage] Background prefetch failed:', err)
+  //       );
+  //     } catch (error) {
+  //       console.error(`[${readerInstanceId}][handleSeekToPercentage] Error starting playback:`, error);
+  //       setIsProcessing(false);
+  //       setIsSpeaking(false);
+  //       setIsPaused(false);
+  //       ttsIntentActiveRef.current = false;
+  //       addToast?.('Failed to start playback. Please try again.', 'error');
+  //     }
+  //   };
+  //   startPlayback();
+    
+  //   addToast?.(`Starting from ${Math.round(clampedPercentage)}% of chapter`, 'success');
+  // }, [chunks, readerInstanceId, addToast, haltPlayback, playChunk, fetchSingleChunk, prefetchChunks]);
+
+
   // Seek and start TTS (called on release)
   const handleSeekToPercentage = useCallback((percentage: number) => {
     console.log(`[${readerInstanceId}][handleSeekToPercentage] SEEK CALLED - percentage: ${percentage}`);
@@ -2239,25 +2309,32 @@ export const useReaderTTS = ({
       console.log(`[${readerInstanceId}][handleSeekToPercentage] Prefetching chunk ${safeChunkIndex} before playback`);
       
       try {
-        // ✅ OPTIMISTIC PLAYBACK: Fetch first 2 chunks in parallel, then start playing immediately
+        // ✅ OPTIMISTIC PLAYBACK: Start fetching the first chunk
         const firstChunkPromise = fetchSingleChunk(safeChunkIndex);
-        const secondChunkPromise = safeChunkIndex + 1 < chunks.length 
-          ? fetchSingleChunk(safeChunkIndex + 1) 
-          : Promise.resolve();
         
-        // Wait for first chunk to be ready, then start playing
+        // Start next chunk prefetch immediately (fire and forget)
+        // We do this BEFORE awaiting the first chunk to maximize parallelism
+        if (safeChunkIndex + 1 < chunks.length) {
+             fetchSingleChunk(safeChunkIndex + 1).catch(err => 
+                console.warn('[handleSeekToPercentage] Background prefetch of second chunk failed:', err)
+             );
+             // Trigger broader prefetch for subsequent chunks
+             prefetchChunks(safeChunkIndex + INITIAL_PREFETCH_COUNT).catch(err => 
+                console.warn('[handleSeekToPercentage] Background prefetch failed:', err)
+             );
+        }
+        
+        // Wait for first chunk to be ready (necessary for playback)
         await firstChunkPromise;
-        setIsProcessing(false);
-        playChunk(safeChunkIndex);
         
-        // Prefetch second chunk and remaining chunks in background (non-blocking)
-        secondChunkPromise.catch(err => 
-          console.warn('[handleSeekToPercentage] Background prefetch of second chunk failed:', err)
-        );
-        // ✅ Only prefetch next chunks (reduced to prevent buffer bloat)
-        prefetchChunks(safeChunkIndex + INITIAL_PREFETCH_COUNT).catch(err => 
-          console.warn('[handleSeekToPercentage] Background prefetch failed:', err)
-        );
+        setIsProcessing(false);
+        
+        // ✅ CHANGE: Wrap playChunk in setTimeout(0) to break synchronous execution
+        // This ensures the UI updates (setIsProcessing: false) are painted before audio work begins
+        setTimeout(() => {
+            playChunk(safeChunkIndex);
+        }, 0);
+        
       } catch (error) {
         console.error(`[${readerInstanceId}][handleSeekToPercentage] Error starting playback:`, error);
         setIsProcessing(false);
