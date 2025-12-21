@@ -15,19 +15,19 @@ export interface ReaderHeaderProps {
   // Book info
   bookTitle: string;
   currentChapterTitle?: string;
-  
+
   // Actions
   onClose: () => void;
   onNavigateToTocItem: (item: TOCItem) => void;
   onScrollToHighlight: () => void;
-  
+
   // UI state
   isMobile: boolean;
   isEnhanced: boolean;
   isFirstOpen: boolean;
   theme: 'light' | 'dark' | 'sepia';
   showTTSHighlight: boolean; // Whether to show scroll-to-highlight button
-  
+
   // Data
   toc: TOCItem[];
 }
@@ -53,10 +53,10 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUsageLimitModal, setShowUsageLimitModal] = useState(false);
   const anonymousLimit = useAnonymousUsageLimit();
-  const { 
-    isSubscribed, 
-    minutesRemaining, 
-    usageLimit, 
+  const {
+    isSubscribed,
+    minutesRemaining,
+    usageLimit,
     subscriptionInfo,
     loading: subscriptionLoading,
     refreshUsageLimit,
@@ -90,30 +90,29 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
             <span className="hidden sm:inline">Back to Library</span>
             <span className="sm:hidden">Back</span>
           </button>
-          
+
           {/* Mobile: Auth controls */}
           <div className="flex items-center gap-x-2">
             {/* Sign In Button - Mobile */}
             {!isAuthenticated && (
-              <button 
+              <button
                 onClick={handleSignInClick}
                 className="px-5 py-1.5 bg-amber-800 hover:bg-amber-900 text-white rounded-full transition-colors font-medium text-xs"
               >
                 Sign In
               </button>
             )}
-            
+
             {/* Anonymous Usage Badge - Mobile */}
             {!isAuthenticated && anonymousLimit && (
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                anonymousLimit.isLimitReached ? 'bg-red-100 text-red-700' :
-                anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
-                'bg-gray-100 text-gray-700'
-              }`}>
+              <div className={`px-2 py-1 rounded-full text-xs font-medium ${anonymousLimit.isLimitReached ? 'bg-red-100 text-red-700' :
+                  anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
+                    'bg-gray-100 text-gray-700'
+                }`}>
                 {anonymousLimit.remainingMinutes}/{anonymousLimit.limitMinutes} min
               </div>
             )}
-            
+
             {/* Authenticated User Controls - Mobile */}
             {isAuthenticated && (
               <>
@@ -127,14 +126,14 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
                     <span className="hidden sm:inline">Upgrade</span>
                   </button>
                 )}
-                
+
                 {/* Pro Badge - Mobile */}
                 {isSubscribed && (
                   <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded-full border border-amber-300">
                     Pro
                   </span>
                 )}
-                
+
                 {/* Usage Metrics - Mobile */}
                 <div className="flex items-center gap-x-1 text-xs text-gray-700">
                   <span className="font-medium">
@@ -147,17 +146,17 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
                       // Fallback: calculate from profile data if usageLimit not available
                       (() => {
                         const subscriptionLimit = subscriptionInfo.profile.tts_minutes_limit || 0;
-                        const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used 
+                        const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used
                           ? subscriptionInfo.profile.subscription_minutes_used / 60
                           : (subscriptionInfo.profile.tts_minutes_used || 0) / 60;
                         const prepaidMinutes = subscriptionInfo.profile.prepaid_minutes || 0;
-                        
+
                         // If no subscription limit and no subscription, use free tier limit (360 minutes)
                         let effectiveLimit = subscriptionLimit;
                         if (subscriptionLimit === 0 && !isSubscribed) {
                           effectiveLimit = 360; // Free tier limit
                         }
-                        
+
                         const remaining = Math.max(0, (effectiveLimit - subscriptionUsed) + prepaidMinutes);
                         return remaining > 0 ? `${(remaining / 60).toFixed(1)}h` : '0h';
                       })()
@@ -217,22 +216,21 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         <div className="reader-right flex items-center gap-3">
           {/* Sign In Button - Desktop */}
           {!isAuthenticated && (
-            <button 
+            <button
               onClick={handleSignInClick}
               className="px-7 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-full transition-colors font-medium text-sm"
             >
               Sign In
             </button>
           )}
-          
+
           {/* Anonymous Usage Badge - Desktop */}
           {!isAuthenticated && anonymousLimit && (
             <div className="flex items-center gap-2 text-sm">
-              <div className={`px-3 py-1 rounded-full ${
-                anonymousLimit.isLimitReached ? 'bg-red-100 text-red-700' :
-                anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
-                'bg-gray-100 text-gray-700'
-              }`}>
+              <div className={`px-3 py-1 rounded-full ${anonymousLimit.isLimitReached ? 'bg-red-100 text-red-700' :
+                  anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
+                    'bg-gray-100 text-gray-700'
+                }`}>
                 <span className="font-medium">
                   {anonymousLimit.remainingMinutes}/{anonymousLimit.limitMinutes} min left
                 </span>
@@ -245,7 +243,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
               </button>
             </div>
           )}
-          
+
           {/* Authenticated User Controls - Desktop */}
           {isAuthenticated && (
             <>
@@ -259,14 +257,14 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
                   Upgrade Now
                 </button>
               )}
-              
+
               {/* Pro Badge - Desktop */}
               {isSubscribed && (
                 <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300">
                   Pro
                 </span>
               )}
-              
+
               {/* TTS Usage - Desktop */}
               <div className="flex items-center gap-x-2 text-sm text-gray-700">
                 <span className="font-medium">
@@ -279,18 +277,18 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
                     // Fallback: calculate from profile data if usageLimit not available
                     (() => {
                       const subscriptionLimit = subscriptionInfo.profile.tts_minutes_limit || 0;
-                      const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used 
+                      const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used
                         ? subscriptionInfo.profile.subscription_minutes_used / 60
                         : (subscriptionInfo.profile.tts_minutes_used || 0) / 60;
                       // prepaid_minutes from profile is in seconds, convert to minutes
                       const prepaidMinutes = (subscriptionInfo.profile.prepaid_minutes || 0) / 60;
-                      
+
                       // If no subscription limit and no subscription, use free tier limit (360 minutes)
                       let effectiveLimit = subscriptionLimit;
                       if (subscriptionLimit === 0 && !isSubscribed) {
                         effectiveLimit = 360; // Free tier limit
                       }
-                      
+
                       const remaining = Math.max(0, (effectiveLimit - subscriptionUsed) + prepaidMinutes);
                       return remaining > 0 ? `${(remaining / 60).toFixed(1)} hrs` : '0 hrs';
                     })()
@@ -300,7 +298,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
                     'No data'
                   )}
                 </span>
-                <button 
+                <button
                   onClick={() => {
                     refreshUsageLimit();
                     refreshSubscription();
@@ -314,7 +312,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
               </div>
             </>
           )}
-          
+
           {/* Highlight Button - Keep existing functionality */}
           {showTTSHighlight && (
             <button
@@ -329,13 +327,13 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
           )}
         </div>
       </div>
-      
+
       {/* Auth Modal */}
       {showAuthModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             {/* Background overlay */}
-            <div 
+            <div
               className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
               onClick={() => setShowAuthModal(false)}
             ></div>

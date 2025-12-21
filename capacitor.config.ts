@@ -4,10 +4,7 @@ const config: CapacitorConfig = {
   appId: 'com.yoread.app',
   appName: 'YoRead',
   webDir: 'dist',
-  bundledWebRuntime: false
+  // The 'bundledWebRuntime' property was removed as it's no longer valid
 };
 
 export default config;
-
-
-

@@ -87,15 +87,16 @@ export class BookSyncService {
       currentPage: cloudBook.current_page || 0,
       lastChapter: cloudBook.last_chapter
         ? {
-            id: 'restored-chapter',
-            href: cloudBook.last_chapter,
-            label:
-              cloudBook.last_chapter.split('/').pop()?.replace('.html', '') ||
-              'Chapter',
-            children: [],
-          }
+          id: 'restored-chapter',
+          href: cloudBook.last_chapter,
+          label:
+            cloudBook.last_chapter.split('/').pop()?.replace('.html', '') ||
+            'Chapter',
+          children: [],
+        }
         : null,
       totalPages: cloudBook.total_pages || 0,
+      progress: cloudBook.progress || 0,
       lastRead: cloudBook.last_read || new Date().toISOString(),
       isDownloading: true,
     }));
@@ -172,15 +173,15 @@ export class BookSyncService {
             currentPage: cloudBook.current_page || 0,
             lastChapter: cloudBook.last_chapter
               ? {
-                  id: 'restored-chapter',
-                  href: cloudBook.last_chapter,
-                  label:
-                    cloudBook.last_chapter
-                      .split('/')
-                      .pop()
-                      ?.replace('.html', '') || 'Chapter',
-                  children: [],
-                }
+                id: 'restored-chapter',
+                href: cloudBook.last_chapter,
+                label:
+                  cloudBook.last_chapter
+                    .split('/')
+                    .pop()
+                    ?.replace('.html', '') || 'Chapter',
+                children: [],
+              }
               : null,
             totalPages: cloudBook.total_pages || 0,
             lastRead: cloudBook.last_read || new Date().toISOString(),

@@ -15,7 +15,7 @@ export interface UseReaderNavigationReturn {
 interface NavigationDependencies {
   // TTS navigation
   handleTTSNavigation: () => void;
-  
+
   // Book context navigation
   navigateToTocItem: (item: TOCItem) => Promise<void>;
   prevPage: () => void;

@@ -1232,6 +1232,87 @@ export const useReaderTTS = ({
         // This ensures highlight is synchronized with audio playback
         setCurrentChunkIndex(chunkIndex);
       },
+      // onChunkComplete: async (chunkIndex: number) => {
+      //   // Handle seamless auto-advance
+      //   console.log(`[Strategy] Audio ended for chunk #${chunkIndex}, advancing to chunk #${chunkIndex + 1}`);
+        
+      //   // Calculate usage seconds
+      //   const elapsed = playStartTimeRef.current[chunkIndex] ? Math.round((Date.now() - playStartTimeRef.current[chunkIndex]) / 1000) : 0;
+      //   const seconds = (durationsBuffer.current[chunkIndex] && durationsBuffer.current[chunkIndex] > 0)
+      //     ? durationsBuffer.current[chunkIndex]
+      //     : (elapsed > 0 ? elapsed : 0);
+        
+      //   // ✅ DEBUG: Log seconds calculation for seamless playback
+      //   console.log(`[Strategy] Usage calculation for chunk #${chunkIndex}:`, {
+      //     chunkIndex,
+      //     durationsBufferValue: durationsBuffer.current[chunkIndex],
+      //     elapsed,
+      //     calculatedSeconds: seconds,
+      //     playStartTime: playStartTimeRef.current[chunkIndex],
+      //     currentTime: Date.now()
+      //   });
+        
+      //   // ✅ CRITICAL FIX: Make usage tracking blocking - stop playback if limit exceeded
+      //   // ✅ FIX: Determine if we should check limit (periodic check every 60 seconds)
+      //   const now = Date.now();
+      //   const timeSinceLastCheck = now - lastLimitCheckTimeRef.current;
+      //   const shouldCheckLimit = timeSinceLastCheck > LIMIT_CHECK_INTERVAL_MS;
+        
+      //   if (shouldCheckLimit) {
+      //     console.log(`[Strategy] Performing periodic limit check (last check was ${Math.round(timeSinceLastCheck / 1000)}s ago)`);
+      //     lastLimitCheckTimeRef.current = now;
+      //   }
+        
+      //   try {
+      //     await recordUsageSeconds(seconds, {
+      //       skipLimitCheck: !shouldCheckLimit  // ✅ Only check limit periodically
+      //     });
+      //   } catch (error: any) {
+      //     console.error(`[Strategy] Error recording usage seconds:`, error);
+      //     // Stop playback if limit exceeded
+      //     if (error?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
+      //         error?.message?.includes('limit exceeded') ||
+      //         error?.message?.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
+      //       console.warn('[TTS Usage] Limit exceeded, stopping TTS playback');
+      //       if (handleStopTTSRef.current) {
+      //         handleStopTTSRef.current();
+      //       }
+      //       addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+      //       window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
+      //         detail: { error: error.message }
+      //       }));
+      //       return; // Don't continue to next chunk
+      //     }
+      //     // For other errors (network issues, etc.), log but continue playback
+      //     console.warn('[TTS Usage] Non-critical error, continuing playback:', error);
+      //   }
+        
+      //   // Auto-advance to next chunk
+      //   const nextChunkIndex = chunkIndex + 1;
+      //   if (nextChunkIndex < chunksRef.current.length && playChunkRef.current) {
+      //     isAutoAdvancingRef.current = true;
+      //     playChunkRef.current(nextChunkIndex).catch((error) => {
+      //       console.error(`[Strategy] Error in auto-advance:`, error);
+      //       isAutoAdvancingRef.current = false;
+      //     });
+      //     setTimeout(() => {
+      //       isAutoAdvancingRef.current = false;
+      //     }, 100);
+      //   } else {
+      //     // End of chunks
+      //     setIsSpeaking(false);
+      //     setIsPaused(false);
+      //     setHasFinishedPlayback(true);
+      //     setCurrentChunkIndex(null);
+      //     clearResumeIndex();
+          
+      //     // Call the playback complete callback
+      //     onPlaybackComplete?.();
+      //   }
+      // },
+
+      // Vite-project/src/hooks/useReaderTTS.ts
+
       onChunkComplete: async (chunkIndex: number) => {
         // Handle seamless auto-advance
         console.log(`[Strategy] Audio ended for chunk #${chunkIndex}, advancing to chunk #${chunkIndex + 1}`);
@@ -1242,54 +1323,21 @@ export const useReaderTTS = ({
           ? durationsBuffer.current[chunkIndex]
           : (elapsed > 0 ? elapsed : 0);
         
-        // ✅ DEBUG: Log seconds calculation for seamless playback
-        console.log(`[Strategy] Usage calculation for chunk #${chunkIndex}:`, {
-          chunkIndex,
-          durationsBufferValue: durationsBuffer.current[chunkIndex],
-          elapsed,
-          calculatedSeconds: seconds,
-          playStartTime: playStartTimeRef.current[chunkIndex],
-          currentTime: Date.now()
-        });
-        
-        // ✅ CRITICAL FIX: Make usage tracking blocking - stop playback if limit exceeded
-        // ✅ FIX: Determine if we should check limit (periodic check every 60 seconds)
+        // Determine if we should check limit (periodic check every 60 seconds)
         const now = Date.now();
         const timeSinceLastCheck = now - lastLimitCheckTimeRef.current;
         const shouldCheckLimit = timeSinceLastCheck > LIMIT_CHECK_INTERVAL_MS;
         
         if (shouldCheckLimit) {
-          console.log(`[Strategy] Performing periodic limit check (last check was ${Math.round(timeSinceLastCheck / 1000)}s ago)`);
           lastLimitCheckTimeRef.current = now;
         }
-        
-        try {
-          await recordUsageSeconds(seconds, {
-            skipLimitCheck: !shouldCheckLimit  // ✅ Only check limit periodically
-          });
-        } catch (error: any) {
-          console.error(`[Strategy] Error recording usage seconds:`, error);
-          // Stop playback if limit exceeded
-          if (error?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
-              error?.message?.includes('limit exceeded') ||
-              error?.message?.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
-            console.warn('[TTS Usage] Limit exceeded, stopping TTS playback');
-            if (handleStopTTSRef.current) {
-              handleStopTTSRef.current();
-            }
-            addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
-            window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
-              detail: { error: error.message }
-            }));
-            return; // Don't continue to next chunk
-          }
-          // For other errors (network issues, etc.), log but continue playback
-          console.warn('[TTS Usage] Non-critical error, continuing playback:', error);
-        }
-        
-        // Auto-advance to next chunk
+
+        // ✅ STEP 1: Determine next action and start playback IMMEDIATELY
         const nextChunkIndex = chunkIndex + 1;
-        if (nextChunkIndex < chunksRef.current.length && playChunkRef.current) {
+        const hasNextChunk = nextChunkIndex < chunksRef.current.length;
+
+        if (hasNextChunk && playChunkRef.current) {
+          // Start next chunk without waiting
           isAutoAdvancingRef.current = true;
           playChunkRef.current(nextChunkIndex).catch((error) => {
             console.error(`[Strategy] Error in auto-advance:`, error);
@@ -1298,15 +1346,41 @@ export const useReaderTTS = ({
           setTimeout(() => {
             isAutoAdvancingRef.current = false;
           }, 100);
-        } else {
-          // End of chunks
+        }
+
+        // ✅ STEP 2: Record usage in BACKGROUND (Fire-and-forget)
+        // We do not await this, so it doesn't block the UI or audio
+        recordUsageSeconds(seconds, {
+          skipLimitCheck: !shouldCheckLimit
+        }).catch((error: any) => {
+          console.error(`[Strategy] Error recording usage seconds:`, error);
+          
+          // If limit exceeded, we must stop the playback we just started
+          if (error?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
+              error?.message?.includes('limit exceeded') ||
+              error?.message?.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
+            console.warn('[TTS Usage] Limit exceeded, stopping TTS playback');
+            
+            // Stop the chunk we just started
+            if (handleStopTTSRef.current) {
+              handleStopTTSRef.current();
+            }
+            
+            addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+            window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
+              detail: { error: error.message }
+            }));
+          }
+        });
+        
+        // ✅ STEP 3: Handle End of Book (if no next chunk)
+        if (!hasNextChunk) {
           setIsSpeaking(false);
           setIsPaused(false);
           setHasFinishedPlayback(true);
           setCurrentChunkIndex(null);
           clearResumeIndex();
           
-          // Call the playback complete callback
           onPlaybackComplete?.();
         }
       },

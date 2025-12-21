@@ -16,21 +16,23 @@ export class BookProgressService {
     book: BookData,
     currentPage: number,
     lastChapter: TOCItem | null,
+    progress: number = 0,
     cloudRepository?: CloudBookRepository
   ): Promise<BookData> {
     const updatedBook: BookData = {
       ...book,
       currentPage,
       lastChapter,
+      progress,
       lastRead: new Date().toISOString(),
     };
 
     // Sync to cloud if repository is provided (user is authenticated)
     if (cloudRepository) {
       try {
-        await cloudRepository.updateBookProgress(book.id, currentPage, lastChapter);
+        await cloudRepository.updateBookProgress(book.id, currentPage, lastChapter, progress);
         console.log(
-          `[BookProgressService] Updated progress for book ${book.id}: page ${currentPage}`
+          `[BookProgressService] Updated progress for book ${book.id}: page ${currentPage}, progress ${progress}%`
         );
       } catch (error) {
         console.error('[BookProgressService] Error syncing progress:', error);
@@ -51,6 +53,7 @@ export class BookProgressService {
       current_page: number;
       last_chapter?: string | null;
       total_pages?: number;
+      progress?: number;
       last_read: string;
     }
   ): BookData {
@@ -64,15 +67,16 @@ export class BookProgressService {
         currentPage: cloudBook.current_page,
         lastChapter: cloudBook.last_chapter
           ? {
-              id: 'restored-chapter',
-              href: cloudBook.last_chapter,
-              label:
-                cloudBook.last_chapter.split('/').pop()?.replace('.html', '') ||
-                'Chapter',
-              children: [],
-            }
+            id: 'restored-chapter',
+            href: cloudBook.last_chapter,
+            label:
+              cloudBook.last_chapter.split('/').pop()?.replace('.html', '') ||
+              'Chapter',
+            children: [],
+          }
           : localBook.lastChapter,
         totalPages: cloudBook.total_pages || localBook.totalPages,
+        progress: cloudBook.progress !== undefined ? cloudBook.progress : localBook.progress,
         lastRead: cloudBook.last_read,
       };
     }
@@ -81,4 +85,3 @@ export class BookProgressService {
     return localBook;
   }
 }
-

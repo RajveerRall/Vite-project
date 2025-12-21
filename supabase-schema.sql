@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS books (
   file_url TEXT, -- Supabase Storage URL for EPUB file
   cover_url TEXT, -- Supabase Storage URL for cover image
   file_size BIGINT, -- File size in bytes
+  progress NUMERIC DEFAULT 0, -- Reading progress percentage (0-100)
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

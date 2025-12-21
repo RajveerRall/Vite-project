@@ -90,12 +90,14 @@ export class BookRepository {
   async updateProgress(
     book: BookData,
     currentPage: number,
-    lastChapter: any
+    lastChapter: any,
+    progress: number = 0
   ): Promise<BookData> {
     const updatedBook = await BookProgressService.updateProgress(
       book,
       currentPage,
       lastChapter,
+      progress,
       this.cloudRepo
     );
 

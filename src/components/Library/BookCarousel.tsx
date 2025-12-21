@@ -72,69 +72,69 @@ import { BookData } from '@/types/books';
 // Removed image optimization import - using simple image loading
 
 const ChevronLeftIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
 );
 
 const ChevronRightIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
 );
 
 interface BookCarouselProps {
-  books: BookData[];
-  onBookSelect: (book: BookData) => void;
+    books: BookData[];
+    onBookSelect: (book: BookData) => void;
 }
 
 export const BookCarousel: React.FC<BookCarouselProps> = React.memo(({ books, onBookSelect }) => {
-  const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'start', containScroll: 'trimSnaps' });
+    const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'start', containScroll: 'trimSnaps' });
 
-  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
-  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
-  
-  // Memoize the book selection handler to prevent recreation
-  const handleBookClick = useCallback((book: BookData) => {
-    // Call the original handler immediately
-    onBookSelect(book);
-  }, [onBookSelect]);
+    const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
+    const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
 
-  return (
-    <div className="carousel">
-      <div className="carousel-viewport" ref={emblaRef}>
-        <div className="carousel-container">
-          {books.map(book => (
-            <div className="carousel-slide" key={book.id}>
-              <div 
-                className="book-slide-content"
-                onClick={() => handleBookClick(book)}
-              >
-                {book.coverUrl ? (
-                  <img 
-                    src={book.coverUrl}
-                    alt={book.title} 
-                    loading="lazy" 
-                    className="w-full h-full object-cover" 
-                  />
-                ) : (
-                  <div className="default-cover p-2 text-center">
-                    <h3 className="font-bold text-sm sm:text-base line-clamp-2">{book.title}</h3>
-                    <p className="text-xs sm:text-sm mt-1 opacity-80 line-clamp-1">{book.author}</p>
-                  </div>
-                )}
-              </div>
+    // Memoize the book selection handler to prevent recreation
+    const handleBookClick = useCallback((book: BookData) => {
+        // Call the original handler immediately
+        onBookSelect(book);
+    }, [onBookSelect]);
+
+    return (
+        <div className="carousel">
+            <div className="carousel-viewport" ref={emblaRef}>
+                <div className="carousel-container">
+                    {books.map(book => (
+                        <div className="carousel-slide" key={book.id}>
+                            <div
+                                className="book-slide-content"
+                                onClick={() => handleBookClick(book)}
+                            >
+                                {book.coverUrl ? (
+                                    <img
+                                        src={book.coverUrl}
+                                        alt={book.title}
+                                        loading="lazy"
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="default-cover p-2 text-center">
+                                        <h3 className="font-bold text-sm sm:text-base line-clamp-2">{book.title}</h3>
+                                        <p className="text-xs sm:text-sm mt-1 opacity-80 line-clamp-1">{book.author}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      <button className="carousel-arrow prev" onClick={scrollPrev} aria-label="Previous">
-        <ChevronLeftIcon />
-      </button>
-      <button className="carousel-arrow next" onClick={scrollNext} aria-label="Next">
-        <ChevronRightIcon />
-      </button>
-    </div>
-  );
+            <button className="carousel-arrow prev" onClick={scrollPrev} aria-label="Previous">
+                <ChevronLeftIcon />
+            </button>
+            <button className="carousel-arrow next" onClick={scrollNext} aria-label="Next">
+                <ChevronRightIcon />
+            </button>
+        </div>
+    );
 });

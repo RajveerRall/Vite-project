@@ -296,3 +296,8 @@ Here's the standard cron configuration for Mautic 5:
 - Edge Function: `supabase/functions/mautic-signup/index.ts`
 - This function creates contacts in Mautic and triggers welcome emails via API
 
+
+
+
+
+
