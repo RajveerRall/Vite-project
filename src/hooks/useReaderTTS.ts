@@ -277,92 +277,199 @@ export const useReaderTTS = ({
     console.log(`[${readerInstanceId}][Speed Ref Sync] ttsSpeedRef updated to: ${ttsSpeed}x`);
   }, [ttsSpeed, readerInstanceId]);
 
-  // === Usage recording helper - Enhanced with queue and retry ===
-  const recordUsageSeconds = useCallback(async (
-    seconds: number,
-    options?: { skipLimitCheck?: boolean }
-  ) => {
-    if (!seconds || seconds <= 0) return;
+  // // === Usage recording helper - Enhanced with queue and retry ===
+  // const recordUsageSeconds = useCallback(async (
+  //   seconds: number,
+  //   options?: { skipLimitCheck?: boolean }
+  // ) => {
+  //   if (!seconds || seconds <= 0) return;
     
-    try {
-      // Use enhanced usage tracker with queue and retry
+  //   try {
+  //     // Use enhanced usage tracker with queue and retry
       
-      // Ensure tracker is initialized
-      let tracker = getUsageTracker();
-      if (!tracker) {
-        await initializeUsageTracking(user?.id);
-        tracker = getUsageTracker();
-      }
+  //     // Ensure tracker is initialized
+  //     let tracker = getUsageTracker();
+  //     if (!tracker) {
+  //       await initializeUsageTracking(user?.id);
+  //       tracker = getUsageTracker();
+  //     }
       
-      if (!tracker) {
-        console.warn('[TTS Usage] Tracker not available, falling back to direct call');
-        // Fallback to direct call if tracker unavailable
-        const { supabase } = await import('../lib/supabase');
-        const { getAnonymousSessionId } = await import('../utils/anonymousSession');
+  //     if (!tracker) {
+  //       console.warn('[TTS Usage] Tracker not available, falling back to direct call');
+  //       // Fallback to direct call if tracker unavailable
+  //       const { supabase } = await import('../lib/supabase');
+  //       const { getAnonymousSessionId } = await import('../utils/anonymousSession');
         
-        if (user?.id) {
-          await supabase.rpc('increment_tts_usage', {
-            p_user_id: user.id,
-            p_seconds: seconds,
-            p_source: 'reader'
-          });
-        } else {
-          const sessionId = getAnonymousSessionId();
-          await supabase.rpc('record_anonymous_tts_usage', {
-            p_session_id: sessionId,
-            p_seconds: seconds,
-            p_source: 'reader',
-            p_user_agent: navigator.userAgent
-          });
-        }
-        return;
-      }
+  //       if (user?.id) {
+  //         await supabase.rpc('increment_tts_usage', {
+  //           p_user_id: user.id,
+  //           p_seconds: seconds,
+  //           p_source: 'reader'
+  //         });
+  //       } else {
+  //         const sessionId = getAnonymousSessionId();
+  //         await supabase.rpc('record_anonymous_tts_usage', {
+  //           p_session_id: sessionId,
+  //           p_seconds: seconds,
+  //           p_source: 'reader',
+  //           p_user_agent: navigator.userAgent
+  //         });
+  //       }
+  //       return;
+  //     }
       
-      // Use enhanced tracker (handles queue, retry, circuit breaker)
-      await tracker.recordUsageSeconds(seconds, 'reader', {
-        skipLimitCheck: options?.skipLimitCheck ?? false,  // ✅ Pass through skipLimitCheck
-        onSuccess: () => {
-          console.log('[TTS Usage] Recorded successfully via enhanced tracker');
-        },
-        onError: (error: Error) => {
-          // Check if it's a limit exceeded error
-          if ((error as any).code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
-              error.message.includes('limit exceeded') ||
-              error.message.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
-            console.warn('[TTS Usage] Limit exceeded, stopping TTS:', error);
-            // Stop TTS playback using ref
-            if (handleStopTTSRef.current) {
-              handleStopTTSRef.current();
-            }
-            // Show error toast
-            addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
-            // Dispatch event for subscription UI
-            window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
-              detail: { error: error.message }
-            }));
-            throw error; // Re-throw to prevent further processing
-          }
-          console.warn('[TTS Usage] Failed to record usage:', error);
+  //     // Use enhanced tracker (handles queue, retry, circuit breaker)
+  //     await tracker.recordUsageSeconds(seconds, 'reader', {
+  //       skipLimitCheck: options?.skipLimitCheck ?? false,  // ✅ Pass through skipLimitCheck
+  //       onSuccess: () => {
+  //         console.log('[TTS Usage] Recorded successfully via enhanced tracker');
+  //       },
+  //       onError: (error: Error) => {
+  //         // Check if it's a limit exceeded error
+  //         if ((error as any).code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
+  //             error.message.includes('limit exceeded') ||
+  //             error.message.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
+  //           console.warn('[TTS Usage] Limit exceeded, stopping TTS:', error);
+  //           // Stop TTS playback using ref
+  //           if (handleStopTTSRef.current) {
+  //             handleStopTTSRef.current();
+  //           }
+  //           // Show error toast
+  //           addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+  //           // Dispatch event for subscription UI
+  //           window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
+  //             detail: { error: error.message }
+  //           }));
+  //           throw error; // Re-throw to prevent further processing
+  //         }
+  //         console.warn('[TTS Usage] Failed to record usage:', error);
+  //       }
+  //     });
+  //   } catch (e: any) {
+  //     // Check if it's a limit exceeded error
+  //     if (e?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
+  //         e?.message?.includes('limit exceeded') ||
+  //         e?.message?.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
+  //       // Stop TTS and show error using ref
+  //       if (handleStopTTSRef.current) {
+  //         handleStopTTSRef.current();
+  //       }
+  //       addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+  //       window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
+  //         detail: { error: e.message }
+  //       }));
+  //       throw e; // Re-throw to prevent further processing
+  //     }
+  //     console.warn('[TTS Usage] Failed to record usage:', e);
+  //   }
+  // }, [user?.id, addToast]);
+
+
+
+    // === Usage recording helper - Enhanced with queue and retry ===
+    const recordUsageSeconds = useCallback(async (
+      seconds: number,
+      options?: { skipLimitCheck?: boolean }
+    ) => {
+      if (!seconds || seconds <= 0) return;
+      
+      // Ensure we have a user ID or an anonymous session ID
+      const currentUserId = user?.id;
+      let currentSessionId: string | undefined;
+      
+      // Only try to get anonymous session if no user ID
+      if (!currentUserId) {
+        try {
+          const { getAnonymousSessionId } = await import('../utils/anonymousSession');
+          currentSessionId = getAnonymousSessionId();
+        } catch (err) {
+          console.warn('[TTS Usage] Failed to get anonymous session ID:', err);
         }
-      });
-    } catch (e: any) {
-      // Check if it's a limit exceeded error
-      if (e?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
-          e?.message?.includes('limit exceeded') ||
-          e?.message?.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
-        // Stop TTS and show error using ref
-        if (handleStopTTSRef.current) {
-          handleStopTTSRef.current();
+        
+        if (!currentSessionId) {
+          console.error('[TTS Usage] No userId or sessionId available to record usage.');
+          return; 
         }
-        addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
-        window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
-          detail: { error: e.message }
-        }));
-        throw e; // Re-throw to prevent further processing
       }
-      console.warn('[TTS Usage] Failed to record usage:', e);
-    }
-  }, [user?.id, addToast]);
+  
+      try {
+        // Ensure tracker is initialized and has correct user context
+        // initializeUsageTracking handles both creation and updating userId on the singleton
+        if (currentUserId) {
+           await initializeUsageTracking(currentUserId);
+        } else if (!getUsageTracker()) {
+           await initializeUsageTracking(undefined);
+        }
+        
+        let tracker = getUsageTracker();
+        
+        if (!tracker) {
+          console.warn('[TTS Usage] Tracker not available, falling back to direct call');
+          // Fallback to direct call if tracker unavailable
+          const { supabase } = await import('../lib/supabase');
+          
+          if (currentUserId) {
+            await supabase.rpc('increment_tts_usage', {
+              p_user_id: currentUserId,
+              p_seconds: seconds,
+              p_source: 'reader'
+            });
+          } else if (currentSessionId) {
+            await supabase.rpc('record_anonymous_tts_usage', {
+              p_session_id: currentSessionId,
+              p_seconds: seconds,
+              p_source: 'reader',
+              p_user_agent: navigator.userAgent
+            });
+          }
+          return;
+        }
+        
+        // Use enhanced tracker (handles queue, retry, circuit breaker)
+        await tracker.recordUsageSeconds(seconds, 'reader', {
+          skipLimitCheck: options?.skipLimitCheck ?? false,  // ✅ Pass through skipLimitCheck
+          onSuccess: () => {
+            // console.log('[TTS Usage] Recorded successfully via enhanced tracker');
+          },
+          onError: (error: Error) => {
+            // Check if it's a limit exceeded error
+            if ((error as any).code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
+                error.message.includes('limit exceeded') ||
+                error.message.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
+              console.warn('[TTS Usage] Limit exceeded, stopping TTS:', error);
+              // Stop TTS playback using ref
+              if (handleStopTTSRef.current) {
+                handleStopTTSRef.current();
+              }
+              // Show error toast
+              addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+              // Dispatch event for subscription UI
+              window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
+                detail: { error: error.message }
+              }));
+              throw error; // Re-throw to prevent further processing
+            }
+            console.warn('[TTS Usage] Failed to record usage:', error);
+          }
+        });
+      } catch (e: any) {
+        // Check if it's a limit exceeded error
+        if (e?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
+            e?.message?.includes('limit exceeded') ||
+            e?.message?.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
+          // Stop TTS and show error using ref
+          if (handleStopTTSRef.current) {
+            handleStopTTSRef.current();
+          }
+          addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+          window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
+            detail: { error: e.message }
+          }));
+          throw e; // Re-throw to prevent further processing
+        }
+        console.warn('[TTS Usage] Failed to record usage:', e);
+      }
+    }, [user?.id, addToast]);
 
   // Decode an audio Blob once to get duration in seconds (fallback if server doesn't send header)
   const getBlobDurationSeconds = useCallback(async (blob: Blob): Promise<number> => {
