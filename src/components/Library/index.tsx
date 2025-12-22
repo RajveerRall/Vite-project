@@ -6,21 +6,34 @@ import BookGrid from './BookGrid';
 import './Library.css';
 import { trackEvent } from '../../lib/analytics'; // Make sure to import it
 import { useAuth } from "../../context/AuthContext";
-
+import { useToast } from '../../context/ToastContext'; // Import useToast
+import AppBetaModal from '../AppBetaModal'; // Import the new modal component
+import { useAppBetaForm } from '../../hooks/useAppBetaForm'; // Import the new hook
 // Book collage now uses optimized sprite sheet instead of individual images
 
 
 const Library: React.FC = () => {
   const { books, addBook, isLoading, openBook, isSyncingFromCloud } = useBook();
-  
+  const { isAuthenticated, user } = useAuth();
+  const { addToast } = useToast(); // Use the useToast hook
   // showcase/sample loading removed
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState<boolean>(false);
-  // Toast notification states
-  const [showToast, setShowToast] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<string>('');
-  const [toastType, setToastType] = useState<'success' | 'error'>('success');
-  const { isAuthenticated } = useAuth();
+  // // Toast notification states
+  // const [showToast, setShowToast] = useState<boolean>(false);
+  // const [toastMessage, setToastMessage] = useState<string>('');
+  // const [toastType, setToastType] = useState<'success' | 'error'>('success');
+  
+    // NEW STATE FOR APP BETA FEATURE
+  const [showBetaBanner, setShowBetaBanner] = useState(true); // Banner visible by default
+  const [isBetaModalOpen, setIsBetaModalOpen] = useState(false);
+  const { submitBetaForm, isLoading: isFormLoading, isSuccess, error, setIsSuccess } = useAppBetaForm();
+   
+  
+  
+  
+  
+
     // State specifically for the anonymous user's showcase carousel
   // showcase state removed
  
@@ -40,6 +53,35 @@ const Library: React.FC = () => {
     }
   };
   
+  // const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   if (e.target.files && e.target.files.length > 0) {
+  //     // TRACK THE INTENT
+  //     trackEvent('add_book_start', {
+  //       method: 'browse_click'
+  //     });
+  //     try {
+  //       const fileName = e.target.files[0].name;
+  //       const newBook = await addBook(e.target.files[0]);
+  //       e.target.value = ''; // Reset the input
+
+  //       // Show success toast
+  //       setToastMessage(`"${fileName}" has been added to your library`);
+  //       setToastType('success');
+  //       setShowToast(true);
+
+  //       // Auto-open the newly uploaded book
+  //       console.log('[Library] Auto-opening uploaded book:', newBook.title);
+  //       openBook(newBook);
+  //     } catch (error) {
+  //       // Show error toast
+  //       setToastMessage(error instanceof Error ? error.message : 'Error uploading book');
+  //       setToastType('error');
+  //       setShowToast(true);
+  //     }
+  //   }
+  // };
+
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       // TRACK THE INTENT
@@ -51,33 +93,74 @@ const Library: React.FC = () => {
         const newBook = await addBook(e.target.files[0]);
         e.target.value = ''; // Reset the input
 
-        // Show success toast
-        setToastMessage(`"${fileName}" has been added to your library`);
-        setToastType('success');
-        setShowToast(true);
+        // Show success toast (USING useToast hook)
+        addToast(`"${fileName}" has been added to your library`, 'success');
 
         // Auto-open the newly uploaded book
         console.log('[Library] Auto-opening uploaded book:', newBook.title);
         openBook(newBook);
       } catch (error) {
-        // Show error toast
-        setToastMessage(error instanceof Error ? error.message : 'Error uploading book');
-        setToastType('error');
-        setShowToast(true);
+        // Show error toast (USING useToast hook)
+        addToast(error instanceof Error ? error.message : 'Error uploading book', 'error');
       }
     }
   };
 
-  // Hide toast after 3 seconds
-  useEffect(() => {
-    if (showToast) {
-      const timer = setTimeout(() => {
-        setShowToast(false);
-      }, 3000);
+
+
+    // Load banner preference from localStorage (to hide if dismissed)
+    useEffect(() => {
+      const bannerDismissed = localStorage.getItem('yoread_app_beta_banner_dismissed');
+      if (bannerDismissed === 'true') {
+        setShowBetaBanner(false);
+      } else {
+        // Track banner impression if not dismissed
+        trackEvent('app_beta_banner_impression', {
+          user_id: user?.id || 'anonymous',
+          platform: 'web',
+        });
+      }
+    }, [user]);
+  
+    // Handler to dismiss the banner
+    const handleDismissBanner = () => {
+      setShowBetaBanner(false);
+      localStorage.setItem('yoread_app_beta_banner_dismissed', 'true');
+      trackEvent('app_beta_banner_dismissed', {
+        user_id: user?.id || 'anonymous',
+        platform: 'web',
+      });
+    };
+  
+    // Handler to open the modal
+    const handleOpenBetaModal = () => {
+      setIsBetaModalOpen(true);
+      // Reset form state when opening a new form
+      setIsSuccess(false); 
+      trackEvent('app_beta_modal_opened', {
+        user_id: user?.id || 'anonymous',
+        platform: 'web',
+      });
+    };
+  
+    // Handler to close the modal
+    const handleCloseBetaModal = () => {
+      setIsBetaModalOpen(false);
+      // Optionally reset form state completely here if you want to clear inputs
+      // setEmail(''); 
+      // setReason('');
+    };
+
+  // // Hide toast after 3 seconds
+  // useEffect(() => {
+  //   if (showToast) {
+  //     const timer = setTimeout(() => {
+  //       setShowToast(false);
+  //     }, 3000);
       
-      return () => clearTimeout(timer);
-    }
-  }, [showToast]);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [showToast]);
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -90,6 +173,33 @@ const Library: React.FC = () => {
     }
   };
 
+  // const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+  //   e.preventDefault();
+  //   e.stopPropagation();
+  //   setDragActive(false);
+    
+  //   if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+  //     try {
+  //       const fileName = e.dataTransfer.files[0].name;
+  //       const newBook = await addBook(e.dataTransfer.files[0]);
+        
+  //       // Show success toast
+  //       setToastMessage(`"${fileName}" has been added to your library`);
+  //       setToastType('success');
+  //       setShowToast(true);
+
+  //       // Auto-open the newly uploaded book
+  //       console.log('[Library] Auto-opening uploaded book:', newBook.title);
+  //       openBook(newBook);
+  //     } catch (error) {
+  //       // Show error toast
+  //       setToastMessage(error instanceof Error ? error.message : 'Error uploading book');
+  //       setToastType('error');
+  //       setShowToast(true);
+  //     }
+  //   }
+  // };
+
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -100,19 +210,15 @@ const Library: React.FC = () => {
         const fileName = e.dataTransfer.files[0].name;
         const newBook = await addBook(e.dataTransfer.files[0]);
         
-        // Show success toast
-        setToastMessage(`"${fileName}" has been added to your library`);
-        setToastType('success');
-        setShowToast(true);
+        // Show success toast (USING useToast hook)
+        addToast(`"${fileName}" has been added to your library`, 'success');
 
         // Auto-open the newly uploaded book
         console.log('[Library] Auto-opening uploaded book:', newBook.title);
         openBook(newBook);
       } catch (error) {
-        // Show error toast
-        setToastMessage(error instanceof Error ? error.message : 'Error uploading book');
-        setToastType('error');
-        setShowToast(true);
+        // Show error toast (USING useToast hook)
+        addToast(error instanceof Error ? error.message : 'Error uploading book', 'error');
       }
     }
   };
@@ -134,17 +240,20 @@ const Library: React.FC = () => {
 
   return (
     <div className="library bg-slate-50">
+      
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         
         {/* --- Toast Notification (remains the same) --- */}
-        {showToast && (
+        {/* {showToast && (
           <div className={`toast ${toastType}`}>
             <p>{toastMessage}</p>
             <button onClick={() => setShowToast(false)} className="toast-close-btn">
               &times;
             </button>
           </div>
-        )}
+        )} */}
+
+        
 
         {/* Cloud Sync Toast Notification - Fixed position at top */}
         {isSyncingFromCloud && (
@@ -158,10 +267,12 @@ const Library: React.FC = () => {
           </div>
         )}
 
+
         {/* --- All sections are independent --- */}
 
         {/* Hero Section with Background Collage */}
         <div className="relative mb-16">
+          
           {/* Full-width background - breaks out of max-w-5xl container */}
           <div className="absolute left-1/2 -translate-x-1/2 w-screen -top-8 sm:-top-12 bottom-0">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -181,8 +292,27 @@ const Library: React.FC = () => {
             </div>
           </div>
 
+          
+
           {/* Content - stays within max-w-5xl */}
           <div className="relative z-20">
+
+                    {/* NEW: APP BETA ANNOUNCEMENT BANNER */}
+        {showBetaBanner && (
+          <div className="app-beta-banner">
+            <p className="app-beta-banner-text">
+              🚀 Yoread Android App Beta is LIVE! Join now to get 10 hours of FREE listening!
+            </p>
+            <div className="app-beta-banner-actions">
+              <button onClick={handleOpenBetaModal} className="app-beta-banner-button">
+                Get App
+              </button>
+              <button onClick={handleDismissBanner} className="app-beta-banner-dismiss">
+                &times;
+              </button>
+            </div>
+          </div>
+        )}
         {/* Hero title */}
             <section className="pt-6">
               <div className="max-w-4xl mx-auto text-center">
@@ -285,6 +415,16 @@ const Library: React.FC = () => {
         )}
         
       </main>
+
+            {/* NEW: APP BETA MODAL */}
+            <AppBetaModal
+        isOpen={isBetaModalOpen}
+        onClose={handleCloseBetaModal}
+        onSubmit={submitBetaForm}
+        isLoading={isFormLoading}
+        isSuccess={isSuccess}
+        error={error}
+      />
 
     </div>
   );
