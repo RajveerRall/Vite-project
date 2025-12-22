@@ -429,6 +429,49 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     booksRef.current = books;
   }, [books]);
 
+  // // Trigger sync when user signs in and initial load completes
+  // useEffect(() => {
+  //   // Only sync once per authentication session
+  //   const syncKey = userId && isInitialLoadComplete ? `${userId}-${isInitialLoadComplete}` : null;
+
+  //   if (isAuthenticated && userId && isInitialLoadComplete && syncHasRunRef.current !== syncKey) {
+  //     console.log('[BookContext] Triggering sync for user:', userId);
+  //     syncHasRunRef.current = syncKey;
+
+  //     // Use ref to get current books without causing dependency issues
+  //     const currentBooks = booksRef.current;
+  //     syncBooks(currentBooks)
+  //       .then(syncedBooks => {
+  //         // Thoroughly check if books changed (including progress/page)
+  //         const booksChanged =
+  //           syncedBooks.length !== currentBooks.length ||
+  //           syncedBooks.some((b, i) =>
+  //             b.id !== currentBooks[i]?.id ||
+  //             b.currentPage !== currentBooks[i]?.currentPage ||
+  //             b.progress !== currentBooks[i]?.progress ||
+  //             b.lastRead !== currentBooks[i]?.lastRead
+  //           );
+
+  //         if (booksChanged) {
+  //           console.log('[BookContext] Books changed after sync, updating state');
+  //           setBooks(syncedBooks);
+  //         } else {
+  //           console.log('[BookContext] No changes after sync, skipping update');
+  //         }
+  //       })
+  //       .catch(error => {
+  //         console.error('[BookContext] Sync error:', error);
+  //         // Reset sync flag on error so it can retry
+  //         syncHasRunRef.current = null;
+  //       });
+  //   }
+
+  //   // Reset sync flag when user changes (signs out or different user signs in)
+  //   if (!isAuthenticated || !userId) {
+  //     syncHasRunRef.current = null;
+  //   }
+  // }, [isAuthenticated, userId, isInitialLoadComplete, syncBooks, setBooks]); // syncBooks is stable from useCallback
+
   // Trigger sync when user signs in and initial load completes
   useEffect(() => {
     // Only sync once per authentication session
@@ -441,11 +484,58 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       // Use ref to get current books without causing dependency issues
       const currentBooks = booksRef.current;
       syncBooks(currentBooks)
-        .then(syncedBooks => {
+        .then(cloudBooks => {
+          // CONFLICT RESOLUTION: Merge cloud books with local books
+          // We prioritize the version with the most recent 'lastRead' timestamp or higher progress
+          const mergedBooks = [...cloudBooks];
+          let hasMergeChanges = false;
+
+          // Check for local books that might have newer progress than cloud
+          currentBooks.forEach(localBook => {
+            const cloudMatchIndex = mergedBooks.findIndex(b => b.id === localBook.id);
+            
+            if (cloudMatchIndex !== -1) {
+              const cloudBook = mergedBooks[cloudMatchIndex];
+              
+              // Compare timestamps if available
+              const localTime = localBook.lastRead ? new Date(localBook.lastRead).getTime() : 0;
+              const cloudTime = cloudBook.lastRead ? new Date(cloudBook.lastRead).getTime() : 0;
+              
+              // If local is significantly newer (e.g. > 5 seconds difference to avoid clock skew)
+              // OR if local has further progress (and timestamps are close/missing)
+              const isLocalNewer = localTime > cloudTime + 5000;
+              const isLocalAhead = localBook.currentPage > cloudBook.currentPage;
+              
+              if (isLocalNewer || (Math.abs(localTime - cloudTime) < 5000 && isLocalAhead)) {
+                console.log(`[BookContext] Keeping local progress for "${localBook.title}" (Local: pg ${localBook.currentPage}, Cloud: pg ${cloudBook.currentPage})`);
+                // Keep the local version's progress data but allow other metadata updates from cloud if needed
+                mergedBooks[cloudMatchIndex] = {
+                  ...cloudBook, // Base on cloud book (for URLs, etc)
+                  ...localBook, // Overwrite with local progress
+                  // Ensure file/cover URLs are valid (cloud URLs might be fresher/signed)
+                  // If local has blob URL and cloud has http URL, we might want to keep cloud URL 
+                  // UNLESS we are currently reading it.
+                  // For simplicity, we assume local state is the source of truth for reading position.
+                };
+                hasMergeChanges = true;
+              }
+            } else {
+              // Book exists locally but returned by sync (meaning it's not in cloud OR sync failed to return it)
+              // If it has a file object (newly uploaded), keep it.
+              if (localBook.file || localBook.coverUrl?.startsWith('blob:')) {
+                 console.log(`[BookContext] Preserving local-only book "${localBook.title}" (pending sync?)`);
+                 mergedBooks.push(localBook);
+                 hasMergeChanges = true;
+              }
+            }
+          });
+
           // Thoroughly check if books changed (including progress/page)
+          const finalBooks = hasMergeChanges ? mergedBooks : cloudBooks;
+          
           const booksChanged =
-            syncedBooks.length !== currentBooks.length ||
-            syncedBooks.some((b, i) =>
+            finalBooks.length !== currentBooks.length ||
+            finalBooks.some((b, i) =>
               b.id !== currentBooks[i]?.id ||
               b.currentPage !== currentBooks[i]?.currentPage ||
               b.progress !== currentBooks[i]?.progress ||
@@ -453,8 +543,8 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
             );
 
           if (booksChanged) {
-            console.log('[BookContext] Books changed after sync, updating state');
-            setBooks(syncedBooks);
+            console.log('[BookContext] Books changed after sync/merge, updating state');
+            setBooks(finalBooks);
           } else {
             console.log('[BookContext] No changes after sync, skipping update');
           }
@@ -470,7 +560,10 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     if (!isAuthenticated || !userId) {
       syncHasRunRef.current = null;
     }
-  }, [isAuthenticated, userId, isInitialLoadComplete, syncBooks, setBooks]); // syncBooks is stable from useCallback
+  }, [isAuthenticated, userId, isInitialLoadComplete, syncBooks, setBooks]);
+
+
+
 
   // =================================================================
 
