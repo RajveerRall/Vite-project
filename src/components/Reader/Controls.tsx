@@ -6,8 +6,8 @@ import { trackEvent } from '../../lib/analytics';
 import { UsageLimitModal } from '../UsageLimitModal';
 import { UsageWarningToast } from '../UsageWarningToast';
 import {
-  Headphones, 
-  PlayCircle, PauseCircle, RotateCcw, 
+  Headphones,
+  PlayCircle, PauseCircle, RotateCcw,
   Loader2, Square, SkipBack, SkipForward, Settings
 } from 'lucide-react';
 import InteractiveProgressBar from './InteractiveProgressBar';
@@ -18,7 +18,7 @@ import { TOCItem } from '../../types/books';
 import { useSmoothProgress } from '../../hooks/tts/useSmoothProgress';
 
 // Import the stylesheet. It will now handle all the appearance styling.
-import './Controls.css'; 
+import './Controls.css';
 
 export interface ControlsProps {
   readingProgress: number;
@@ -128,7 +128,7 @@ const Controls: React.FC<ControlsProps> = ({
 
   // Calculate raw chapter progress percentage (memoized)
   const rawChapterProgress = useMemo(() => {
-    return totalChunks > 0 && currentChunkIndex !== null 
+    return totalChunks > 0 && currentChunkIndex !== null
       ? Math.round(((currentChunkIndex + 1) / totalChunks) * 100)
       : 0;
   }, [currentChunkIndex, totalChunks]);
@@ -142,7 +142,7 @@ const Controls: React.FC<ControlsProps> = ({
   });
 
   const showStopButton = isReading || isPaused || isProcessing;
-  
+
   // Determine which mode is active to hide other options
   const isReadModeActive = isReading || isPaused || isProcessing || canResume;
   // const isAudiobookModeActive = isPlayModeActive;
@@ -155,7 +155,7 @@ const Controls: React.FC<ControlsProps> = ({
     if (isDisabledDueToLimit) {
       return {
         icon: 'disabled',
-        title: anonymousLimit?.isLimitReached 
+        title: anonymousLimit?.isLimitReached
           ? 'Free limit reached. Please sign up to continue.'
           : 'TTS usage limit reached. Please upgrade your subscription to continue.',
         disabled: true,
@@ -240,7 +240,7 @@ const Controls: React.FC<ControlsProps> = ({
               <span className="text-xs bg-gray-100 rounded px-2 py-0.5">Buffered: {fullCastBuffered}</span>
             )}
           </div>
-          
+
           <div className="flex items-center gap-2">
             {fullCastNeedsTap && (
               <button
@@ -249,13 +249,13 @@ const Controls: React.FC<ControlsProps> = ({
                   try {
                     const a = (window as any).__fullCastAudio as HTMLAudioElement | undefined;
                     a?.play();
-                  } catch {}
+                  } catch { }
                 }}
               >
                 Tap to Play
               </button>
             )}
-            
+
             {!fullCastPaused ? (
               <button
                 onClick={onFullCastPause}
@@ -299,8 +299,8 @@ const Controls: React.FC<ControlsProps> = ({
           {/* Chapter Progress Bar */}
           <InteractiveProgressBar
             progress={chapterProgress}
-            onPreview={onPreviewScroll || (() => {})}
-            onSeek={onSeekToPercentage || (() => {})}
+            onPreview={onPreviewScroll || (() => { })}
+            onSeek={onSeekToPercentage || (() => { })}
             isActive={!!(onPreviewScroll && onSeekToPercentage) && isReadModeActive}
           />
         </div>
@@ -332,47 +332,46 @@ const Controls: React.FC<ControlsProps> = ({
               <SkipBack size={18} className="text-gray-600 md:text-[22px]" />
             </button>
 
-          {/* Main Play/Pause Button */}
-          <button
-            onClick={handleReadAloudClick}
-            className={`p-3 md:p-4 rounded-full flex items-center gap-2 transition-all duration-200 ${
-              buttonState.disabled
-                ? 'bg-gray-300 cursor-not-allowed text-gray-500'
-                : isReadButtonActive 
-                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg' 
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-            }`}
-            aria-label={buttonState.title}
-            title={buttonState.title}
-            disabled={buttonState.disabled}
-          >
-            {buttonState.icon === 'loading' ? (
-              <>
-                <Loader2 size={22} className="animate-spin md:text-[26px]" />
-                <span className="text-xs font-medium"  >Loading</span>
-              </>
-            ) : buttonState.icon === 'play' ? (
-              <>
-                <PlayCircle size={22} className="md:text-[26px]" />
-                <span className="text-xs font-medium" >Play</span>
-              </>
-            ) : buttonState.icon === 'pause' ? (
-              <>
-                <PauseCircle size={22} className="md:text-[26px]" />
-                <span className="text-xs font-medium" >Pause</span>
-              </>
-            ) : buttonState.icon === 'resume' ? (
-              <>
-                <RotateCcw size={22} className="md:text-[26px]" />
-                <span className="text-xs font-medium"  >Resume</span>
-              </>
-            ) : (
-              <>
-                <PlayCircle size={22} className="md:text-[26px]" />
-                <span className="text-xs font-medium"  >Play</span>
-              </>
-            )}
-          </button>
+            {/* Main Play/Pause Button */}
+            <button
+              onClick={handleReadAloudClick}
+              className={`p-3 md:p-4 rounded-full flex items-center gap-2 transition-all duration-200 ${buttonState.disabled
+                  ? 'bg-gray-300 cursor-not-allowed text-gray-500'
+                  : isReadButtonActive
+                    ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+              aria-label={buttonState.title}
+              title={buttonState.title}
+              disabled={buttonState.disabled}
+            >
+              {buttonState.icon === 'loading' ? (
+                <>
+                  <Loader2 size={22} className="animate-spin md:text-[26px]" />
+                  <span className="text-xs font-medium"  >Loading</span>
+                </>
+              ) : buttonState.icon === 'play' ? (
+                <>
+                  <PlayCircle size={22} className="md:text-[26px]" />
+                  <span className="text-xs font-medium" >Play</span>
+                </>
+              ) : buttonState.icon === 'pause' ? (
+                <>
+                  <PauseCircle size={22} className="md:text-[26px]" />
+                  <span className="text-xs font-medium" >Pause</span>
+                </>
+              ) : buttonState.icon === 'resume' ? (
+                <>
+                  <RotateCcw size={22} className="md:text-[26px]" />
+                  <span className="text-xs font-medium"  >Resume</span>
+                </>
+              ) : (
+                <>
+                  <PlayCircle size={22} className="md:text-[26px]" />
+                  <span className="text-xs font-medium"  >Play</span>
+                </>
+              )}
+            </button>
 
             {/* Next Button */}
             <button
@@ -399,8 +398,8 @@ const Controls: React.FC<ControlsProps> = ({
               />
             )}
 
-            {/* Stop Button */}
-            {showStopButton && (
+            {/* Stop Button - Disabled/Hidden as per request */}
+            {/* {showStopButton && (
               <button
                 onClick={onStopTTS}
                 className="p-1.5 md:p-2 rounded-full hover:bg-red-100 text-red-600 transition-colors"
@@ -409,7 +408,7 @@ const Controls: React.FC<ControlsProps> = ({
               >
                 <Square size={18} className="md:text-[22px]" />
               </button>
-            )}
+            )} */}
           </div>
         </div>
       </div>
@@ -430,7 +429,7 @@ const Controls: React.FC<ControlsProps> = ({
       <div className="flex items-center gap-x-2 flex-shrink-0">
         {/* AI Summary Button - Mobile Only */}
         {isMobile && (
-          <MobileAIChatDrawer 
+          <MobileAIChatDrawer
             theme={theme || 'light'}
             currentPageText={currentPageText}
             currentChapterTitle={currentChapterTitle}
@@ -445,7 +444,7 @@ const Controls: React.FC<ControlsProps> = ({
         {isEnhanced && isMobile && (
           <MobileTOCDrawer
             toc={toc || []}
-            onItemClick={onNavigateToTocItem || (() => {})}
+            onItemClick={onNavigateToTocItem || (() => { })}
             theme={theme || 'light'}
             openByDefault={isFirstOpen || false}
           />
@@ -454,9 +453,8 @@ const Controls: React.FC<ControlsProps> = ({
         {/* Read Aloud Button */}
         <button
           onClick={handleReadAloudClick}
-          className={`control-button flex items-center gap-2 px-3 py-2 ${
-            buttonState.disabled ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
+          className={`control-button flex items-center gap-2 px-3 py-2 ${buttonState.disabled ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           aria-label={buttonState.title}
           title={buttonState.title}
           disabled={buttonState.disabled}
@@ -493,13 +491,13 @@ const Controls: React.FC<ControlsProps> = ({
               alert('You have reached your Full Cast monthly quota (300 minutes).');
               return;
             }
-            
+
             trackEvent('full_cast_start', {
               used_minutes: fcUsed || 0,
               total_minutes: fcTotal || 300,
               remaining_minutes: Math.max(0, (fcTotal || 300) - (fcUsed || 0))
             });
-            
+
             const event = new CustomEvent('full-cast-request');
             window.dispatchEvent(event);
           }}
@@ -510,7 +508,7 @@ const Controls: React.FC<ControlsProps> = ({
           <span className="button-text text-sm font-medium">Full Cast Audiobook</span>
         </button>
       </div>
-      
+
       {/* Show warning toast for anonymous users near limit */}
       {anonymousLimit && anonymousLimit.isNearLimit && !anonymousLimit.isLimitReached && (
         <UsageWarningToast
@@ -519,7 +517,7 @@ const Controls: React.FC<ControlsProps> = ({
           isCritical={anonymousLimit.isCritical}
         />
       )}
-      
+
       {/* Usage limit modal */}
       {anonymousLimit && (
         <UsageLimitModal
