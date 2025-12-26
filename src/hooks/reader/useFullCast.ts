@@ -210,21 +210,24 @@ export function useFullCast(
 
     const audio = audioRef.current!;
 
-    // Stop any currently playing audio (including silent loop) before loading new chunk
-    audio.pause();
-    audio.currentTime = 0;
+    // FIX: Properly stop and wait for silent loop to finish before loading new chunk
+    // This prevents AbortError when pause() interrupts play()
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+      // Wait a small delay to ensure pause completes before loading new source
+      await new Promise(resolve => setTimeout(resolve, 50));
+    } catch (e) {
+      // Ignore pause errors - audio might already be paused or not playing
+      console.debug('[Full Cast] Pause during transition (non-critical):', e);
+    }
 
     audio.src = url;
     audio.loop = false;
     audio.volume = 1.0;
 
-    audio.onplay = () => {
-      startTsRef.current = Date.now();
-      setStatus('Playing…');
-      setHasStartedPlaying(true);
-      setNeedsTap(false);
-
-      // Highlight the currently spoken dialogue
+    // FIX: Helper function to set up highlighting - used both in onplay and immediately
+    const setupHighlighting = () => {
       if (line?.dialogue && currentPageText) {
         try {
           const highlighted = highlightChunkInHtml(
@@ -238,6 +241,16 @@ export function useFullCast(
           console.warn('[Picture Mode] Failed to highlight dialogue:', err);
         }
       }
+    };
+
+    audio.onplay = () => {
+      startTsRef.current = Date.now();
+      setStatus('Playing…');
+      setHasStartedPlaying(true);
+      setNeedsTap(false);
+
+      // Highlight the currently spoken dialogue
+      setupHighlighting();
 
       if (scenesRef.current.length > 0 && line?.dialogue) {
         if (line.dialogue.length >= 10) { // Relaxed from 15
@@ -288,14 +301,37 @@ export function useFullCast(
       consume();
     };
 
+    // FIX: Trigger highlighting immediately when chunk is loaded (before play)
+    // This ensures highlighting works even with cached chapters where audio might start quickly
+    setupHighlighting();
+
     try {
       await audio.play();
     } catch (e) {
-      console.error('[Full Cast] play failed', e);
-      setNeedsTap(true);
-      setStatus('Tap to start audio');
+      // Only log non-AbortError errors as warnings
+      if ((e as any)?.name !== 'AbortError') {
+        console.error('[Full Cast] play failed', e);
+        setNeedsTap(true);
+        setStatus('Tap to start audio');
+      } else {
+        // AbortError is expected when pause() interrupts play() - retry after a brief delay
+        console.debug('[Full Cast] Play interrupted by pause (will retry):', e);
+        setTimeout(async () => {
+          if (isPlayingRef.current && audio.src === url) {
+            try {
+              await audio.play();
+            } catch (retryError) {
+              if ((retryError as any)?.name !== 'AbortError') {
+                console.error('[Full Cast] Retry play failed', retryError);
+                setNeedsTap(true);
+                setStatus('Tap to start audio');
+              }
+            }
+          }
+        }, 100);
+      }
     }
-  }, [produce, hasStartedPlaying]);
+  }, [produce, hasStartedPlaying, currentPageText, currentContent]);
 
   // --- Commands ---
   const pause = useCallback(() => {
@@ -582,9 +618,24 @@ export function useFullCast(
       }
 
       // Start Audio Phase
-      audio.loop = false;
-      audio.pause();
-      audio.currentTime = 0;
+      // FIX: Properly stop silent loop before starting real audio
+      // This prevents AbortError when the first chunk tries to pause the silent loop
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.src = ''; // Clear silent loop source
+        audio.loop = false;
+        // Wait a brief moment to ensure pause completes
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (e) {
+        console.debug('[Full Cast] Error stopping silent loop (non-critical):', e);
+        // Continue anyway - audio might already be stopped
+        audio.loop = false;
+        audio.currentTime = 0;
+        if (audio.src && audio.src.startsWith('data:audio')) {
+          audio.src = '';
+        }
+      }
 
       setStatus('Starting audio…');
       produce();

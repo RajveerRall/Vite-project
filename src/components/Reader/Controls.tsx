@@ -259,7 +259,7 @@ const Controls: React.FC<ControlsProps> = ({
                 <PlayCircle size={18} className="text-gray-600" />
               </button>
             )}
-
+{/* 
             {onFullCastGenerateImage && (
               <button
                 onClick={onFullCastGenerateImage}
@@ -269,7 +269,7 @@ const Controls: React.FC<ControlsProps> = ({
               >
                 <ImageIcon size={18} className="text-gray-600" />
               </button>
-            )}
+            )} */}
 
             <button
               onClick={onFullCastStop}

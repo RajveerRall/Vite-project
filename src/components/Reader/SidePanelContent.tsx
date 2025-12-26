@@ -72,8 +72,9 @@ const SidePanelContent: React.FC<SidePanelContentProps> = ({
   return (
     <div
       ref={contentPanelRef}
-      className={`side-panel-content hidden md:block ${!isOpen ? 'collapsed' : ''} ${isDraggingHandle ? 'dragging' : ''}`}
+      className={`side-panel-content md:block ${!isOpen ? 'collapsed' : ''} ${isDraggingHandle ? 'dragging' : ''}`}
     >
+      {/* The main content (header and body) is now conditionally rendered */}
       {isOpen && (
         <>
           <div className="side-panel-content-header">
@@ -105,7 +106,7 @@ const SidePanelContent: React.FC<SidePanelContentProps> = ({
         </>
       )}
 
-      {/* Draggable handle */}
+      {/* The draggable handle is now always rendered, outside the isOpen condition */}
       <div
         className="side-panel-drag-handle"
         onMouseDown={onDragStart}

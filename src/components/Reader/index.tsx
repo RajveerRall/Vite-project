@@ -25,6 +25,7 @@ import { ReaderControlsContainer } from './ReaderControlsContainer';
 import FullCastSceneOverlay from './FullCastSceneOverlay';
 import { SubscriptionLimitModal } from '../Subscription/SubscriptionLimitModal';
 import { useSubscription } from '../../context/SubscriptionContext';
+import MobileTOCDrawer from './MobileTOCDrawer';
 
 // TTS highlighting is now handled by the useReaderTTS hook
 
@@ -68,6 +69,7 @@ const Reader: React.FC = () => {
   // Subscription context for limit checking
   const { isLimitExceeded, refreshUsageLimit } = useSubscription();
   const [showLimitModal, setShowLimitModal] = React.useState(false);
+  const [isMobileTocOpen, setIsMobileTocOpen] = React.useState(false);
 
   // Side panel state - replace old sidebar state
   const [activePanel, setActivePanel] = useState<'toc' | 'ai-chat' | null>('toc');
@@ -508,7 +510,13 @@ const Reader: React.FC = () => {
         onClose={handleCloseBookCB}
         onScrollToHighlight={scrollToHighlight}
         onOpenSettings={toggleSettings}
-        onOpenChapters={() => setActivePanel('toc')}
+        onOpenChapters={() => {
+          if (isMobile) {
+            setIsMobileTocOpen(true);
+          } else {
+            setActivePanel('toc');
+          }
+        }}
         showTTSHighlight={isSpeaking || isProcessing || isPaused}
       />
 
@@ -658,6 +666,15 @@ const Reader: React.FC = () => {
         bookTitle={bookTitle}
         author={bookAuthor}
         coverUrl={currentBook?.coverUrl || null}
+      />
+
+      {/* Mobile TOC Drawer */}
+      <MobileTOCDrawer
+        toc={toc}
+        onItemClick={navigateToTocItem}
+        theme={theme}
+        isOpen={isMobileTocOpen}
+        onClose={() => setIsMobileTocOpen(false)}
       />
 
       {/* Subscription Limit Modal */}
