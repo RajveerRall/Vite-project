@@ -225,8 +225,44 @@
 
 /* Smooth music player controls container */
 .music-player-controls {
-  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+  transition: all 0.3s ease;
 }
+
+
+/* Light Theme (Default) */
+.music-player-controls.theme-light {
+  background-color: #ffffff;
+  border-color: #e5e7eb;
+}
+.music-player-controls.theme-light .status-text { color: #4b5563; }
+.music-player-controls.theme-light .buffered-tag { background-color: #f3f4f6; color: #374151; }
+.music-player-controls.theme-light .theme-icon { color: #4b5563; }
+.music-player-controls.theme-light .hover-effect:hover { background-color: #f3f4f6; }
+
+
+
+/* Dark Theme */
+.music-player-controls.theme-dark {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #f9fafb;
+}
+.music-player-controls.theme-dark .status-text { color: #d1d5db; }
+.music-player-controls.theme-dark .buffered-tag { background-color: #374151; color: #e5e7eb; }
+.music-player-controls.theme-dark .theme-icon { color: #d1d5db; }
+.music-player-controls.theme-dark .hover-effect:hover { background-color: #374151; }
+
+
+/* Sepia Theme */
+.music-player-controls.theme-sepia {
+  background-color: #f4ecd8;
+  border-color: #e2d1a6;
+  color: #5f4b32;
+}
+.music-player-controls.theme-sepia .status-text { color: #7c6a52; }
+.music-player-controls.theme-sepia .buffered-tag { background-color: #e8dcb8; color: #5f4b32; }
+.music-player-controls.theme-sepia .theme-icon { color: #7c6a52; }
+.music-player-controls.theme-sepia .hover-effect:hover { background-color: #e8dcb8; }
 
 /* Smooth progress bar fill animation */
 .progress-bar-fill {

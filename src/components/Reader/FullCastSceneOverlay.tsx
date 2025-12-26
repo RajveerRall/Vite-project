@@ -72,14 +72,34 @@ const FullCastSceneOverlay: React.FC<FullCastSceneOverlayProps> = ({
             if (!overlayRef.current) return;
 
             if (isDragging.current) {
-                const newX = clientX - dragOffset.current.x;
-                const newY = clientY - dragOffset.current.y;
+                let newX = clientX - dragOffset.current.x;
+                let newY = clientY - dragOffset.current.y;
+
+                // 1. Get viewport and component dimensions
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                const elementWidth = overlayRef.current.offsetWidth;
+                const elementHeight = overlayRef.current.offsetHeight;
+
+                // 2. Clamp the positions to stay within the screen
+                // Keep X between 0 and (Screen Width - Component Width)
+                newX = Math.max(0, Math.min(newX, viewportWidth - elementWidth));
+                
+                // Keep Y between 0 and (Screen Height - Component Height)
+                newY = Math.max(0, Math.min(newY, viewportHeight - elementHeight));
+                
                 overlayRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
             }
 
             if (isResizing.current) {
                 const deltaX = clientX - resizeStart.current.x;
-                const newWidth = Math.max(280, resizeStart.current.width + deltaX);
+                let newWidth = Math.max(280, resizeStart.current.width + deltaX);
+                
+                // 3. Prevent resizing off the right side of the screen
+                const rect = overlayRef.current.getBoundingClientRect();
+                const maxWidth = window.innerWidth - rect.left - 10; // 10px padding
+                newWidth = Math.min(newWidth, maxWidth);
+                
                 overlayRef.current.style.width = `${newWidth}px`;
             }
         };
@@ -103,6 +123,8 @@ const FullCastSceneOverlay: React.FC<FullCastSceneOverlayProps> = ({
                 isResizing.current = false;
                 document.body.style.userSelect = '';
                 document.body.style.cursor = '';
+                // FIX: Ensure overflow is reset on drag/resize end
+                document.body.style.overflow = ''; // Reset to default <--- IMPORTANT LINE
             }
         };
 
@@ -115,6 +137,8 @@ const FullCastSceneOverlay: React.FC<FullCastSceneOverlayProps> = ({
             window.removeEventListener('mouseup', onEnd);
             window.removeEventListener('touchmove', onTouchMove);
             window.removeEventListener('touchend', onEnd);
+
+            document.body.style.overflow = '';
         };
     }, []);
 
@@ -217,11 +241,11 @@ const FullCastSceneOverlay: React.FC<FullCastSceneOverlayProps> = ({
                     </button>
                 </div>
 
-                {scene && (
+                {/* {scene && (
                     <div className="scene-caption">
                         <p>{scene.anchor_text}</p>
                     </div>
-                )}
+                )} */}
             </div>
             <div
                 className="resize-handle"
