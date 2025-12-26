@@ -21,8 +21,8 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   onClose,
 }) => {
   // Get subscription info and hardcoded plans from context
-  const { 
-    subscriptionInfo, 
+  const {
+    subscriptionInfo,
     plans,
     refreshSubscription,
     refreshUsageLimit,
@@ -31,10 +31,10 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   } = useSubscription();
 
   // Detect if user is on free tier
-  const hasActiveSubscription = subscriptionInfo?.subscription?.status === 'active' || 
-                                subscriptionInfo?.subscription?.status === 'trial';
-  const isFreeTierUser = !hasActiveSubscription && 
-                         (subscriptionInfo?.profile?.tts_minutes_limit ?? 0) > 0;
+  const hasActiveSubscription = subscriptionInfo?.subscription?.status === 'active' ||
+    subscriptionInfo?.subscription?.status === 'trial';
+  const isFreeTierUser = !hasActiveSubscription &&
+    (subscriptionInfo?.profile?.tts_minutes_limit ?? 0) > 0;
   const freePlanMinutes = subscriptionInfo?.profile?.tts_minutes_limit ?? 60;
   const freePlanMinutesUsed = Math.ceil((subscriptionInfo?.profile?.tts_minutes_used ?? 0) / 60);
 
@@ -50,7 +50,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
    */
   const handleSubscribe = async (plan: SubscriptionPlan) => {
     console.log('[SubscriptionModal] handleSubscribe called for plan:', plan.id, plan.type);
-    
+
     // Step 1: Validation & Authentication
     if (!user?.id || !user?.email) {
       alert('Please sign in to subscribe');
@@ -71,7 +71,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       // Get access token using safe method (avoids hanging on getSession())
       const { getAccessToken } = await import('../../lib/authToken');
       console.log('[SubscriptionModal] Step 3: Getting access token...');
-      
+
       let accessToken: string;
       try {
         accessToken = await getAccessToken(5000); // 5 second timeout
@@ -119,7 +119,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
       const checkoutData = await response.json();
       console.log('[SubscriptionModal] Step 7: Checkout response received:', checkoutData);
-      
+
       const checkoutUrl = checkoutData.checkout_url;
 
       if (!checkoutUrl) {
@@ -132,7 +132,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       // Close modal before redirect
       setSubscribing(null);
       onClose();
-      
+
       // Redirect to DodoPayments checkout
       // User will complete payment and be redirected back to return_url (/account)
       window.location.href = checkoutUrl;
@@ -146,15 +146,15 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         hint: error?.hint,
         stack: error?.stack
       });
-      
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : typeof error === 'string' 
-          ? error 
+
+      const errorMessage = error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
           : 'Failed to process purchase. Please try again.';
-      
+
       alert(`❌ Error: ${errorMessage}`);
-      
+
     } finally {
       // Always clear subscribing state, even if error occurred
       console.log('[SubscriptionModal] Finally block: Ensuring subscribing state is cleared');
@@ -170,72 +170,51 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   const renderFreePlanCard = () => {
     if (!isFreeTierUser) return null;
 
+    // Calculate hours
+    const hours = Math.floor(freePlanMinutes / 60);
+
     return (
-      <div className="border-2 border-amber-500 bg-amber-50 rounded-lg p-6 max-w-sm">
-        {/* Current Plan Badge */}
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-xl font-bold text-gray-900">Free</h3>
-          <span className="bg-amber-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-            Current Plan
-          </span>
+      <div className="relative border-2 border-blue-100 bg-blue-50/50 rounded-2xl p-6 max-w-sm w-full">
+        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full shadow-sm tracking-wide uppercase">
+          Active Plan
         </div>
+
+        {/* Plan Name */}
+        <h3 className="text-lg font-bold text-gray-900 mb-2 text-center">
+          Free Plan
+        </h3>
 
         {/* Description */}
-        <p className="text-sm text-gray-600 mb-4">Perfect for getting started</p>
+        <p className="text-sm text-gray-500 mb-4 text-center leading-relaxed">Perfect for checking out the platform</p>
 
         {/* Minutes Included */}
-        <div className="mb-4">
-          <div className="text-3xl font-bold text-gray-900">
-            {freePlanMinutes}
+        <div className="my-6 text-center">
+          <div className="flex items-baseline justify-center gap-1">
+            <span className="text-4xl font-extrabold text-gray-900 tracking-tight">
+              {hours}
+            </span>
+            <span className="text-xl font-semibold text-gray-500">hours</span>
           </div>
-          <div className="text-sm text-gray-600">minutes/month</div>
-        </div>
-
-        {/* Usage Info */}
-        <div className="mb-4 p-3 bg-white rounded-lg border border-amber-200">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-gray-600">Current Usage</div>
-            {usageLimit && usageLimit.minutes_remaining !== null && prepaidMinutes > 0 && (
-              <span className="text-xs font-medium text-green-600">
-                {usageLimit.minutes_remaining} total available
-              </span>
-            )}
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mt-1">
+            Monthly Reading Time
           </div>
-          <div className="text-sm font-medium text-gray-900 mb-2">
-            {freePlanMinutesUsed} / {freePlanMinutes} minutes used
-          </div>
-          {prepaidMinutes > 0 && (
-            <div className="flex items-center gap-2 mt-2 p-2 bg-green-50 rounded border border-green-200">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                Prepaid
-              </span>
-              <span className="text-xs text-gray-700">
-                <span className="font-semibold text-green-700">{prepaidMinutes} minutes</span> available
-              </span>
-            </div>
-          )}
-          {freePlanMinutesUsed > 0 && freePlanMinutes > 0 && (
-            <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-amber-600 h-2 rounded-full transition-all"
-                style={{ width: `${Math.min(100, (freePlanMinutesUsed / freePlanMinutes) * 100)}%` }}
-              />
-            </div>
-          )}
         </div>
 
         {/* Price */}
-        <div className="mb-4">
-          <div className="text-2xl font-bold text-gray-900">Free</div>
-          <div className="text-sm text-gray-600">$0/month</div>
+        <div className="mb-6 text-center">
+          <div className="inline-flex items-baseline justify-center">
+            <span className="text-lg font-medium text-gray-500 mr-1">$</span>
+            <span className="text-3xl font-bold text-gray-900">0</span>
+            <span className="text-gray-500 ml-1">/mo</span>
+          </div>
         </div>
 
         {/* Current Plan Button */}
         <button
           disabled
-          className="w-full px-4 py-2 bg-gray-200 text-gray-600 rounded-lg cursor-not-allowed font-medium"
+          className="w-full px-4 py-3 bg-blue-100 text-blue-700 rounded-xl font-bold text-sm cursor-default"
         >
-          Current Plan
+          Currently Active
         </button>
       </div>
     );
@@ -247,44 +226,54 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     const isSubscribing = subscribing === plan.id;
     const isOneTimePack = plan.type === 'one-time';
 
+    // Calculate hours
+    const hours = Math.floor(plan.minutes / 60);
+
     return (
       <div
         key={plan.id}
-        className={`border-2 rounded-lg p-6 max-w-sm ${
-          isCurrentPlan
-            ? 'border-amber-500 bg-amber-50'
-            : 'border-gray-200 hover:border-amber-300 transition-colors'
-        }`}
+        className={`relative border-2 rounded-2xl p-6 max-w-sm w-full transition-all duration-200 ${isCurrentPlan
+          ? 'border-amber-500 bg-amber-50 shadow-sm'
+          : 'border-gray-200 hover:border-indigo-300 hover:shadow-md bg-white'
+          }`}
       >
+        {isCurrentPlan && (
+          <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm tracking-wide uppercase">
+            Active Plan
+          </div>
+        )}
+
         {/* Plan Name */}
-        <h3 className="text-xl font-bold text-gray-900 mb-2">
+        <h3 className="text-lg font-bold text-gray-900 mb-2 text-center">
           {plan.name}
         </h3>
 
         {/* Description */}
         {plan.description && (
-          <p className="text-sm text-gray-600 mb-4">{plan.description}</p>
+          <p className="text-sm text-gray-500 mb-4 text-center leading-relaxed">{plan.description}</p>
         )}
 
         {/* Minutes Included */}
-        <div className="mb-4">
-          <div className="text-3xl font-bold text-gray-900">
-            {plan.minutes === 0 ? '∞' : plan.minutes.toLocaleString()}
+        <div className="my-6 text-center">
+          <div className="flex items-baseline justify-center gap-1">
+            <span className="text-4xl font-extrabold text-gray-900 tracking-tight">
+              {hours}
+            </span>
+            <span className="text-xl font-semibold text-gray-500">hours</span>
           </div>
-          <div className="text-sm text-gray-600">
-            {plan.type === 'subscription' 
-              ? plan.minutes === 0 ? 'Unlimited' : 'minutes/month'
-              : 'minutes (one-time)'}
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mt-1">
+            {plan.type === 'subscription'
+              ? plan.minutes === 0 ? 'Unlimited Access' : 'Monthly Reading Time'
+              : 'Does not expire'}
           </div>
         </div>
 
         {/* Price */}
-          <div className="mb-4">
-            <div className="text-2xl font-bold text-gray-900">
-            ${plan.price.toFixed(2)}
-            </div>
-          <div className="text-sm text-gray-600">
-            {plan.type === 'subscription' ? 'per month' : 'one-time payment'}
+        <div className="mb-6 text-center">
+          <div className="inline-flex items-baseline justify-center">
+            <span className="text-lg font-medium text-gray-500 mr-1">$</span>
+            <span className="text-3xl font-bold text-gray-900">{plan.price}</span>
+            {plan.type === 'subscription' && <span className="text-gray-500 ml-1">/mo</span>}
           </div>
         </div>
 
@@ -292,17 +281,17 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         {isCurrentPlan && !isOneTimePack ? (
           <button
             disabled
-            className="w-full px-4 py-2 bg-gray-200 text-gray-600 rounded-lg cursor-not-allowed font-medium"
+            className="w-full px-4 py-3 bg-amber-100 text-amber-700 rounded-xl font-bold text-sm cursor-default"
           >
-            Current Plan
+            Currently Active
           </button>
         ) : (
           <button
             onClick={() => handleSubscribe(plan)}
-            className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-colors font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 bg-gray-900 text-white rounded-xl hover:bg-black transition-all transform active:scale-95 font-bold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             disabled={isSubscribing}
           >
-            {isSubscribing ? 'Processing...' : (hasActiveSubscription && plan.type === 'subscription' ? 'Upgrade' : 'Purchase')}
+            {isSubscribing ? 'Processing...' : (hasActiveSubscription && plan.type === 'subscription' ? 'Upgrade Plan' : 'Purchase')}
           </button>
         )}
       </div>
@@ -313,7 +302,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-auto max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-900">
             {hasActiveSubscription ? 'Upgrade Your Plan' : 'Choose a Plan'}
           </h2>
@@ -326,237 +315,16 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 lg:p-8">
-          {/* Current Plan Info Banner */}
-          {hasActiveSubscription && (
-            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="space-y-3">
-                {/* Plan Name */}
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-900">
-                    Current Plan: {subscriptionInfo?.product?.name || 'Unknown'}
-                  </p>
-                  <span className="text-xs bg-amber-600 text-white px-2 py-1 rounded-full font-medium">
-                    Active
-                  </span>
-                </div>
-                
-                {/* Usage Breakdown */}
-                <div className="bg-white rounded-md p-3 border border-amber-100">
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Subscription Minutes */}
-                    <div>
-                      <div className="text-xs text-gray-600 mb-1">Subscription</div>
-                      <div className="text-lg font-bold text-gray-900">
-                        {usageLimit && usageLimit.minutes_remaining !== null && prepaidMinutes > 0
-                          ? Math.max(0, usageLimit.minutes_remaining - prepaidMinutes)
-                          : usageLimit?.minutes_remaining ?? currentPlanMinutes}
-                      </div>
-                      <div className="text-xs text-gray-500">minutes remaining</div>
-                    </div>
-                    
-                    {/* Prepaid Credits */}
-                    {prepaidMinutes > 0 ? (
-                      <div className="border-l border-gray-200 pl-3">
-                        <div className="flex items-center gap-1 mb-1">
-                          <div className="text-xs text-gray-600">Prepaid Credits</div>
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                            Bonus
-                          </span>
-                        </div>
-                        <div className="text-lg font-bold text-green-600">
-                          {prepaidMinutes}
-                        </div>
-                        <div className="text-xs text-gray-500">minutes available</div>
-                      </div>
-                    ) : (
-                      <div className="border-l border-gray-200 pl-3">
-                        <div className="text-xs text-gray-600 mb-1">Prepaid Credits</div>
-                        <div className="text-lg font-bold text-gray-400">0</div>
-                        <div className="text-xs text-gray-500">No prepaid credits</div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Total Available */}
-                  {usageLimit && usageLimit.minutes_remaining !== null && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Total Available:</span>
-                        <span className="text-lg font-bold text-amber-700">
-                          {usageLimit.minutes_remaining} minutes
-                        </span>
-                      </div>
-                      {prepaidMinutes > 0 && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Prepaid credits are used first, then subscription minutes
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="p-6 lg:p-8 space-y-8">
 
-          {isFreeTierUser && (
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="space-y-3">
-                {/* Plan Name */}
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-900">
-                    Current Plan: Free Plan
-                  </p>
-                  <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded-full font-medium">
-                    Free Tier
-                  </span>
-                </div>
-                
-                {/* Usage Breakdown */}
-                <div className="bg-white rounded-md p-3 border border-blue-100">
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Free Minutes */}
-                    <div>
-                      <div className="text-xs text-gray-600 mb-1">Free Minutes</div>
-                      <div className="text-lg font-bold text-gray-900">
-                        {usageLimit && usageLimit.minutes_remaining !== null && prepaidMinutes > 0
-                          ? Math.max(0, usageLimit.minutes_remaining - prepaidMinutes)
-                          : Math.max(0, freePlanMinutes - freePlanMinutesUsed)}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {freePlanMinutesUsed} / {freePlanMinutes} used
-                      </div>
-                    </div>
-                    
-                    {/* Prepaid Credits */}
-                    {prepaidMinutes > 0 ? (
-                      <div className="border-l border-gray-200 pl-3">
-                        <div className="flex items-center gap-1 mb-1">
-                          <div className="text-xs text-gray-600">Prepaid Credits</div>
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                            Bonus
-                          </span>
-                        </div>
-                        <div className="text-lg font-bold text-green-600">
-                          {prepaidMinutes}
-                        </div>
-                        <div className="text-xs text-gray-500">minutes available</div>
-                      </div>
-                    ) : (
-                      <div className="border-l border-gray-200 pl-3">
-                        <div className="text-xs text-gray-600 mb-1">Prepaid Credits</div>
-                        <div className="text-lg font-bold text-gray-400">0</div>
-                        <div className="text-xs text-gray-500">No prepaid credits</div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Total Available */}
-                  {usageLimit && usageLimit.minutes_remaining !== null && prepaidMinutes > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Total Available:</span>
-                        <span className="text-lg font-bold text-blue-700">
-                          {usageLimit.minutes_remaining} minutes
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Prepaid credits are used first, then free allowance
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Usage Progress Bar */}
-                  {freePlanMinutesUsed > 0 && freePlanMinutes > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-600">Usage This Month</span>
-                        <span className="text-xs font-medium text-gray-700">
-                          {freePlanMinutesUsed} / {freePlanMinutes}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all"
-                          style={{ width: `${Math.min(100, (freePlanMinutesUsed / freePlanMinutes) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Manage Subscription Section - Only show when user has active subscription */}
-          {hasActiveSubscription && (
-            <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2 mb-4">
-                <Settings className="w-5 h-5 text-blue-600" />
-                <h3 className="text-xl font-bold text-gray-900">Manage Subscription</h3>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button
-                  onClick={() => setShowChangePlanModal(true)}
-                  className="flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all text-left"
-                >
-                  <CreditCard className="w-6 h-6 text-blue-600 flex-shrink-0" />
-                  <div>
-                    <div className="font-semibold text-gray-900">Change Plan</div>
-                    <div className="text-sm text-gray-600">Upgrade or downgrade</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setShowCancelModal(true)}
-                  className="flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-red-300 hover:shadow-md transition-all text-left"
-                >
-                  <XCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
-                  <div>
-                    <div className="font-semibold text-gray-900">Cancel Subscription</div>
-                    <div className="text-sm text-gray-600">Cancel at period end</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setShowBillingModal(true)}
-                  className="flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all text-left"
-                >
-                  <FileText className="w-6 h-6 text-gray-600 flex-shrink-0" />
-                  <div>
-                    <div className="font-semibold text-gray-900">Billing Details</div>
-                    <div className="text-sm text-gray-600">View transaction history</div>
-                  </div>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Add-ons Section - One-time packs always visible */}
-          {getOneTimePacks().length > 0 && (
-            <div className="mb-8">
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Add-ons</h3>
-                <p className="text-sm text-gray-600 max-w-2xl mx-auto">
-                  Purchase additional minutes that never expire. These work alongside your subscription.
-                </p>
-              </div>
-              <div className="flex justify-center">
-                <div className="grid grid-cols-1 gap-4 max-w-md w-full justify-items-center">
-                  {getOneTimePacks().map(renderPlanCard)}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Subscription Plans Section */}
+          {/* 1. Subscription Plans Section - SHOW FIRST */}
           {getSubscriptionPlans().length > 0 && (
-            <div className="mb-8">
+            <div>
               <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {hasActiveSubscription ? 'Available Plans' : 'Subscription Plans'}
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {hasActiveSubscription ? 'For Heavy Readers' : 'Choose Your Plan'}
                 </h3>
+                <p className="text-gray-500">Unlock your reading potential with AI narration</p>
               </div>
               <div className="flex justify-center">
                 <div className="grid grid-cols-1 gap-4 max-w-md w-full justify-items-center">
@@ -569,20 +337,200 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             </div>
           )}
 
-          {/* Empty State - Should not show since plans are hardcoded, but just in case */}
-          {plans.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-600">No subscription plans available at this time.</p>
-              <p className="text-sm text-gray-500 mt-2">Please contact support.</p>
+          {/* 2. Add-ons Section */}
+          {getOneTimePacks().length > 0 && (
+            <div>
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Refill Packs</h3>
+                <p className="text-sm text-gray-500 max-w-2xl mx-auto">
+                  One-time purchases. Never expire. Use anytime.
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <div className="grid grid-cols-1 gap-4 max-w-md w-full justify-items-center">
+                  {getOneTimePacks().map(renderPlanCard)}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Info Note */}
-          {(plans.length > 0 || isFreeTierUser) && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">
-                <strong>Note:</strong> All plans include usage-based billing. You'll only be charged for minutes used beyond your included minutes, if applicable.
-              </p>
+          {/* 3. Current Plan Info Banner - MOVED TO BOTTOM */}
+          {hasActiveSubscription && (
+            <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl">
+              <div className="space-y-4">
+                {/* Plan Name */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-amber-700 font-bold uppercase tracking-wider mb-1">Current Active Plan</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {subscriptionInfo?.product?.name || 'Unknown'}
+                    </p>
+                  </div>
+                  <span className="text-xs bg-amber-500 text-white px-3 py-1 rounded-full font-bold">
+                    ACTIVE
+                  </span>
+                </div>
+
+                {/* Usage Breakdown */}
+                <div className="bg-white rounded-xl p-4 border border-amber-100 shadow-sm">
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Subscription Minutes */}
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1 font-medium">Monthly Allowance</div>
+                      <div className="text-2xl font-bold text-gray-900">
+                        {usageLimit && usageLimit.minutes_remaining !== null && prepaidMinutes > 0
+                          ? Math.max(0, Math.floor((usageLimit.minutes_remaining - prepaidMinutes) / 60))
+                          : Math.floor((usageLimit?.minutes_remaining ?? currentPlanMinutes) / 60)}
+                        <span className="text-sm font-medium text-gray-400 ml-1">hrs</span>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {(usageLimit && usageLimit.minutes_remaining !== null && prepaidMinutes > 0
+                          ? Math.max(0, usageLimit.minutes_remaining - prepaidMinutes)
+                          : usageLimit?.minutes_remaining ?? currentPlanMinutes) % 60} mins remaining
+                      </div>
+                    </div>
+
+                    {/* Prepaid Credits */}
+                    {prepaidMinutes > 0 ? (
+                      <div className="border-l border-gray-100 pl-4">
+                        <div className="flex items-center gap-1 mb-1">
+                          <div className="text-xs text-gray-500 font-medium">Extra Credits</div>
+                        </div>
+                        <div className="text-2xl font-bold text-green-600">
+                          {Math.floor(prepaidMinutes / 60)}
+                          <span className="text-sm font-medium text-green-400 ml-1">hrs</span>
+                        </div>
+                        <div className="text-xs text-green-600/70">
+                          {prepaidMinutes % 60} mins available
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border-l border-gray-100 pl-4 opacity-50">
+                        <div className="text-xs text-gray-500 mb-1">Extra Credits</div>
+                        <div className="text-2xl font-bold text-gray-300">0</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isFreeTierUser && (
+            <div className="p-5 bg-blue-50 border border-blue-200 rounded-2xl">
+              <div className="space-y-4">
+                {/* Plan Name */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-blue-700 font-bold uppercase tracking-wider mb-1">Current Active Plan</p>
+                    <p className="text-lg font-bold text-gray-900">Free Tier</p>
+                  </div>
+                  <span className="text-xs bg-blue-500 text-white px-3 py-1 rounded-full font-bold">
+                    ACTIVE
+                  </span>
+                </div>
+
+                {/* Usage Breakdown */}
+                <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm">
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Free Minutes */}
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1 font-medium">Free Allowance</div>
+                      <div className="text-2xl font-bold text-gray-900">
+                        {Math.floor(Math.max(0, freePlanMinutes - freePlanMinutesUsed) / 60)}
+                        <span className="text-sm font-medium text-gray-400 ml-1">hrs</span>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {Math.max(0, freePlanMinutes - freePlanMinutesUsed) % 60} mins remaining
+                      </div>
+                    </div>
+
+                    {/* Prepaid Credits */}
+                    {prepaidMinutes > 0 ? (
+                      <div className="border-l border-gray-100 pl-4">
+                        <div className="text-xs text-gray-500 mb-1 font-medium">Extra Credits</div>
+                        <div className="text-2xl font-bold text-green-600">
+                          {Math.floor(prepaidMinutes / 60)}
+                          <span className="text-sm font-medium text-green-400 ml-1">hrs</span>
+                        </div>
+                        <div className="text-xs text-green-600/70">
+                          {prepaidMinutes % 60} mins available
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border-l border-gray-100 pl-4 opacity-50">
+                        <div className="text-xs text-gray-500 mb-1">Extra Credits</div>
+                        <div className="text-2xl font-bold text-gray-300">0</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Usage Progress Bar */}
+                  {freePlanMinutesUsed > 0 && freePlanMinutes > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-gray-500 font-medium">Usage</span>
+                        <span className="text-xs font-bold text-gray-700">
+                          {Math.round((freePlanMinutesUsed / freePlanMinutes) * 100)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                        <div
+                          className="bg-blue-500 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, (freePlanMinutesUsed / freePlanMinutes) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 4. Manage Subscription Section - MOVED TO BOTTOM */}
+          {hasActiveSubscription && (
+            <div className="pt-4 border-t border-gray-100">
+              <h4 className="text-sm font-bold text-gray-900 mb-4 px-1">Manage Account</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <button
+                  onClick={() => setShowChangePlanModal(true)}
+                  className="flex items-center gap-3 p-3 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 hover:border-gray-300 transition-all text-left group"
+                >
+                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                    <CreditCard className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-gray-900 text-sm">Change Plan</div>
+                    <div className="text-xs text-gray-500">Upgrade / Downgrade</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="flex items-center gap-3 p-3 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 hover:border-gray-300 transition-all text-left group"
+                >
+                  <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors">
+                    <XCircle className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-gray-900 text-sm">Cancel</div>
+                    <div className="text-xs text-gray-500">Stop Subscription</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setShowBillingModal(true)}
+                  className="flex items-center gap-3 p-3 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 hover:border-gray-300 transition-all text-left group"
+                >
+                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+                    <FileText className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-gray-900 text-sm">Invoices</div>
+                    <div className="text-xs text-gray-500">Billing History</div>
+                  </div>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -597,7 +545,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           refreshUsageLimit();
         }}
       />
-      
+
       <CancelSubscriptionModal
         isOpen={showCancelModal}
         onClose={() => setShowCancelModal(false)}
@@ -606,7 +554,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           refreshUsageLimit();
         }}
       />
-      
+
       <BillingDetailsModal
         isOpen={showBillingModal}
         onClose={() => setShowBillingModal(false)}

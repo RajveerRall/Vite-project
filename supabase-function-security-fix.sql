@@ -83,7 +83,7 @@ BEGIN
 
     -- Check if subscription limit would be exceeded
     IF (v_subscription_minutes_used + v_subscription_minutes_to_add) > v_minutes_limit THEN
-      RAISE EXCEPTION 'Usage limit exceeded. %/% minutes used.', 
+      RAISE EXCEPTION 'TTS_USAGE_LIMIT_EXCEEDED: Usage limit exceeded. %/% minutes used.', 
         v_subscription_minutes_used::INTEGER, 
         v_minutes_limit;
     END IF;

@@ -7,13 +7,14 @@ import RetryStrategy from './RetryStrategy';
 import CircuitBreaker from './CircuitBreaker';
 import UsageTrackingQueue, { QueuedEvent } from './UsageTrackingQueue';
 import UsageMetrics from './UsageMetrics';
-import { UsageEvent, UsageEventValidation } from '../../types/tts';
+import { UsageEventValidation } from '../../types/tts';
 import { isTrackingEnabled } from '../../utils/trackingConfig';
 
 export interface UsageTrackingCallbacks {
   onSuccess?: (seconds: number, isAnonymous: boolean) => void;
   onError?: (error: Error) => void;
   skipLimitCheck?: boolean; // ✅ If true, skip limit check but still record usage
+  sessionId?: string; // ✅ Allow explicit session ID override
 }
 
 export class TTSUsageTracker {
@@ -23,8 +24,8 @@ export class TTSUsageTracker {
   private usageQueue: UsageTrackingQueue;
   private metrics: UsageMetrics;
   // ✅ Cache for limit check results (30 second cache)
-  private limitCheckCache: { 
-    result: { allowed: boolean; reason?: string }; 
+  private limitCheckCache: {
+    result: { allowed: boolean; reason?: string };
     timestamp: number;
   } | null = null;
   private readonly LIMIT_CHECK_CACHE_MS = 30000; // Cache for 30 seconds
@@ -79,9 +80,7 @@ export class TTSUsageTracker {
     };
   }
 
-  /**
-   * Generate checksum for idempotency
-   */
+  /*
   private generateChecksum(event: UsageEvent): string {
     const data = `${event.userId || event.sessionId}-${event.seconds}-${event.source}-${event.timestamp}`;
     // Simple hash function (can be replaced with crypto.subtle for production)
@@ -94,9 +93,6 @@ export class TTSUsageTracker {
     return Math.abs(hash).toString(36);
   }
 
-  /**
-   * Create usage event with idempotency
-   */
   private createUsageEvent(
     seconds: number,
     source: string,
@@ -117,6 +113,7 @@ export class TTSUsageTracker {
     event.checksum = this.generateChecksum(event);
     return event;
   }
+  */
 
   /**
    * Process a queued event
@@ -140,34 +137,36 @@ export class TTSUsageTracker {
    * @param forceCheck - If true, bypass cache and force a fresh check
    */
   private async checkUsageLimit(userId: string, forceCheck: boolean = false): Promise<{ allowed: boolean; reason?: string }> {
+    // console.log('[TTS Usage] checkUsageLimit for user:', userId);
+
     // ✅ Use cached result if recent and not forcing check
     if (!forceCheck) {
       const now = Date.now();
       if (this.limitCheckCache && (now - this.limitCheckCache.timestamp) < this.LIMIT_CHECK_CACHE_MS) {
-        console.log('[TTS Usage] Using cached limit check result');
+        // console.log('[TTS Usage] Using cached limit check result');
         return this.limitCheckCache.result;
       }
     }
-    
+
     try {
       const { getAccessToken } = await import('../../lib/authToken');
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
+
       if (!supabaseUrl || !supabaseAnonKey) {
         console.warn('[TTS Usage] Missing Supabase env vars, allowing usage');
         const result = { allowed: true };
         this.limitCheckCache = { result, timestamp: Date.now() };
         return result;
       }
-      
+
       const accessToken = await getAccessToken(5000);
       const url = `${supabaseUrl}/rest/v1/rpc/check_tts_usage_limit`;
-      
+
       // Add timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      
+
       try {
         const response = await fetch(url, {
           method: 'POST',
@@ -180,16 +179,16 @@ export class TTSUsageTracker {
           body: JSON.stringify({ p_user_id: userId }),
           signal: controller.signal,
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         // Handle 401 - try to refresh token and retry
         if (response.status === 401) {
           console.log('[TTS Usage] Limit check token expired (401), attempting refresh...');
           try {
             const { supabase } = await import('../../lib/supabase'); // Keep this import
             const { data: { session }, error: sessionError } = await supabase.auth.refreshSession(); // This is the correct way
-            
+
             if (sessionError || !session?.access_token) {
               throw new Error('Failed to refresh session');
             }
@@ -246,16 +245,16 @@ export class TTSUsageTracker {
             return result;
           }
         }
-        
+
         if (!response.ok) {
           console.warn('[TTS Usage] Limit check failed, allowing usage:', response.status);
           const result = { allowed: true }; // Fail open
           this.limitCheckCache = { result, timestamp: Date.now() };
           return result;
         }
-        
+
         const data = await response.json();
-        
+
         if (data?.limit_exceeded) {
           const result = {
             allowed: false,
@@ -264,7 +263,7 @@ export class TTSUsageTracker {
           this.limitCheckCache = { result, timestamp: Date.now() };
           return result;
         }
-        
+
         const result = { allowed: true };
         this.limitCheckCache = { result, timestamp: Date.now() };
         return result;
@@ -297,7 +296,7 @@ export class TTSUsageTracker {
     const { getAccessToken } = await import('../../lib/authToken');
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
+
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error('Missing Supabase environment variables');
     }
@@ -314,7 +313,7 @@ export class TTSUsageTracker {
       // Authenticated user - record usage via REST API
       const eventId = crypto.randomUUID();
       const url = `${supabaseUrl}/rest/v1/rpc/increment_tts_usage`;
-      
+
       // ✅ DEBUG: Log what we're sending to verify units
       console.log('[TTS Usage] Recording usage:', {
         userId,
@@ -325,23 +324,23 @@ export class TTSUsageTracker {
         eventId,
         url
       });
-      
+
       const accessToken = await getAccessToken(5000);
-      
+
       // Add timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
+
       const requestBody = {
         p_user_id: userId,
         p_seconds: seconds,
         p_source: source,
         p_event_id: eventId,
       };
-      
+
       // ✅ DEBUG: Log the exact request body being sent
       console.log('[TTS Usage] Request body being sent to increment_tts_usage:', JSON.stringify(requestBody, null, 2));
-      
+
       try {
         const response = await fetch(url, {
           method: 'POST',
@@ -354,26 +353,26 @@ export class TTSUsageTracker {
           body: JSON.stringify(requestBody),
           signal: controller.signal,
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         // Handle 401 - try to refresh token and retry
         if (response.status === 401) {
           console.log('[TTS Usage] Token expired (401), attempting refresh...');
           try {
             const { supabase } = await import('../../lib/supabase');
             const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
-            
+
             if (sessionError || !session?.access_token) {
               throw new Error('Failed to refresh session');
             }
-            
+
             console.log('[TTS Usage] Token refreshed, retrying request...');
-            
+
             // Retry with new token
             const retryController = new AbortController();
             const retryTimeoutId = setTimeout(() => retryController.abort(), 10000);
-            
+
             if (!session?.access_token) {
               throw new Error('Failed to refresh session, new access token not found.');
             }
@@ -395,13 +394,13 @@ export class TTSUsageTracker {
                 }),
                 signal: retryController.signal,
               });
-              
+
               clearTimeout(retryTimeoutId);
-              
+
               if (!retryResponse.ok) {
                 const errorText = await retryResponse.text();
                 console.error(`[TTS Usage] HTTP ${retryResponse.status} after refresh:`, errorText);
-                
+
                 if (errorText.includes('TTS_USAGE_LIMIT_EXCEEDED') || errorText.includes('limit exceeded')) {
                   const limitError = new Error(errorText);
                   (limitError as any).code = 'TTS_USAGE_LIMIT_EXCEEDED';
@@ -409,8 +408,8 @@ export class TTSUsageTracker {
                 }
                 throw new Error(`Failed to record usage after refresh: ${errorText}`);
               }
-              
-              // Success after refresh
+
+              // Retry success
               return;
             } catch (retryError: any) {
               clearTimeout(retryTimeoutId);
@@ -424,11 +423,11 @@ export class TTSUsageTracker {
             throw new Error('Session expired. Please sign in again.');
           }
         }
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`[TTS Usage] HTTP ${response.status}:`, errorText);
-          
+
           // Check if it's a limit exceeded error
           if (errorText.includes('TTS_USAGE_LIMIT_EXCEEDED') || errorText.includes('limit exceeded')) {
             const limitError = new Error(errorText);
@@ -437,15 +436,15 @@ export class TTSUsageTracker {
           }
           throw new Error(`Failed to record usage: ${errorText}`);
         }
-        
+
         // ✅ DEBUG: Log successful response
-        console.log('[TTS Usage] Successfully recorded usage:', {
-          userId,
-          seconds,
-          responseStatus: response.status,
-          responseOk: response.ok
-        });
-        
+        // console.log('[TTS Usage] Successfully recorded usage:', {
+        //   userId,
+        //   seconds,
+        //   responseStatus: response.status,
+        //   responseOk: response.ok
+        // });
+
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         if (fetchError.name === 'AbortError') {
@@ -456,15 +455,15 @@ export class TTSUsageTracker {
     } else if (sessionId) {
       // Anonymous user - use REST API (no auth token needed - RLS allows anonymous access)
       const url = `${supabaseUrl}/rest/v1/rpc/record_anonymous_tts_usage`;
-      
+
       // ✅ FIXED: Anonymous users don't have access tokens - use anon key only
       // The RLS policies allow "Anyone can insert/update" for anonymous usage
       // The anon key in 'apikey' header is sufficient for public RLS policies
-      
+
       // Add timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
+
       try {
         const response = await fetch(url, {
           method: 'POST',
@@ -483,14 +482,14 @@ export class TTSUsageTracker {
           }),
           signal: controller.signal,
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`Failed to record usage for anonymous user: ${errorText}`);
         }
-        
+
         return await response.json();
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
@@ -500,7 +499,23 @@ export class TTSUsageTracker {
         throw fetchError;
       }
     } else {
-      throw new Error('Either userId or sessionId must be provided');
+      // Final attempt to get a session ID if everything else is missing
+      let fallbackSessionId = sessionId;
+      if (!fallbackSessionId) {
+        try {
+          const { getAnonymousSessionId } = await import('../../utils/anonymousSession');
+          fallbackSessionId = getAnonymousSessionId();
+        } catch (e) {
+          console.error('[TTS Usage] Critical: Failed to get fallback session ID');
+        }
+      }
+
+      if (!fallbackSessionId) {
+        throw new Error('Either userId or sessionId must be provided');
+      }
+
+      // Recursive call with fallback session ID
+      return this.trackUsageDirect(seconds, source, userId, fallbackSessionId, skipLimitCheck);
     }
   }
 
@@ -521,7 +536,7 @@ export class TTSUsageTracker {
       userId: this.userId,
       isTrackingEnabled: isTrackingEnabled()
     });
-    
+
     // Skip tracking if disabled in development
     if (!isTrackingEnabled()) {
       console.log('[TTS Usage] Tracking disabled in development - skipping usage recording');
@@ -542,20 +557,22 @@ export class TTSUsageTracker {
     const { getAnonymousSessionId } = await import('../../utils/anonymousSession');
     const capturedUserId = this.userId; // Capture once
     const capturedSessionId = capturedUserId ? undefined : getAnonymousSessionId(); // Capture once
-    
+
     // ✅ FIX: Validate that we have at least one identifier
-    if (!capturedUserId && !capturedSessionId) {
+    if (!capturedUserId && !capturedSessionId && !callbacks?.sessionId) {
       const error = new Error('Either userId or sessionId must be provided');
       console.error('[TTS Usage] No userId or sessionId available:', {
         trackerUserId: this.userId,
         capturedUserId,
-        capturedSessionId
+        capturedSessionId,
+        callbackSessionId: callbacks?.sessionId
       });
       callbacks?.onError?.(error);
       throw error;
     }
-    
-    const usageEvent = this.createUsageEvent(seconds, source, capturedSessionId);
+
+    // Generate event ID for idempotency (handled inside trackUsageDirect)
+    // this.createUsageEvent(seconds, source, capturedSessionId);
 
     // Try immediate tracking with circuit breaker and retry
     try {
@@ -567,7 +584,7 @@ export class TTSUsageTracker {
               seconds,
               source,
               capturedUserId,
-              capturedSessionId,
+              capturedSessionId || callbacks?.sessionId, // ✅ Allow override from callbacks
               callbacks?.skipLimitCheck ?? false
             );
           },
@@ -601,7 +618,7 @@ export class TTSUsageTracker {
     } catch (error) {
       // If immediate tracking fails, queue for later
       console.warn('[TTS Usage] Immediate tracking failed, queuing event:', error);
-      
+
       try {
         await this.usageQueue.enqueue('usage_tracking', {
           seconds,

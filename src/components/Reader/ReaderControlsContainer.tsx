@@ -5,26 +5,14 @@
 import React from 'react';
 import { trackEvent } from '../../lib/analytics';
 import Controls, { ControlsProps } from './Controls';
-import { TOCItem } from '../../types/books';
 
 export interface ReaderControlsContainerProps extends ControlsProps {
   // These are already in ControlsProps, but we document them here for clarity
   fullCastStatus: string;
   fullCastBuffered: number;
-  // TOC props for chapters button
-  toc?: TOCItem[];
-  onNavigateToTocItem?: (item: TOCItem) => void;
-  theme?: 'light' | 'dark' | 'sepia';
-  isEnhanced?: boolean;
+  // UI Context (for layout/visibility)
   isMobile?: boolean;
-  isFirstOpen?: boolean;
-  // Chapter summarization props
-  currentPageText?: string;
-  currentChapterTitle?: string;
-  bookId?: string;
-  onSummarizeChapter?: () => void;
-  // TTS for summary
-  onReadAloudSummary?: (text?: string) => void;
+  theme?: 'light' | 'dark' | 'sepia';
 }
 
 /**
@@ -37,17 +25,10 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
   onFullCastResume,
   fullCastStatus,
   fullCastBuffered,
-  toc,
-  onNavigateToTocItem,
   theme,
-  isEnhanced,
   isMobile,
-  isFirstOpen,
-  currentPageText,
-  currentChapterTitle,
-  bookId,
-  onSummarizeChapter,
   onReadAloudSummary,
+  onFullCastGenerateImage,
   ...controlsProps
 }) => {
   // Create handlers that include analytics tracking
@@ -64,7 +45,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
       status: fullCastStatus,
       buffered: fullCastBuffered,
     });
-    // onFullCastPause();
+    onFullCastPause?.();
   };
 
   const handleFullCastResume = () => {
@@ -72,7 +53,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
       status: fullCastStatus,
       buffered: fullCastBuffered,
     });
-    // onFullCastResume();
+    onFullCastResume?.();
   };
 
   return (
@@ -85,17 +66,12 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
             onFullCastStop={handleFullCastStop}
             onFullCastPause={handleFullCastPause}
             onFullCastResume={handleFullCastResume}
-            toc={toc}
-            onNavigateToTocItem={onNavigateToTocItem}
             theme={theme}
-            isEnhanced={isEnhanced}
             isMobile={isMobile}
-            isFirstOpen={isFirstOpen}
-            currentPageText={currentPageText}
-            currentChapterTitle={currentChapterTitle}
-            bookId={bookId}
-            onSummarizeChapter={onSummarizeChapter}
             onReadAloudSummary={onReadAloudSummary}
+            onFullCastGenerateImage={onFullCastGenerateImage}
+            fullCastStatus={fullCastStatus}
+            fullCastBuffered={fullCastBuffered}
           />
         </div>
       </div>
@@ -108,17 +84,12 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
             onFullCastStop={handleFullCastStop}
             onFullCastPause={handleFullCastPause}
             onFullCastResume={handleFullCastResume}
-            toc={toc}
-            onNavigateToTocItem={onNavigateToTocItem}
             theme={theme}
-            isEnhanced={isEnhanced}
             isMobile={isMobile}
-            isFirstOpen={isFirstOpen}
-            currentPageText={currentPageText}
-            currentChapterTitle={currentChapterTitle}
-            bookId={bookId}
-            onSummarizeChapter={onSummarizeChapter}
             onReadAloudSummary={onReadAloudSummary}
+            onFullCastGenerateImage={onFullCastGenerateImage}
+            fullCastStatus={fullCastStatus}
+            fullCastBuffered={fullCastBuffered}
           />
         </div>
       </div>

@@ -37,12 +37,12 @@ export const SubscriptionLimitModal: React.FC<SubscriptionLimitModalProps> = ({
             </svg>
           </div>
         </div>
-        
+
         {/* Title */}
         <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
           {hasSubscription ? 'Usage Limit Reached' : 'Free Limit Reached'}
         </h2>
-        
+
         {/* Message */}
         <div className="text-center text-gray-600 mb-6 space-y-2">
           {hasSubscription ? (
@@ -76,7 +76,7 @@ export const SubscriptionLimitModal: React.FC<SubscriptionLimitModalProps> = ({
             </>
           )}
         </div>
-        
+
         {/* Benefits List */}
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 mb-6">
           <h3 className="font-semibold text-gray-900 mb-3">
@@ -93,7 +93,7 @@ export const SubscriptionLimitModal: React.FC<SubscriptionLimitModalProps> = ({
               <svg className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
-              <span><strong>Access to Full Cast</strong> audiobook feature</span>
+              <span><strong>Access to Picture Mode</strong> audiobook feature</span>
             </li>
             <li className="flex items-start">
               <svg className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -103,7 +103,7 @@ export const SubscriptionLimitModal: React.FC<SubscriptionLimitModalProps> = ({
             </li>
           </ul>
         </div>
-        
+
         {/* Actions */}
         <div className="flex gap-3">
           <button

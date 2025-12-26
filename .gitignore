@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+.env.development
+.env.mobile
+
+/server/full-cast-tts/generated_output
 
 # Environment files
 .env

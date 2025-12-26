@@ -12,18 +12,18 @@ interface SubscriptionContextType {
   // Subscription info
   subscriptionInfo: SubscriptionInfo | null;
   usageLimit: UsageLimitInfo | null;
-  
+
   // Plans (hardcoded, no loading needed)
   plans: SubscriptionPlan[];
-  
+
   // Loading states
   loading: boolean;
   error: string | null;
-  
+
   // Actions
   refreshSubscription: () => Promise<void>;
   refreshUsageLimit: () => Promise<void>;
-  
+
   // Computed values
   isSubscribed: boolean;
   isLimitExceeded: boolean;
@@ -60,6 +60,9 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return;
     }
 
+    // Prevent multiple overlapping refreshes
+    if (loading) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -93,11 +96,14 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return;
     }
 
+    // Prevent multiple overlapping refreshes
+    if (usageLimitLoading) return;
+
     try {
       setUsageLimitLoading(true);
       setUsageLimitError(null);
       console.log('[Subscription] Fetching usage limit for user:', user.id);
-      
+
       const data = await fetchUsageLimit(user.id);
 
       console.log('[Subscription] Usage limit data received:', data);
@@ -149,11 +155,15 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Computed values
   const isSubscribed = subscriptionInfo?.subscription?.status === 'active' || subscriptionInfo?.subscription?.status === 'trial';
-  // Check limit_exceeded flag OR if remaining is less than 1 minute (defensive check for decimal precision issues)
-  const isLimitExceeded = (usageLimit?.limit_exceeded ?? false) || 
-                          (usageLimit?.minutes_remaining !== null && 
-                           usageLimit?.minutes_remaining < 1 && 
-                           (usageLimit?.prepaid_minutes ?? 0) === 0);
+  // Check limit_exceeded flag OR if remaining is less than 0.1 minutes (defensive check for decimal precision issues)
+  // If usageLimit is null but we are authenticated, we might be hitting a transient error (e.g. 401).
+  // In this case, we'll check subscriptionInfo as a secondary source.
+  const isLimitExceeded = !!((usageLimit?.limit_exceeded ?? false) ||
+    (usageLimit && usageLimit.minutes_remaining !== null && usageLimit.minutes_remaining <= 0) ||
+    (isAuthenticated && !usageLimit && !loading &&
+      subscriptionInfo?.profile &&
+      (subscriptionInfo.profile.tts_minutes_used >= subscriptionInfo.profile.tts_minutes_limit) &&
+      (subscriptionInfo.profile.prepaid_minutes || 0) <= 0));
   // Calculate total remaining including prepaid (already included in minutes_remaining from DB, but ensure it's correct)
   const minutesRemaining = usageLimit?.minutes_remaining ?? null;
   const prepaidMinutes = usageLimit?.prepaid_minutes ?? 0;

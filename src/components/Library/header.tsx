@@ -8,7 +8,7 @@
 // //     <header className="library-header border-b border-gray-200 py-3">
 // //       <div className="header-content max-w-4xl mx-auto px-4 flex justify-between items-center">
 // //         <h1 className="text-2xl font-medium text-gray-800">YoRead</h1>
-        
+
 // //         <div className="auth-controls">
 // //           {/* This content is shown to logged-out users */}
 // //           <SignedOut>
@@ -41,7 +41,7 @@
 //     <header className="library-header border-b border-gray-200 py-3">
 //       <div className="header-content max-w-4xl mx-auto px-4 flex justify-between items-center">
 //         <h1 className="text-2xl font-medium text-gray-800">YoRead</h1>
-        
+
 //         <div className="auth-controls">
 //           {/* === LOGGED-OUT STATE === */}
 //           <SignedOut>
@@ -91,10 +91,10 @@ const Header: React.FC = () => {
   const [showAccountDrawer, setShowAccountDrawer] = useState(false);
   const { usedMinutes: fcUsed, totalMinutes: fcTotal, loading: fcLoading, refresh: fcRefresh } = useFullCastUsage();
   const anonymousLimit = useAnonymousUsageLimit();
-  const { 
-    isSubscribed, 
-    minutesRemaining, 
-    usageLimit, 
+  const {
+    isSubscribed,
+    minutesRemaining,
+    usageLimit,
     subscriptionInfo,
     loading: subscriptionLoading,
     refreshUsageLimit,
@@ -103,7 +103,7 @@ const Header: React.FC = () => {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const accountDrawerRef = useRef<HTMLDivElement>(null);
-  
+
   // Feature flag - set to true to re-enable Full Cast tracker
   const SHOW_FULL_CAST = false;
 
@@ -149,7 +149,7 @@ const Header: React.FC = () => {
   return (
     // --- The Header Container: Clean white background ---
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-      
+
       {/* --- The Content Wrapper: Controls max-width and padding --- */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
@@ -158,9 +158,9 @@ const Header: React.FC = () => {
           <div className="flex items-center space-x-8">
             <Link to="/" className="flex items-center gap-3 group">
               <div>
-                <img 
-                  src="/assets/yologo.webp" 
-                  alt="YoRead Logo" 
+                <img
+                  src="/assets/yologo.webp"
+                  alt="YoRead Logo"
                   className="h-10 w-10 sm:h-12 sm:w-12 object-contain transition-transform duration-200 group-hover:scale-105"
                 />
               </div>
@@ -180,15 +180,15 @@ const Header: React.FC = () => {
 
           {/* === Right Side: Authentication Controls === */}
           <div className="auth-controls">
-            
+
             {/* --- Logged-Out State --- */}
             {!isAuthenticated && (
-                <button 
+              <button
                 onClick={handleSignInClick}
-                  className="px-5 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-full transition-colors font-medium text-sm"
-                >
-                  Sign In
-                </button>
+                className="px-5 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-full transition-colors font-medium text-sm"
+              >
+                Sign In
+              </button>
             )}
 
             {/* --- Logged-In State - Desktop --- */}
@@ -204,14 +204,14 @@ const Header: React.FC = () => {
                     Upgrade Now
                   </button>
                 )}
-                
+
                 {/* Pro Badge - Only show if subscribed */}
                 {isSubscribed && (
                   <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300">
                     Pro
                   </span>
                 )}
-                
+
                 {/* TTS Usage */}
                 {isAuthenticated && (
                   <div className="flex items-center gap-x-2 text-sm text-gray-700">
@@ -225,7 +225,7 @@ const Header: React.FC = () => {
                         // Fallback: calculate from profile data
                         (() => {
                           const subscriptionLimit = subscriptionInfo.profile.tts_minutes_limit || 0;
-                          const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used 
+                          const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used
                             ? Math.ceil(subscriptionInfo.profile.subscription_minutes_used / 60)
                             : Math.ceil((subscriptionInfo.profile.tts_minutes_used || 0) / 60);
                           // prepaid_minutes from profile is in seconds, convert to minutes
@@ -239,7 +239,7 @@ const Header: React.FC = () => {
                         'No data'
                       )}
                     </span>
-                    <button 
+                    <button
                       onClick={() => {
                         // Refresh SubscriptionContext which both header and account page use
                         refreshUsageLimit();
@@ -253,15 +253,14 @@ const Header: React.FC = () => {
                     </button>
                   </div>
                 )}
-                
+
                 {/* Anonymous Usage Badge */}
                 {!isAuthenticated && anonymousLimit && (
                   <div className="flex items-center gap-2 text-sm">
-                    <div className={`px-3 py-1 rounded-full ${
-                      anonymousLimit.isLimitReached ? 'bg-red-100 text-red-700' :
-                      anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
+                    <div className={`px-3 py-1 rounded-full ${anonymousLimit.isLimitReached ? 'bg-red-100 text-red-700' :
+                        anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
+                          'bg-gray-100 text-gray-700'
+                      }`}>
                       <span className="font-medium">
                         {anonymousLimit.remainingMinutes}/{anonymousLimit.limitMinutes} min left
                       </span>
@@ -274,14 +273,14 @@ const Header: React.FC = () => {
                     </button>
                   </div>
                 )}
-                
+
                 {/* Full Cast Usage */}
                 {SHOW_FULL_CAST && (
                   <div className="flex items-center gap-x-2 text-sm text-gray-700">
                     <span className="font-medium">
-                      {fcLoading ? 'Full Cast: …' : `Full Cast: ${fcUsed ?? 0}/${fcTotal} min`}
+                      {fcLoading ? 'Picture Mode: …' : `Picture Mode: ${fcUsed ?? 0}/${fcTotal} min`}
                     </span>
-                    <button 
+                    <button
                       onClick={() => fcRefresh()}
                       className="text-gray-500 hover:text-gray-700 transition-colors"
                       title="Refresh Full Cast usage"
@@ -291,7 +290,7 @@ const Header: React.FC = () => {
                     </button>
                   </div>
                 )}
-                
+
                 {/* Profile Icon with Account Drawer */}
                 <div className="relative">
                   <button
@@ -348,7 +347,7 @@ const Header: React.FC = () => {
                 </div>
               </div>
             )}
-            
+
             {/* --- Logged-In State - Mobile (Simplified) --- */}
             {isAuthenticated && (
               <div className="md:hidden flex items-center gap-x-2">
@@ -362,22 +361,22 @@ const Header: React.FC = () => {
                     Upgrade
                   </button>
                 )}
-                
+
                 {/* Pro Badge - Mobile - Only show if subscribed */}
                 {isSubscribed && (
                   <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300">
                     Pro
                   </span>
                 )}
-                
+
                 {/* Sign Out Button - Mobile */}
-                <button 
+                <button
                   onClick={signOut}
                   className="px-3 py-1.5 text-xs text-gray-700 hover:text-gray-900 border border-gray-300 rounded-full transition-colors"
                 >
                   Sign Out
                 </button>
-                
+
                 {/* Mobile Menu Button - At the very end */}
                 <button
                   onClick={() => setShowMobileMenu(!showMobileMenu)}
@@ -392,7 +391,7 @@ const Header: React.FC = () => {
 
         </div>
       </div>
-      
+
       {/* Mobile Menu Dropdown */}
       {isAuthenticated && showMobileMenu && (
         <div ref={mobileMenuRef} className="md:hidden bg-white border-t border-gray-200 shadow-xl">
@@ -419,11 +418,11 @@ const Header: React.FC = () => {
                 <Settings className="w-4 h-4" />
                 <span>Account</span>
               </Link>
-              
+
               {/* Usage Stats */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-gray-800 bg-gradient-to-r from-gray-100 to-amber-100 px-3 py-2 rounded-lg">Usage Statistics</h3>
-                
+
                 {/* Upgrade Button in Mobile Menu */}
                 {(!isSubscribed || (minutesRemaining !== null && minutesRemaining < 10)) && (
                   <button
@@ -437,7 +436,7 @@ const Header: React.FC = () => {
                     Upgrade Plan
                   </button>
                 )}
-                
+
                 {/* TTS Usage */}
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">TTS Usage</span>
@@ -452,7 +451,7 @@ const Header: React.FC = () => {
                         // Fallback: calculate from profile data
                         (() => {
                           const subscriptionLimit = subscriptionInfo.profile.tts_minutes_limit || 0;
-                          const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used 
+                          const subscriptionUsed = subscriptionInfo.profile.subscription_minutes_used
                             ? Math.ceil(subscriptionInfo.profile.subscription_minutes_used / 60)
                             : Math.ceil((subscriptionInfo.profile.tts_minutes_used || 0) / 60);
                           // prepaid_minutes from profile is in seconds, convert to minutes
@@ -466,7 +465,7 @@ const Header: React.FC = () => {
                         'No data'
                       )}
                     </span>
-                    <button 
+                    <button
                       onClick={() => {
                         refreshUsageLimit();
                         refreshSubscription();
@@ -480,22 +479,22 @@ const Header: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Full Cast Usage */}
                 {SHOW_FULL_CAST && (
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Full Cast Usage</span>
+                    <span className="text-sm font-medium text-gray-700">Picture Mode Usage</span>
                     <div className="flex items-center gap-x-2">
                       <span className="text-sm font-medium text-gray-700">
                         {fcLoading ? '…' : `${fcUsed ?? 0}/${fcTotal} min`}
                       </span>
-                      <button 
+                      <button
                         onClick={() => {
                           fcRefresh();
                           setShowMobileMenu(false);
                         }}
                         className="text-gray-500 hover:text-gray-700 transition-colors"
-                        title="Refresh Full Cast usage"
+                        title="Refresh Picture Mode usage"
                         disabled={fcLoading}
                       >
                         <RefreshCw className="h-4 w-4" />
@@ -514,7 +513,7 @@ const Header: React.FC = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             {/* Background overlay */}
-            <div 
+            <div
               className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
               onClick={() => setShowAuthModal(false)}
             ></div>

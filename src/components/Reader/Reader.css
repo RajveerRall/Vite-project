@@ -3,8 +3,10 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  overflow-x: hidden; /* Prevent horizontal overflow */
-  max-width: 100vw; /* Ensure it doesn't exceed viewport width */
+  overflow-x: hidden;
+  /* Prevent horizontal overflow */
+  max-width: 100vw;
+  /* Ensure it doesn't exceed viewport width */
 }
 
 /* Header layout improvements */
@@ -92,20 +94,23 @@
     align-items: stretch;
     padding: 0.5rem 1rem;
   }
-  
-  .reader-left, .reader-center, .reader-right {
+
+  .reader-left,
+  .reader-center,
+  .reader-right {
     margin-bottom: 0.5rem;
   }
-  
+
   .reader-right {
     justify-content: center;
   }
-  
+
   .controls-container {
     align-items: center;
     width: 100%;
   }
 }
+
 .reader-nav {
   display: flex;
   align-items: center;
@@ -144,9 +149,12 @@
   flex: 1;
   display: flex;
   overflow: hidden;
-  position: relative; /* Needed for absolute positioning of indicators */
-  background-color: transparent; /* Remove grey background */
-  max-width: 100vw; /* Prevent horizontal overflow */
+  position: relative;
+  /* Needed for absolute positioning of indicators */
+  background-color: transparent;
+  /* Remove grey background */
+  max-width: 100vw;
+  /* Prevent horizontal overflow */
 }
 
 .reader-sidebar {
@@ -624,6 +632,7 @@
 
 /* Hide side panel on mobile */
 @media (max-width: 768px) {
+
   .side-panel-bar,
   .side-panel-content {
     display: none;
@@ -638,15 +647,16 @@
   align-items: center;
   /* Minimal bottom padding to prevent content from being hidden behind bottom controls */
   padding-bottom: 20px;
-  
+
   /* Ensure content fills available space */
   justify-content: flex-start;
-  
+
   /* Scrollbar will be visible on this container */
-  
+
   /* Mobile smooth scrolling */
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain; /* Prevent pull-to-refresh on mobile */
+  overscroll-behavior-y: contain;
+  /* Prevent pull-to-refresh on mobile */
   /* Smooth transition when sidebar opens/closes */
   transition: width 0.3s ease;
 }
@@ -665,9 +675,10 @@
 /* Mobile content padding to prevent overlap with bottom controls */
 @media (max-width: 768px) {
   .reader-main {
-    padding-bottom: 30px; /* Reduced from 100px */
+    padding-bottom: 30px;
+    /* Reduced from 100px */
   }
-  
+
   .epub-content {
     padding-bottom: 2rem;
   }
@@ -692,12 +703,13 @@
   /* Reduce overall padding for short content */
   padding: 1rem;
   margin: 0.5rem;
-  
+
   /* Center content vertically when it's very short */
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: auto; /* Remove fixed height constraint */
+  min-height: auto;
+  /* Remove fixed height constraint */
 }
 
 /* Ensure images in short content are properly sized */
@@ -734,7 +746,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 0; /* Allow flex child to shrink below content size */
+  min-height: 0;
+  /* Allow flex child to shrink below content size */
 }
 
 .toc-heading {
@@ -742,7 +755,8 @@
   font-size: 1.1rem;
   border-bottom: 1px solid #eee;
   padding-bottom: 0.5rem;
-  flex-shrink: 0; /* Prevent heading from shrinking */
+  flex-shrink: 0;
+  /* Prevent heading from shrinking */
 }
 
 .toc-list {
@@ -751,7 +765,8 @@
   margin-top: 0;
   overflow-y: auto;
   flex: 1;
-  min-height: 0; /* Allow flex child to shrink below content size */
+  min-height: 0;
+  /* Allow flex child to shrink below content size */
   /* Enable smooth scrolling */
   -webkit-overflow-scrolling: touch;
 }
@@ -849,21 +864,28 @@
 .epub-content {
   /* Remove flex: 1 to allow natural height expansion */
   /* Remove overflow-y: auto - parent container handles scrolling */
-  overflow: visible; /* Explicitly prevent scrolling on this element */
-  overflow-y: visible; /* Ensure vertical overflow is visible */
-  padding: 20px; /* Warm off-white background */
-  background-color: #fcf8f0; /* Warm off-white background */
-  /* background-image: url('/assets/images/subtle-paper-texture.png'); */ /* Paper texture - commented out, image not available */
+  overflow: visible;
+  /* Explicitly prevent scrolling on this element */
+  overflow-y: visible;
+  /* Ensure vertical overflow is visible */
+  padding: 20px;
+  /* Warm off-white background */
+  background-color: #fcf8f0;
+  /* Warm off-white background */
+  /* background-image: url('/assets/images/subtle-paper-texture.png'); */
+  /* Paper texture - commented out, image not available */
   /* background-repeat: repeat; */
   margin: 1rem;
   border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1); /* Subtle shadow for depth */
-  
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  /* Subtle shadow for depth */
+
   max-width: 800px;
   width: 100%;
-  
+
   /* Ensure proper spacing without excessive height */
-  min-height: auto; /* Remove fixed height constraint */
+  min-height: auto;
+  /* Remove fixed height constraint */
 }
 
 /* Ensure no scrollbar on epub-content even if global styles apply */
@@ -873,13 +895,16 @@
 }
 
 .epub-content h1 {
-  color: #333333; /* Dark grey for titles */
-  font-family: 'Georgia', serif; /* Serif font for titles */
+  color: #333333;
+  /* Dark grey for titles */
+  font-family: 'Georgia', serif;
+  /* Serif font for titles */
   text-align: center;
   margin-bottom: 10px;
 }
 
-.epub-content h2 { /* For subtitles or chapter names */
+.epub-content h2 {
+  /* For subtitles or chapter names */
   color: #605c5c;
   font-family: 'Arial', sans-serif;
   text-align: center;
@@ -887,9 +912,9 @@
   margin-bottom: 30px;
 }
 
-.epub-content h3, 
-.epub-content h4, 
-.epub-content h5, 
+.epub-content h3,
+.epub-content h4,
+.epub-content h5,
 .epub-content h6 {
   text-align: center;
   margin: 1.5rem 0 1rem;
@@ -897,12 +922,15 @@
 }
 
 .epub-content p {
-  color: #4a4a4a; /* Softer dark grey for body text */
-  font-family: 'Merriweather', serif; /* Serif font for body text */
+  color: #4a4a4a;
+  /* Softer dark grey for body text */
+  font-family: 'Merriweather', serif;
+  /* Serif font for body text */
   font-size: 1.1em;
   line-height: 1.6;
   margin-bottom: 1em;
-  text-align: justify; /* Justify text for a book-like feel */
+  text-align: justify;
+  /* Justify text for a book-like feel */
 }
 
 
@@ -924,10 +952,13 @@
 /* Adjust margins for mobile responsiveness */
 @media (max-width: 768px) {
   .epub-content {
-    padding: 15px; /* Smaller padding on mobile */
+    padding: 15px;
+    /* Smaller padding on mobile */
   }
+
   .epub-content p {
-    font-size: 1em; /* Slightly smaller font on mobile */
+    font-size: 1em;
+    /* Slightly smaller font on mobile */
   }
 }
 
@@ -980,8 +1011,13 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Responsive styles */
@@ -989,20 +1025,24 @@
   .reader-header {
     padding: 0.75rem 1rem;
   }
-  
+
   .reader-sidebar {
     display: none;
   }
-  
+
   .epub-content {
     padding: 1rem;
     margin: 0.5rem;
-    max-width: 100%; /* Ensure content doesn't overflow on mobile */
-    word-wrap: break-word; /* Prevent long words from causing overflow */
-    overflow-x: hidden; /* Prevent horizontal scrolling */
-    overflow-y: visible; /* Ensure vertical overflow is visible - parent handles scrolling */
+    max-width: 100%;
+    /* Ensure content doesn't overflow on mobile */
+    word-wrap: break-word;
+    /* Prevent long words from causing overflow */
+    overflow-x: hidden;
+    /* Prevent horizontal scrolling */
+    overflow-y: visible;
+    /* Ensure vertical overflow is visible - parent handles scrolling */
   }
-  
+
   /* Mobile adjustments for short content */
   .epub-content[data-short-content="true"] {
     padding: 0.75rem;
@@ -1041,7 +1081,7 @@
 }
 
 /* Ensure controls don't overflow on mobile */
-.reader-header-mobile .controls-container-mobile > * {
+.reader-header-mobile .controls-container-mobile>* {
   max-width: 100%;
   overflow: hidden;
 }
@@ -1080,7 +1120,7 @@
   .reader-header-desktop {
     display: none !important;
   }
-  
+
   .reader-header-mobile {
     display: flex !important;
   }
@@ -1091,7 +1131,7 @@
   .reader-header-desktop {
     display: flex !important;
   }
-  
+
   .reader-header-mobile {
     display: none !important;
   }
@@ -1229,39 +1269,39 @@
     align-items: center;
     justify-content: center;
   }
-  
+
   .mobile-ai-chat-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
   }
-  
+
   .reader-sidebar {
     display: none;
   }
-  
+
   .reader-header {
     padding: 0.75rem 1rem;
   }
-  
+
   .reader-center {
     text-align: center;
   }
-  
+
   .book-title {
     font-size: 1.1rem;
     margin-bottom: 0.25rem;
   }
-  
+
   .book-author {
     font-size: 0.85rem;
   }
-  
+
   .reader-main {
     width: 100%;
     margin-left: 0;
   }
-  
+
   .epub-content {
     max-width: 100%;
     padding: 1rem;
@@ -1275,12 +1315,10 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.98) 0%,
-    rgba(248, 250, 252, 0.96) 50%,
-    rgba(240, 245, 251, 0.98) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.98) 0%,
+      rgba(248, 250, 252, 0.96) 50%,
+      rgba(240, 245, 251, 0.98) 100%);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
@@ -1400,7 +1438,7 @@
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 0.5rem;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .enhanced-loading-overlay .progress-fill {
@@ -1417,12 +1455,10 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255,255,255,0.6),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.6),
+      transparent);
   animation: shine 2s ease-in-out infinite;
 }
 
@@ -1465,14 +1501,27 @@
   animation: dotBounce 1.4s ease-in-out infinite both;
 }
 
-.enhanced-loading-overlay .dot-1 { animation-delay: 0s; }
-.enhanced-loading-overlay .dot-2 { animation-delay: 0.2s; }
-.enhanced-loading-overlay .dot-3 { animation-delay: 0.4s; }
+.enhanced-loading-overlay .dot-1 {
+  animation-delay: 0s;
+}
+
+.enhanced-loading-overlay .dot-2 {
+  animation-delay: 0.2s;
+}
+
+.enhanced-loading-overlay .dot-3 {
+  animation-delay: 0.4s;
+}
 
 /* Enhanced Loading Animations */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
@@ -1480,6 +1529,7 @@
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1487,30 +1537,46 @@
 }
 
 @keyframes float {
-  0%, 100% { 
-    transform: translateY(0px) rotate(0deg) scale(1); 
+
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
   }
-  25% { 
-    transform: translateY(-20px) rotate(5deg) scale(1.1); 
+
+  25% {
+    transform: translateY(-20px) rotate(5deg) scale(1.1);
   }
-  50% { 
-    transform: translateY(10px) rotate(-3deg) scale(0.9); 
+
+  50% {
+    transform: translateY(10px) rotate(-3deg) scale(0.9);
   }
-  75% { 
-    transform: translateY(-5px) rotate(2deg) scale(1.05); 
+
+  75% {
+    transform: translateY(-5px) rotate(2deg) scale(1.05);
   }
 }
 
 @keyframes textPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
 }
 
 @keyframes dotBounce {
-  0%, 80%, 100% {
+
+  0%,
+  80%,
+  100% {
     transform: scale(0.8);
     opacity: 0.5;
   }
+
   40% {
     transform: scale(1.3);
     opacity: 1;
@@ -1518,8 +1584,13 @@
 }
 
 @keyframes shine {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+
+  100% {
+    left: 100%;
+  }
 }
 
 /* Mobile optimizations for enhanced loader */
@@ -1528,29 +1599,29 @@
     width: 80px;
     height: 80px;
   }
-  
+
   .enhanced-loading-overlay .spinner-inner {
     top: 12px;
     left: 12px;
     width: 56px;
     height: 56px;
   }
-  
+
   .enhanced-loading-overlay .spinner-dot {
     top: 28px;
     left: 28px;
     width: 24px;
     height: 24px;
   }
-  
+
   .enhanced-loading-overlay .book-icon {
     font-size: 1.4rem;
   }
-  
+
   .enhanced-loading-overlay .primary-text {
     font-size: 20px;
   }
-  
+
   .enhanced-loading-overlay .progress-section {
     width: 200px;
   }
@@ -1771,22 +1842,22 @@
     padding: 0.75rem;
     margin: 0.75rem 0;
   }
-  
+
   .controls-main {
     gap: 0.25rem;
   }
-  
+
   .control-btn {
     min-width: 2rem;
     height: 2rem;
     padding: 0.25rem;
   }
-  
+
   .play-pause-btn {
     min-width: 2.5rem;
     height: 2.5rem;
   }
-  
+
   .progress-info {
     font-size: 0.75rem;
   }
@@ -1874,8 +1945,13 @@
 }
 
 @keyframes simple-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Simple Suspense Loader Styles */
@@ -1945,19 +2021,19 @@
     overflow-x: auto;
     padding: 0 0.5rem;
   }
-  
-  .controls-container > * {
+
+  .controls-container>* {
     min-width: 0;
     flex-shrink: 1;
   }
-  
+
   /* Ensure buttons don't overflow */
   .controls-container button {
     padding: 0.5rem;
     font-size: 0.875rem;
     white-space: nowrap;
   }
-  
+
   /* Stack controls vertically on very small screens */
   @media (max-width: 480px) {
     .controls-container {
@@ -1970,12 +2046,13 @@
 
 /* Medium screen optimizations for action buttons */
 @media (max-width: 640px) and (min-width: 481px) {
+
   .settings-button,
   .scroll-highlight-button,
   .mobile-toc-button {
     padding: 0.5rem 1rem !important;
   }
-  
+
   .settings-button span,
   .scroll-highlight-button span,
   .mobile-toc-button span {
@@ -1989,25 +2066,26 @@
     padding: 0.75rem;
     gap: 0.5rem;
   }
-  
+
   .reader-header-mobile .book-title {
     font-size: 1rem;
   }
-  
+
   .reader-header-mobile .book-author {
     font-size: 0.8rem;
   }
-  
+
   /* Ensure action buttons don't overflow */
   .reader-header-mobile .action-buttons {
     gap: 0.25rem;
   }
-  
+
   .reader-header-mobile .action-buttons button {
     padding: 0.5rem;
-    min-width: 44px; /* Ensure touch targets are large enough */
+    min-width: 44px;
+    /* Ensure touch targets are large enough */
   }
-  
+
   /* Compact button styling for very small screens */
   .settings-button,
   .scroll-highlight-button,
@@ -2015,7 +2093,7 @@
     padding: 0.5rem 0.75rem !important;
     font-size: 0.75rem !important;
   }
-  
+
   .settings-button span,
   .scroll-highlight-button span,
   .mobile-toc-button span {
@@ -2028,7 +2106,8 @@
 .reader-bottom-controls-desktop .control-button {
   transition: all 0.2s ease;
   border: 1px solid transparent;
-  min-height: 44px; /* Ensure touch targets are large enough */
+  min-height: 44px;
+  /* Ensure touch targets are large enough */
 }
 
 /* Force button text to be visible */
@@ -2065,22 +2144,30 @@
 
 /* Responsive adjustments for bottom controls */
 @media (max-width: 640px) {
+
   .reader-bottom-controls .control-button,
   .reader-bottom-controls-desktop .control-button {
-    padding: 0.375rem 0.5rem !important; /* Reduced padding for smaller buttons */
-    min-height: 36px !important; /* Reduced minimum height */
+    padding: 0.375rem 0.5rem !important;
+    /* Reduced padding for smaller buttons */
+    min-height: 36px !important;
+    /* Reduced minimum height */
   }
-  
+
   .reader-bottom-controls .button-text,
   .reader-bottom-controls-desktop .button-text {
-    font-size: 0.7rem !important; /* Slightly smaller font */
-    display: inline !important; /* Ensure text is always visible */
+    font-size: 0.7rem !important;
+    /* Slightly smaller font */
+    display: inline !important;
+    /* Ensure text is always visible */
   }
-  
+
   .page-info {
-    padding: 0.25rem 0.5rem; /* Reduced padding */
-    font-size: 0.7rem; /* Smaller font */
-    min-width: 50px; /* Reduced minimum width */
+    padding: 0.25rem 0.5rem;
+    /* Reduced padding */
+    font-size: 0.7rem;
+    /* Smaller font */
+    min-width: 50px;
+    /* Reduced minimum width */
   }
 }
 
@@ -2094,21 +2181,28 @@
 
 /* Extra small mobile optimizations */
 @media (max-width: 480px) {
+
   .reader-bottom-controls .control-button,
   .reader-bottom-controls-desktop .control-button {
-    padding: 0.25rem 0.375rem !important; /* Even smaller padding */
-    min-height: 32px !important; /* Smaller height for very small screens */
+    padding: 0.25rem 0.375rem !important;
+    /* Even smaller padding */
+    min-height: 32px !important;
+    /* Smaller height for very small screens */
   }
-  
+
   .reader-bottom-controls .button-text,
   .reader-bottom-controls-desktop .button-text {
-    font-size: 0.65rem !important; /* Smaller font for very small screens */
+    font-size: 0.65rem !important;
+    /* Smaller font for very small screens */
   }
-  
+
   .page-info {
-    padding: 0.2rem 0.375rem !important; /* Minimal padding */
-    font-size: 0.65rem !important; /* Smaller font */
-    min-width: 45px !important; /* Minimal width */
+    padding: 0.2rem 0.375rem !important;
+    /* Minimal padding */
+    font-size: 0.65rem !important;
+    /* Smaller font */
+    min-width: 45px !important;
+    /* Minimal width */
   }
 }
 

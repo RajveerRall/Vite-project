@@ -17,7 +17,7 @@ interface NavigationDependencies {
   handleTTSNavigation: () => void;
 
   // Book context navigation
-  navigateToTocItem: (item: TOCItem) => Promise<void>;
+  navigateToTocItem: (item: TOCItem) => void;
   prevPage: () => void;
   nextPage: () => void;
   closeBook: (resetGlobalLoading?: boolean) => void;

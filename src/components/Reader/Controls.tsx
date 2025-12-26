@@ -8,13 +8,11 @@ import { UsageWarningToast } from '../UsageWarningToast';
 import {
   Headphones,
   PlayCircle, PauseCircle, RotateCcw,
-  Loader2, Square, SkipBack, SkipForward, Settings
+  Loader2, Square, SkipBack, SkipForward, ImageIcon
 } from 'lucide-react';
 import InteractiveProgressBar from './InteractiveProgressBar';
 import SpeedControlDropdown from './SpeedControlDropdown';
-import MobileTOCDrawer from './MobileTOCDrawer';
 import MobileAIChatDrawer from './MobileAIChatDrawer';
-import { TOCItem } from '../../types/books';
 import { useSmoothProgress } from '../../hooks/tts/useSmoothProgress';
 
 // Import the stylesheet. It will now handle all the appearance styling.
@@ -30,8 +28,6 @@ export interface ControlsProps {
   isPaused: boolean;
   isProcessing: boolean;
   canResume: boolean;
-  // onAudiobook: () => void;
-  // isPlayModeActive: boolean;
   isReadButtonActive: boolean;
   // Progress tracking
   currentChunkIndex?: number | null;
@@ -39,8 +35,6 @@ export interface ControlsProps {
   // Speed control
   ttsSpeed?: number;
   onSpeedChange?: (speed: number) => void;
-  // Settings
-  onOpenSettings?: () => void;
   // Interactive Progress Bar handlers
   onPreviewScroll?: (percentage: number) => void;
   onSeekToPercentage?: (percentage: number) => void;
@@ -57,13 +51,6 @@ export interface ControlsProps {
   anonymousLimit?: any;
   // Buffering state
   bufferedChunksCount?: number;
-  // TOC props for chapters button
-  toc?: TOCItem[];
-  onNavigateToTocItem?: (item: TOCItem) => void;
-  theme?: 'light' | 'dark' | 'sepia';
-  isEnhanced?: boolean;
-  isMobile?: boolean;
-  isFirstOpen?: boolean;
   // Chapter summarization props
   currentPageText?: string;
   currentChapterTitle?: string;
@@ -71,6 +58,10 @@ export interface ControlsProps {
   onSummarizeChapter?: () => void;
   // TTS for summary
   onReadAloudSummary?: (text?: string) => void;
+  onFullCastGenerateImage?: () => Promise<void>;
+  // UI Context (for layout/visibility)
+  isMobile?: boolean;
+  theme?: 'light' | 'dark' | 'sepia';
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -83,8 +74,6 @@ const Controls: React.FC<ControlsProps> = ({
   isPaused,
   isProcessing,
   canResume,
-  // onAudiobook,
-  // isPlayModeActive,
   isReadButtonActive,
   // Progress tracking
   currentChunkIndex = null,
@@ -92,8 +81,6 @@ const Controls: React.FC<ControlsProps> = ({
   // Speed control
   ttsSpeed = 1,
   onSpeedChange,
-  // Settings
-  onOpenSettings,
   // Interactive Progress Bar handlers
   onPreviewScroll,
   onSeekToPercentage,
@@ -107,23 +94,21 @@ const Controls: React.FC<ControlsProps> = ({
   onFullCastPause,
   onFullCastResume,
   anonymousLimit,
-  bufferedChunksCount = 0,
-  toc,
-  onNavigateToTocItem,
-  theme,
-  isEnhanced,
-  isMobile,
-  isFirstOpen,
   currentPageText,
   currentChapterTitle,
   bookId,
-  onSummarizeChapter,
-  onReadAloudSummary
+  onReadAloudSummary,
+  onFullCastGenerateImage,
+  isMobile,
+  theme
 }) => {
-  const { usedMinutes: fcUsed, totalMinutes: fcTotal } = useFullCastUsage();
+  const {
+    usedMinutes: fcUsed,
+    totalMinutes: fcTotal,
+    remainingMinutes: fcRemaining
+  } = useFullCastUsage();
   const { isLimitExceeded } = useSubscription();
   const { addToast } = useToast();
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [isAIChatDrawerOpen, setIsAIChatDrawerOpen] = useState(false);
 
   // Calculate raw chapter progress percentage (memoized)
@@ -141,10 +126,9 @@ const Controls: React.FC<ControlsProps> = ({
     enabled: isReading || isPaused, // Only animate when TTS is active
   });
 
-  const showStopButton = isReading || isPaused || isProcessing;
-
   // Determine which mode is active to hide other options
   const isReadModeActive = isReading || isPaused || isProcessing || canResume;
+  const showStopButton = isReadModeActive;
   // const isAudiobookModeActive = isPlayModeActive;
 
   // Check if TTS is disabled due to limit (anonymous or authenticated)
@@ -260,8 +244,8 @@ const Controls: React.FC<ControlsProps> = ({
               <button
                 onClick={onFullCastPause}
                 className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Pause Full Cast"
-                title="Pause Full Cast"
+                aria-label="Pause Picture Mode"
+                title="Pause Picture Mode"
               >
                 <PauseCircle size={18} className="text-gray-600" />
               </button>
@@ -269,18 +253,29 @@ const Controls: React.FC<ControlsProps> = ({
               <button
                 onClick={onFullCastResume}
                 className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Resume Full Cast"
-                title="Resume Full Cast"
+                aria-label="Resume Picture Mode"
+                title="Resume Picture Mode"
               >
                 <PlayCircle size={18} className="text-gray-600" />
+              </button>
+            )}
+
+            {onFullCastGenerateImage && (
+              <button
+                onClick={onFullCastGenerateImage}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                aria-label="Generate scene visuals"
+                title="Generate scene visuals"
+              >
+                <ImageIcon size={18} className="text-gray-600" />
               </button>
             )}
 
             <button
               onClick={onFullCastStop}
               className="p-2 rounded-full hover:bg-red-100 text-red-600 transition-colors"
-              aria-label="Stop Full Cast"
-              title="Stop Full Cast"
+              aria-label="Stop Picture Mode"
+              title="Stop Picture Mode"
             >
               <Square size={18} />
             </button>
@@ -301,23 +296,14 @@ const Controls: React.FC<ControlsProps> = ({
             progress={chapterProgress}
             onPreview={onPreviewScroll || (() => { })}
             onSeek={onSeekToPercentage || (() => { })}
-            isActive={!!(onPreviewScroll && onSeekToPercentage) && isReadModeActive}
+            isActive={!!(onPreviewScroll && onSeekToPercentage) && isReadModeActive && !isDisabledDueToLimit}
           />
         </div>
 
         {/* Main Controls */}
         <div className="flex items-center justify-between gap-3 md:gap-4">
-          {/* Left Side - Settings Button */}
-          {onOpenSettings && (
-            <button
-              onClick={onOpenSettings}
-              className="p-2 md:p-3 rounded-full hover:bg-amber-100 transition-colors"
-              aria-label="Open settings"
-              title="Open settings"
-            >
-              <Settings size={20} className="text-amber-700 md:text-[22px]" />
-            </button>
-          )}
+          {/* Left Side - Placeholder for symmetry or other controls */}
+          <div className="w-10 md:w-12" />
 
           {/* Center - Play Controls */}
           <div className="flex items-center gap-3 md:gap-4">
@@ -336,10 +322,10 @@ const Controls: React.FC<ControlsProps> = ({
             <button
               onClick={handleReadAloudClick}
               className={`p-3 md:p-4 rounded-full flex items-center gap-2 transition-all duration-200 ${buttonState.disabled
-                  ? 'bg-gray-300 cursor-not-allowed text-gray-500'
-                  : isReadButtonActive
-                    ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                ? 'bg-gray-300 cursor-not-allowed text-gray-500'
+                : isReadButtonActive
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                 }`}
               aria-label={buttonState.title}
               title={buttonState.title}
@@ -398,8 +384,8 @@ const Controls: React.FC<ControlsProps> = ({
               />
             )}
 
-            {/* Stop Button - Disabled/Hidden as per request */}
-            {/* {showStopButton && (
+            {/* Stop Button - Restored */}
+            {showStopButton && (
               <button
                 onClick={onStopTTS}
                 className="p-1.5 md:p-2 rounded-full hover:bg-red-100 text-red-600 transition-colors"
@@ -408,7 +394,7 @@ const Controls: React.FC<ControlsProps> = ({
               >
                 <Square size={18} className="md:text-[22px]" />
               </button>
-            )} */}
+            )}
           </div>
         </div>
       </div>
@@ -440,15 +426,6 @@ const Controls: React.FC<ControlsProps> = ({
           />
         )}
 
-        {/* Chapters Button - Mobile Only */}
-        {isEnhanced && isMobile && (
-          <MobileTOCDrawer
-            toc={toc || []}
-            onItemClick={onNavigateToTocItem || (() => { })}
-            theme={theme || 'light'}
-            openByDefault={isFirstOpen || false}
-          />
-        )}
 
         {/* Read Aloud Button */}
         <button
@@ -479,33 +456,32 @@ const Controls: React.FC<ControlsProps> = ({
 
         {/* Full Cast Button */}
         <button
-          className="control-button flex items-center gap-2 px-3 py-2 border border-gray-300"
-          style={{ display: 'none' }}
+          className={`control-button flex items-center gap-2 px-3 py-2 transition-colors ${fullCastActive
+            ? 'bg-blue-50 border-blue-200 text-blue-700'
+            : 'hover:bg-gray-50'
+            }`}
           onClick={() => {
-            if (typeof fcUsed === 'number' && typeof fcTotal === 'number' && fcUsed >= fcTotal) {
-              trackEvent('full_cast_quota_exceeded', {
-                used_minutes: fcUsed,
-                total_minutes: fcTotal,
-                remaining_minutes: Math.max(0, fcTotal - fcUsed)
-              });
-              alert('You have reached your Full Cast monthly quota (300 minutes).');
+            // Check quota if needed (but don't block guest access entirely)
+            if (fcTotal > 0 && fcUsed >= fcTotal) {
+              addToast('Picture Mode monthly limit reached (15 mins).', 'info');
               return;
             }
 
             trackEvent('full_cast_start', {
               used_minutes: fcUsed || 0,
-              total_minutes: fcTotal || 300,
-              remaining_minutes: Math.max(0, (fcTotal || 300) - (fcUsed || 0))
+              total_minutes: fcTotal || 15,
+              remaining_minutes: fcRemaining
             });
 
             const event = new CustomEvent('full-cast-request');
             window.dispatchEvent(event);
           }}
-          title="Full Cast Narration (Beta)"
-          aria-label="Full Cast Narration"
+          title={`Picture Mode (Beta)`}
+          aria-label="Picture Mode"
           disabled={isProcessing}
         >
-          <span className="button-text text-sm font-medium">Full Cast Audiobook</span>
+          <ImageIcon size={20} className={fullCastActive ? 'animate-pulse' : ''} />
+          <span className="button-text text-sm font-medium">Picture Mode</span>
         </button>
       </div>
 
@@ -525,7 +501,6 @@ const Controls: React.FC<ControlsProps> = ({
           onClose={() => anonymousLimit.setShowLimitModal(false)}
           onSignIn={() => {
             anonymousLimit.setShowLimitModal(false);
-            setShowAuthModal(true);
           }}
         />
       )}

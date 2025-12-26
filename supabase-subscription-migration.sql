@@ -442,10 +442,10 @@ BEGIN
   IF v_minutes_limit > 0 THEN
     v_seconds_to_add := p_seconds;
     IF (v_seconds_used + v_seconds_to_add) / 60 > v_minutes_limit THEN
-      RAISE EXCEPTION 'TTS_USAGE_LIMIT_EXCEEDED' USING 
-        MESSAGE = 'TTS usage limit exceeded. Please upgrade your subscription.',
+      RAISE EXCEPTION 'TTS_USAGE_LIMIT_EXCEEDED: TTS usage limit exceeded. Please upgrade your subscription.' USING 
         DETAIL = format('Current usage: %s minutes, Limit: %s minutes', 
-                       (v_seconds_used / 60), v_minutes_limit);
+                       (v_seconds_used / 60), v_minutes_limit),
+        HINT = 'PROUE01';
     END IF;
   END IF;
 

@@ -2,8 +2,7 @@
 // Header component for Reader (mobile + desktop variants)
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Headphones, RefreshCw, Sparkles } from 'lucide-react';
-import { TOCItem } from '../../types/books';
+import { ChevronLeft, Headphones, RefreshCw, Sparkles, Settings, List } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useAnonymousUsageLimit } from '../../hooks/useAnonymousUsageLimit';
@@ -18,18 +17,12 @@ export interface ReaderHeaderProps {
 
   // Actions
   onClose: () => void;
-  onNavigateToTocItem: (item: TOCItem) => void;
   onScrollToHighlight: () => void;
+  onOpenSettings?: () => void;
+  onOpenChapters?: () => void;
 
   // UI state
-  isMobile: boolean;
-  isEnhanced: boolean;
-  isFirstOpen: boolean;
-  theme: 'light' | 'dark' | 'sepia';
   showTTSHighlight: boolean; // Whether to show scroll-to-highlight button
-
-  // Data
-  toc: TOCItem[];
 }
 
 /**
@@ -40,14 +33,10 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
   bookTitle,
   currentChapterTitle,
   onClose,
-  onNavigateToTocItem,
   onScrollToHighlight,
-  isMobile,
-  isEnhanced,
-  isFirstOpen,
-  theme,
+  onOpenSettings,
+  onOpenChapters,
   showTTSHighlight,
-  toc,
 }) => {
   const { isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -82,14 +71,39 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
       {/* Mobile: Stacked layout */}
       <div className="reader-header-mobile md:hidden">
         <div className="flex items-center justify-between mb-2">
-          <button
-            onClick={onClose}
-            className="back-button text-sm font-medium text-gray-600 hover:text-amber-800 flex items-center gap-x-1"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Back to Library</span>
-            <span className="sm:hidden">Back</span>
-          </button>
+          <div className="flex items-center gap-x-1">
+            <button
+              onClick={onClose}
+              className="back-button p-2 text-gray-600 hover:text-amber-800 transition-colors"
+              aria-label="Back to Library"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+
+            {/* Mobile: Quick Actions */}
+            <div className="flex items-center gap-x-1">
+              {onOpenChapters && (
+                <button
+                  onClick={onOpenChapters}
+                  className="p-2 text-gray-600 hover:text-amber-800 transition-colors"
+                  aria-label="Chapters"
+                  title="Chapters"
+                >
+                  <List className="w-5 h-5" />
+                </button>
+              )}
+              {onOpenSettings && (
+                <button
+                  onClick={onOpenSettings}
+                  className="p-2 text-gray-600 hover:text-amber-800 transition-colors"
+                  aria-label="Settings"
+                  title="Settings"
+                >
+                  <Settings className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Mobile: Auth controls */}
           <div className="flex items-center gap-x-2">
@@ -106,8 +120,8 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
             {/* Anonymous Usage Badge - Mobile */}
             {!isAuthenticated && anonymousLimit && (
               <div className={`px-2 py-1 rounded-full text-xs font-medium ${anonymousLimit.isLimitReached ? 'bg-red-100 text-red-700' :
-                  anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
-                    'bg-gray-100 text-gray-700'
+                anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
+                  'bg-gray-100 text-gray-700'
                 }`}>
                 {anonymousLimit.remainingMinutes}/{anonymousLimit.limitMinutes} min
               </div>
@@ -228,8 +242,8 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
           {!isAuthenticated && anonymousLimit && (
             <div className="flex items-center gap-2 text-sm">
               <div className={`px-3 py-1 rounded-full ${anonymousLimit.isLimitReached ? 'bg-red-100 text-red-700' :
-                  anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
-                    'bg-gray-100 text-gray-700'
+                anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
+                  'bg-gray-100 text-gray-700'
                 }`}>
                 <span className="font-medium">
                   {anonymousLimit.remainingMinutes}/{anonymousLimit.limitMinutes} min left
@@ -323,6 +337,18 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
             >
               <Headphones className="w-5 h-5" />
               <span className="text-sm font-medium">Highlight</span>
+            </button>
+          )}
+
+          {/* Desktop: Settings Widget Toggle */}
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              className="p-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-gray-50"
+              aria-label="Settings"
+              title="Settings"
+            >
+              <Settings className="w-5 h-5" />
             </button>
           )}
         </div>

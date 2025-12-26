@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@cartesia/cartesia-js": "^2.2.5",
+    "@google/genai": "^1.34.0",
     "@google/generative-ai": "^0.24.1",
     "@your-scope/modular-tts": "file:your-scope-modular-tts-0.1.1.tgz",
     "cors": "^2.8.5",

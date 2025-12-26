@@ -16,12 +16,12 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
  */
 async function refreshSessionWithTimeout(timeoutMs: number = 7000) {
   const { supabase } = await import('../../lib/supabase');
-  
+
   const refreshPromise = supabase.auth.refreshSession();
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => reject(new Error('Session refresh timeout after 7 seconds')), timeoutMs);
   });
-  
+
   try {
     const result = await Promise.race([refreshPromise, timeoutPromise]);
     return result;
@@ -46,25 +46,25 @@ async function fetchWithRestAPI(
   timeoutMs: number = 10000
 ): Promise<any[]> {
   const url = `${supabaseUrl}/rest/v1/${table}`;
-  
+
   // Build query params for PostgREST
   const params = new URLSearchParams();
   params.append('select', select);
-  
+
   // Add filters using PostgREST syntax (e.g., id=eq.uuid)
   Object.entries(filters).forEach(([key, value]) => {
     params.append(key, `eq.${value}`);
   });
   params.append('limit', '1');
-  
+
   const fullUrl = `${url}?${params.toString()}`;
   console.log(`[REST API] Fetching ${table}:`, fullUrl.substring(0, 200) + '...');
-  
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     controller.abort();
   }, timeoutMs);
-  
+
   try {
     const response = await fetch(fullUrl, {
       method: 'GET',
@@ -76,27 +76,27 @@ async function fetchWithRestAPI(
       },
       signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     // Handle 401 - try to refresh token and retry
     if (response.status === 401) {
       console.log('[REST API] Token expired (401), attempting refresh...');
       try {
         const { data: { session }, error: sessionError } = await refreshSessionWithTimeout(7000);
-        
+
         if (sessionError || !session?.access_token) {
           throw new Error('Failed to refresh session');
         }
-        
+
         console.log('[REST API] Token refreshed, retrying request...');
-        
+
         // Retry with new token
         const retryController = new AbortController();
         const retryTimeoutId = setTimeout(() => {
           retryController.abort();
         }, timeoutMs);
-        
+
         try {
           const retryResponse = await fetch(fullUrl, {
             method: 'GET',
@@ -108,15 +108,15 @@ async function fetchWithRestAPI(
             },
             signal: retryController.signal,
           });
-          
+
           clearTimeout(retryTimeoutId);
-          
+
           if (!retryResponse.ok) {
             const errorText = await retryResponse.text();
             console.error(`[REST API] Error ${retryResponse.status} after refresh for ${table}:`, errorText);
             throw new Error(`HTTP ${retryResponse.status}: ${errorText || retryResponse.statusText}`);
           }
-          
+
           const data = await retryResponse.json();
           console.log(`[REST API] Success after refresh for ${table}:`, Array.isArray(data) ? `${data.length} row(s)` : 'single object');
           return Array.isArray(data) ? data : [data];
@@ -132,13 +132,13 @@ async function fetchWithRestAPI(
         throw new Error('Session expired. Please sign in again.');
       }
     }
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[REST API] Error ${response.status} for ${table}:`, errorText);
       throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
     }
-    
+
     const data = await response.json();
     console.log(`[REST API] Success for ${table}:`, Array.isArray(data) ? `${data.length} row(s)` : 'single object');
     return Array.isArray(data) ? data : [data];
@@ -202,12 +202,12 @@ export async function fetchSubscriptionInfo(userId: string): Promise<Subscriptio
   try {
     console.log('[SubscriptionService] ========== STARTING REST API FETCH ==========');
     const startTime = Date.now();
-    
+
     // Get access token - uses shared utility that bypasses hanging getSession()
     console.log('[SubscriptionService] Getting access token...');
     const accessToken = await getAccessToken();
     console.log('[SubscriptionService] Access token obtained, length:', accessToken?.length || 0);
-    
+
     // Fetch profile using REST API
     console.log('[SubscriptionService] Fetching profile via REST API...');
     const profileDataArray = await fetchWithRestAPI(
@@ -216,34 +216,34 @@ export async function fetchSubscriptionInfo(userId: string): Promise<Subscriptio
       { id: userId },
       accessToken
     );
-    
+
     if (!profileDataArray || profileDataArray.length === 0) {
       throw new Error('Profile not found');
     }
-    
+
     const profileData = profileDataArray[0];
     console.log('[SubscriptionService] Profile data received:', profileData);
-    
+
     // Fetch subscription if exists
     let subscriptionData = null;
     let productData = null;
-    
+
     if (profileData?.subscription_id) {
       console.log('[SubscriptionService] Fetching subscription via REST API...');
       const subDataArray = await fetchWithRestAPI(
         'subscriptions',
         'id,status,plan_id,current_period_start,current_period_end,cancel_at_period_end,payment_gateway_subscription_id',
-        { 
+        {
           id: profileData.subscription_id,
-          user_id: userId 
+          user_id: userId
         },
         accessToken
       );
-      
+
       if (subDataArray && subDataArray.length > 0) {
         subscriptionData = subDataArray[0];
         console.log('[SubscriptionService] Subscription data received:', subscriptionData);
-        
+
         // Fetch product if subscription exists
         if (subscriptionData.plan_id) {
           console.log('[SubscriptionService] Fetching product via REST API...');
@@ -253,7 +253,7 @@ export async function fetchSubscriptionInfo(userId: string): Promise<Subscriptio
             { gateway_product_id: subscriptionData.plan_id },
             accessToken
           );
-          
+
           if (prodDataArray && prodDataArray.length > 0) {
             productData = prodDataArray[0];
             console.log('[SubscriptionService] Product data received:', productData);
@@ -261,10 +261,10 @@ export async function fetchSubscriptionInfo(userId: string): Promise<Subscriptio
         }
       }
     }
-    
+
     const duration = Date.now() - startTime;
     console.log(`[SubscriptionService] REST API fetch completed in ${duration}ms`);
-    
+
     // Build SubscriptionInfo structure
     const result: SubscriptionInfo = {
       user_id: userId,
@@ -293,7 +293,7 @@ export async function fetchSubscriptionInfo(userId: string): Promise<Subscriptio
         currency: productData.currency,
       } : null,
     };
-    
+
     return result;
   } catch (error: any) {
     console.error('[SubscriptionService] Exception fetching subscription info:', {
@@ -310,29 +310,29 @@ export async function fetchSubscriptionInfo(userId: string): Promise<Subscriptio
  * This ensures free tier limit (360 minutes) is applied dynamically for users without subscriptions
  * Bypasses Supabase client to avoid hanging issues
  */
-export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | null> {
+export async function fetchUsageLimit(_userId: string): Promise<UsageLimitInfo | null> {
   try {
     console.log('[SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========');
     const startTime = Date.now();
-    
+
     // Get access token - bypasses hanging getSession() when possible
     console.log('[SubscriptionService] Getting access token for usage limit...');
     const accessToken = await getAccessToken();
-    
+
     // Call check_tts_usage_limit RPC function instead of reading directly from profiles
     // This ensures free tier limit (360 minutes) is applied dynamically
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
+
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error('Missing Supabase environment variables');
     }
-    
+
     const url = `${supabaseUrl}/rest/v1/rpc/check_tts_usage_limit`;
-    
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
-    
+
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -347,24 +347,24 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
         body: JSON.stringify({}),
         signal: controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       // Handle 401 - try to refresh token
       if (response.status === 401) {
         console.log('[SubscriptionService] Limit check token expired (401), attempting refresh...');
         const { data: { session }, error: sessionError } = await refreshSessionWithTimeout(7000);
-        
+
         if (sessionError || !session?.access_token) {
           throw new Error('Session expired. Please sign in again.');
         }
-        
+
         console.log('[SubscriptionService] Limit check token refreshed, retrying...');
-        
+
         // Retry with new token
         const retryController = new AbortController();
         const retryTimeoutId = setTimeout(() => retryController.abort(), 10000);
-        
+
         try {
           const retryResponse = await fetch(url, {
             method: 'POST',
@@ -374,22 +374,23 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
               'Content-Type': 'application/json',
               'Prefer': 'return=representation',
             },
+            // The RPC uses auth.uid() from the JWT, but we can pass an empty body
             body: JSON.stringify({}),
             signal: retryController.signal,
           });
-          
+
           clearTimeout(retryTimeoutId);
-          
+
           if (!retryResponse.ok) {
             const errorText = await retryResponse.text();
             throw new Error(`HTTP ${retryResponse.status}: ${errorText || retryResponse.statusText}`);
           }
-          
+
           const limitData = await retryResponse.json();
-          
+
           const duration = Date.now() - startTime;
           console.log(`[SubscriptionService] Usage limit RPC call completed in ${duration}ms`);
-          
+
           // Map RPC response to UsageLimitInfo format
           const result: UsageLimitInfo = {
             has_limit: limitData.has_limit ?? false,
@@ -403,28 +404,28 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
             last_reset_date: limitData.last_reset_date ?? null,
             current_period_end: limitData.current_period_end ?? null,
           };
-          
+
           console.log('[SubscriptionService] Calculated usage limit:', result);
           return result;
-          
+
         } catch (retryError: any) {
           clearTimeout(retryTimeoutId);
           throw retryError;
         }
       }
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
       }
-      
+
       const limitData = await response.json();
-      
+
       const duration = Date.now() - startTime;
       console.log(`[SubscriptionService] Usage limit RPC call completed in ${duration}ms`);
-      
+
       // Map RPC response to UsageLimitInfo format
-    const result: UsageLimitInfo = {
+      const result: UsageLimitInfo = {
         has_limit: limitData.has_limit ?? false,
         minutes_limit: limitData.minutes_limit ?? 0,
         prepaid_minutes: limitData.prepaid_minutes ?? 0,
@@ -435,11 +436,11 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
         needs_reset: limitData.needs_reset ?? false,
         last_reset_date: limitData.last_reset_date ?? null,
         current_period_end: limitData.current_period_end ?? null,
-    };
-    
-    console.log('[SubscriptionService] Calculated usage limit:', result);
-    return result;
-      
+      };
+
+      console.log('[SubscriptionService] Calculated usage limit:', result);
+      return result;
+
     } catch (fetchError: any) {
       clearTimeout(timeoutId);
       if (fetchError.name === 'AbortError') {
@@ -447,7 +448,7 @@ export async function fetchUsageLimit(userId: string): Promise<UsageLimitInfo | 
       }
       throw fetchError;
     }
-    
+
   } catch (error: any) {
     console.error('[SubscriptionService] Exception fetching usage limit:', {
       error,
@@ -475,7 +476,7 @@ export async function syncSubscriptionFromDodoPayments(
     // Get customer_id from profile
     const accessToken = await getAccessToken();
     const profileUrl = `${supabaseUrl}/rest/v1/profiles?select=customer_id&id=eq.${userId}`;
-    
+
     const profileResponse = await fetch(profileUrl, {
       method: 'GET',
       headers: {
@@ -504,7 +505,7 @@ export async function syncSubscriptionFromDodoPayments(
     }
 
     const subscription = await dodoService.getSubscription(paymentGatewaySubscriptionId);
-    
+
     if (!subscription) {
       console.warn('[SubscriptionService] Subscription not found in DodoPayments');
       return { success: false, error: 'Subscription not found in DodoPayments' };
@@ -578,10 +579,10 @@ export async function syncSubscriptionFromDodoPayments(
 export async function fetchUserProfile(userId: string) {
   try {
     console.log('[SubscriptionService] Fetching user profile via REST API...');
-    
+
     // Get access token - bypasses hanging getSession() when possible
     const accessToken = await getAccessToken();
-    
+
     // Fetch profile using REST API
     const dataArray = await fetchWithRestAPI(
       'profiles',
@@ -589,11 +590,11 @@ export async function fetchUserProfile(userId: string) {
       { id: userId },
       accessToken
     );
-    
+
     if (!dataArray || dataArray.length === 0) {
       throw new Error('Profile not found');
     }
-    
+
     console.log('[SubscriptionService] User profile fetched successfully');
     return dataArray[0];
   } catch (error) {

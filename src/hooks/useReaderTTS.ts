@@ -427,6 +427,7 @@ export const useReaderTTS = ({
 
       // Use enhanced tracker (handles queue, retry, circuit breaker)
       await tracker.recordUsageSeconds(seconds, 'reader', {
+        sessionId: currentSessionId, // ✅ Pass session ID explicitly for anonymous users
         skipLimitCheck: options?.skipLimitCheck ?? false,  // ✅ Pass through skipLimitCheck
         onSuccess: () => {
           // console.log('[TTS Usage] Recorded successfully via enhanced tracker');
@@ -1131,6 +1132,13 @@ export const useReaderTTS = ({
 
             // Retry playback with fresh audio
             console.log(`[playChunk] Retrying chunk #${index} with fresh audio after blob URL error`);
+
+            // ✅ ZOMBIE RESURRECTION FIX: Check if we are still meant to be playing
+            if (!ttsIntentActiveRef.current) {
+              console.log(`[playChunk] Retry ready but playback halted/unmounted - aborting resurrection.`);
+              return;
+            }
+
             playAudio(audioUrl);
             return; // Success - don't show error
           } catch (retryError) {
@@ -1679,6 +1687,14 @@ export const useReaderTTS = ({
     // ✅ Reset buffered chunks count when stopping
     setBufferedChunksCount(0);
   }, [haltPlayback, clearResumeIndex]);
+
+  // === Cleanup on unmount ===
+  useEffect(() => {
+    return () => {
+      console.log(`[${readerInstanceId}] Reader unmounting, halting playback`);
+      haltPlayback();
+    };
+  }, [haltPlayback, readerInstanceId]);
 
   // Update handleStopTTSRef when handleStopTTS changes
   useEffect(() => {
@@ -2395,7 +2411,7 @@ export const useReaderTTS = ({
 
 
   // Seek and start TTS (called on release)
-  const handleSeekToPercentage = useCallback((percentage: number) => {
+  const handleSeekToPercentage = useCallback(async (percentage: number) => {
     console.log(`[${readerInstanceId}][handleSeekToPercentage] SEEK CALLED - percentage: ${percentage}`);
 
     if (!chunks || chunks.length === 0) {
@@ -2424,6 +2440,47 @@ export const useReaderTTS = ({
 
     // Activate TTS intent
     ttsIntentActiveRef.current = true;
+
+    // ✅ FIX: Usage limit checks for seeking (loophole fix)
+    // Check anonymous limit BEFORE starting TTS
+    const checkLimits = async () => {
+      if (anonymousLimit) {
+        const canUseTTS = await anonymousLimit.checkLimit();
+        if (!canUseTTS) {
+          console.warn('[TTS] Anonymous limit reached, blocking seeking');
+          addToast?.('Please sign up to continue using Read Aloud', 'info');
+          setIsProcessing(false);
+          return false;
+        }
+      }
+
+      // Check authenticated user limit
+      if (user?.id) {
+        try {
+          await refreshUsageLimit();
+          const limitData = await fetchUsageLimit(user.id);
+          if (limitData) {
+            const limitExceeded = (limitData.limit_exceeded ?? false) ||
+              (limitData.minutes_remaining !== null &&
+                limitData.minutes_remaining < 1 &&
+                (limitData.prepaid_minutes ?? 0) === 0);
+
+            if (limitExceeded) {
+              console.warn('[TTS] Authenticated limit reached, blocking seeking');
+              addToast?.('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
+              setIsProcessing(false);
+              return false;
+            }
+          }
+        } catch (e) {
+          console.error('[TTS] Error checking limit during seek:', e);
+        }
+      }
+      return true;
+    };
+
+    const isAllowed = await checkLimits();
+    if (!isAllowed) return;
 
     // Prefetch target chunk (and next one) before playing to avoid delay
     const startPlayback = async () => {

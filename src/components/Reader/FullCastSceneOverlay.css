@@ -1,0 +1,191 @@
+/* src/components/Reader/FullCastSceneOverlay.css */
+.fullcast-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    min-width: 280px;
+    max-width: 90vw;
+    width: 320px;
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    overflow: hidden;
+    color: white;
+    font-family: system-ui, -apple-system, sans-serif;
+    transition: width 0.2s, height 0.2s;
+}
+
+
+/* The Resize Handle */
+.resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    cursor: nwse-resize;
+    z-index: 10;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 2px;
+}
+
+
+.resize-handle::after {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid rgba(255, 255, 255, 0.4);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.4);
+}
+
+.resize-handle:hover::after {
+    border-color: #2563eb;
+}
+
+.fullcast-overlay-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: grab;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.fullcast-overlay-header h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #e0e0e0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.fullcast-overlay-body {
+    position: relative;
+    width: 100%;
+    /* Maintain 16:9 aspect ratio container */
+    aspect-ratio: 16/9;
+    background: #000;
+}
+
+.fullcast-image-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.fullcast-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.fullcast-image.loaded {
+    opacity: 1;
+}
+
+.fullcast-nav-controls {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 5px;
+    pointer-events: none;
+    /* Let clicks pass through to image */
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.fullcast-overlay:hover .fullcast-nav-controls {
+    opacity: 1;
+}
+
+.nav-arrow {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    /* Re-enable clicks for buttons */
+    transition: all 0.2s;
+}
+
+.nav-arrow:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.9);
+    color: black;
+    transform: scale(1.1);
+}
+
+.nav-arrow:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.scene-caption {
+    padding: 10px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #ccc;
+    background: rgba(20, 20, 20, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+.fullcast-toggle-button-floating {
+    position: fixed;
+    bottom: 100px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #2563eb;
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 90;
+    transition: transform 0.2s;
+}
+
+.fullcast-toggle-button-floating:hover {
+    transform: scale(1.05);
+}

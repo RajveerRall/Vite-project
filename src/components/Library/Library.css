@@ -22,9 +22,15 @@
 }
 
 @keyframes spin {
-  0% { transform: translate(-50%, -50%) rotate(0deg); }
-  100% { transform: translate(-50%, -50%) rotate(360deg); }
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
+
 /* .library {
   padding: 2rem;
   max-width: 1200px;
@@ -350,7 +356,7 @@
   z-index: 1;
 }
 
-.upload-area > * {
+.upload-area>* {
   position: relative;
   z-index: 2;
 }
@@ -405,7 +411,7 @@
   z-index: 1;
 }
 
-.browse-button > * {
+.browse-button>* {
   position: relative;
   z-index: 2;
 }
@@ -555,8 +561,8 @@
   z-index: 1;
 }
 
-.book-actions button[class*="bg-amber-800"] > *,
-.book-actions button[class*="bg-amber-900"] > * {
+.book-actions button[class*="bg-amber-800"]>*,
+.book-actions button[class*="bg-amber-900"]>* {
   position: relative;
   z-index: 2;
 }
@@ -589,7 +595,7 @@
   z-index: 1;
 }
 
-.book-actions button[class*="bg-gray-100"]:not([class*="cursor-not-allowed"]) > * {
+.book-actions button[class*="bg-gray-100"]:not([class*="cursor-not-allowed"])>* {
   position: relative;
   z-index: 2;
 }
@@ -621,8 +627,8 @@ button[class*="bg-red-700"]::before {
   z-index: 1;
 }
 
-button[class*="bg-red-600"] > *,
-button[class*="bg-red-700"] > * {
+button[class*="bg-red-600"]>*,
+button[class*="bg-red-700"]>* {
   position: relative;
   z-index: 2;
 }
@@ -655,7 +661,7 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"])::before {
   z-index: 1;
 }
 
-button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]) > * {
+button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"])>* {
   position: relative;
   z-index: 2;
 }
@@ -693,8 +699,13 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Resource links */
@@ -718,7 +729,7 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
   .upload-area {
     padding: 1.25rem 1rem;
   }
-  
+
   .book-cover {
     height: 8rem;
   }
@@ -805,6 +816,7 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
     transform: translateX(100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -816,6 +828,7 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
     transform: translateX(0);
     opacity: 1;
   }
+
   to {
     transform: translateX(100%);
     opacity: 0;
@@ -828,9 +841,18 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
 
 
 /* Keep ALL of your existing styles from the top of the file... */
-.library { /* ... */ }
-.upload-area { /* ... */ }
-.book-card { /* ... */ }
+.library {
+  /* ... */
+}
+
+.upload-area {
+  /* ... */
+}
+
+.book-card {
+  /* ... */
+}
+
 /* etc... */
 
 
@@ -843,9 +865,11 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
 }
 
 .book-carousel-section h2 {
-  font-size: 1.5rem; /* 24px */
+  font-size: 1.5rem;
+  /* 24px */
   font-weight: 700;
-  color: #1f2937; /* gray-800 */
+  color: #1f2937;
+  /* gray-800 */
   margin-bottom: 1rem;
 }
 
@@ -861,12 +885,14 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
 /* This is the container that moves horizontally */
 .carousel-container {
   display: flex;
-  margin-left: -1rem; /* Counteract the padding on the slides */
+  margin-left: -1rem;
+  /* Counteract the padding on the slides */
 }
 
 /* Each individual slide */
 .carousel-slide {
-  flex: 0 0 33.3333%; /* On smallest screens, 3 slides visible */
+  flex: 0 0 33.3333%;
+  /* On smallest screens, 3 slides visible */
   padding-left: 1rem;
   min-width: 0;
 }
@@ -874,17 +900,22 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
 /* Responsive number of slides */
 @media (min-width: 640px) {
   .carousel-slide {
-    flex-basis: 25%; /* 4 slides */
+    flex-basis: 25%;
+    /* 4 slides */
   }
 }
+
 @media (min-width: 768px) {
   .carousel-slide {
-    flex-basis: 20%; /* 5 slides */
+    flex-basis: 20%;
+    /* 5 slides */
   }
 }
+
 @media (min-width: 1024px) {
   .carousel-slide {
-    flex-basis: 16.6666%; /* 6 slides */
+    flex-basis: 16.6666%;
+    /* 6 slides */
   }
 }
 
@@ -937,17 +968,22 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
 .carousel-arrow svg {
   width: 1.5rem;
   height: 1.5rem;
-  color: #1f2937; /* gray-800 */
+  color: #1f2937;
+  /* gray-800 */
 }
 
 
 .toast {
   position: fixed;
-  top: 1.5rem; /* 24px */
-  right: 1.5rem; /* 24px */
+  top: 1.5rem;
+  /* 24px */
+  right: 1.5rem;
+  /* 24px */
   z-index: 50;
-  padding: 1rem; /* 16px */
-  border-radius: 0.375rem; /* 6px */
+  padding: 1rem;
+  /* 16px */
+  border-radius: 0.375rem;
+  /* 6px */
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   display: flex;
   align-items: center;
@@ -956,16 +992,22 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
 
 /* Success State */
 .toast.success {
-  background-color: #f0fdf4; /* green-50 */
-  border-left: 4px solid #22c55e; /* green-500 */
-  color: #14532d; /* green-900 */
+  background-color: #f0fdf4;
+  /* green-50 */
+  border-left: 4px solid #22c55e;
+  /* green-500 */
+  color: #14532d;
+  /* green-900 */
 }
 
 /* Error State */
 .toast.error {
-  background-color: #fef2f2; /* red-50 */
-  border-left: 4px solid #ef4444; /* red-500 */
-  color: #7f1d1d; /* red-900 */
+  background-color: #fef2f2;
+  /* red-50 */
+  border-left: 4px solid #ef4444;
+  /* red-500 */
+  color: #7f1d1d;
+  /* red-900 */
 }
 
 .toast p {
@@ -979,12 +1021,14 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
-  color: #9ca3af; /* gray-400 */
+  color: #9ca3af;
+  /* gray-400 */
   padding: 0 0.5rem;
 }
 
 .toast-close-btn:hover {
-  color: #1f2937; /* gray-800 */
+  color: #1f2937;
+  /* gray-800 */
 }
 
 /* Feathered edge mask for translucent cards */
@@ -1062,12 +1106,15 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
 /* Hero Title */
 .hero-title {
   font-family: 'Source Sans 3', sans-serif;
-  font-size: 2.75rem; /* Increased from text-3xl (1.875rem) */
-  letter-spacing: 0.025em; /* Slight letter spacing for better readability */
+  font-size: 2.75rem;
+  /* Increased from text-3xl (1.875rem) */
+  letter-spacing: 0.025em;
+  /* Slight letter spacing for better readability */
 }
 
 @media (min-width: 640px) {
   .hero-title {
-    font-size: 2.5rem; /* Increased from text-4xl (2.25rem) */
+    font-size: 2.5rem;
+    /* Increased from text-4xl (2.25rem) */
   }
 }

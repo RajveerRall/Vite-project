@@ -193,10 +193,10 @@ BEGIN
     v_subscription_minutes_to_add := v_subscription_to_consume / 60.0;
     
     IF (v_subscription_minutes_used + v_subscription_minutes_to_add) > v_minutes_limit THEN
-      RAISE EXCEPTION 'TTS_USAGE_LIMIT_EXCEEDED' USING 
-        MESSAGE = 'TTS usage limit exceeded. Please upgrade your subscription.',
+      RAISE EXCEPTION 'TTS_USAGE_LIMIT_EXCEEDED: TTS usage limit exceeded. Please upgrade your subscription.' USING 
         DETAIL = format('Current subscription usage: %s minutes, Limit: %s minutes, Prepaid remaining: %s minutes', 
-                       ROUND(v_subscription_minutes_used, 2), v_minutes_limit, v_prepaid_remaining);
+                       ROUND(v_subscription_minutes_used, 2), v_minutes_limit, v_prepaid_remaining),
+        HINT = 'PROUE02';
     END IF;
   END IF;
 

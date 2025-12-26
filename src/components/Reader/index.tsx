@@ -22,6 +22,7 @@ import { ReaderHeader } from './ReaderHeader';
 import { ReaderContent } from './ReaderContent';
 import { FullCastOverlay } from './FullCastOverlay';
 import { ReaderControlsContainer } from './ReaderControlsContainer';
+import FullCastSceneOverlay from './FullCastSceneOverlay';
 import { SubscriptionLimitModal } from '../Subscription/SubscriptionLimitModal';
 import { useSubscription } from '../../context/SubscriptionContext';
 
@@ -197,7 +198,14 @@ const Reader: React.FC = () => {
     isEnhanced,
   } = uiState;
 
-  const fullCast = useFullCast(currentPageText, currentContent, currentPageDisplay);
+  const fullCast = useFullCast(
+    currentPageText,
+    currentContent,
+    currentPageDisplay,
+    bookTitle,
+    currentChapterTitle
+  );
+
   const {
     isActive: fullCastActive,
     status: fullCastStatus,
@@ -205,9 +213,18 @@ const Reader: React.FC = () => {
     needsTap: fullCastNeedsTap,
     isPaused: fullCastPaused,
     hasStartedPlaying,
+    scenes,
+    sceneImages,
+    currentScene,
+    isScenesLoading,
+    showScenes,
+    highlightedContent: fullCastHighlightedContent,
     pause: fullCastPause,
     resume: fullCastResume,
     stop: fullCastStop,
+    setShowScenes,
+    setCurrentScene,
+    handleGenerateSceneImage,
   } = fullCast;
 
   // === Custom Hooks ===
@@ -334,14 +351,11 @@ const Reader: React.FC = () => {
     handleTTSNavigation,
     handlePreviousSentence,
     handleNextSentence,
-    handlePreviewScroll,
     handleSeekToPercentage,
     canTTSResume,
     highlightedContent: ttsHighlightedContent,
     setPlaybackRate,
     anonymousLimit,
-    hasFinishedPlayback,
-    bufferedChunksCount
   } = ttsHook;
 
   // Also check subscription limit status (moved here after isSpeaking/isProcessing are defined)
@@ -485,9 +499,6 @@ const Reader: React.FC = () => {
     }
   }, [openVideoModal]);
 
-  // Calculate if this is first open
-  const isFirstOpen = !currentBook?.lastRead ||
-    (Date.now() - new Date(currentBook.lastRead).getTime() < 5000);
 
   return (
     <div className={`reader theme-${theme}`}>
@@ -495,14 +506,10 @@ const Reader: React.FC = () => {
         bookTitle={bookTitle}
         currentChapterTitle={currentChapterTitle}
         onClose={handleCloseBookCB}
-        onNavigateToTocItem={handleNavigateToTocItem}
         onScrollToHighlight={scrollToHighlight}
-        isMobile={isMobile}
-        isEnhanced={isEnhanced}
-        isFirstOpen={isFirstOpen}
-        theme={theme}
+        onOpenSettings={toggleSettings}
+        onOpenChapters={() => setActivePanel('toc')}
         showTTSHighlight={isSpeaking || isProcessing || isPaused}
-        toc={toc}
       />
 
       <div className="reader-container">
@@ -516,6 +523,31 @@ const Reader: React.FC = () => {
           buffered={fullCastBuffered}
           hasStartedPlaying={hasStartedPlaying}
         />
+
+        {isEnhanced && showScenes && (
+          <FullCastSceneOverlay
+            scene={currentScene}
+            allScenes={scenes}
+            currentImageIndex={currentScene?.sceneIndex ?? 0}
+            imageUrl={(function () {
+              if (currentScene) {
+                const idx = currentScene.sceneIndex;
+                const match = sceneImages.find(img => img.sceneIndex === idx);
+                if (match?.url) return match.url;
+              }
+              return undefined;
+            })()}
+            isLoading={isScenesLoading}
+            isVisible={showScenes}
+            onToggle={() => setShowScenes(!showScenes)}
+            onManualNavigate={(index: number) => {
+              const target = scenes.find(s => s.sceneIndex === index);
+              if (target) {
+                setCurrentScene(target);
+              }
+            }}
+          />
+        )}
 
         <SidePanelBar
           activePanel={activePanel}
@@ -544,7 +576,7 @@ const Reader: React.FC = () => {
 
         <ReaderContent
           content={currentContent}
-          highlightedContent={isPdfBook ? undefined : ttsHighlightedContent}
+          highlightedContent={isPdfBook ? undefined : (fullCastActive ? fullCastHighlightedContent : ttsHighlightedContent)}
           onPageClick={handlePageClick}
           onChapterNavigation={handleChapterNavigation}
           showNavigationArrows={showNavigationArrows}
@@ -566,7 +598,6 @@ const Reader: React.FC = () => {
       <ReaderControlsContainer
         readingProgress={readingProgress}
         onReadAloud={handleTTS}
-        onReadAloudSummary={handleTTS}
         onStopTTS={handleStopTTSWithReset}
         onPreviousSentence={handlePreviousSentence}
         onNextSentence={handleNextSentence}
@@ -579,33 +610,22 @@ const Reader: React.FC = () => {
         totalChunks={_chunks.length}
         ttsSpeed={ttsSpeed}
         onSpeedChange={handleSpeedChangeWithStop}
-        onOpenSettings={toggleSettings}
-        onPreviewScroll={handlePreviewScroll}
         onSeekToPercentage={handleSeekToPercentage}
-        fullCastActive={fullCastActive}
-        bufferedChunksCount={bufferedChunksCount}
         fullCastStatus={fullCastStatus}
         fullCastBuffered={fullCastBuffered}
+        fullCastActive={fullCastActive}
         fullCastNeedsTap={fullCastNeedsTap}
         fullCastPaused={fullCastPaused}
         onFullCastStop={fullCastStop}
         onFullCastPause={fullCastPause}
         onFullCastResume={fullCastResume}
+        onFullCastGenerateImage={handleGenerateSceneImage}
         anonymousLimit={anonymousLimit}
-        toc={toc}
-        onNavigateToTocItem={handleNavigateToTocItem}
         theme={theme}
-        isEnhanced={isEnhanced}
         isMobile={isMobile}
-        isFirstOpen={isFirstOpen}
-        currentPageText={currentPageText}
-        currentChapterTitle={currentChapterTitle}
-        bookId={currentBook?.id}
-        onSummarizeChapter={() => {
-          // Open AI Chat panel/drawer and trigger summarization
+        onReadAloudSummary={() => {
           setActivePanel('ai-chat');
           setShouldAutoSummarize(true);
-          // The AIChatPanel will handle the actual summarization via props
         }}
       />
       {showFeatureHighlight && (<FeatureHighlight onClose={closeFeatureHighlight} />)}
