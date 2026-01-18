@@ -55,7 +55,12 @@ export class TTSSeamlessPlaybackService {
       }
 
       this.audioContext = new AudioContextClass();
-      
+
+      // Ensure audioContext is properly initialized
+      if (!this.audioContext) {
+        throw new Error('Failed to create AudioContext');
+      }
+
       // Create gain node for volume control
       this.gainNode = this.audioContext.createGain();
       this.gainNode.connect(this.audioContext.destination);
@@ -63,10 +68,8 @@ export class TTSSeamlessPlaybackService {
 
       // Handle suspended state (iOS requires user gesture)
       if (this.audioContext.state === 'suspended') {
-        console.log(`[${this.instanceId}] AudioContext suspended, will resume on user interaction`);
+        // AudioContext suspended, will resume on user interaction
       }
-
-      console.log(`[${this.instanceId}] AudioContext initialized: ${this.audioContext.state}`);
     } catch (error) {
       console.error(`[${this.instanceId}] Failed to initialize AudioContext:`, error);
       throw TTSErrorHandler.handleAudioError(error);
@@ -84,7 +87,6 @@ export class TTSSeamlessPlaybackService {
     if (this.audioContext!.state === 'suspended') {
       try {
         await this.audioContext!.resume();
-        console.log(`[${this.instanceId}] AudioContext resumed`);
       } catch (error) {
         console.warn(`[${this.instanceId}] Failed to resume AudioContext:`, error);
         throw TTSErrorHandler.handlePermissionError(error);
@@ -131,15 +133,15 @@ export class TTSSeamlessPlaybackService {
             protectedChunks.add(this.currentChunkIndex + i);
           }
         }
-        
+
         // Also protect the chunk being enqueued
         protectedChunks.add(chunkIndex);
-        
+
         // Find chunks that can be evicted (exclude protected ones)
         const keysToEvict = Array.from(this.decodedBuffers.keys())
           .filter(key => !protectedChunks.has(key))
           .sort((a, b) => a - b); // Sort to evict oldest first
-        
+
         if (keysToEvict.length > 0) {
           const oldestKey = keysToEvict[0];
           this.decodedBuffers.delete(oldestKey);
@@ -148,9 +150,6 @@ export class TTSSeamlessPlaybackService {
           if (queueIndex !== -1) {
             this.playbackQueue.splice(queueIndex, 1);
           }
-          console.log(`[${this.instanceId}] Removed oldest buffer (chunk ${oldestKey}) to limit queue size (protected: chunks ${Array.from(protectedChunks).join(', ')})`);
-        } else {
-          console.warn(`[${this.instanceId}] Queue full but all chunks are protected (current: ${this.currentChunkIndex}), allowing queue to exceed max size temporarily`);
         }
       }
 
@@ -170,8 +169,6 @@ export class TTSSeamlessPlaybackService {
           duration,
           timestamp: Date.now(),
         });
-
-        console.log(`[${this.instanceId}] Enqueued chunk #${chunkIndex} (duration: ${duration.toFixed(2)}s)`);
       }
     } catch (error) {
       console.error(`[${this.instanceId}] Failed to enqueue chunk ${chunkIndex}:`, error);
@@ -221,7 +218,7 @@ export class TTSSeamlessPlaybackService {
 
       // Calculate start time (seamless if resuming, or scheduled)
       let startTime: number;
-      
+
       if (this.isPaused && this.pausedTime > 0) {
         // Resuming from pause
         startTime = this.audioContext!.currentTime;
@@ -252,12 +249,12 @@ export class TTSSeamlessPlaybackService {
 
       // Start playback
       this.currentSource.start(startTime);
-      
+
       // Update state
       this.currentChunkIndex = chunkIndex;
       this.isPlaying = true;
       this.isPaused = false;
-      
+
       // Calculate next chunk start time (for seamless transition)
       // ✅ FIX: Use duration directly - speed is already encoded by TTS API
       // No need to divide by playbackRate since Web Audio playbackRate = 1.0
@@ -268,9 +265,6 @@ export class TTSSeamlessPlaybackService {
       // This prevents "Chunk not found" errors when external playChunk() is called
       // Queue removal happens in onChunkEnded() after playback completes
 
-      console.log(
-        `[${this.instanceId}] Playing chunk #${chunkIndex} at ${startTime.toFixed(3)}s (next at ${this.nextStartTime.toFixed(3)}s)`
-      );
 
       this.eventHandlers.onPlay?.(chunkIndex);
     } catch (error) {
@@ -286,26 +280,25 @@ export class TTSSeamlessPlaybackService {
    */
   private onChunkEnded(chunkIndex: number, duration: number): void {
     console.log(`[${this.instanceId}] Chunk #${chunkIndex} ended`);
-    
+
     // ✅ FIX: Check if we should process this event (might have been paused/stopped)
     if (!this.isPlaying || this.isPaused) {
       console.log(`[${this.instanceId}] Ignoring chunk ended event - playback stopped or paused`);
       return;
     }
-    
-    // ✅ FIX: Remove chunk from queue AFTER it finishes (not when it starts)
+
+    // Remove chunk from queue AFTER it finishes (not when it starts)
     const queueIndex = this.playbackQueue.findIndex(q => q.chunkIndex === chunkIndex);
     if (queueIndex !== -1) {
       this.playbackQueue.splice(queueIndex, 1);
-      console.log(`[${this.instanceId}] Removed chunk #${chunkIndex} from playback queue after completion`);
     }
-    
+
     this.currentSource = null;
-    
+
     // ✅ FIX: Only notify external handler - let hook control all transitions
     // Removed internal auto-advance - hook will handle it via onChunkComplete callback
     this.eventHandlers.onChunkComplete?.(chunkIndex);
-    
+
     // Check if we should end playback (no more chunks and not paused)
     const hasMoreChunks = this.playbackQueue.length > 0;
     if (!hasMoreChunks && this.isPlaying && !this.isPaused) {
@@ -323,7 +316,7 @@ export class TTSSeamlessPlaybackService {
       // ✅ FIX: Set flags FIRST to prevent onended handler from firing
       this.isPaused = true;
       this.isPlaying = false;
-      
+
       try {
         // ✅ FIX: Clear onended handler BEFORE stopping to prevent race condition
         if (this.currentSource.onended) {
@@ -332,17 +325,17 @@ export class TTSSeamlessPlaybackService {
         if ((this.currentSource as any)._endedHandler) {
           delete (this.currentSource as any)._endedHandler;
         }
-        
+
         this.currentSource.stop();
         this.pausedOffset = this.getCurrentTime();
         this.pausedTime = this.audioContext?.currentTime || 0;
       } catch (e) {
         // Source may have already ended
       }
-      
+
       this.currentSource?.disconnect();
       this.currentSource = null;
-      
+
       console.log(`[${this.instanceId}] Playback paused at offset ${this.pausedOffset.toFixed(2)}s`);
       this.eventHandlers.onPause?.(this.currentChunkIndex || 0);
     }
@@ -354,10 +347,10 @@ export class TTSSeamlessPlaybackService {
   async resume(): Promise<void> {
     if (this.isPaused && this.currentChunkIndex !== null) {
       await this.ensureContextResumed();
-      
+
       // Replay current chunk from paused offset
       await this.playChunk(this.currentChunkIndex);
-      
+
       console.log(`[${this.instanceId}] Playback resumed`);
       this.eventHandlers.onResume?.(this.currentChunkIndex);
     }
@@ -370,7 +363,7 @@ export class TTSSeamlessPlaybackService {
     // ✅ FIX: Set flags FIRST to prevent any onended handlers from processing
     this.isPlaying = false;
     this.isPaused = false;
-    
+
     if (this.currentSource) {
       // ✅ FIX: Clear onended handler BEFORE stopping to prevent race condition
       if (this.currentSource.onended) {
@@ -379,7 +372,7 @@ export class TTSSeamlessPlaybackService {
       if ((this.currentSource as any)._endedHandler) {
         delete (this.currentSource as any)._endedHandler;
       }
-      
+
       try {
         this.currentSource.stop();
       } catch (e) {
@@ -397,7 +390,7 @@ export class TTSSeamlessPlaybackService {
     this.playbackQueue = [];
     // Keep decoded buffers for potential resume (but clear playback queue)
 
-    console.log(`[${this.instanceId}] Playback stopped`);
+
     this.eventHandlers.onStop?.();
   }
 
@@ -410,7 +403,7 @@ export class TTSSeamlessPlaybackService {
     // Store rate for reference (but don't use it)
     // Clamp speed between 0.5x and 1.5x
     this.playbackRate = Math.max(0.5, Math.min(1.5, rate));
-    
+
     // ✅ FIX: Always keep Web Audio playbackRate at 1.0
     // Speed is already encoded in the audio by TTS API (preserves pitch)
     // Web Audio API playbackRate would change both speed AND pitch
@@ -428,7 +421,6 @@ export class TTSSeamlessPlaybackService {
       }
     }
 
-    console.log(`[${this.instanceId}] Playback rate set to ${this.playbackRate}x (handled by TTS API, Web Audio rate = 1.0)`);
   }
 
   /**
@@ -499,7 +491,6 @@ export class TTSSeamlessPlaybackService {
   clearQueue(): void {
     this.playbackQueue = [];
     this.decodedBuffers.clear();
-    console.log(`[${this.instanceId}] Queue cleared`);
   }
 
   /**
@@ -508,7 +499,7 @@ export class TTSSeamlessPlaybackService {
   cleanup(): void {
     this.stop();
     this.clearQueue();
-    
+
     if (this.gainNode) {
       this.gainNode.disconnect();
       this.gainNode = null;
@@ -518,8 +509,6 @@ export class TTSSeamlessPlaybackService {
       this.audioContext.close().catch(console.error);
       this.audioContext = null;
     }
-
-    console.log(`[${this.instanceId}] Cleanup complete`);
   }
 }
 
