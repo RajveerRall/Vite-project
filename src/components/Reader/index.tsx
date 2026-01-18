@@ -353,6 +353,7 @@ const Reader: React.FC = () => {
     handleTTSNavigation,
     handlePreviousSentence,
     handleNextSentence,
+    handlePreviewScroll,
     handleSeekToPercentage,
     canTTSResume,
     highlightedContent: ttsHighlightedContent,
@@ -618,6 +619,7 @@ const Reader: React.FC = () => {
         totalChunks={_chunks.length}
         ttsSpeed={ttsSpeed}
         onSpeedChange={handleSpeedChangeWithStop}
+        onPreviewScroll={handlePreviewScroll}
         onSeekToPercentage={handleSeekToPercentage}
         fullCastStatus={fullCastStatus}
         fullCastBuffered={fullCastBuffered}
@@ -635,23 +637,23 @@ const Reader: React.FC = () => {
           setActivePanel('ai-chat');
           setShouldAutoSummarize(true);
         }}
+        onOpenSettings={toggleSettings}
       />
       {showFeatureHighlight && (<FeatureHighlight onClose={closeFeatureHighlight} />)}
 
-      {isEnhanced && (
-        <SettingsWidget
-          fontSize={fontSize}
-          theme={theme}
-          isSettingsOpen={isSettingsOpen}
-          increaseFontSize={increaseFontSize}
-          decreaseFontSize={decreaseFontSize}
-          resetFontSize={resetFontSize}
-          changeTheme={changeTheme}
-          selectedVoice={selectedVoice}
-          onVoiceChange={handleVoiceChange}
-          closeSettings={closeSettings}
-        />
-      )}
+      {/* Settings Widget - always available */}
+      <SettingsWidget
+        fontSize={fontSize}
+        theme={theme}
+        isSettingsOpen={isSettingsOpen}
+        increaseFontSize={increaseFontSize}
+        decreaseFontSize={decreaseFontSize}
+        resetFontSize={resetFontSize}
+        changeTheme={changeTheme}
+        selectedVoice={selectedVoice}
+        onVoiceChange={handleVoiceChange}
+        closeSettings={closeSettings}
+      />
 
       <FloatingReadButton
         onRead={handleTTS}

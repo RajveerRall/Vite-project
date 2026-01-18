@@ -268,13 +268,11 @@ export const useReaderTTS = ({
   // === Keep selectedVoiceRef synchronized with selectedVoice prop ===
   useEffect(() => {
     selectedVoiceRef.current = selectedVoice;
-    console.log(`[${readerInstanceId}][Voice Ref Sync] selectedVoiceRef updated to: ${selectedVoice}`);
   }, [selectedVoice, readerInstanceId]);
 
   // === Keep ttsSpeedRef synchronized with ttsSpeed prop ===
   useEffect(() => {
     ttsSpeedRef.current = ttsSpeed;
-    console.log(`[${readerInstanceId}][Speed Ref Sync] ttsSpeedRef updated to: ${ttsSpeed}x`);
   }, [ttsSpeed, readerInstanceId]);
 
   // // === Usage recording helper - Enhanced with queue and retry ===
@@ -624,13 +622,10 @@ export const useReaderTTS = ({
 
   // === Handle voice changes during playback ===
   useEffect(() => {
-    console.log(`[${readerInstanceId}][Voice Change Effect] selectedVoice changed to: ${selectedVoice}, isSpeaking: ${isSpeaking}, isPaused: ${isPaused}, isProcessing: ${isProcessing}`);
-
     // Only clear buffer if voice actually changed (not just effect re-running due to state changes)
     if ((isSpeaking || isPaused || isProcessing) &&
       Object.keys(audioBuffer.current).length > 0 &&
       prevVoiceRef.current !== selectedVoice) {
-      console.log(`[${readerInstanceId}][Voice Change] Voice changed from ${prevVoiceRef.current} to ${selectedVoice} during active playback - clearing buffer`);
       clearAudioBuffer();
     }
 
@@ -813,7 +808,6 @@ export const useReaderTTS = ({
         if (isSeamless && strategy) {
           try {
             await strategy.prepareChunk(chunkIndex, audioBlob);
-            console.log(`[Prefetch] Pre-decoded chunk #${chunkIndex} for seamless playback`);
           } catch (err) {
             console.warn(`[Prefetch] Failed to pre-decode chunk #${chunkIndex} for seamless playback`, err);
           }
@@ -830,8 +824,6 @@ export const useReaderTTS = ({
         const audioUrl = URL.createObjectURL(audioBlob);
         audioBuffer.current[chunkIndex] = audioUrl;
         bufferVoiceRef.current = selectedVoiceRef.current;
-
-        console.log(`[Prefetch] Successfully buffered chunk #${chunkIndex} with voice ${selectedVoiceRef.current}`);
 
         // ✅ FIX: Update buffered chunks count
         setBufferedChunksCount(prev => prev + 1);
@@ -1325,7 +1317,6 @@ export const useReaderTTS = ({
   // This MUST run immediately after playChunk is defined to ensure it's available for audio handlers
   useEffect(() => {
     playChunkRef.current = playChunk;
-    console.log(`[${readerInstanceId}][playChunkRef] Synchronized playChunkRef with playChunk function`);
   }, [playChunk, readerInstanceId]);
 
   // Keep chunksRef synchronized
@@ -2019,12 +2010,6 @@ export const useReaderTTS = ({
 
   // === Save progress periodically on chunk change ===
   useEffect(() => {
-    console.log(`[TTS] Chunk change effect triggered:`, {
-      currentChunkIndex,
-      chunksLength: chunks.length,
-      hasCurrentPageText: !!currentPageText
-    });
-
     if (currentChunkIndex !== null && chunks.length > 0) {
       let offset = 0;
       for (let i = 0; i < currentChunkIndex; i++) {

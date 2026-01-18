@@ -8,7 +8,7 @@ import { UsageWarningToast } from '../UsageWarningToast';
 import {
   Headphones,
   PlayCircle, PauseCircle, RotateCcw,
-  Loader2, Square, SkipBack, SkipForward, ImageIcon
+  Loader2, Square, SkipBack, SkipForward, ImageIcon, Settings
 } from 'lucide-react';
 import InteractiveProgressBar from './InteractiveProgressBar';
 import SpeedControlDropdown from './SpeedControlDropdown';
@@ -62,6 +62,8 @@ export interface ControlsProps {
   // UI Context (for layout/visibility)
   isMobile?: boolean;
   theme?: 'light' | 'dark' | 'sepia';
+  // Settings
+  onOpenSettings?: () => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -100,7 +102,8 @@ const Controls: React.FC<ControlsProps> = ({
   onReadAloudSummary,
   onFullCastGenerateImage,
   isMobile,
-  theme
+  theme,
+  onOpenSettings
 }) => {
   const {
     usedMinutes: fcUsed,
@@ -214,7 +217,7 @@ const Controls: React.FC<ControlsProps> = ({
   // Show Full Cast controls when Full Cast is active
   if (fullCastActive) {
     return (
-      <div className="music-player-controls bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+      <div className="music-player-controls theme-${theme} rounded-xl border shadow-lg p-6">
         {/* Full Cast Status */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -243,23 +246,23 @@ const Controls: React.FC<ControlsProps> = ({
             {!fullCastPaused ? (
               <button
                 onClick={onFullCastPause}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-full hover-effect transition-colors"
                 aria-label="Pause Picture Mode"
                 title="Pause Picture Mode"
               >
-                <PauseCircle size={18} className="text-gray-600" />
+                <PauseCircle size={18} className="theme-icon" />
               </button>
             ) : (
               <button
                 onClick={onFullCastResume}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-full hover-effect transition-colors"
                 aria-label="Resume Picture Mode"
                 title="Resume Picture Mode"
               >
-                <PlayCircle size={18} className="text-gray-600" />
+                <PlayCircle size={18} className="theme-icon" />
               </button>
             )}
-{/* 
+            {/* 
             {onFullCastGenerateImage && (
               <button
                 onClick={onFullCastGenerateImage}
@@ -302,8 +305,19 @@ const Controls: React.FC<ControlsProps> = ({
 
         {/* Main Controls */}
         <div className="flex items-center justify-between gap-3 md:gap-4">
-          {/* Left Side - Placeholder for symmetry or other controls */}
-          <div className="w-10 md:w-12" />
+          {/* Left Side - Settings Button */}
+          <div className="w-10 md:w-12 flex items-center justify-center">
+            {onOpenSettings && (
+              <button
+                onClick={onOpenSettings}
+                className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
+                aria-label="Settings"
+                title="Settings"
+              >
+                <Settings size={18} className="md:text-[22px]" />
+              </button>
+            )}
+          </div>
 
           {/* Center - Play Controls */}
           <div className="flex items-center gap-3 md:gap-4">

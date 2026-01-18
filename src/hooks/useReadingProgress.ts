@@ -25,16 +25,6 @@ export const useReadingProgress = (contentRef: RefObject<HTMLElement>, currentPa
       // Calculate percentage
       const scrollableHeight = scrollHeight - clientHeight;
 
-      // Debug logging
-      console.log('Scroll Debug:', {
-        scrollTop,
-        scrollHeight,
-        clientHeight,
-        scrollableHeight,
-        element: scrollableElement.className,
-        isReaderMain: scrollableElement === element
-      });
-
       let percentage = 0;
       if (scrollableHeight <= 0) {
         // Content doesn't overflow, so we're at 100%
@@ -45,7 +35,6 @@ export const useReadingProgress = (contentRef: RefObject<HTMLElement>, currentPa
         percentage = Math.max(0, Math.min(100, percentage));
       }
 
-      console.log('Calculated percentage:', percentage);
       setProgress(percentage);
     }, 100);
 
