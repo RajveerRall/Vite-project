@@ -397,20 +397,17 @@ export function highlightTextInHtml(
       if (blobUrlMap?.has(epubSrc)) {
         blobUrl = blobUrlMap.get(epubSrc)!;
         tempImg.src = blobUrl; // Set immediately
-        console.log(`[htmlHighlight] Restored blob URL from blobUrlMap for ${epubSrc}`);
       } else {
         const preservedBlobUrl = imageBlobUrls.get(epubSrc);
         if (preservedBlobUrl) {
           blobUrl = preservedBlobUrl;
           tempImg.src = blobUrl; // Set immediately
-          console.log(`[htmlHighlight] Restored blob URL from preserved map for ${epubSrc}`);
         } else {
           // Fallback to global cache (from previously loaded images)
           const cachedBlobUrl = imageBlobUrlCache.get(epubSrc);
           if (cachedBlobUrl) {
             blobUrl = cachedBlobUrl;
             tempImg.src = blobUrl; // Set immediately
-            console.log(`[htmlHighlight] Restored blob URL from global cache for ${epubSrc}`);
           } else {
             console.warn(`[htmlHighlight] No blob URL found for ${epubSrc}, srcAttribute: ${srcAttribute}, srcProperty: ${srcProperty}`);
           }
@@ -487,14 +484,6 @@ export function highlightChunkInHtml(
 
   // Debug: Log images BEFORE any manipulation
   const imagesBefore = tempDiv.querySelectorAll('img');
-  console.log(`[htmlHighlight] Images BEFORE manipulation:`, {
-    count: imagesBefore.length,
-    images: Array.from(imagesBefore).map(img => ({
-      epubSrc: img.getAttribute('data-epub-src'),
-      src: img.getAttribute('src') || img.src,
-      outerHTML: img.outerHTML.substring(0, 150)
-    }))
-  });
 
   // Preserve blob URLs for images before manipulation
   const imageBlobUrls = new Map<string, string>();
@@ -533,12 +522,6 @@ export function highlightChunkInHtml(
   }
 
   // Debug logging to help diagnose matching issues
-  console.log(`[htmlHighlight] Searching for chunk #${chunkIndex}:`, {
-    chunkTextPreview: chunkText.substring(0, 80),
-    normalizedChunkPreview: normalizeWhitespace(chunkText).substring(0, 80),
-    startFromPosition,
-    totalChunks: allChunks?.length
-  });
 
   // Use content-based matching to find chunk directly in HTML
   // Pass the tempDiv so we can work with the same DOM instance
@@ -547,9 +530,6 @@ export function highlightChunkInHtml(
   if (chunkMatch && chunkMatch.nodes.length > 0) {
     // Debug: Check images before highlighting operations
     const imagesBeforeHighlight = tempDiv.querySelectorAll('img');
-    console.log(`[htmlHighlight] Images BEFORE highlighting operations:`, {
-      count: imagesBeforeHighlight.length
-    });
     
     // Apply highlights using the matched nodes
     // Process in reverse to maintain node references
@@ -590,14 +570,6 @@ export function highlightChunkInHtml(
     
     // Debug: Check images after highlighting operations
     const imagesAfterHighlight = tempDiv.querySelectorAll('img');
-    console.log(`[htmlHighlight] Images AFTER highlighting operations:`, {
-      count: imagesAfterHighlight.length,
-      imagesRemoved: imagesBeforeHighlight.length - imagesAfterHighlight.length,
-      images: Array.from(imagesAfterHighlight).map(img => ({
-        epubSrc: img.getAttribute('data-epub-src'),
-        src: img.getAttribute('src') || img.src
-      }))
-    });
 
     // Preserve blob URLs and dimensions BEFORE serializing to HTML
     // This ensures they're in the HTML string when React renders
@@ -626,20 +598,17 @@ export function highlightChunkInHtml(
         if (blobUrlMap?.has(epubSrc)) {
           blobUrl = blobUrlMap.get(epubSrc)!;
           tempImg.src = blobUrl; // Set immediately
-          console.log(`[htmlHighlight] Restored blob URL from blobUrlMap for ${epubSrc}`);
         } else {
           const preservedBlobUrl = imageBlobUrls.get(epubSrc);
           if (preservedBlobUrl) {
             blobUrl = preservedBlobUrl;
             tempImg.src = blobUrl; // Set immediately
-            console.log(`[htmlHighlight] Restored blob URL from preserved map for ${epubSrc}`);
           } else {
             // Fallback to global cache (from previously loaded images)
             const cachedBlobUrl = imageBlobUrlCache.get(epubSrc);
             if (cachedBlobUrl) {
               blobUrl = cachedBlobUrl;
               tempImg.src = blobUrl; // Set immediately
-              console.log(`[htmlHighlight] Restored blob URL from global cache for ${epubSrc}`);
             } else {
               console.warn(`[htmlHighlight] No blob URL found for ${epubSrc}, srcAttribute: ${srcAttribute}, srcProperty: ${srcProperty}`);
             }
@@ -685,15 +654,6 @@ export function highlightChunkInHtml(
     const serializedHtml = tempDiv.innerHTML;
     const serializedImgRegex = /<img[^>]*>/gi;
     const serializedImgMatches = serializedHtml.match(serializedImgRegex) || [];
-    console.log(`[htmlHighlight] Images in serialized HTML string:`, {
-      count: serializedImgMatches.length,
-      images: serializedImgMatches.map(img => ({
-        fullTag: img.substring(0, 150),
-        hasSrc: img.includes('src='),
-        hasEpubSrc: img.includes('data-epub-src=')
-      })),
-      htmlLength: serializedHtml.length
-    });
 
     // Now serialize - blob URLs and dimensions will be in the HTML string
     return serializedHtml;

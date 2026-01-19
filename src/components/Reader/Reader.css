@@ -643,7 +643,10 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow-y: auto !important;
+  /* Force scroll */
+  overflow-x: hidden;
+  /* Prevent horizontal scroll causing layout issues */
   align-items: center;
   /* Minimal bottom padding to prevent content from being hidden behind bottom controls */
   padding-bottom: 20px;
@@ -717,6 +720,17 @@
   max-width: 100%;
   max-height: 70vh;
   object-fit: contain;
+}
+
+/* Ensure PDF images allow scrolling */
+.epub-content img[data-epub-src$=".pdf-page.png"],
+.epub-content img[src*="blob:"] {
+  max-width: 100%;
+  height: auto !important;
+  /* Allow natural height for scrolling */
+  max-height: none !important;
+  /* Remove height constraint */
+  display: block;
 }
 
 /* Bottom Controls Enhanced Styling */

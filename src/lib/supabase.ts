@@ -14,7 +14,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: 'pkce',
     autoRefreshToken: true,
     persistSession: true,
-    debug: true,
+    debug: false, // Disable auth debug logs in production
   },
 })
 
@@ -49,9 +49,9 @@ export const downloadFileOptimized = async (bucket: string, path: string): Promi
   try {
     // Method 1: Direct CDN URL (fastest, best browser compatibility)
     const publicUrl = getFileUrl(bucket, path);
-    
+
     console.log(`[SupabaseOptimized] Trying CDN download: ${path}`);
-    
+
     const response = await fetch(publicUrl, {
       method: 'GET',
       headers: {
@@ -67,7 +67,7 @@ export const downloadFileOptimized = async (bucket: string, path: string): Promi
     if (response.ok) {
       const contentLength = response.headers.get('content-length');
       const blob = await response.blob();
-      
+
       if (blob.size > 0) {
         console.log(`[SupabaseOptimized] CDN success: ${path} (${blob.size} bytes, ${contentLength ? `expected ${contentLength}` : 'no content-length'})`);
         return blob;
@@ -75,7 +75,7 @@ export const downloadFileOptimized = async (bucket: string, path: string): Promi
     }
 
     console.log(`[SupabaseOptimized] CDN failed (${response.status}: ${response.statusText}), trying Supabase client: ${path}`);
-    
+
     // Method 2: Supabase client fallback
     const { data, error } = await supabase.storage
       .from(bucket)
@@ -87,7 +87,7 @@ export const downloadFileOptimized = async (bucket: string, path: string): Promi
 
     console.log(`[SupabaseOptimized] Client fallback success: ${path} (${data.size} bytes)`);
     return data;
-    
+
   } catch (error) {
     console.error(`[SupabaseOptimized] Download failed for ${path}:`, error);
     throw error;
@@ -96,12 +96,12 @@ export const downloadFileOptimized = async (bucket: string, path: string): Promi
 
 // Helper function to upload file with optimized settings
 export const uploadFile = async (
-  bucket: string, 
-  path: string, 
+  bucket: string,
+  path: string,
   file: File | Blob
 ) => {
   console.log(`[SupabaseUpload] Uploading to bucket: ${bucket}, path: ${path} (${file.size} bytes)`)
-  
+
   const { data, error } = await supabase.storage
     .from(bucket)
     .upload(path, file, {
@@ -109,12 +109,12 @@ export const uploadFile = async (
       upsert: true,
       duplex: 'half' // Better streaming performance for large files
     })
-  
+
   if (error) {
     console.error(`[SupabaseUpload] Error uploading to ${bucket}/${path}:`, error)
     throw error
   }
-  
+
   console.log(`[SupabaseUpload] Successfully uploaded to ${bucket}/${path}`)
   return data
 }

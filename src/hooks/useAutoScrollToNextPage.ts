@@ -14,6 +14,7 @@ interface UseAutoScrollToNextPageOptions {
   isPageLoading: boolean; // Prevent loading while page is already loading
   threshold?: number; // Distance from bottom/top to trigger (default: 20px)
   onScrollStateChange?: (state: { nearTop: boolean; nearBottom: boolean; canGoPrev: boolean; canGoNext: boolean }) => void; // Callback for scroll state changes
+  isTTSActive?: boolean; // Prevent auto-scroll navigation while TTS is active
 }
 
 /**
@@ -30,6 +31,7 @@ export function useAutoScrollToNextPage({
   isPageLoading,
   threshold = 20, // Trigger when within 20px of bottom/top
   onScrollStateChange,
+  isTTSActive = false,
 }: UseAutoScrollToNextPageOptions): void {
   const hasTriggeredNextRef = useRef<boolean>(false);
   const hasTriggeredPrevRef = useRef<boolean>(false);
@@ -80,6 +82,7 @@ export function useAutoScrollToNextPage({
           distanceFromTop: scrollTop,
           currentPage,
           totalPages,
+          isTTSActive
         });
       }
 
@@ -89,8 +92,8 @@ export function useAutoScrollToNextPage({
 
       // Calculate scroll percentage
       const scrollableHeight = scrollHeight - clientHeight;
-      const scrollPercentage = scrollableHeight > 0 
-        ? (scrollTop / scrollableHeight) * 100 
+      const scrollPercentage = scrollableHeight > 0
+        ? (scrollTop / scrollableHeight) * 100
         : 0;
 
       const contentRequiresScrolling = scrollHeight > clientHeight;
@@ -102,7 +105,7 @@ export function useAutoScrollToNextPage({
         const nearBottom = distanceFromBottom <= threshold * 3; // Show indicator within 60px of bottom
         const canGoPrev = currentPage > 0 && contentRequiresScrolling;
         const canGoNext = currentPage < totalPages - 1 && contentRequiresScrolling;
-        
+
         onScrollStateChange({
           nearTop,
           nearBottom,
@@ -111,8 +114,11 @@ export function useAutoScrollToNextPage({
         });
       }
 
-      // Skip navigation if page is loading
-      if (isPageLoading) {
+      // Skip navigation if page is loading or TTS is active
+      if (isPageLoading || isTTSActive) {
+        if (isTTSActive && (distanceFromBottom <= threshold || distanceFromTop <= threshold)) {
+          console.log('[useAutoScrollToNextPage] Navigation blocked because TTS is active');
+        }
         return;
       }
 
@@ -144,7 +150,7 @@ export function useAutoScrollToNextPage({
           distanceFromBottom,
           scrollPercentage: scrollPercentage.toFixed(1),
         });
-        
+
         hasTriggeredNextRef.current = true;
         hasTriggeredPrevRef.current = false; // Reset prev trigger when going forward
         lastTriggerTimeRef.current = now;
@@ -156,7 +162,7 @@ export function useAutoScrollToNextPage({
       // Use wheel direction if available, otherwise fall back to scroll direction
       // This handles cases where scrollTop is already 0 and user tries to scroll up
       const tryingToScrollUp = lastWheelDirectionRef.current === 'up' || isScrollingUp;
-      
+
       if (
         currentPage > 0 &&
         !hasTriggeredPrevRef.current &&
@@ -175,7 +181,7 @@ export function useAutoScrollToNextPage({
           wheelDirection: lastWheelDirectionRef.current,
           isAtTop,
         });
-        
+
         hasTriggeredPrevRef.current = true;
         hasTriggeredNextRef.current = false; // Reset next trigger when going back
         lastTriggerTimeRef.current = now;
@@ -190,7 +196,7 @@ export function useAutoScrollToNextPage({
 
     const handleScroll = throttle(checkAndLoadNext, isTouchDevice ? 300 : 150); // Longer throttle for mobile due to momentum scrolling
     const handleResize = throttle(checkAndLoadNext, 200); // Throttle resize events
-    
+
     // Handle wheel events (desktop only) to detect scroll direction even when scroll position doesn't change
     const handleWheel = (e: WheelEvent) => {
       if (e.deltaY < 0) {
@@ -200,7 +206,7 @@ export function useAutoScrollToNextPage({
         // Scrolling down
         lastWheelDirectionRef.current = 'down';
       }
-      
+
       // Clear wheel direction after a short delay
       if (wheelTimeoutRef.current) {
         clearTimeout(wheelTimeoutRef.current);
@@ -208,7 +214,7 @@ export function useAutoScrollToNextPage({
       wheelTimeoutRef.current = setTimeout(() => {
         lastWheelDirectionRef.current = null;
       }, 300);
-      
+
       // Also trigger checkAndLoadNext for immediate response
       checkAndLoadNext();
     };
@@ -216,7 +222,7 @@ export function useAutoScrollToNextPage({
     // Handle touch events for mobile to detect scroll direction
     let touchStartY = 0;
     let touchStartScrollTop = 0;
-    
+
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length > 0) {
         touchStartY = e.touches[0].clientY;
@@ -228,7 +234,7 @@ export function useAutoScrollToNextPage({
       if (e.touches.length > 0) {
         const touchY = e.touches[0].clientY;
         const deltaY = touchY - touchStartY;
-        
+
         // Only update direction if there's significant movement (more than 10px)
         if (Math.abs(deltaY) > 10) {
           if (deltaY < 0) {
@@ -238,7 +244,7 @@ export function useAutoScrollToNextPage({
             // Touch moving down = content scrolling up = going to previous page
             lastWheelDirectionRef.current = 'up';
           }
-          
+
           // Clear direction after delay
           if (wheelTimeoutRef.current) {
             clearTimeout(wheelTimeoutRef.current);
@@ -271,13 +277,13 @@ export function useAutoScrollToNextPage({
       scrollableContent.addEventListener('touchstart', handleTouchStart, { passive: true });
       scrollableContent.addEventListener('touchmove', handleTouchMove, { passive: true });
       scrollableContent.addEventListener('touchend', handleTouchEnd, { passive: true });
-      
+
       // Also add scrollend event if available (newer browsers)
       if ('onscrollend' in scrollableContent) {
         scrollableContent.addEventListener('scrollend', checkAndLoadNext, { passive: true });
       }
     }
-    
+
     // Check initial scroll state on mount
     const checkInitialState = () => {
       if (!isPageLoading) {
@@ -294,7 +300,7 @@ export function useAutoScrollToNextPage({
         }
       }
     };
-    
+
     // Delay to allow content to render
     const timeoutId = setTimeout(checkInitialState, 100);
 

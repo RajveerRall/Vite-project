@@ -3,126 +3,17 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import { useAnonymousUsageLimit } from './useAnonymousUsageLimit';
-import { createTTSProgressRepository } from '../repositories/TTSProgressRepository';
+
 import { createAdaptivePlaybackStrategy } from '../services/tts/strategies/AdaptivePlaybackStrategy';
 import { IPlaybackStrategy } from '../services/tts/strategies/IPlaybackStrategy';
 import { createTTSChunkService } from '../services/tts/TTSChunkService';
 import { getUsageTracker, initializeUsageTracking } from '../services/tts/index';
 import { highlightChunkInHtml, highlightTextInHtml } from '../utils/htmlHighlight';
+import { getBlobDurationSeconds } from '../utils/audioUtils';
 import { fetchUsageLimit } from '../services/subscription/SubscriptionService';
 
-// Helper: split text into sentence chunks
-function splitTextIntoChunks(text: string): string[] {
-  // Common abbreviations that should NOT trigger sentence splits
-  // These are patterns that end with a period but aren't sentence endings
-  const abbreviations = [
-    // Titles
-    'Dr\\.', 'Mr\\.', 'Mrs\\.', 'Ms\\.', 'Prof\\.', 'Rev\\.', 'Sr\\.', 'Jr\\.', 'Esq\\.',
-    // Time
-    'A\\.M\\.', 'P\\.M\\.', 'a\\.m\\.', 'p\\.m\\.',
-    // Locations
-    'U\\.S\\.', 'U\\.K\\.', 'E\\.U\\.', 'U\\.S\\.A\\.',
-    // Latin
-    'etc\\.', 'i\\.e\\.', 'e\\.g\\.', 'vs\\.', 'et al\\.',
-    // Academic
-    'Ph\\.D\\.', 'M\\.D\\.', 'B\\.A\\.', 'M\\.A\\.', 'B\\.S\\.', 'M\\.S\\.',
-    // Common
-    'Inc\\.', 'Ltd\\.', 'Corp\\.', 'Co\\.',
-    // Additional common ones
-    'St\\.', 'Ave\\.', 'Blvd\\.', 'Rd\\.', 'No\\.', 'Vol\\.', 'Ch\\.', 'pp\\.'
-  ];
-
-  // Create a regex pattern to match abbreviations (case-insensitive)
-  const abbreviationPattern = new RegExp(
-    `\\b(${abbreviations.join('|')})\\b`,
-    'gi'
-  );
-
-  // Step 1: Normalize spacing after sentence-ending punctuation
-  // Add space after punctuation when followed by a letter (fixes "warm.A" → "warm. A")
-  // But skip if the punctuation is part of an abbreviation
-  let normalizedText = text;
-
-  // First, temporarily mark abbreviations to protect them
-  const abbreviationMap = new Map<string, string>();
-  let placeholderIndex = 0;
-
-  normalizedText = normalizedText.replace(abbreviationPattern, (match) => {
-    const placeholder = `__ABBR_${placeholderIndex}__`;
-    abbreviationMap.set(placeholder, match);
-    placeholderIndex++;
-    return placeholder;
-  });
-
-  // Now normalize spacing after punctuation (only when followed by a letter)
-  normalizedText = normalizedText.replace(/([.!?])([A-Za-z])/g, '$1 $2');
-
-  // Restore abbreviations
-  abbreviationMap.forEach((abbreviation, placeholder) => {
-    normalizedText = normalizedText.replace(placeholder, abbreviation);
-  });
-
-  // Step 2: Split on sentence boundaries, avoiding abbreviations
-  // Create a function to check if a potential split point is an abbreviation
-  const isAbbreviationAtPosition = (text: string, position: number): boolean => {
-    // Look back to find the word before the punctuation (up to 50 chars for longer contexts)
-    const beforePunct = text.substring(Math.max(0, position - 50), position);
-    const words = beforePunct.trim().split(/\s+/);
-    const lastWord = words[words.length - 1] || '';
-    const lastTwoWords = words.slice(-2).join(' ');
-
-    // Check if last word + period matches an abbreviation
-    const wordWithPeriod = lastWord + text[position];
-    const isSingleWordAbbr = abbreviations.some(abbr => {
-      const abbrClean = abbr.replace(/\\/g, ''); // Remove regex escaping
-      const pattern = new RegExp(`^${abbrClean}$`, 'i');
-      return pattern.test(wordWithPeriod);
-    });
-
-    // Check for multi-word abbreviations like "et al."
-    const isMultiWordAbbr = /et\s+al\./i.test(lastTwoWords + text[position]);
-
-    return isSingleWordAbbr || isMultiWordAbbr;
-  };
-
-  // Split manually, checking each potential split point
-  const chunks: string[] = [];
-  let currentChunk = '';
-
-  for (let i = 0; i < normalizedText.length; i++) {
-    const char = normalizedText[i];
-    currentChunk += char;
-
-    // Check if we hit a potential sentence boundary
-    if (/[.!?]/.test(char)) {
-      const nextChar = normalizedText[i + 1];
-      const isEndOfText = i === normalizedText.length - 1;
-      const isFollowedBySpace = nextChar === ' ' || nextChar === '\n' || nextChar === '\t';
-
-      if ((isFollowedBySpace || isEndOfText) && !isAbbreviationAtPosition(normalizedText, i)) {
-        // This is a real sentence boundary
-        const trimmed = currentChunk.trim();
-        if (trimmed.length > 0) {
-          chunks.push(trimmed);
-        }
-        currentChunk = '';
-
-        // Skip the space
-        if (isFollowedBySpace) {
-          i++; // Skip the space character
-        }
-      }
-    }
-  }
-
-  // Add remaining text
-  const trimmed = currentChunk.trim();
-  if (trimmed.length > 0) {
-    chunks.push(trimmed);
-  }
-
-  return chunks;
-}
+// Import refactored TTS hooks
+import { useTTSChunking, useTTSBuffering, useTTSNavigation, useTTSProgress } from './tts';
 
 export interface UseReaderTTSReturn {
   // TTS States
@@ -175,12 +66,13 @@ interface UseReaderTTSProps {
   ttsSpeed?: number;
   // Callback for when playback completes
   onPlaybackComplete?: () => void;
+  isPageLoading?: boolean; // Added for better error handling
 }
 
 // Constants moved to src/constants/tts.ts
-const PREFETCH_CHUNK_COUNT = 4;
+// Constants moved to src/constants/tts.ts
 const INITIAL_PREFETCH_COUNT = 2; // Fetch 2 chunks initially for faster startup
-const MAX_AUDIO_BUFFER_SIZE = 10; // ✅ Limit total buffered chunks to prevent memory bloat
+// PREFETCH_CHUNK_COUNT and MAX_AUDIO_BUFFER_SIZE handled by useTTSBuffering hook
 
 /**
  * Custom hook for managing all Text-to-Speech functionality
@@ -193,16 +85,21 @@ export const useReaderTTS = ({
   currentContent,
   selectedVoice = 'en-US-BrianMultilingualNeural',
   ttsSpeed = 1,
-  onPlaybackComplete
+  onPlaybackComplete,
+  isPageLoading = false // Default to false
 }: UseReaderTTSProps): UseReaderTTSReturn => {
   const { addToast } = useToast();
   const { user } = useAuth();
   const { refreshUsageLimit } = useSubscription();
   const anonymousLimit = useAnonymousUsageLimit();
 
+  // === Use refactored chunking hook ===
+  // This provides memoized chunks that only recalculate when text changes
+  const chunkingHook = useTTSChunking({ text: currentPageText });
+
   // Initialize progress repository
   const readerInstanceId = useRef(`ReaderInstance_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`).current;
-  const progressRepository = useRef(createTTSProgressRepository(readerInstanceId)).current;
+
 
   // Initialize playback strategy (with automatic fallback)
   const playbackStrategyRef = useRef<IPlaybackStrategy | null>(null);
@@ -218,52 +115,111 @@ export const useReaderTTS = ({
 
   // Initialize chunk service for pre-decoding
   const chunkServiceRef = useRef(createTTSChunkService(readerInstanceId)).current;
+
   // === TTS Playback States ===
-  const [chunks, setChunks] = useState<string[]>([]);
+  // Use chunks from the refactored hook (memoized, only recalculates when text changes)
+  const chunks = chunkingHook.chunks;
+
+  // === Use TTS Buffering Hook ===
+  const {
+    bufferedChunksCount,
+    setBufferedChunksCount,
+    audioBuffer,
+    durationsBuffer,
+    fetchSingleChunk,
+    prefetchChunks,
+    clearAudioBuffer
+  } = useTTSBuffering({
+    chunks,
+    currentChunkIndex: null, // Initial value
+    selectedVoice,
+    ttsSpeed,
+    playbackStrategyRef,
+    readerInstanceId
+  });
+
   const [currentChunkIndex, setCurrentChunkIndex] = useState<number | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [resumeIndex, setResumeIndex] = useState<number | null>(null);
-  const [hasFinishedPlayback, setHasFinishedPlayback] = useState<boolean>(false);
+  // resumeIndex and hasFinishedPlayback moved to useTTSProgress
   const [useKokoroTTS] = useState<boolean>(false);
   const [highlightedContent, setHighlightedContent] = useState<string>(currentContent);
 
-  // === Refs ===
-  const audioBuffer = useRef<Record<number, string>>({});
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const ttsIntentActiveRef = useRef(false);
-  const currentTTSBaseOffsetRef = useRef<number>(0);
-  // === Usage Tracking Refs ===
-  const durationsBuffer = useRef<Record<number, number>>({});
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  // currentTTSBaseOffsetRef removed (replaced by direct index tracking)
+
   const playStartTimeRef = useRef<Record<number, number>>({});
-  // ✅ Track last limit check time for periodic checks (60 seconds)
   const lastLimitCheckTimeRef = useRef<number>(0);
-  const LIMIT_CHECK_INTERVAL_MS = 60000; // Check limit every 60 seconds
-  // === Voice tracking for buffer validation ===
-  const bufferVoiceRef = useRef<string>(selectedVoice);
-  // === Ref for selectedVoice to avoid stale closures ===
+  const LIMIT_CHECK_INTERVAL_MS = 60000;
+
   const selectedVoiceRef = useRef<string>(selectedVoice);
-  // === Ref for ttsSpeed to avoid stale closures ===
   const ttsSpeedRef = useRef<number>(ttsSpeed);
-  // === Track previous voice to detect actual changes ===
-  const prevVoiceRef = useRef<string>(selectedVoice);
-  // === Track last pause/resume action to prevent double-calls ===
   const lastPauseResumeActionRef = useRef<number>(0);
-  // === Ref for playChunk to avoid stale closures in onended handlers ===
   const playChunkRef = useRef<((index: number) => Promise<void>) | null>(null);
-  // === Flag to track auto-advance vs manual navigation ===
   const isAutoAdvancingRef = useRef<boolean>(false);
-  // === Ref for handleStopTTS to avoid circular dependency ===
   const handleStopTTSRef = useRef<(() => void) | null>(null);
-  // === Track if chunk is currently playing to prevent duplicates ===
   const isChunkPlayingRef = useRef<number | null>(null);
-  // === Track chunks currently being prefetched to prevent duplicates ===
-  const inFlightPrefetchRef = useRef<Set<number>>(new Set());
-  // === Track buffered chunks count for UI ===
-  const [bufferedChunksCount, setBufferedChunksCount] = useState<number>(0);
+
+  // === Use TTS Progress Hook ===
+  const {
+    resumeIndex,
+    setResumeIndex,
+    hasFinishedPlayback,
+    saveProgress: saveResumeIndex, // Alias
+    loadProgress: loadResumeIndex, // Alias
+    clearProgress: clearResumeIndex, // Alias
+    markFinished,
+    resetFinished
+  } = useTTSProgress({
+    bookTitle,
+    currentPageDisplay,
+    pageTextLength: currentPageText?.length || 0,
+    instanceId: readerInstanceId
+  });
+
+  // Wrapper for compatibility with existing code expecting boolean setter
+  const setHasFinishedPlayback = useCallback((finished: boolean) => {
+    if (finished) markFinished();
+    else resetFinished();
+  }, [markFinished, resetFinished]);
+
+  // === Use TTS Navigation Hook ===
+  const {
+    handleTTSNavigation,
+    handlePreviousSentence,
+    handleNextSentence,
+    handlePreviewScroll,
+    handleSeekToPercentage
+  } = useTTSNavigation({
+    chunks,
+    currentChunkIndex,
+    readerInstanceId,
+    isSpeaking,
+    isPaused,
+    ttsIntentActiveRef,
+    isChunkPlayingRef,
+    isAutoAdvancingRef,
+    setIsSpeaking,
+    setIsPaused,
+    setIsProcessing,
+    setHasFinishedPlayback,
+    setResumeIndex,
+    haltPlayback: () => handleStopTTSRef.current?.(),
+    pausePlayback: () => {
+      // pausePlayback logic is below, use specific handler if possible or ref
+    },
+    playChunk: async (index) => { if (playChunkRef.current) await playChunkRef.current(index); },
+    saveResumeIndex,
+    fetchSingleChunk,
+    prefetchChunks,
+    addToast: addToast as any,
+    user,
+    refreshUsageLimit,
+    anonymousLimit
+  });
 
   // === Keep selectedVoiceRef synchronized with selectedVoice prop ===
   useEffect(() => {
@@ -470,74 +426,12 @@ export const useReaderTTS = ({
     }
   }, [user?.id, addToast]);
 
-  // Decode an audio Blob once to get duration in seconds (fallback if server doesn't send header)
-  const getBlobDurationSeconds = useCallback(async (blob: Blob): Promise<number> => {
-    try {
-      if (!audioCtxRef.current) {
-        const Ctx: any = (window as any).AudioContext || (window as any).webkitAudioContext;
-        if (!Ctx) return 0;
-        audioCtxRef.current = new Ctx();
-      }
-      const arrayBuf = await blob.arrayBuffer();
-      const audioBuf = await new Promise<AudioBuffer>((resolve, reject) => {
-        audioCtxRef.current!.decodeAudioData(arrayBuf, resolve, reject);
-      });
-      return Math.max(0, Math.round(audioBuf.duration));
-    } catch {
-      return 0;
-    }
-  }, []);
+
 
   // === Local Storage Helpers (using Repository) ===
-  const saveResumeIndex = useCallback(async (index: number) => {
-    try {
-      await progressRepository.saveResumeIndex(bookTitle, currentPageDisplay, index);
-    } catch (error) {
-      console.error(`[${readerInstanceId}][TTS Resume Save] Error:`, error);
-    }
-  }, [bookTitle, currentPageDisplay, progressRepository, readerInstanceId]);
 
-  const loadResumeIndex = useCallback(async (): Promise<number | null> => {
-    try {
-      return await progressRepository.loadResumeIndex(bookTitle, currentPageDisplay, currentPageText?.length || 0);
-    } catch (error) {
-      console.error(`[${readerInstanceId}][TTS Resume Load] Error:`, error);
-      return null;
-    }
-  }, [bookTitle, currentPageDisplay, currentPageText?.length, progressRepository, readerInstanceId]);
 
-  const clearResumeIndex = useCallback(async () => {
-    try {
-      await progressRepository.clearResumeIndex(bookTitle, currentPageDisplay);
-    } catch (error) {
-      console.error(`[${readerInstanceId}][TTS Resume Clear] Error:`, error);
-    }
-    setResumeIndex(null);
-    setHasFinishedPlayback(true);
-    currentTTSBaseOffsetRef.current = 0;
-  }, [bookTitle, currentPageDisplay, progressRepository, readerInstanceId]);
 
-  // === Split text into chunks whenever currentPageText changes ===
-  useEffect(() => {
-    if (currentPageText) {
-      const newChunks = splitTextIntoChunks(currentPageText);
-      console.log(`[TTS] Split text into ${newChunks.length} chunks:`, {
-        textLength: currentPageText.length,
-        firstChunk: newChunks[0]?.substring(0, 100),
-        lastChunk: newChunks[newChunks.length - 1]?.substring(0, 100)
-      });
-      setChunks(newChunks);
-      setCurrentChunkIndex(null);
-      setIsSpeaking(false);
-      setIsPaused(false);
-      setIsProcessing(false);
-      setHasFinishedPlayback(false);
-      currentTTSBaseOffsetRef.current = 0;
-      ttsIntentActiveRef.current = false;
-    } else {
-      setChunks([]);
-    }
-  }, [currentPageText]);
 
   // === Cleanup audio on unmount or page change ===
   useEffect(() => {
@@ -567,279 +461,12 @@ export const useReaderTTS = ({
     };
   }, []);
 
-  // === Cleanup for all buffered audio blobs on unmount ===
-  useEffect(() => {
-    return () => {
-      Object.values(audioBuffer.current).forEach(URL.revokeObjectURL);
-    };
-  }, []);
 
-  // === Clear audio buffer function ===
-  const clearAudioBuffer = useCallback(() => {
-    const bufferUrls = Object.values(audioBuffer.current);
-    console.log(`[${readerInstanceId}][clearAudioBuffer] Clearing ${bufferUrls.length} buffered audio URLs due to voice change`);
-    bufferUrls.forEach(url => {
-      if (url && url.startsWith('blob:')) {
-        URL.revokeObjectURL(url);
-      }
-    });
-    audioBuffer.current = {};
-    setBufferedChunksCount(0);
-    // Update the voice tracking ref
-    bufferVoiceRef.current = selectedVoiceRef.current;
-  }, [readerInstanceId]);
+  // Handled by useTTSBuffering hook
 
-  // === Clean up old chunks when buffer exceeds limit ===
-  const cleanupOldChunks = useCallback((currentIndex: number) => {
-    const bufferKeys = Object.keys(audioBuffer.current).map(Number);
-    if (bufferKeys.length <= MAX_AUDIO_BUFFER_SIZE) return;
-
-    // Protect current chunk and nearby chunks (±2 range)
-    const protectedChunks = new Set<number>();
-    for (let i = -2; i <= 2; i++) {
-      protectedChunks.add(currentIndex + i);
-    }
-
-    // Find chunks to evict (oldest, non-protected chunks)
-    const chunksToEvict = bufferKeys
-      .filter(key => !protectedChunks.has(key))
-      .sort((a, b) => a - b) // Oldest first
-      .slice(0, bufferKeys.length - MAX_AUDIO_BUFFER_SIZE);
-
-    chunksToEvict.forEach(chunkIndex => {
-      const url = audioBuffer.current[chunkIndex];
-      if (url && url.startsWith('blob:')) {
-        URL.revokeObjectURL(url);
-      }
-      delete audioBuffer.current[chunkIndex];
-      setBufferedChunksCount(prev => Math.max(0, prev - 1));
-    });
-
-    if (chunksToEvict.length > 0) {
-      console.log(`[${readerInstanceId}][cleanupOldChunks] Evicted ${chunksToEvict.length} old chunks, buffer now has ${Object.keys(audioBuffer.current).length} chunks`);
-    }
-  }, [readerInstanceId]);
-
-  // === Handle voice changes during playback ===
-  useEffect(() => {
-    // Only clear buffer if voice actually changed (not just effect re-running due to state changes)
-    if ((isSpeaking || isPaused || isProcessing) &&
-      Object.keys(audioBuffer.current).length > 0 &&
-      prevVoiceRef.current !== selectedVoice) {
-      clearAudioBuffer();
-    }
-
-    // Update previous voice ref after checking
-    prevVoiceRef.current = selectedVoice;
-  }, [selectedVoice, isSpeaking, isPaused, isProcessing, clearAudioBuffer, readerInstanceId]);
-
-  // === Fetch single chunk helper (for optimistic initial playback) ===
-  const fetchSingleChunk = useCallback(async (chunkIndex: number): Promise<void> => {
-    if (chunks.length === 0 || chunkIndex < 0 || chunkIndex >= chunks.length) return;
-    if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex) return; // Already cached
-
-    // Check if already in flight
-    if (inFlightPrefetchRef.current.has(chunkIndex)) {
-      console.log(`[FetchSingle] Chunk #${chunkIndex} already in flight, skipping`);
-      return;
-    }
-
-    // Mark as in-flight
-    inFlightPrefetchRef.current.add(chunkIndex);
-
-    try {
-      const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
-      const textChunk = chunks[chunkIndex];
-      const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
-
-      const params = new URLSearchParams({
-        text: textChunk,
-        voice: selectedVoiceRef.current,
-        format: 'audio-24khz-48kbitrate-mono-mp3'
-      });
-
-      if (ttsSpeed !== 1) {
-        const speedPercent = Math.round((ttsSpeed - 1) * 100);
-        const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
-        params.set('rate', speedParam);
-      }
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-      let response;
-      try {
-        response = await fetch(`${apiUrl}?${params.toString()}`, {
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          console.warn(`[FetchSingle] TTS request timeout for chunk #${chunkIndex} after 30 seconds`);
-          return;
-        }
-        throw fetchError;
-      }
-
-      if (!response.ok) return;
-
-      const audioBlob = await response.blob();
-      if (audioBlob.size === 0) {
-        console.warn(`[FetchSingle] Received empty audio blob for chunk #${chunkIndex}`);
-        return;
-      }
-
-      const strategy = playbackStrategyRef.current;
-      const isSeamless = strategy && (strategy as any).getStrategyType?.() === 'seamless';
-
-      if (isSeamless && strategy) {
-        try {
-          await strategy.prepareChunk(chunkIndex, audioBlob);
-          console.log(`[FetchSingle] Pre-decoded chunk #${chunkIndex} for seamless playback`);
-        } catch (err) {
-          console.warn(`[FetchSingle] Failed to pre-decode chunk #${chunkIndex} for seamless playback`, err);
-        }
-      }
-
-      try {
-        const headerSeconds = Number(response.headers.get('X-Audio-Duration') || 0);
-        const seconds = headerSeconds > 0 ? headerSeconds : await getBlobDurationSeconds(audioBlob);
-        durationsBuffer.current[chunkIndex] = seconds;
-      } catch { }
-
-      const audioUrl = URL.createObjectURL(audioBlob);
-      audioBuffer.current[chunkIndex] = audioUrl;
-      bufferVoiceRef.current = selectedVoiceRef.current;
-
-      console.log(`[FetchSingle] Successfully buffered chunk #${chunkIndex}`);
-      setBufferedChunksCount(prev => prev + 1);
-
-      // ✅ Clean up old chunks if buffer is too large
-      cleanupOldChunks(chunkIndex);
-    } catch (error) {
-      console.warn(`[FetchSingle] Failed to fetch chunk #${chunkIndex}`, error);
-    } finally {
-      inFlightPrefetchRef.current.delete(chunkIndex);
-    }
-  }, [chunks, currentChunkIndex, ttsSpeed, cleanupOldChunks]);
-
-  // === Prefetch chunks function ===
-  const prefetchChunks = useCallback(async (startIndex: number) => {
-    if (chunks.length === 0) return;
-
-    const normalizedStart = Math.max(0, startIndex);
-    if (normalizedStart >= chunks.length) return;
-
-    // ✅ FIX: Check if chunks in this range are already being prefetched
-    const chunksToCheck: number[] = [];
-    for (let i = 0; i < PREFETCH_CHUNK_COUNT && normalizedStart + i < chunks.length; i++) {
-      chunksToCheck.push(normalizedStart + i);
-    }
-
-    // If all chunks are already in flight, skip this prefetch
-    const allInFlight = chunksToCheck.every(idx => inFlightPrefetchRef.current.has(idx));
-    if (allInFlight && chunksToCheck.length > 0) {
-      console.log(`[Prefetch] Skipping duplicate prefetch for chunks ${normalizedStart}-${normalizedStart + chunksToCheck.length - 1} (already in flight)`);
-      return;
-    }
-
-    const chunksToFetch = chunks.slice(normalizedStart, normalizedStart + PREFETCH_CHUNK_COUNT);
-    if (chunksToFetch.length === 0) return;
-
-    // ✅ FIX: Mark chunks as in-flight
-    chunksToCheck.forEach(idx => inFlightPrefetchRef.current.add(idx));
-
-    console.log(`[Prefetch] Starting pre-fetch for chunks from index ${normalizedStart}`);
-
-    // Check if using seamless playback
-    const strategy = playbackStrategyRef.current;
-    const isSeamless = strategy && (strategy as any).getStrategyType?.() === 'seamless';
-
-    for (let i = 0; i < chunksToFetch.length; i++) {
-      const chunkIndex = normalizedStart + i;
-      if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex) continue;
-
-      try {
-        const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
-        const textChunk = chunksToFetch[i];
-        const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
-
-        const params = new URLSearchParams({
-          text: textChunk,
-          voice: selectedVoiceRef.current,
-          format: 'audio-24khz-48kbitrate-mono-mp3'
-        });
-
-        if (ttsSpeed !== 1) {
-          const speedPercent = Math.round((ttsSpeed - 1) * 100);
-          const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
-          params.set('rate', speedParam);
-        }
-
-        // Add timeout protection to prevent hanging
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
-
-        let response;
-        try {
-          response = await fetch(`${apiUrl}?${params.toString()}`, {
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-        } catch (fetchError: any) {
-          clearTimeout(timeoutId);
-          if (fetchError.name === 'AbortError') {
-            console.warn(`[Prefetch] TTS request timeout for chunk #${chunkIndex} after 30 seconds`);
-            continue; // Skip this chunk and continue with next
-          }
-          throw fetchError; // Re-throw other errors
-        }
-
-        if (!response.ok) continue;
-
-        const audioBlob = await response.blob();
-        if (audioBlob.size === 0) {
-          console.warn(`[Prefetch] Received empty audio blob for chunk #${chunkIndex}. Skipping.`);
-          continue;
-        }
-
-        // If using seamless playback, pre-decode into the Web Audio queue now
-        if (isSeamless && strategy) {
-          try {
-            await strategy.prepareChunk(chunkIndex, audioBlob);
-          } catch (err) {
-            console.warn(`[Prefetch] Failed to pre-decode chunk #${chunkIndex} for seamless playback`, err);
-          }
-        }
-
-        // Track duration for this prefetched chunk
-        try {
-          const headerSeconds = Number(response.headers.get('X-Audio-Duration') || 0);
-          const seconds = headerSeconds > 0 ? headerSeconds : await getBlobDurationSeconds(audioBlob);
-          durationsBuffer.current[chunkIndex] = seconds;
-        } catch { }
-
-        // Store blob URL for HTML5 playback (fallback)
-        const audioUrl = URL.createObjectURL(audioBlob);
-        audioBuffer.current[chunkIndex] = audioUrl;
-        bufferVoiceRef.current = selectedVoiceRef.current;
-
-        // ✅ FIX: Update buffered chunks count
-        setBufferedChunksCount(prev => prev + 1);
-
-        // ✅ Clean up old chunks if buffer is too large
-        cleanupOldChunks(chunkIndex);
-
-      } catch (error) {
-        console.warn(`[Prefetch] Failed to pre-fetch chunk #${chunkIndex}`, error);
-        addToast(`Failed to pre-fetch audio chunk ${chunkIndex + 1}. If it does not work contact us.`, 'error');
-      } finally {
-        // ✅ FIX: Remove from in-flight set when done (success or failure)
-        inFlightPrefetchRef.current.delete(chunkIndex);
-      }
-    }
-  }, [chunks, currentChunkIndex, ttsSpeed, addToast, cleanupOldChunks]);
+  // === Buffering Logic moved to useTTSBuffering hook ===
+  // clearAudioBuffer, cleanupOldChunks, and voice change effect removed
+  // === fetchSingleChunk and prefetchChunks moved to useTTSBuffering hook ===
 
   // === Play chunk function ===
   const playChunk = useCallback(async (index: number) => {
@@ -879,7 +506,6 @@ export const useReaderTTS = ({
 
       if (audioBlob) {
         try {
-          console.log(`[playChunk] Attempting seamless playback for chunk #${index}`);
           // Strategy will handle seamless auto-advance via onChunkComplete handler
           await strategy.play(audioBlob, index);
 
@@ -916,14 +542,12 @@ export const useReaderTTS = ({
       // Set up event handlers BEFORE setting src (more reliable)
       const handlePlay = () => {
         playStartTimeRef.current[index] = Date.now();
-        console.log(`[playChunk] Audio started playing chunk #${index}`);
         // Update currentChunkIndex when audio actually starts playing
         // This ensures highlight is synchronized with audio playback
         setCurrentChunkIndex(index);
       };
 
       const handleEnded = async () => {
-        console.log(`[playChunk] Audio ended for chunk #${index}, advancing to chunk #${index + 1}`);
 
         // Calculate usage seconds
         const elapsed = playStartTimeRef.current[index] ? Math.round((Date.now() - playStartTimeRef.current[index]) / 1000) : 0;
@@ -932,15 +556,6 @@ export const useReaderTTS = ({
           : (elapsed > 0 ? elapsed : Math.round((audioRef.current as any)?.duration || 0));
 
         // ✅ DEBUG: Log seconds calculation for HTML5 playback
-        console.log(`[playChunk] Usage calculation for chunk #${index}:`, {
-          chunkIndex: index,
-          durationsBufferValue: durationsBuffer.current[index],
-          elapsed,
-          audioDuration: (audioRef.current as any)?.duration,
-          calculatedSeconds: seconds,
-          playStartTime: playStartTimeRef.current[index],
-          currentTime: Date.now()
-        });
 
         // Use ref to ensure we always call the latest playChunk function
         // This fixes the stale closure issue when playChunk is recreated
@@ -950,12 +565,10 @@ export const useReaderTTS = ({
         if (nextChunkIndex < chunksRef.current.length) {
           // Set auto-advance flag to prevent handleNextSentence from pausing
           isAutoAdvancingRef.current = true;
-          console.log(`[playChunk] Auto-advance flag set to true`);
 
           // ✅ CRITICAL FIX: Start next chunk IMMEDIATELY, don't wait for usage tracking
           // This eliminates the delay between chunks
           if (playChunkRef.current) {
-            console.log(`[playChunk] playChunkRef.current is available, calling playChunkRef.current(${nextChunkIndex})`);
             // Don't await - fire and continue to avoid blocking
             playChunkRef.current(nextChunkIndex).catch((error) => {
               console.error(`[playChunk] Error calling playChunkRef.current:`, error);
@@ -974,7 +587,6 @@ export const useReaderTTS = ({
           // This prevents handleNextSentence from interfering if called during transition
           setTimeout(() => {
             isAutoAdvancingRef.current = false;
-            console.log(`[playChunk] Auto-advance flag cleared`);
           }, 100);
 
           // ✅ FIX: Determine if we should check limit (periodic check every 60 seconds)
@@ -983,7 +595,6 @@ export const useReaderTTS = ({
           const shouldCheckLimit = timeSinceLastCheck > LIMIT_CHECK_INTERVAL_MS;
 
           if (shouldCheckLimit) {
-            console.log(`[playChunk] Performing periodic limit check (last check was ${Math.round(timeSinceLastCheck / 1000)}s ago)`);
             lastLimitCheckTimeRef.current = now;
           }
 
@@ -1013,7 +624,6 @@ export const useReaderTTS = ({
           });
         } else {
           // End of chunks - playback complete
-          console.log(`[playChunk] Reached end of all chunks, playback complete`);
           setIsSpeaking(false);
           setIsPaused(false);
           setHasFinishedPlayback(true);
@@ -1120,14 +730,12 @@ export const useReaderTTS = ({
 
             const audioUrl = URL.createObjectURL(audioBlob);
             audioBuffer.current[index] = audioUrl;
-            bufferVoiceRef.current = selectedVoiceRef.current;
+            // bufferVoiceRef handled by useTTSBuffering hook
 
             // Retry playback with fresh audio
-            console.log(`[playChunk] Retrying chunk #${index} with fresh audio after blob URL error`);
 
             // ✅ ZOMBIE RESURRECTION FIX: Check if we are still meant to be playing
             if (!ttsIntentActiveRef.current) {
-              console.log(`[playChunk] Retry ready but playback halted/unmounted - aborting resurrection.`);
               return;
             }
 
@@ -1155,7 +763,6 @@ export const useReaderTTS = ({
       // Set src and playback properties
       audioRef.current.src = audioUrl;
       audioRef.current.playbackRate = ttsSpeedRef.current;
-      console.log(`[playChunk] Set src and playback rate: ${ttsSpeedRef.current}x for chunk #${index}`);
 
       // Store handlers on the element for cleanup later (optional, for reference)
       (audioRef.current as any)._handlers = { handlePlay, handleEnded, handleError };
@@ -1178,7 +785,7 @@ export const useReaderTTS = ({
 
     if (audioBuffer.current[index]) {
       const bufferedUrl = audioBuffer.current[index];
-      if (bufferedUrl && bufferedUrl.startsWith('blob:') && bufferVoiceRef.current === selectedVoiceRef.current) {
+      if (bufferedUrl && bufferedUrl.startsWith('blob:')) {
         // If seamless is active, try seamless playback first (prevents double playback)
         if (isSeamlessActive && strategy) {
           try {
@@ -1192,7 +799,6 @@ export const useReaderTTS = ({
 
             // Pre-decode and play with seamless
             await strategy.prepareChunk(index, audioBlob);
-            console.log(`[playChunk] Pre-decoded chunk #${index} from buffer for seamless playback`);
             await strategy.play(audioBlob, index);
             // ✅ Prefetch next chunk only (reduced to prevent buffer bloat)
             prefetchChunks(index + 1);
@@ -1204,16 +810,13 @@ export const useReaderTTS = ({
         }
 
         // Use HTML5 Audio (either seamless not active, or seamless failed)
-        console.log(`[playChunk] Playing chunk #${index} from BUFFER with voice ${selectedVoiceRef.current}.`);
         playAudio(bufferedUrl);
       } else {
-        console.log(`[playChunk] Buffered URL for chunk #${index} is invalid or voice mismatch (buffer: ${bufferVoiceRef.current}, current: ${selectedVoiceRef.current}), fetching from NETWORK.`);
         delete audioBuffer.current[index];
       }
     }
 
     if (!audioBuffer.current[index]) {
-      console.log(`[playChunk] Playing chunk #${index} from NETWORK.`);
       try {
         const textChunk = chunks[index];
         const ttsApiUrlForPlay = import.meta.env.VITE_TTS_API_URL || '';
@@ -1268,15 +871,13 @@ export const useReaderTTS = ({
 
         const audioUrl = URL.createObjectURL(audioBlob);
         audioBuffer.current[index] = audioUrl;
-        // Track the voice used for this on-demand chunk
-        bufferVoiceRef.current = selectedVoiceRef.current;
+
 
         // Try seamless playback first if available
         if (isSeamless && strategy) {
           try {
             // Pre-decode if not already done
             await strategy.prepareChunk(index, audioBlob);
-            console.log(`[playChunk] Pre-decoded chunk #${index} for seamless playback`);
             await strategy.play(audioBlob, index);
             // ✅ Prefetch next chunk only (reduced to prevent buffer bloat)
             prefetchChunks(index + 1);
@@ -1331,97 +932,15 @@ export const useReaderTTS = ({
     playbackStrategyRef.current.setEventHandlers({
       onPlay: (chunkIndex: number) => {
         playStartTimeRef.current[chunkIndex] = Date.now();
-        console.log(`[Strategy] Audio started playing chunk #${chunkIndex}`);
         // ✅ FIX: Update playing chunk ref when audio actually starts
         isChunkPlayingRef.current = chunkIndex;
         // Update currentChunkIndex when audio actually starts playing
         // This ensures highlight is synchronized with audio playback
         setCurrentChunkIndex(chunkIndex);
       },
-      // onChunkComplete: async (chunkIndex: number) => {
-      //   // Handle seamless auto-advance
-      //   console.log(`[Strategy] Audio ended for chunk #${chunkIndex}, advancing to chunk #${chunkIndex + 1}`);
-
-      //   // Calculate usage seconds
-      //   const elapsed = playStartTimeRef.current[chunkIndex] ? Math.round((Date.now() - playStartTimeRef.current[chunkIndex]) / 1000) : 0;
-      //   const seconds = (durationsBuffer.current[chunkIndex] && durationsBuffer.current[chunkIndex] > 0)
-      //     ? durationsBuffer.current[chunkIndex]
-      //     : (elapsed > 0 ? elapsed : 0);
-
-      //   // ✅ DEBUG: Log seconds calculation for seamless playback
-      //   console.log(`[Strategy] Usage calculation for chunk #${chunkIndex}:`, {
-      //     chunkIndex,
-      //     durationsBufferValue: durationsBuffer.current[chunkIndex],
-      //     elapsed,
-      //     calculatedSeconds: seconds,
-      //     playStartTime: playStartTimeRef.current[chunkIndex],
-      //     currentTime: Date.now()
-      //   });
-
-      //   // ✅ CRITICAL FIX: Make usage tracking blocking - stop playback if limit exceeded
-      //   // ✅ FIX: Determine if we should check limit (periodic check every 60 seconds)
-      //   const now = Date.now();
-      //   const timeSinceLastCheck = now - lastLimitCheckTimeRef.current;
-      //   const shouldCheckLimit = timeSinceLastCheck > LIMIT_CHECK_INTERVAL_MS;
-
-      //   if (shouldCheckLimit) {
-      //     console.log(`[Strategy] Performing periodic limit check (last check was ${Math.round(timeSinceLastCheck / 1000)}s ago)`);
-      //     lastLimitCheckTimeRef.current = now;
-      //   }
-
-      //   try {
-      //     await recordUsageSeconds(seconds, {
-      //       skipLimitCheck: !shouldCheckLimit  // ✅ Only check limit periodically
-      //     });
-      //   } catch (error: any) {
-      //     console.error(`[Strategy] Error recording usage seconds:`, error);
-      //     // Stop playback if limit exceeded
-      //     if (error?.code === 'TTS_USAGE_LIMIT_EXCEEDED' || 
-      //         error?.message?.includes('limit exceeded') ||
-      //         error?.message?.includes('TTS_USAGE_LIMIT_EXCEEDED')) {
-      //       console.warn('[TTS Usage] Limit exceeded, stopping TTS playback');
-      //       if (handleStopTTSRef.current) {
-      //         handleStopTTSRef.current();
-      //       }
-      //       addToast('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
-      //       window.dispatchEvent(new CustomEvent('tts-limit-exceeded', {
-      //         detail: { error: error.message }
-      //       }));
-      //       return; // Don't continue to next chunk
-      //     }
-      //     // For other errors (network issues, etc.), log but continue playback
-      //     console.warn('[TTS Usage] Non-critical error, continuing playback:', error);
-      //   }
-
-      //   // Auto-advance to next chunk
-      //   const nextChunkIndex = chunkIndex + 1;
-      //   if (nextChunkIndex < chunksRef.current.length && playChunkRef.current) {
-      //     isAutoAdvancingRef.current = true;
-      //     playChunkRef.current(nextChunkIndex).catch((error) => {
-      //       console.error(`[Strategy] Error in auto-advance:`, error);
-      //       isAutoAdvancingRef.current = false;
-      //     });
-      //     setTimeout(() => {
-      //       isAutoAdvancingRef.current = false;
-      //     }, 100);
-      //   } else {
-      //     // End of chunks
-      //     setIsSpeaking(false);
-      //     setIsPaused(false);
-      //     setHasFinishedPlayback(true);
-      //     setCurrentChunkIndex(null);
-      //     clearResumeIndex();
-
-      //     // Call the playback complete callback
-      //     onPlaybackComplete?.();
-      //   }
-      // },
-
-      // Vite-project/src/hooks/useReaderTTS.ts
 
       onChunkComplete: async (chunkIndex: number) => {
         // Handle seamless auto-advance
-        console.log(`[Strategy] Audio ended for chunk #${chunkIndex}, advancing to chunk #${chunkIndex + 1}`);
 
         // Calculate usage seconds
         const elapsed = playStartTimeRef.current[chunkIndex] ? Math.round((Date.now() - playStartTimeRef.current[chunkIndex]) / 1000) : 0;
@@ -1656,14 +1175,7 @@ export const useReaderTTS = ({
       abortControllerRef.current.abort();
     }
 
-    const bufferUrls = Object.values(audioBuffer.current);
-    console.log(`[${readerInstanceId}][haltPlayback] Clearing ${bufferUrls.length} buffered audio URLs`);
-    bufferUrls.forEach(url => {
-      if (url && url.startsWith('blob:')) {
-        URL.revokeObjectURL(url);
-      }
-    });
-    audioBuffer.current = {};
+    clearAudioBuffer();
 
     setIsSpeaking(false);
     setIsPaused(false);
@@ -1817,8 +1329,13 @@ export const useReaderTTS = ({
 
     // Check if currentPageText is ready
     if (!currentPageText || currentPageText.length === 0) {
-      console.warn(`[${readerInstanceId}][handleTTS] currentPageText is empty, cannot process selection`);
-      addToast?.('Page content not ready. Please wait a moment and try again.', 'error');
+      if (isPageLoading) {
+        console.warn(`[${readerInstanceId}][handleTTS] Page is still loading...`);
+        addToast?.('Page is loading, please wait...', 'info');
+      } else {
+        console.warn(`[${readerInstanceId}][handleTTS] currentPageText is empty (and not loading), likely scanned PDF or empty page`);
+        addToast?.('No readable text found on this page. (Is this a scanned PDF?)', 'error');
+      }
       setIsProcessing(false); // Reset state
       return;
     }
@@ -1964,15 +1481,23 @@ export const useReaderTTS = ({
     }
     // If no text is selected, try to use the resumeIndex from localStorage
     else if (resumeIndex !== null && resumeIndex >= 0) {
-      let accumulatedLength = 0;
-      for (let i = 0; i < chunks.length; i++) {
-        accumulatedLength += chunks[i].length + 1;
-        if (resumeIndex < accumulatedLength) {
-          startChunk = i;
-          break;
+      // Logic update: resumeIndex is now Chunk Index, but might be Offset (legacy)
+      // Heuristic: if resumeIndex > chunks.length, assume it's an offset
+      if (resumeIndex < chunks.length) {
+        startChunk = resumeIndex;
+        console.log(`[${readerInstanceId}][handleTTS] Resuming from saved chunk #${startChunk}`);
+      } else {
+        // Legacy offset handling
+        let accumulatedLength = 0;
+        for (let i = 0; i < chunks.length; i++) {
+          accumulatedLength += chunks[i].length + 1;
+          if (resumeIndex < accumulatedLength) {
+            startChunk = i;
+            break;
+          }
         }
+        console.log(`[${readerInstanceId}][handleTTS] Resuming from saved offset ${resumeIndex}, mapped to chunk #${startChunk}`);
       }
-      console.log(`[${readerInstanceId}][handleTTS] Resuming from saved index ${resumeIndex}, which corresponds to chunk #${startChunk}.`);
     }
     else {
       console.log(`[${readerInstanceId}][handleTTS] No selection or resume index. Starting from beginning.`);
@@ -2011,12 +1536,8 @@ export const useReaderTTS = ({
   // === Save progress periodically on chunk change ===
   useEffect(() => {
     if (currentChunkIndex !== null && chunks.length > 0) {
-      let offset = 0;
-      for (let i = 0; i < currentChunkIndex; i++) {
-        offset += chunks[i].length + 1;
-      }
-      currentTTSBaseOffsetRef.current = offset;
-      saveResumeIndex(offset);
+      // Save current chunk index directly
+      saveResumeIndex(currentChunkIndex);
       setHasFinishedPlayback(false);
 
       // Update highlighted content to show current chunk
@@ -2034,7 +1555,6 @@ export const useReaderTTS = ({
 
             if (contentElement) {
               const images = contentElement.querySelectorAll('img[data-epub-src]');
-              console.log(`[useReaderTTS] Extracting blob URLs from DOM: found ${images.length} images`);
               images.forEach((imgElement) => {
                 const img = imgElement as HTMLImageElement;
                 const epubSrc = img.getAttribute('data-epub-src');
@@ -2046,7 +1566,6 @@ export const useReaderTTS = ({
                   console.warn(`[useReaderTTS] Image ${epubSrc} does not have blob URL, src: ${src}`);
                 }
               });
-              console.log(`[useReaderTTS] Extracted ${blobUrlMap.size} blob URLs from DOM`);
             } else {
               console.warn('[useReaderTTS] Content element not found for blob URL extraction');
             }
@@ -2066,10 +1585,6 @@ export const useReaderTTS = ({
                 src: srcMatch ? srcMatch[1] : 'NO SRC',
                 epubSrc: epubSrcMatch ? epubSrcMatch[1] : 'NO EPUB-SRC'
               };
-            });
-            console.log(`[useReaderTTS] Input HTML images (currentContent):`, {
-              count: inputImgMatches.length,
-              images: inputImageInfo
             });
 
             const highlightedHtml = highlightChunkInHtml(
@@ -2093,24 +1608,8 @@ export const useReaderTTS = ({
                 epubSrc: epubSrcMatch ? epubSrcMatch[1] : 'NO EPUB-SRC'
               };
             });
-            console.log(`[useReaderTTS] Output HTML images (highlightedHtml):`, {
-              count: outputImgMatches.length,
-              images: outputImageInfo,
-              imagesRemoved: inputImgMatches.length - outputImgMatches.length
-            });
 
             setHighlightedContent(highlightedHtml);
-            console.log(`[DEBUG] Updated highlightedContent for chunk ${currentChunkIndex}:`, {
-              chunkIndex: currentChunkIndex,
-              chunkLength: currentChunk.length,
-              chunkPreview: currentChunk.substring(0, 50),
-              highlightedContentLength: highlightedHtml.length,
-              hasHighlightSpan: highlightedHtml.includes('<span class="tts-highlight">'),
-              hasImages: highlightedHtml.includes('<img'),
-              blobUrlsExtracted: blobUrlMap.size,
-              inputImageCount: inputImgMatches.length,
-              outputImageCount: outputImgMatches.length
-            });
           });
         }
       }
@@ -2184,80 +1683,11 @@ export const useReaderTTS = ({
     }
   }, [isSpeaking, isProcessing, isPaused, currentContent]);
 
-  // === Handle stopping playback on page navigation ===
-  const handleTTSNavigation = useCallback(() => {
-    if (ttsIntentActiveRef.current && (isSpeaking || isPaused)) {
-      saveResumeIndex(currentTTSBaseOffsetRef.current);
-    }
-    haltPlayback();
-    ttsIntentActiveRef.current = false;
-  }, [isSpeaking, isPaused, saveResumeIndex, haltPlayback]);
 
-  // === Previous/Next Sentence Navigation ===
-  const handlePreviousSentence = useCallback(() => {
-    if (currentChunkIndex !== null && currentChunkIndex > 0) {
-      // Play the previous sentence
-      const previousChunkIndex = currentChunkIndex - 1;
 
-      // ✅ FIX: Prevent playing same chunk if already playing
-      if (isChunkPlayingRef.current === previousChunkIndex && isSpeaking) {
-        console.log(`[${readerInstanceId}][Previous Sentence] Already playing chunk ${previousChunkIndex}, skipping`);
-        return;
-      }
 
-      // Stop current playback if playing
-      if (isSpeaking) {
-        pausePlayback();
-      }
 
-      console.log(`[${readerInstanceId}][Previous Sentence] Moving from chunk ${currentChunkIndex} to ${previousChunkIndex}`);
 
-      // ✅ FIX: Update playing chunk ref before playing
-      isChunkPlayingRef.current = previousChunkIndex;
-
-      // Prefetch and play the previous chunk
-      prefetchChunks(previousChunkIndex);
-      playChunk(previousChunkIndex);
-    } else {
-      console.log(`[${readerInstanceId}][Previous Sentence] Already at first sentence or no current chunk`);
-    }
-  }, [currentChunkIndex, isSpeaking, pausePlayback, prefetchChunks, playChunk, readerInstanceId]);
-
-  const handleNextSentence = useCallback(() => {
-    // Check if we're currently auto-advancing (from onended handler)
-    // If so, don't pause - let auto-advance continue seamlessly
-    if (isAutoAdvancingRef.current) {
-      console.log(`[${readerInstanceId}][Next Sentence] Skipping pause - auto-advancing in progress`);
-      return;
-    }
-
-    if (currentChunkIndex !== null && currentChunkIndex < chunks.length - 1) {
-      // Play the next sentence
-      const nextChunkIndex = currentChunkIndex + 1;
-
-      // ✅ FIX: Prevent playing same chunk if already playing
-      if (isChunkPlayingRef.current === nextChunkIndex && isSpeaking) {
-        console.log(`[${readerInstanceId}][Next Sentence] Already playing chunk ${nextChunkIndex}, skipping`);
-        return;
-      }
-
-      // Stop current playback if playing (manual navigation only)
-      if (isSpeaking) {
-        pausePlayback();
-      }
-
-      console.log(`[${readerInstanceId}][Next Sentence] Manual navigation: Moving from chunk ${currentChunkIndex} to ${nextChunkIndex}`);
-
-      // ✅ FIX: Update playing chunk ref before playing
-      isChunkPlayingRef.current = nextChunkIndex;
-
-      // Prefetch and play the next chunk
-      prefetchChunks(nextChunkIndex);
-      playChunk(nextChunkIndex);
-    } else {
-      console.log(`[${readerInstanceId}][Next Sentence] Already at last sentence or no current chunk`);
-    }
-  }, [currentChunkIndex, chunks.length, isSpeaking, pausePlayback, prefetchChunks, playChunk, readerInstanceId]);
 
   // === Render content function moved back to Reader component (JSX not allowed in .ts files) ===
 
@@ -2272,245 +1702,7 @@ export const useReaderTTS = ({
   // === Computed values ===
   const canTTSResume = !!currentPageText && resumeIndex !== null && !isSpeaking && !isPaused && !isProcessing && !hasFinishedPlayback;
 
-  // === Interactive Progress Bar Functions ===
 
-  // Preview scroll without starting TTS
-  const handlePreviewScroll = useCallback((percentage: number) => {
-    if (!chunks || chunks.length === 0) return;
-
-    // Convert percentage to chunk index
-    const previewChunkIndex = Math.floor((percentage / 100) * chunks.length);
-    const safeChunkIndex = Math.max(0, Math.min(previewChunkIndex, chunks.length - 1));
-
-    console.log(`[${readerInstanceId}][handlePreviewScroll] Previewing ${Math.round(percentage)}% (chunk ${safeChunkIndex})`);
-
-    // Try to find element with chunk text
-    const chunkText = chunks[safeChunkIndex];
-    if (!chunkText) return;
-
-    // Search for element containing this chunk text
-    const contentElement = document.querySelector('.epub-content');
-    if (!contentElement) return;
-
-    // Get all text nodes and find the one containing our chunk
-    const walker = document.createTreeWalker(
-      contentElement,
-      NodeFilter.SHOW_TEXT,
-      null
-    );
-
-    let node;
-    while (node = walker.nextNode()) {
-      if (node.textContent?.includes(chunkText.substring(0, 30))) {
-        // Found it! Scroll to parent element
-        const element = node.parentElement;
-        if (element) {
-          element.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-          });
-          return;
-        }
-      }
-    }
-
-    // Fallback: estimate scroll position based on percentage
-    if (contentElement) {
-      const scrollHeight = contentElement.scrollHeight;
-      const targetScroll = (percentage / 100) * scrollHeight;
-      contentElement.scrollTo({
-        top: targetScroll,
-        behavior: 'smooth'
-      });
-    }
-  }, [chunks, readerInstanceId]);
-
-  // // Seek and start TTS (called on release)
-  // const handleSeekToPercentage = useCallback((percentage: number) => {
-  //   console.log(`[${readerInstanceId}][handleSeekToPercentage] SEEK CALLED - percentage: ${percentage}`);
-
-  //   if (!chunks || chunks.length === 0) {
-  //     console.warn(`[${readerInstanceId}][handleSeekToPercentage] No chunks available`);
-  //     return;
-  //   }
-
-  //   const clampedPercentage = Math.max(0, Math.min(100, percentage));
-  //   const targetChunkIndex = Math.floor((clampedPercentage / 100) * chunks.length);
-  //   const safeChunkIndex = Math.max(0, Math.min(targetChunkIndex, chunks.length - 1));
-
-  //   console.log(`[${readerInstanceId}][handleSeekToPercentage] Seeking to ${Math.round(clampedPercentage)}% (chunk ${safeChunkIndex})`);
-
-  //   // Stop current playback first
-  //   haltPlayback();
-
-  //   // Reset all TTS state
-  //   setIsSpeaking(false);
-  //   setIsPaused(false);
-  //   setIsProcessing(true); // Show loading state while prefetching
-  //   setHasFinishedPlayback(false);
-
-  //   // Don't set currentChunkIndex here - let onPlay callback set it when audio actually starts
-  //   // This ensures highlight is synchronized with audio playback, not with the seek action
-  //   setResumeIndex(null); // Clear resume so it starts fresh
-
-  //   // Activate TTS intent
-  //   ttsIntentActiveRef.current = true;
-
-  //   // Prefetch target chunk (and next one) before playing to avoid delay
-  //   const startPlayback = async () => {
-  //     console.log(`[${readerInstanceId}][handleSeekToPercentage] Prefetching chunk ${safeChunkIndex} before playback`);
-
-  //     try {
-  //       // ✅ OPTIMISTIC PLAYBACK: Fetch first 2 chunks in parallel, then start playing immediately
-  //       const firstChunkPromise = fetchSingleChunk(safeChunkIndex);
-  //       const secondChunkPromise = safeChunkIndex + 1 < chunks.length 
-  //         ? fetchSingleChunk(safeChunkIndex + 1) 
-  //         : Promise.resolve();
-
-  //       // Wait for first chunk to be ready, then start playing
-  //       await firstChunkPromise;
-  //       setIsProcessing(false);
-  //       playChunk(safeChunkIndex);
-
-  //       // Prefetch second chunk and remaining chunks in background (non-blocking)
-  //       secondChunkPromise.catch(err => 
-  //         console.warn('[handleSeekToPercentage] Background prefetch of second chunk failed:', err)
-  //       );
-  //       // ✅ Only prefetch next chunks (reduced to prevent buffer bloat)
-  //       prefetchChunks(safeChunkIndex + INITIAL_PREFETCH_COUNT).catch(err => 
-  //         console.warn('[handleSeekToPercentage] Background prefetch failed:', err)
-  //       );
-  //     } catch (error) {
-  //       console.error(`[${readerInstanceId}][handleSeekToPercentage] Error starting playback:`, error);
-  //       setIsProcessing(false);
-  //       setIsSpeaking(false);
-  //       setIsPaused(false);
-  //       ttsIntentActiveRef.current = false;
-  //       addToast?.('Failed to start playback. Please try again.', 'error');
-  //     }
-  //   };
-  //   startPlayback();
-
-  //   addToast?.(`Starting from ${Math.round(clampedPercentage)}% of chapter`, 'success');
-  // }, [chunks, readerInstanceId, addToast, haltPlayback, playChunk, fetchSingleChunk, prefetchChunks]);
-
-
-  // Seek and start TTS (called on release)
-  const handleSeekToPercentage = useCallback(async (percentage: number) => {
-    console.log(`[${readerInstanceId}][handleSeekToPercentage] SEEK CALLED - percentage: ${percentage}`);
-
-    if (!chunks || chunks.length === 0) {
-      console.warn(`[${readerInstanceId}][handleSeekToPercentage] No chunks available`);
-      return;
-    }
-
-    const clampedPercentage = Math.max(0, Math.min(100, percentage));
-    const targetChunkIndex = Math.floor((clampedPercentage / 100) * chunks.length);
-    const safeChunkIndex = Math.max(0, Math.min(targetChunkIndex, chunks.length - 1));
-
-    console.log(`[${readerInstanceId}][handleSeekToPercentage] Seeking to ${Math.round(clampedPercentage)}% (chunk ${safeChunkIndex})`);
-
-    // Stop current playback first
-    haltPlayback();
-
-    // Reset all TTS state
-    setIsSpeaking(false);
-    setIsPaused(false);
-    setIsProcessing(true); // Show loading state while prefetching
-    setHasFinishedPlayback(false);
-
-    // Don't set currentChunkIndex here - let onPlay callback set it when audio actually starts
-    // This ensures highlight is synchronized with audio playback, not with the seek action
-    setResumeIndex(null); // Clear resume so it starts fresh
-
-    // Activate TTS intent
-    ttsIntentActiveRef.current = true;
-
-    // ✅ FIX: Usage limit checks for seeking (loophole fix)
-    // Check anonymous limit BEFORE starting TTS
-    const checkLimits = async () => {
-      if (anonymousLimit) {
-        const canUseTTS = await anonymousLimit.checkLimit();
-        if (!canUseTTS) {
-          console.warn('[TTS] Anonymous limit reached, blocking seeking');
-          addToast?.('Please sign up to continue using Read Aloud', 'info');
-          setIsProcessing(false);
-          return false;
-        }
-      }
-
-      // Check authenticated user limit
-      if (user?.id) {
-        try {
-          await refreshUsageLimit();
-          const limitData = await fetchUsageLimit(user.id);
-          if (limitData) {
-            const limitExceeded = (limitData.limit_exceeded ?? false) ||
-              (limitData.minutes_remaining !== null &&
-                limitData.minutes_remaining < 1 &&
-                (limitData.prepaid_minutes ?? 0) === 0);
-
-            if (limitExceeded) {
-              console.warn('[TTS] Authenticated limit reached, blocking seeking');
-              addToast?.('TTS usage limit reached. Please upgrade your subscription to continue.', 'error');
-              setIsProcessing(false);
-              return false;
-            }
-          }
-        } catch (e) {
-          console.error('[TTS] Error checking limit during seek:', e);
-        }
-      }
-      return true;
-    };
-
-    const isAllowed = await checkLimits();
-    if (!isAllowed) return;
-
-    // Prefetch target chunk (and next one) before playing to avoid delay
-    const startPlayback = async () => {
-      console.log(`[${readerInstanceId}][handleSeekToPercentage] Prefetching chunk ${safeChunkIndex} before playback`);
-
-      try {
-        // ✅ OPTIMISTIC PLAYBACK: Start fetching the first chunk
-        const firstChunkPromise = fetchSingleChunk(safeChunkIndex);
-
-        // Start next chunk prefetch immediately (fire and forget)
-        // We do this BEFORE awaiting the first chunk to maximize parallelism
-        if (safeChunkIndex + 1 < chunks.length) {
-          fetchSingleChunk(safeChunkIndex + 1).catch(err =>
-            console.warn('[handleSeekToPercentage] Background prefetch of second chunk failed:', err)
-          );
-          // Trigger broader prefetch for subsequent chunks
-          prefetchChunks(safeChunkIndex + INITIAL_PREFETCH_COUNT).catch(err =>
-            console.warn('[handleSeekToPercentage] Background prefetch failed:', err)
-          );
-        }
-
-        // Wait for first chunk to be ready (necessary for playback)
-        await firstChunkPromise;
-
-        setIsProcessing(false);
-
-        // ✅ CHANGE: Wrap playChunk in setTimeout(0) to break synchronous execution
-        // This ensures the UI updates (setIsProcessing: false) are painted before audio work begins
-        setTimeout(() => {
-          playChunk(safeChunkIndex);
-        }, 0);
-
-      } catch (error) {
-        console.error(`[${readerInstanceId}][handleSeekToPercentage] Error starting playback:`, error);
-        setIsProcessing(false);
-        setIsSpeaking(false);
-        setIsPaused(false);
-        ttsIntentActiveRef.current = false;
-        addToast?.('Failed to start playback. Please try again.', 'error');
-      }
-    };
-    startPlayback();
-
-    addToast?.(`Starting from ${Math.round(clampedPercentage)}% of chapter`, 'success');
-  }, [chunks, readerInstanceId, addToast, haltPlayback, playChunk, fetchSingleChunk, prefetchChunks]);
 
   return {
     // States

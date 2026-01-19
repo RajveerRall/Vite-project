@@ -56,6 +56,8 @@ const Reader: React.FC = () => {
 
   // Ref to track auto-advance state to prevent loops
   const isAutoAdvancingRef = useRef<boolean>(false);
+  // State to track if we should auto-play after loading a new page
+  const [autoPlayOnLoad, setAutoPlayOnLoad] = useState<boolean>(false);
 
   // Ref to store handleTTS function so it can be accessed in the callback
   const handleTTSRef = useRef<(() => void) | null>(null);
@@ -263,6 +265,7 @@ const Reader: React.FC = () => {
     if (currentPageDisplay < totalPages - 1) {
       console.log('[Reader] TTS finished, auto-advancing to next chapter...');
       isAutoAdvancingRef.current = true;
+      setAutoPlayOnLoad(true); // ✅ Set auto-play state
 
       // Store the current page number to track when it actually changes
       const currentPage = currentPageDisplay;
@@ -338,7 +341,8 @@ const Reader: React.FC = () => {
     currentContent,
     selectedVoice,
     ttsSpeed: ttsSpeed, // Use actual speed setting instead of hardcoded 1
-    onPlaybackComplete: handlePlaybackComplete
+    onPlaybackComplete: handlePlaybackComplete,
+    isPageLoading // Pass loading state for better error handling
   });
 
   const {
@@ -375,6 +379,7 @@ const Reader: React.FC = () => {
   // Handle manual TTS stop - reset auto-advance flag
   const handleStopTTSWithReset = useCallback(() => {
     isAutoAdvancingRef.current = false;
+    setAutoPlayOnLoad(false); // ✅ Reset auto-play state
     targetPageRef.current = null;
     handleStopTTS();
   }, [handleStopTTS]);
@@ -382,39 +387,35 @@ const Reader: React.FC = () => {
   // Effect to auto-start TTS when page loads after auto-navigation
   React.useEffect(() => {
     // Only auto-start if:
-    // 1. We're in auto-advance mode
-    // 2. Page has changed to target page
-    // 3. Page is not loading
-    // 4. Content is available
+    // 1. autoPlayOnLoad is true
+    // 2. Page is not loading
+    // 3. Content is available and valid
     if (
-      isAutoAdvancingRef.current &&
-      targetPageRef.current !== null &&
-      currentPageDisplay === targetPageRef.current &&
+      autoPlayOnLoad &&
       !isPageLoading &&
       currentPageText &&
-      currentPageText.trim().length > 0
+      currentPageText.trim().length > 0 &&
+      !isLoading // Also check main loading state
     ) {
-      console.log('[Reader] Page loaded, auto-starting TTS after navigation', {
+      console.log('[Reader] Page loaded with content, triggering auto-play', {
         currentPageDisplay,
-        targetPage: targetPageRef.current,
         hasText: !!currentPageText
       });
 
-      // Small delay to ensure TTS hook has fully updated
+      // Small delay to ensure UI is ready
       const timeoutId = setTimeout(() => {
-        if (handleTTSRef.current && isAutoAdvancingRef.current) {
+        if (handleTTSRef.current) {
           handleTTSRef.current();
-          // Clear flags after starting
-          setTimeout(() => {
-            isAutoAdvancingRef.current = false;
-            targetPageRef.current = null;
-          }, 1000);
+          // Reset flag after starting
+          setAutoPlayOnLoad(false);
+          isAutoAdvancingRef.current = false;
+          targetPageRef.current = null;
         }
-      }, 300);
+      }, 500); // Increased delay slightly for stability
 
       return () => clearTimeout(timeoutId);
     }
-  }, [currentPageDisplay, isPageLoading, currentPageText]);
+  }, [currentPageDisplay, isPageLoading, currentPageText, isLoading, autoPlayOnLoad]);
 
   const { scrollToHighlight } = useAutoScroll({
     isActive: isSpeaking || isProcessing || isPaused,
@@ -470,8 +471,29 @@ const Reader: React.FC = () => {
     handlePrevPage,
     handleNextPage,
     handleCloseBook: handleCloseBookCB,
-    handleChapterNavigation,
+    handleChapterNavigation: _handleChapterNavigation,
   } = navigation;
+
+  // Wrap chapter navigation to handle continuous TTS
+  const handleChapterNavigation = useCallback((direction: 'prev' | 'next') => {
+    // If TTS is playing, enable auto-play for the next page
+    if (isSpeaking || isPaused) {
+      console.log('[Reader] Manual navigation during TTS, enabling auto-play');
+      isAutoAdvancingRef.current = true;
+      setAutoPlayOnLoad(true);
+
+      // Predict target page
+      const targetPage = direction === 'next' ? currentPageDisplay + 1 : currentPageDisplay - 1;
+      targetPageRef.current = targetPage;
+
+      // ✅ Force stop TTS immediately when navigating manually to prevent "ghost audio"
+      if (handleStopTTSRef.current) {
+        handleStopTTSRef.current();
+      }
+    }
+
+    _handleChapterNavigation(direction);
+  }, [isSpeaking, isPaused, currentPageDisplay, _handleChapterNavigation]);
 
   // Detect if current book is PDF for auto-scroll feature
   const isPdfBook = React.useMemo(() => {
@@ -491,6 +513,7 @@ const Reader: React.FC = () => {
     prevPage: handlePrevPage,
     isPageLoading: isPageLoading,
     threshold: 20, // Trigger when within 20px of bottom/top
+    isTTSActive: isSpeaking || isPaused || isProcessing || fullCastActive // Pass TTS state
   });
 
   const handleCreateVideo = useCallback(() => {

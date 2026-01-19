@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { useFullCastUsage } from '../../hooks/useFullCastUsage';
+// import { useFullCastUsage } from '../../hooks/useFullCastUsage';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useToast } from '../../context/ToastContext';
-import { trackEvent } from '../../lib/analytics';
+// import { trackEvent } from '../../lib/analytics';
 import { UsageLimitModal } from '../UsageLimitModal';
 import { UsageWarningToast } from '../UsageWarningToast';
 import {
   Headphones,
   PlayCircle, PauseCircle, RotateCcw,
-  Loader2, Square, SkipBack, SkipForward, ImageIcon, Settings
+  Loader2, Square, SkipBack, SkipForward, Settings // ImageIcon removed
 } from 'lucide-react';
 import InteractiveProgressBar from './InteractiveProgressBar';
 import SpeedControlDropdown from './SpeedControlDropdown';
@@ -100,16 +100,16 @@ const Controls: React.FC<ControlsProps> = ({
   currentChapterTitle,
   bookId,
   onReadAloudSummary,
-  onFullCastGenerateImage,
+  // onFullCastGenerateImage,
   isMobile,
   theme,
   onOpenSettings
 }) => {
-  const {
-    usedMinutes: fcUsed,
-    totalMinutes: fcTotal,
-    remainingMinutes: fcRemaining
-  } = useFullCastUsage();
+  // const {
+  //   usedMinutes: fcUsed,
+  //   totalMinutes: fcTotal,
+  //   remainingMinutes: fcRemaining
+  // } = useFullCastUsage();
   const { isLimitExceeded } = useSubscription();
   const { addToast } = useToast();
   const [isAIChatDrawerOpen, setIsAIChatDrawerOpen] = useState(false);
@@ -468,8 +468,8 @@ const Controls: React.FC<ControlsProps> = ({
           </button>
         )} */}
 
-        {/* Full Cast Button */}
-        <button
+        {/* Full Cast Button - Disabled by request */}
+        {/* <button
           className={`control-button flex items-center gap-2 px-3 py-2 transition-colors ${fullCastActive
             ? 'bg-blue-50 border-blue-200 text-blue-700'
             : 'hover:bg-gray-50'
@@ -496,7 +496,7 @@ const Controls: React.FC<ControlsProps> = ({
         >
           <ImageIcon size={20} className={fullCastActive ? 'animate-pulse' : ''} />
           <span className="button-text text-sm font-medium">Picture Mode</span>
-        </button>
+        </button> */}
       </div>
 
       {/* Show warning toast for anonymous users near limit */}

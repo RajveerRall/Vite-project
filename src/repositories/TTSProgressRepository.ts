@@ -38,16 +38,8 @@ export class TTSProgressRepository implements IProgressRepository {
       };
 
       localStorage.setItem(key, JSON.stringify(data));
-      console.log(
-        `%c[${this.instanceId}][TTS Repository] Page ${pageDisplay}: Saved Index ${index} for key ${key}`,
-        'color: blue;'
-      );
     } catch (error) {
-      console.error(
-        `%c[${this.instanceId}][TTS Repository] Page ${pageDisplay}: Error saving:`,
-        'color: red;',
-        error
-      );
+      console.error(`[TTS Repository] Error saving:`, error);
       throw new Error(`Failed to save resume index: ${error}`);
     }
   }
@@ -71,20 +63,12 @@ export class TTSProgressRepository implements IProgressRepository {
 
       // Validate data structure
       if (!data || typeof data.index !== 'number') {
-        console.warn(
-          `%c[${this.instanceId}][TTS Repository] Invalid data format for key ${key}`,
-          'color: orange;'
-        );
         localStorage.removeItem(key);
         return null;
       }
 
       // Check if index is still valid (not beyond page text length)
       if (pageTextLength > 0 && data.index >= pageTextLength) {
-        console.log(
-          `%c[${this.instanceId}][TTS Repository] Index ${data.index} exceeds page length ${pageTextLength}, clearing`,
-          'color: orange;'
-        );
         localStorage.removeItem(key);
         return null;
       }
@@ -92,25 +76,13 @@ export class TTSProgressRepository implements IProgressRepository {
       // Check if data is too old (optional: expire after MAX_AGE)
       const age = Date.now() - data.timestamp;
       if (age > TTS_STORAGE.MAX_AGE_MS) {
-        console.log(
-          `%c[${this.instanceId}][TTS Repository] Data expired (${Math.floor(age / 1000 / 60)} minutes old), clearing`,
-          'color: orange;'
-        );
         localStorage.removeItem(key);
         return null;
       }
 
-      console.log(
-        `%c[${this.instanceId}][TTS Repository] Loaded index ${data.index} from key ${key}`,
-        'color: green;'
-      );
       return data.index;
     } catch (error) {
-      console.error(
-        `%c[${this.instanceId}][TTS Repository] Error loading for key ${key}:`,
-        'color: red;',
-        error
-      );
+      console.error(`[TTS Repository] Error loading:`, error);
       // Clean up corrupted data
       localStorage.removeItem(key);
       return null;
@@ -126,16 +98,8 @@ export class TTSProgressRepository implements IProgressRepository {
 
     try {
       localStorage.removeItem(key);
-      console.log(
-        `%c[${this.instanceId}][TTS Repository] Page ${pageDisplay}: Cleared progress for key ${key}`,
-        'color: purple;'
-      );
     } catch (error) {
-      console.error(
-        `%c[${this.instanceId}][TTS Repository] Page ${pageDisplay}: Error clearing for key ${key}:`,
-        'color: red;',
-        error
-      );
+      console.error(`[TTS Repository] Error clearing:`, error);
       throw new Error(`Failed to clear resume index: ${error}`);
     }
   }

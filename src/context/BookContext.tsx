@@ -383,7 +383,6 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     // Prevent save/load loops: only save if books actually changed
     const booksKey = JSON.stringify(books.map(b => ({ id: b.id, currentPage: b.currentPage, lastChapter: b.lastChapter })));
     if (lastSavedBooksRef.current === booksKey) {
-      console.log('[BookContext Save] Books unchanged, skipping save');
       return;
     }
 
@@ -493,19 +492,19 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   //         // Check for local books that might have newer progress than cloud
   //         currentBooks.forEach(localBook => {
   //           const cloudMatchIndex = mergedBooks.findIndex(b => b.id === localBook.id);
-            
+
   //           if (cloudMatchIndex !== -1) {
   //             const cloudBook = mergedBooks[cloudMatchIndex];
-              
+
   //             // Compare timestamps if available
   //             const localTime = localBook.lastRead ? new Date(localBook.lastRead).getTime() : 0;
   //             const cloudTime = cloudBook.lastRead ? new Date(cloudBook.lastRead).getTime() : 0;
-              
+
   //             // If local is significantly newer (e.g. > 5 seconds difference to avoid clock skew)
   //             // OR if local has further progress (and timestamps are close/missing)
   //             const isLocalNewer = localTime > cloudTime + 5000;
   //             const isLocalAhead = localBook.currentPage > cloudBook.currentPage;
-              
+
   //             if (isLocalNewer || (Math.abs(localTime - cloudTime) < 5000 && isLocalAhead)) {
   //               console.log(`[BookContext] Keeping local progress for "${localBook.title}" (Local: pg ${localBook.currentPage}, Cloud: pg ${cloudBook.currentPage})`);
   //               // Keep the local version's progress data but allow other metadata updates from cloud if needed
@@ -532,7 +531,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
 
   //         // Thoroughly check if books changed (including progress/page)
   //         const finalBooks = hasMergeChanges ? mergedBooks : cloudBooks;
-          
+
   //         const booksChanged =
   //           finalBooks.length !== currentBooks.length ||
   //           finalBooks.some((b, i) =>
@@ -580,7 +579,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
           // SMART MERGE STRATEGY
           // 1. Preserve local progress if it's newer than cloud
           // 2. Prevent overwriting valid local books with "Download Failed" versions
-          
+
           const mergedBooks = [...cloudBooks];
           let hasMergeChanges = false;
 
@@ -589,58 +588,58 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
 
           // Iterate through local books to check for newer progress or valid files vs corrupt cloud versions
           currentBooks.forEach(localBook => {
-             const cloudBook = cloudBookMap.get(localBook.id);
-             
-             if (cloudBook) {
-                const cloudIndex = mergedBooks.findIndex(b => b.id === localBook.id);
-                
-                // CHECK 1: CORRUPT CLOUD DOWNLOAD vs VALID LOCAL
-                // If cloud book failed download but local book is valid, KEEP LOCAL
-                const isCloudFailed = cloudBook.title.includes('(Download Failed)') || !cloudBook.file || cloudBook.file.size === 0;
-                const isLocalValid = localBook.file && localBook.file.size > 0 && !localBook.title.includes('(Download Failed)');
-                
-                if (isCloudFailed && isLocalValid) {
-                   console.log(`[BookContext] Preserving valid local book "${localBook.title}" over failed cloud download`);
-                   mergedBooks[cloudIndex] = localBook;
-                   hasMergeChanges = true;
-                   return; // Skip progress check as we've already chosen local
-                }
+            const cloudBook = cloudBookMap.get(localBook.id);
 
-                // CHECK 2: PROGRESS SYNC
-                // If both are valid, check which has newer progress
-                const localTime = localBook.lastRead ? new Date(localBook.lastRead).getTime() : 0;
-                const cloudTime = cloudBook.lastRead ? new Date(cloudBook.lastRead).getTime() : 0;
-                
-                // Allow 5s buffer for clock skew. If local is newer OR local is ahead in pages significantly
-                // Use a larger buffer (5s) to avoid race conditions
-                const isLocalNewer = localTime > cloudTime + 5000;
-                const isLocalAhead = localBook.currentPage > cloudBook.currentPage;
-                
-                if (isLocalNewer || (Math.abs(localTime - cloudTime) < 5000 && isLocalAhead)) {
-                   console.log(`[BookContext] Keeping local progress for "${localBook.title}" (Local: pg ${localBook.currentPage}, Cloud: pg ${cloudBook.currentPage})`);
-                   mergedBooks[cloudIndex] = {
-                      ...cloudBook, // Keep cloud metadata (potentially updated URLs)
-                      ...localBook, // Overwrite reading state from local
-                      // IMPORTANT: If we kept local progress, ensure we keep the valid file too if cloud is suspect
-                      file: isLocalValid ? localBook.file : cloudBook.file,
-                      coverUrl: isLocalValid ? localBook.coverUrl : cloudBook.coverUrl
-                   };
-                   hasMergeChanges = true;
-                }
-             } else {
-                // Book exists locally but not in cloud list (e.g., pending upload)
-                // Keep it in the list so it doesn't disappear
-                if (localBook.file || localBook.coverUrl?.startsWith('blob:')) {
-                   console.log(`[BookContext] Preserving local-only book "${localBook.title}"`);
-                   mergedBooks.push(localBook);
-                   hasMergeChanges = true;
-                }
-             }
+            if (cloudBook) {
+              const cloudIndex = mergedBooks.findIndex(b => b.id === localBook.id);
+
+              // CHECK 1: CORRUPT CLOUD DOWNLOAD vs VALID LOCAL
+              // If cloud book failed download but local book is valid, KEEP LOCAL
+              const isCloudFailed = cloudBook.title.includes('(Download Failed)') || !cloudBook.file || cloudBook.file.size === 0;
+              const isLocalValid = localBook.file && localBook.file.size > 0 && !localBook.title.includes('(Download Failed)');
+
+              if (isCloudFailed && isLocalValid) {
+                console.log(`[BookContext] Preserving valid local book "${localBook.title}" over failed cloud download`);
+                mergedBooks[cloudIndex] = localBook;
+                hasMergeChanges = true;
+                return; // Skip progress check as we've already chosen local
+              }
+
+              // CHECK 2: PROGRESS SYNC
+              // If both are valid, check which has newer progress
+              const localTime = localBook.lastRead ? new Date(localBook.lastRead).getTime() : 0;
+              const cloudTime = cloudBook.lastRead ? new Date(cloudBook.lastRead).getTime() : 0;
+
+              // Allow 5s buffer for clock skew. If local is newer OR local is ahead in pages significantly
+              // Use a larger buffer (5s) to avoid race conditions
+              const isLocalNewer = localTime > cloudTime + 5000;
+              const isLocalAhead = localBook.currentPage > cloudBook.currentPage;
+
+              if (isLocalNewer || (Math.abs(localTime - cloudTime) < 5000 && isLocalAhead)) {
+                console.log(`[BookContext] Keeping local progress for "${localBook.title}" (Local: pg ${localBook.currentPage}, Cloud: pg ${cloudBook.currentPage})`);
+                mergedBooks[cloudIndex] = {
+                  ...cloudBook, // Keep cloud metadata (potentially updated URLs)
+                  ...localBook, // Overwrite reading state from local
+                  // IMPORTANT: If we kept local progress, ensure we keep the valid file too if cloud is suspect
+                  file: isLocalValid ? localBook.file : cloudBook.file,
+                  coverUrl: isLocalValid ? localBook.coverUrl : cloudBook.coverUrl
+                };
+                hasMergeChanges = true;
+              }
+            } else {
+              // Book exists locally but not in cloud list (e.g., pending upload)
+              // Keep it in the list so it doesn't disappear
+              if (localBook.file || localBook.coverUrl?.startsWith('blob:')) {
+                console.log(`[BookContext] Preserving local-only book "${localBook.title}"`);
+                mergedBooks.push(localBook);
+                hasMergeChanges = true;
+              }
+            }
           });
 
           // Thoroughly check if books changed (including progress/page/title)
           const finalBooks = hasMergeChanges ? mergedBooks : cloudBooks;
-          
+
           const booksChanged =
             finalBooks.length !== currentBooks.length ||
             finalBooks.some((b, i) =>
