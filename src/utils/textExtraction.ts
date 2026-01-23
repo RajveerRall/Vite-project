@@ -8,13 +8,13 @@
 //     // Create a temporary div to parse the HTML
 //     const tempDiv = document.createElement('div');
 //     tempDiv.innerHTML = htmlContent;
-    
+
 //     // Extract text content
 //     let textContent = tempDiv.textContent || '';
-    
+
 //     // Clean up the text (remove excess whitespace)
 //     textContent = textContent.replace(/\s+/g, ' ').trim();
-    
+
 //     return textContent;
 //   } catch (error) {
 //     console.error('Error extracting text:', error);
@@ -27,7 +27,7 @@
 //  */
 // export const processHtmlContent = (htmlContent: string, fileDir: string): string => {
 //   let processedHtml = htmlContent;
-  
+
 //   // Fix image paths
 //   processedHtml = processedHtml.replace(
 //     /<img([^>]*)src=["']([^"']*)["']/g,
@@ -35,13 +35,13 @@
 //       if (src.startsWith('http')) {
 //         return match; // Absolute URL, no changes needed
 //       }
-      
+
 //       // Construct a data URL for the image
 //       const imagePath = src.startsWith('/') ? src.substring(1) : fileDir + src;
 //       return `<img${attributes}src="data:image/png;base64,IMAGE_PLACEHOLDER_${imagePath}"`;
 //     }
 //   );
-  
+
 //   // Fix CSS paths
 //   processedHtml = processedHtml.replace(
 //     /<link([^>]*)href=["']([^"']*)["']/g,
@@ -49,13 +49,13 @@
 //       if (href.startsWith('http')) {
 //         return match; // Absolute URL, no changes needed
 //       }
-      
+
 //       // Construct a data URL for the CSS
 //       const cssPath = href.startsWith('/') ? href.substring(1) : fileDir + href;
 //       return `<link${attributes}href="data:text/css;base64,CSS_PLACEHOLDER_${cssPath}"`;
 //     }
 //   );
-  
+
 //   return processedHtml;
 // };
 
@@ -74,35 +74,19 @@ export const extractTextFromHtml = (htmlContent: string): string => {
     if (typeof document !== 'undefined') {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = htmlContent;
-      
-      // Remove headers, titles, and navigation elements that shouldn't be read by TTS
+
+      // Only remove navigation and metadata elements, NOT content headers
       const elementsToRemove = tempDiv.querySelectorAll([
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',           // Headers
-        '.title', '.chapter-title', '.book-title',     // Common title classes
-        '.header', '.navigation', '.nav',              // Navigation elements
-        '.toc', '.table-of-contents',                  // Table of contents
-        '.breadcrumb', '.breadcrumbs',                 // Breadcrumbs
-        '.page-header', '.page-title',                 // Page headers
-        '[role="banner"]', '[role="navigation"]',      // ARIA roles
-        '.epub-header', '.epub-title',                 // EPUB-specific headers
-        '.epub-chapter-title', '.chapter-heading',     // More specific chapter titles
-        '.book-header', '.content-header'              // Content headers
+        '.navigation', '.nav', '.toc', '.table-of-contents',
+        '.breadcrumb', '.breadcrumbs',
+        '[role="banner"]', '[role="navigation"]'
       ].join(','));
-      
-      // Remove these elements from the DOM before extracting text
-      elementsToRemove.forEach(el => {
-        console.log(`[TTS] Removing element:`, {
-          tagName: el.tagName,
-          className: el.className,
-          id: el.id,
-          textContent: el.textContent?.substring(0, 50)
-        });
-        el.remove();
-      });
-      
+
+      elementsToRemove.forEach(el => el.remove());
+
       // Get text content and clean it up
       let textContent = tempDiv.textContent || tempDiv.innerText || '';
-      
+
       // Additional cleanup: remove unwanted content patterns (but preserve actual content)
       textContent = textContent
         // Remove CSS rules and metadata (be more selective)
@@ -133,7 +117,7 @@ export const extractTextFromHtml = (htmlContent: string): string => {
         .replace(/\n\s*\n/g, '\n')  // Remove empty lines
         .replace(/\t+/g, ' ')  // Replace tabs with spaces
         .trim();
-      
+
       // Safety check: if we removed too much content, use a more conservative approach
       if (textContent.length < 100) {
         console.warn('[extractTextFromHtml] Content too short after cleaning, using fallback extraction');
@@ -146,17 +130,15 @@ export const extractTextFromHtml = (htmlContent: string): string => {
           .replace(/\s+/g, ' ')  // Clean up whitespace
           .trim();
       }
-      
+
       // Debug logging
       console.log('[DEBUG] extractTextFromHtml:', {
         originalLength: htmlContent.length,
         extractedLength: textContent.length,
         extractedPreview: textContent.substring(0, 200),
-        hasHtmlTags: /<[^>]+>/.test(textContent),
-        tempDivChildren: tempDiv.children.length,
-        removedElements: elementsToRemove.length
+        hasHtmlTags: /<[^>]+>/.test(textContent)
       });
-      
+
       return textContent;
     } else {
       // Basic fallback for non-browser environments if DOM is not available
@@ -224,7 +206,7 @@ export const processHtmlContent = (
     (match, attributes, href) => {
       // Check if it's a stylesheet link
       if (!/rel=["']stylesheet["']/i.test(attributes) && !/type=["']text\/css["']/i.test(attributes)) {
-          return match; // Not a stylesheet, skip
+        return match; // Not a stylesheet, skip
       }
       if (href.startsWith('http') || href.startsWith('data:')) {
         return match; // Absolute URL or data URI, no changes needed
@@ -260,10 +242,10 @@ export const processHtmlContent = (
  * Detect if this is a Kobo EPUB by checking for Kobo-specific markers
  */
 const isKoboEpub = (htmlContent: string): boolean => {
-  return htmlContent.includes('koboSpan') || 
-         htmlContent.includes('kobo.js') || 
-         htmlContent.includes('koboSpanStyle') ||
-         htmlContent.includes('class="koboSpan"');
+  return htmlContent.includes('koboSpan') ||
+    htmlContent.includes('kobo.js') ||
+    htmlContent.includes('koboSpanStyle') ||
+    htmlContent.includes('class="koboSpan"');
 };
 
 /**
@@ -275,9 +257,9 @@ export const cleanEpubContent = (htmlContent: string): string => {
     if (typeof document !== 'undefined') {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = htmlContent;
-      
+
       const isKobo = isKoboEpub(htmlContent);
-      
+
       // Remove common EPUB elements that shouldn't be displayed or read
       // For Kobo EPUBs, preserve h2 elements (they contain chapter titles)
       const selectorsToRemove = [
@@ -285,28 +267,28 @@ export const cleanEpubContent = (htmlContent: string): string => {
         ...(isKobo ? ['h1', 'h3', 'h4', 'h5', 'h6'] : ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']), // Keep h2 for Kobo
         '.title', '.book-title', '.epub-title', // Keep chapter-title for Kobo
         '.section-title', '.page-title',
-        
+
         // Navigation and structure
         '.header', '.navigation', '.nav', '.toc',
         '.table-of-contents', '.breadcrumb', '.breadcrumbs',
         '.page-header', '.content-header', '.epub-header',
-        
+
         // EPUB-specific elements
         '.epub-section', '.epub-page',
         '.epub-navigation', '.epub-toc', '.epub-breadcrumb',
-        
+
         // Common content patterns
         '.content-header', '.section-header',
         '.page-header', '.article-header', '.story-header'
       ];
-      
+
       // For Kobo EPUBs, be more selective about removing chapter titles
       if (isKobo) {
         selectorsToRemove.push('.chapter-title'); // Only remove generic chapter-title, not chapter_head
       } else {
         selectorsToRemove.push('.chapter-title', '.chapter-heading', '.epub-chapter-title', '.chapter-header');
       }
-      
+
       let removedCount = 0;
       selectorsToRemove.forEach(selector => {
         const elements = tempDiv.querySelectorAll(selector);
@@ -320,16 +302,16 @@ export const cleanEpubContent = (htmlContent: string): string => {
           removedCount++;
         });
       });
-      
+
       // For Kobo EPUBs, preserve h2 elements that are chapter titles
       if (isKobo) {
         const allH2s = tempDiv.querySelectorAll('h2');
         allH2s.forEach(h2 => {
           // Keep h2 if it's a chapter title (has chapter_head class or is in a chapter section)
-          const isChapterTitle = h2.classList.contains('chapter_head') || 
-                                 h2.classList.contains('chapter-head') ||
-                                 h2.closest('section[epub\\:type*="chapter"]') !== null ||
-                                 h2.closest('section[role*="chapter"]') !== null;
+          const isChapterTitle = h2.classList.contains('chapter_head') ||
+            h2.classList.contains('chapter-head') ||
+            h2.closest('section[epub\\:type*="chapter"]') !== null ||
+            h2.closest('section[role*="chapter"]') !== null;
           if (!isChapterTitle) {
             console.log(`[EPUB Clean] Removing h2 (not a chapter title):`, {
               text: h2.textContent?.substring(0, 100),
@@ -340,14 +322,14 @@ export const cleanEpubContent = (htmlContent: string): string => {
           }
         });
       }
-      
+
       // Remove any remaining text nodes that contain book titles or CSS rules
       const walker = document.createTreeWalker(
         tempDiv,
         NodeFilter.SHOW_TEXT,
         null
       );
-      
+
       let textNode: Node | null;
       let textNodesRemoved = 0;
       while (textNode = walker.nextNode()) {
@@ -356,36 +338,36 @@ export const cleanEpubContent = (htmlContent: string): string => {
         // For Kobo EPUBs, be more conservative - don't remove text just because it contains common words
         const shouldRemove = isKobo
           ? (
-              // For Kobo: Only remove clearly CSS/metadata patterns
-              text.includes('@page') ||
-              (text.includes('margin-bottom') && text.includes('{')) ||
-              (text.includes('margin-top') && text.includes('{')) ||
-              (text.includes('font-size') && text.includes(':')) ||
-              (text.includes('line-height') && text.includes(':')) ||
-              (text.includes('text-align') && text.includes(':')) ||
-              text.includes('The Power of Now') ||
-              text.includes('A Guide to Spiritual Enlightenment') ||
-              (text.trim().length < 3 && /^[{};@\s]*$/.test(text.trim())) || // Only braces/semicolons
-              /^\s*[{}]\s*$/.test(text) || // Remove standalone braces
-              /^\s*@\w+\s*{/.test(text) || // Remove CSS at-rules
-              /^\s*}\s*$/.test(text) // Remove closing braces
-            )
+            // For Kobo: Only remove clearly CSS/metadata patterns
+            text.includes('@page') ||
+            (text.includes('margin-bottom') && text.includes('{')) ||
+            (text.includes('margin-top') && text.includes('{')) ||
+            (text.includes('font-size') && text.includes(':')) ||
+            (text.includes('line-height') && text.includes(':')) ||
+            (text.includes('text-align') && text.includes(':')) ||
+            text.includes('The Power of Now') ||
+            text.includes('A Guide to Spiritual Enlightenment') ||
+            (text.trim().length < 3 && /^[{};@\s]*$/.test(text.trim())) || // Only braces/semicolons
+            /^\s*[{}]\s*$/.test(text) || // Remove standalone braces
+            /^\s*@\w+\s*{/.test(text) || // Remove CSS at-rules
+            /^\s*}\s*$/.test(text) // Remove closing braces
+          )
           : (
-              // For non-Kobo: Use existing aggressive cleaning
-              text.includes('@page') ||
-              text.includes('margin-bottom') ||
-              text.includes('margin-top') ||
-              text.includes('font-size') ||
-              text.includes('line-height') ||
-              text.includes('text-align') ||
-              text.includes('The Power of Now') ||
-              text.includes('A Guide to Spiritual Enlightenment') ||
-              text.trim().length < 3 ||
-              /^\s*[{}]\s*$/.test(text) ||
-              /^\s*@\w+\s*{/.test(text) ||
-              /^\s*}\s*$/.test(text)
-            );
-        
+            // For non-Kobo: Use existing aggressive cleaning
+            text.includes('@page') ||
+            text.includes('margin-bottom') ||
+            text.includes('margin-top') ||
+            text.includes('font-size') ||
+            text.includes('line-height') ||
+            text.includes('text-align') ||
+            text.includes('The Power of Now') ||
+            text.includes('A Guide to Spiritual Enlightenment') ||
+            text.trim().length < 3 ||
+            /^\s*[{}]\s*$/.test(text) ||
+            /^\s*@\w+\s*{/.test(text) ||
+            /^\s*}\s*$/.test(text)
+          );
+
         if (shouldRemove) {
           console.log(`[EPUB Clean] Removing text node:`, {
             text: text.substring(0, 100),
@@ -397,9 +379,9 @@ export const cleanEpubContent = (htmlContent: string): string => {
           textNodesRemoved++;
         }
       }
-      
+
       console.log(`[EPUB Clean] Removed ${removedCount} elements and ${textNodesRemoved} text nodes from content (Kobo: ${isKobo})`);
-      
+
       // Debug: Log what content remains
       const remainingText = tempDiv.textContent || '';
       console.log(`[EPUB Clean] Remaining content preview:`, {
@@ -408,7 +390,7 @@ export const cleanEpubContent = (htmlContent: string): string => {
         hasArrows: remainingText.includes('>') || remainingText.includes('<'),
         hasHtmlEntities: /&[a-zA-Z0-9#]+;/.test(remainingText)
       });
-      
+
       // Safety check: if we removed too much content, return original with minimal cleaning
       if (remainingText.length < 100) {
         console.warn('[EPUB Clean] Content too short after cleaning, using fallback');
@@ -418,10 +400,10 @@ export const cleanEpubContent = (htmlContent: string): string => {
           .replace(/A Guide to Spiritual Enlightenment/g, '')
           .trim();
       }
-      
+
       return tempDiv.innerHTML;
     }
-    
+
     // Fallback: use regex for non-browser environments
     return htmlContent
       .replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gis, '')
@@ -430,7 +412,7 @@ export const cleanEpubContent = (htmlContent: string): string => {
       .replace(/[{}]/g, '') // Remove standalone braces
       .replace(/The Power of Now[^@]*@/g, '') // Remove book title references
       .replace(/A Guide to Spiritual Enlightenment/g, ''); // Remove subtitle
-      
+
   } catch (error) {
     console.error('Error cleaning EPUB content:', error);
     return htmlContent; // Return original content if cleaning fails
@@ -453,15 +435,15 @@ const decodeHtmlEntities = (text: string): string => {
 export const deepCleanEpubContent = (htmlContent: string): string => {
   try {
     const isKobo = isKoboEpub(htmlContent);
-    
+
     // First pass: Decode HTML entities and remove obvious CSS and metadata patterns
     let cleaned = htmlContent;
-    
+
     // Decode HTML entities first
     if (typeof document !== 'undefined') {
       cleaned = decodeHtmlEntities(cleaned);
     }
-    
+
     // Only remove specific problematic patterns, don't strip everything
     cleaned = cleaned
       // Remove CSS at-rules and their content (but be more careful)
@@ -488,7 +470,7 @@ export const deepCleanEpubContent = (htmlContent: string): string => {
     if (typeof document !== 'undefined') {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = cleaned;
-      
+
       // Remove all elements that might contain unwanted content
       // For Kobo EPUBs, preserve chapter titles
       const unwantedSelectors = [
@@ -499,11 +481,11 @@ export const deepCleanEpubContent = (htmlContent: string): string => {
         '[class*="header"]:not([class*="chapter"]):not([class*="section"])',
         '[class*="nav"]'
       ];
-      
+
       if (!isKobo) {
         unwantedSelectors.push('.chapter-title', '[class*="title"]');
       }
-      
+
       unwantedSelectors.forEach(selector => {
         try {
           const elements = tempDiv.querySelectorAll(selector);
@@ -512,62 +494,62 @@ export const deepCleanEpubContent = (htmlContent: string): string => {
           // Invalid selector, skip
         }
       });
-      
+
       // For Kobo EPUBs, preserve h2 chapter titles
       if (isKobo) {
         const allH2s = tempDiv.querySelectorAll('h2');
         allH2s.forEach(h2 => {
-          const isChapterTitle = h2.classList.contains('chapter_head') || 
-                                 h2.classList.contains('chapter-head') ||
-                                 h2.closest('section[epub\\:type*="chapter"]') !== null ||
-                                 h2.closest('section[role*="chapter"]') !== null;
+          const isChapterTitle = h2.classList.contains('chapter_head') ||
+            h2.classList.contains('chapter-head') ||
+            h2.closest('section[epub\\:type*="chapter"]') !== null ||
+            h2.closest('section[role*="chapter"]') !== null;
           if (!isChapterTitle) {
             h2.remove();
           }
         });
       }
-      
+
       // Remove text nodes with unwanted content - more conservative for Kobo
       const walker = document.createTreeWalker(
         tempDiv,
         NodeFilter.SHOW_TEXT,
         null
       );
-      
+
       let textNode: Node | null;
       while (textNode = walker.nextNode()) {
         const text = textNode.textContent || '';
         // For Kobo: Only remove clearly CSS/metadata, not content words
         const shouldRemove = isKobo
           ? (
-              (/^@\w+/.test(text.trim()) && /[{;}]/.test(text)) || // CSS at-rule
-              (text.includes('@page') && text.includes('{')) ||
-              (text.trim().length < 3 && /^[{};@\s]*$/.test(text.trim())) || // Only braces/semicolons
-              text.includes('The Power of Now') ||
-              text.includes('A Guide to Spiritual Enlightenment')
-            )
+            (/^@\w+/.test(text.trim()) && /[{;}]/.test(text)) || // CSS at-rule
+            (text.includes('@page') && text.includes('{')) ||
+            (text.trim().length < 3 && /^[{};@\s]*$/.test(text.trim())) || // Only braces/semicolons
+            text.includes('The Power of Now') ||
+            text.includes('A Guide to Spiritual Enlightenment')
+          )
           : (
-              text.includes('@page') ||
-              text.includes('margin') ||
-              text.includes('font') ||
-              text.includes('line-height') ||
-              text.includes('text-align') ||
-              text.includes('The Power of Now') ||
-              text.trim().length < 5
-            );
-        
+            text.includes('@page') ||
+            text.includes('margin') ||
+            text.includes('font') ||
+            text.includes('line-height') ||
+            text.includes('text-align') ||
+            text.includes('The Power of Now') ||
+            text.trim().length < 5
+          );
+
         if (shouldRemove) {
           if (textNode.parentNode) {
             textNode.parentNode.removeChild(textNode);
           }
         }
       }
-      
+
       cleaned = tempDiv.innerHTML;
     }
-    
+
     console.log('[Deep Clean] Content cleaned aggressively', { isKobo });
-    
+
     // Debug: Log what content remains after deep cleaning
     const remainingText = cleaned.replace(/<[^>]*>/g, ''); // Remove HTML tags for text analysis
     console.log(`[Deep Clean] Remaining content preview:`, {
@@ -577,7 +559,7 @@ export const deepCleanEpubContent = (htmlContent: string): string => {
       hasHtmlEntities: /&[a-zA-Z0-9#]+;/.test(remainingText),
       hasCssRules: /@[a-zA-Z]+/.test(remainingText)
     });
-    
+
     // Safety check: if we removed too much content, return the original with minimal cleaning
     if (remainingText.length < 100) {
       console.warn('[Deep Clean] Content too short after cleaning, using fallback cleaning');
@@ -591,9 +573,9 @@ export const deepCleanEpubContent = (htmlContent: string): string => {
         .replace(/A Guide to Spiritual Enlightenment/g, '') // Remove subtitle
         .trim();
     }
-    
+
     return cleaned;
-    
+
   } catch (error) {
     console.error('Error in deep cleaning:', error);
     return htmlContent;

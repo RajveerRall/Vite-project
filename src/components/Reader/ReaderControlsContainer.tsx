@@ -13,6 +13,7 @@ export interface ReaderControlsContainerProps extends ControlsProps {
   // UI Context (for layout/visibility)
   isMobile?: boolean;
   theme?: 'light' | 'dark' | 'sepia';
+  isUIVisible?: boolean;
 }
 
 /**
@@ -29,8 +30,10 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
   isMobile,
   onReadAloudSummary,
   onFullCastGenerateImage,
+  isUIVisible = true,
   ...controlsProps
 }) => {
+  console.log('[ReaderControlsContainer] Rendering. isUIVisible:', isUIVisible);
   // Create handlers that include analytics tracking
   const handleFullCastStop = () => {
     trackEvent('full_cast_stop', {
@@ -59,7 +62,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
   return (
     <>
       {/* Mobile Controls */}
-      <div className="reader-bottom-controls fixed bottom-0 left-0 right-0 border-t border-gray-200 shadow-lg z-30 md:hidden">
+      <div className={`reader-bottom-controls fixed bottom-0 left-0 right-0 border-t border-gray-200 shadow-lg z-30 md:hidden ${!isUIVisible ? 'reader-ui-hidden' : ''}`}>
         <div className="px-4 py-3">
           <Controls
             {...controlsProps}
@@ -77,7 +80,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
       </div>
 
       {/* Desktop Controls */}
-      <div className="reader-bottom-controls-desktop hidden md:block fixed bottom-6 left-1/2 transform -translate-x-1/2 rounded-full shadow-xl border border-gray-200 z-30">
+      <div className={`reader-bottom-controls-desktop hidden md:block fixed bottom-6 left-1/2 transform -translate-x-1/2 rounded-full shadow-xl border border-gray-200 z-30 ${!isUIVisible ? 'reader-ui-hidden' : ''}`}>
         <div className="px-6 py-3">
           <Controls
             {...controlsProps}

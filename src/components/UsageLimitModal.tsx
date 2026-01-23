@@ -49,12 +49,12 @@ export const UsageLimitModal: React.FC<UsageLimitModalProps> = ({
     try {
       const { supabase } = await import('../lib/supabase');
       const sessionId = getAnonymousSessionId();
-      
+
       // Use RPC function which has SECURITY DEFINER and can read the data
       const { data, error: fetchError } = await supabase.rpc('get_anonymous_usage', {
         p_session_id: sessionId
       });
-      
+
       if (!fetchError && data?.has_bonus) {
         setHasAnswered(true);
       }
@@ -116,10 +116,10 @@ export const UsageLimitModal: React.FC<UsageLimitModalProps> = ({
       // Success!
       setSuccess(true);
       setHasAnswered(true);
-      
+
       // Refresh usage limit
-      window.dispatchEvent(new CustomEvent('tts-usage-updated', { 
-        detail: { isAnonymous: true } 
+      window.dispatchEvent(new CustomEvent('tts-usage-updated', {
+        detail: { isAnonymous: true }
       }));
 
       // Close modal after 2 seconds
@@ -143,12 +143,12 @@ export const UsageLimitModal: React.FC<UsageLimitModalProps> = ({
   // Question form view
   if (showQuestion) {
     return (
-      <div 
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto"
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 p-4"
         onClick={onClose}
       >
-        <div 
-          className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 my-4 p-6 max-h-[90vh] overflow-y-auto"
+        <div
+          className="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto p-6 max-h-[90vh] overflow-y-auto flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {success ? (
@@ -171,7 +171,7 @@ export const UsageLimitModal: React.FC<UsageLimitModalProps> = ({
               <p className="text-gray-600 mb-6">
                 Answer this question to get 1 hour of free listening time:
               </p>
-              
+
               <form onSubmit={handleAnswerSubmit} className="flex flex-col">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Why do you want to listen to your ebooks?
@@ -180,8 +180,8 @@ export const UsageLimitModal: React.FC<UsageLimitModalProps> = ({
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
                   placeholder="Share your thoughts..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
-                  rows={5}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm min-h-[100px]"
+                  rows={4}
                   required
                   disabled={isSubmitting}
                   minLength={10}
@@ -190,11 +190,11 @@ export const UsageLimitModal: React.FC<UsageLimitModalProps> = ({
                 <p className="mt-1 text-xs text-gray-500 mb-2">
                   Minimum 10 characters
                 </p>
-                
+
                 {error && (
                   <p className="mt-2 mb-2 text-sm text-red-600">{error}</p>
                 )}
-                
+
                 <div className="flex gap-3 mt-4 flex-shrink-0">
                   <button
                     type="button"
@@ -226,18 +226,18 @@ export const UsageLimitModal: React.FC<UsageLimitModalProps> = ({
 
   // Main modal view
   return (
-    <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto"
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 p-4"
       onClick={onClose}
     >
-      <div 
-        className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 my-4 p-6 text-center"
+      <div
+        className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-auto p-6 text-center max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-gray-900 mb-6 text-base sm:text-lg">
           Free minutes used. Get more time by answering a question or sign up to continue reading.
         </p>
-        
+
         <div className="space-y-3">
           {!hasAnswered && (
             <button
@@ -247,7 +247,7 @@ export const UsageLimitModal: React.FC<UsageLimitModalProps> = ({
               Answer Question (Get 1 Hour Free)
             </button>
           )}
-          
+
           <button
             onClick={onSignIn}
             className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-colors font-medium shadow-md text-base"

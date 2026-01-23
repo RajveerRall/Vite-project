@@ -11,13 +11,25 @@
 
 /* Header layout improvements */
 .reader-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   background-color: #fff;
   padding: 0.75rem 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 10;
+  z-index: 100;
+  /* Higher than controls or other elements */
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.reader-header.reader-ui-hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .reader-left {
@@ -648,6 +660,8 @@
   overflow-x: hidden;
   /* Prevent horizontal scroll causing layout issues */
   align-items: center;
+  /* Space for fixed header */
+  padding-top: 80px;
   /* Minimal bottom padding to prevent content from being hidden behind bottom controls */
   padding-bottom: 20px;
 
@@ -678,6 +692,8 @@
 /* Mobile content padding to prevent overlap with bottom controls */
 @media (max-width: 768px) {
   .reader-main {
+    padding-top: 130px;
+    /* Offset for taller mobile stacked header */
     padding-bottom: 30px;
     /* Reduced from 100px */
   }
@@ -746,6 +762,27 @@
   transition: all 0.3s ease;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
+
+/* Generic hidden state for any floating UI elements */
+.reader-ui-hidden .floating-read-button,
+.floating-read-button.reader-ui-hidden {
+  transform: scale(0.8);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reader-bottom-controls.reader-ui-hidden,
+.reader-bottom-controls-desktop.reader-ui-hidden {
+  transform: translateY(150%) translateX(0) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Fix for desktop centered controls */
+.reader-bottom-controls-desktop.reader-ui-hidden {
+  transform: translateY(150%) translateX(-50%) !important;
+}
+
 
 /* Ensure content doesn't get hidden behind controls */
 .reader-container {

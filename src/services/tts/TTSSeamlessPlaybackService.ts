@@ -119,6 +119,19 @@ export class TTSSeamlessPlaybackService {
     try {
       // Check if already decoded
       if (this.decodedBuffers.has(chunkIndex)) {
+        // Even if decoded, ensure it's in the playback queue
+        const existingQueueItem = this.playbackQueue.find(q => q.chunkIndex === chunkIndex);
+        if (!existingQueueItem) {
+          const buffer = this.decodedBuffers.get(chunkIndex)!;
+          this.playbackQueue.push({
+            chunkIndex,
+            buffer,
+            duration: buffer.duration,
+            timestamp: Date.now(),
+          });
+          // Resort queue by index to maintain order
+          this.playbackQueue.sort((a, b) => a.chunkIndex - b.chunkIndex);
+        }
         return;
       }
 
@@ -169,6 +182,8 @@ export class TTSSeamlessPlaybackService {
           duration,
           timestamp: Date.now(),
         });
+        // Resort queue to maintain order
+        this.playbackQueue.sort((a, b) => a.chunkIndex - b.chunkIndex);
       }
     } catch (error) {
       console.error(`[${this.instanceId}] Failed to enqueue chunk ${chunkIndex}:`, error);

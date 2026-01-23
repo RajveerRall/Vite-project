@@ -33,34 +33,59 @@ export class TTSHighlightService {
    */
   highlightChunk(
     fullText: string,
-    chunkText: string,
-    chunkIndex: number | null = null
+    chunkText: string
   ): string {
     if (!fullText || !chunkText) return this.escapeHtmlChars(fullText);
 
-    // Try to find the chunk in the text
+    // 1. Try exact match first
     let startIndex = fullText.indexOf(chunkText);
 
-    // If exact match fails, try normalized comparison
+    // 2. If exact match fails and we're NOT escaping HTML, we might be dealing with HTML content
+    // Try a fuzzy match that ignores HTML tags and whitespace
+    if (startIndex === -1 && !this.escapeHtml) {
+      try {
+        // Create a regex that allows for optional HTML tags and whitespace between words
+        const words = chunkText.trim().split(/\s+/).filter(w => w.length > 0);
+        if (words.length > 0) {
+          // Escape each word for regex and join with a pattern that allows tags/spaces
+          const pattern = words
+            .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+            .join('(?:\\s*|<[^>]+>)*');
+
+          const regex = new RegExp(pattern, 'i');
+          const match = fullText.match(regex);
+
+          if (match && match.index !== undefined) {
+            const before = fullText.substring(0, match.index);
+            const highlight = match[0];
+            const after = fullText.substring(match.index + highlight.length);
+
+            return `${before}<span class="${this.highlightClass}">${highlight}</span>${after}`;
+          }
+        }
+      } catch (err) {
+        console.warn('[HighlightService] Fuzzy match failed:', err);
+      }
+    }
+
+    // 3. Fallback to normalized comparison (existing logic)
     if (startIndex === -1) {
       const normalizedFull = this.normalizeText(fullText);
       const normalizedChunk = this.normalizeText(chunkText);
       const normalizedIndex = normalizedFull.indexOf(normalizedChunk);
-      
+
       if (normalizedIndex !== -1) {
-        // Map normalized index back to original text (approximate)
         startIndex = this.mapNormalizedIndex(fullText, normalizedFull, normalizedIndex);
       }
     }
 
     if (startIndex === -1) {
-      // Chunk not found, return text as-is
       return this.escapeHtmlChars(fullText);
     }
 
     const endIndex = startIndex + chunkText.length;
     const before = this.escapeHtmlChars(fullText.substring(0, startIndex));
-    const highlight = this.escapeHtmlChars(chunkText);
+    const highlight = this.escapeHtmlChars(fullText.substring(startIndex, endIndex));
     const after = this.escapeHtmlChars(fullText.substring(endIndex));
 
     return `${before}<span class="${this.highlightClass}">${highlight}</span>${after}`;

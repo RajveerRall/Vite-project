@@ -11,16 +11,17 @@ import { getDOMParser } from './book/domParser';
 // import { regenerateCoverUrl } from './book/storage'; // Phase 2: No longer needed directly (handled by repository)
 
 // getDOMParser moved to ./book/domParser
-import { processHtmlContent, extractTextFromHtml, cleanEpubContent, deepCleanEpubContent } from '../utils/textExtraction';
+// import { processHtmlContent, extractTextFromHtml, cleanEpubContent, deepCleanEpubContent } from '../utils/textExtraction';
 import { BookData, TOCItem } from '@/types/books'; // Ensure BookData includes all necessary fields like lastChapter
 import { useAuth } from "./AuthContext";
-import { imageBlobUrlCache, imageDimensionsCache } from '../utils/imageCache';
+// import { imageBlobUrlCache, imageDimensionsCache } from '../utils/imageCache';
 // import { supabase, uploadFile, deleteFile, getFileUrl, type BookRecord } from '../lib/supabase'; // Switch to dynamic import
 // import { generateUUID } from '../lib/utils'; // Phase 2: No longer needed directly (handled by hooks)
 import { registerAdapter, getAdapterForFile } from './book/formats';
 import { epubAdapter } from './book/formats/epubAdapter';
 import { pdfAdapter } from './book/formats/pdfAdapter';
 import { mobiAdapter } from './book/formats/mobiAdapter';
+import { ContentDetectionService } from '../services/books/ContentDetectionService';
 // import { saveReaderState } from '../utils/readerState'; // Phase 3: Now handled by useBookNavigation hook
 
 // Phase 2: Import custom hooks
@@ -680,6 +681,12 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   // Use library hook for addBook
   const addBook = addBookToLibrary;
 
+  // Import Service (would normally be at top, but for replacing context logic)
+  // Dynamically imported inside callback or assumed available if imported at top.
+  // We will assume I should add the import at the top in a separate step or just use it here if I imported it.
+  // Actually, I need to add the import first.
+
+
 
 
 
@@ -690,48 +697,36 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
     currentBookRef: BookData | null,
     currentTocRef: TOCItem[]
   ) => {
-    console.log(`[loadPageCallback ENTER] pageIdxToLoad: ${pageIdxToLoad}, zipExists: ${!!zipToUse}, filesLength: ${filesInOrder?.length ?? 0}`);
+    // console.log(`[loadPageCallback ENTER] pageIdxToLoad: ${pageIdxToLoad}`);
     if (!zipToUse || !filesInOrder || filesInOrder.length === 0 || pageIdxToLoad < 0 || pageIdxToLoad >= filesInOrder.length) {
-      console.error(`[loadPageCallback ABORT] Invalid conditions. pageIdx: ${pageIdxToLoad}, zip: ${!!zipToUse}, filesLen: ${filesInOrder?.length ?? 0}`);
+      console.error(`[loadPageCallback ABORT] Invalid conditions`);
       setCurrentContent('<div>Error: Could not load page.</div>');
       setCurrentPageText('');
       setIsPageLoading(false);
       return;
     }
+
     setIsPageLoading(true);
     try {
       const filePath = filesInOrder[pageIdxToLoad];
-      console.log(`[loadPageCallback] Loading file: ${filePath}`);
-      const htmlTextContent = await zipToUse.file(filePath)?.async('text');
-      if (htmlTextContent == null) throw new Error(`Could not load HTML for ${filePath}`);
-      console.log(`[loadPageCallback] HTML fetched for ${filePath}, length: ${htmlTextContent.length}`);
-      const fileDir = getDirectoryPath(filePath);
-      const processedHtml = processHtmlContent(htmlTextContent, fileDir, zipToUse, filePath);
-      console.log(`[loadPageCallback] HTML processed for ${filePath}`);
 
-      // Clean the HTML content to remove headers, titles, and navigation elements
-      const cleanedHtml = cleanEpubContent(processedHtml);
-      console.log(`[loadPageCallback] HTML cleaned for ${filePath}`);
+      // Use the new Service to load content
+      // Note: We need to import BookContentService. 
+      // Since I cannot add imports easily in this chunk, I will use a dynamic import or assume it's imported.
+      // Better strategy: I will add the import in a separate step. Here I write the logic assuming it exists.
+      const { BookContentService } = await import('../services/books/BookContentService');
 
-      // Apply deep cleaning to remove CSS rules, metadata, and other unwanted content
-      const deepCleanedHtml = deepCleanEpubContent(cleanedHtml);
-      console.log(`[loadPageCallback] HTML deep cleaned for ${filePath}`);
+      const { displayContent, text } = await BookContentService.loadPage(zipToUse, filePath);
 
-      setCurrentContent(deepCleanedHtml);
+      console.log(`[loadPageCallback] Page loaded via Service: ${filePath}`);
+
+      setCurrentContent(displayContent); // Use deep cleaned content for display
       setCurrentPageDisplay(pageIdxToLoad);
-      const extractedText = extractTextFromHtml(deepCleanedHtml);
-      console.log(`[DEBUG] extractTextFromHtml result:`, {
-        originalLength: processedHtml.length,
-        extractedLength: extractedText.length,
-        extractedPreview: extractedText.substring(0, 200),
-        hasHtmlTags: /<[^>]+>/.test(extractedText)
-      });
-      setCurrentPageText(extractedText);
+      setCurrentPageText(text);
+
       if (currentBookRef) {
         const chapterForPage = findChapterForPage(pageIdxToLoad, currentTocRef, filesInOrder);
         const progress = calculateProgress(pageIdxToLoad, filesInOrder.length);
-
-        console.log(`[loadPageCallback] Saving progress - page: ${pageIdxToLoad}, progress: ${progress}%, chapter: ${chapterForPage?.label || 'none'}, bookId: ${currentBookRef.id}`);
 
         setBooks(prevBooks =>
           prevBooks.map(b =>
@@ -740,98 +735,33 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
               currentPage: pageIdxToLoad,
               lastChapter: chapterForPage,
               progress,
-              lastRead: new Date().toISOString() // CRITICAL: Update lastRead so local is newer than cloud
+              lastRead: new Date().toISOString()
             } : b
           )
         );
 
-        // Phase 2: Sync progress to cloud using hook
         syncProgressToCloud(currentBookRef.id, pageIdxToLoad, chapterForPage, progress);
       }
-      setTimeout(() => { /* Image/CSS processing logic - unchanged */
-        const contentElement = document.querySelector('.epub-content');
+
+      // Process images/CSS (Visuals)
+      // We can use the service helper or keep the simpler logic here if the service helper requires DOM elements
+      setTimeout(async () => {
+        const contentElement = document.querySelector('.epub-content') as HTMLElement;
         if (contentElement) {
-          const images = contentElement.querySelectorAll('img');
-          images.forEach(async (img: HTMLImageElement) => {
-            // Check if src is set to about:blank or invalid - this indicates it needs processing
-            const currentSrc = img.getAttribute('src') || img.src;
-            const epubSrc = img.getAttribute('data-epub-src');
-
-            // Skip if image already has a valid blob URL
-            if (currentSrc && currentSrc.startsWith('blob:')) {
-              return;
-            }
-
-            // Only process if we have a valid epubSrc
-            if (epubSrc && epubSrc.trim() && !epubSrc.startsWith('blob:') && epubSrc !== 'about:blank') {
-              try {
-                const imageBlob = await zipToUse.file(epubSrc)?.async('blob');
-                if (imageBlob) {
-                  const blobUrl = URL.createObjectURL(imageBlob);
-                  img.src = blobUrl;
-
-                  // Cache blob URL and dimensions for future use
-                  imageBlobUrlCache.set(epubSrc, blobUrl);
-
-                  // Fade in the image smoothly once it loads
-                  img.onload = () => {
-                    img.style.opacity = '1';
-                    // Cache dimensions when image loads
-                    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                      imageDimensionsCache.set(epubSrc, {
-                        width: img.naturalWidth,
-                        height: img.naturalHeight
-                      });
-                    }
-                  };
-                  img.onerror = () => {
-                    console.warn(`Image failed to load from blob URL: ${epubSrc}`);
-                    img.style.opacity = '0.5';
-                  };
-                } else {
-                  console.warn(`Image not found in zip: ${epubSrc}`);
-                  img.alt = `Missing: ${epubSrc}`;
-                  img.style.opacity = '0.5'; // Show placeholder state
-                  // Remove invalid src to prevent about:blank errors
-                  img.removeAttribute('src');
-                }
-              } catch (e) {
-                console.error(`Error loading image ${epubSrc}:`, e);
-                img.style.opacity = '0.3'; // Show error state
-                // Remove invalid src to prevent about:blank errors
-                img.removeAttribute('src');
-              }
-            } else if (currentSrc === 'about:blank' || !epubSrc || epubSrc === 'about:blank') {
-              // Handle images with invalid src or missing epubSrc
-              console.warn(`Image has invalid src or missing data-epub-src:`, { src: currentSrc, epubSrc });
-              img.removeAttribute('src');
-              img.style.opacity = '0.3';
-              img.alt = 'Image unavailable';
-            }
-          });
-          const links = contentElement.querySelectorAll('link[data-epub-css-href]');
-          links.forEach(async (link: Element) => {
-            const cssPath = (link as HTMLLinkElement).getAttribute('data-epub-css-href');
-            if (cssPath) {
-              try {
-                const cssFileContent = await zipToUse.file(cssPath)?.async('text');
-                if (cssFileContent) {
-                  const style = document.createElement('style');
-                  style.textContent = cssFileContent;
-                  link.parentNode?.replaceChild(style, link);
-                } else { console.warn(`CSS not found: ${cssPath}`); link.remove(); }
-              } catch (e) { console.error(`Error loading CSS ${cssPath}:`, e); }
-            }
-          });
+          const { BookContentService } = await import('../services/books/BookContentService');
+          // Load CSS
+          await BookContentService.loadCssResources(zipToUse, contentElement);
+          // Load Images
+          await BookContentService.loadImages(zipToUse, contentElement);
         }
-      }, 100);
+      }, 50);
+
     } catch (error) {
       console.error('[loadPageCallback ERROR]', error);
       setCurrentContent(`<div>Error loading page: ${(error as Error).message}</div>`);
       setCurrentPageText('');
     } finally {
       setIsPageLoading(false);
-      console.log(`[loadPageCallback EXIT] pageIdxToLoad: ${pageIdxToLoad}`);
     }
   }, [isAuthenticated, userId, syncProgressToCloud]);
 
@@ -1033,11 +963,11 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
 
         const fileOrder = Array.from({ length: Math.max(1, result.meta.totalPages || 0) }, (_, i) => `page-${i + 1}`);
         setHtmlFiles(fileOrder); setTotalPages(fileOrder.length);
-        console.log(`[openBook] Calling getToc() for adapter ${adapter.id}...`);
         const extractedToc = await result.getToc();
         console.log(`[openBook] Extracted TOC from adapter:`, extractedToc);
         setToc(extractedToc);
-        setBookZip(null); setIsReading(true);
+        // setBookZip(null); // Wait until end
+        // setIsReading(true); // Wait until end
 
         // PRIORITY 1: URL parameter (if present) - highest priority
         const urlParams = new URLSearchParams(window.location.search);
@@ -1060,8 +990,33 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
           console.log(`[openBook Adapter] Using saved currentPage: ${book.currentPage}`);
         }
 
+        // NEW PRIORITY: If starting from 0 and no progress, detect substantial page
+        if (pageIdxToLoadInitially === 0 && urlPageParam === null && !book.lastChapter && (!book.currentPage || book.currentPage === 0)) {
+          try {
+            const detectionIndex = await ContentDetectionService.findFirstSubstantialPage(
+              fileOrder,
+              async (path) => {
+                const idx = fileOrder.indexOf(path);
+                const p = await result.loadPage(idx);
+                return p.html;
+              },
+              extractedToc
+            );
+            if (detectionIndex !== 0) {
+              pageIdxToLoadInitially = detectionIndex;
+              console.log(`[openBook Adapter] Auto-skipped to substantial page: ${detectionIndex}`);
+            }
+          } catch (e) {
+            console.warn('[openBook Adapter] Substantial page detection failed:', e);
+          }
+        }
+
         pageIdxToLoadInitially = Math.max(0, Math.min(pageIdxToLoadInitially, fileOrder.length - 1));
         setCurrentPageToLoad(pageIdxToLoadInitially); setCurrentPageDisplay(pageIdxToLoadInitially);
+
+        // NOW set reading state to trigger effects with correct page
+        setBookZip(null);
+        setIsReading(true);
 
         // Navigate to reader URL
         navigate(`/reader/${book.id}?page=${pageIdxToLoadInitially}`);
@@ -1142,7 +1097,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       });
 
       setToc(extractedToc);
-      setBookZip(loadedZip); setIsReading(true);
+      // setBookZip(loadedZip); setIsReading(true); // Wait until end
 
       // IMPROVED: Better logic for determining the initial page to load
       // PRIORITY 1: URL parameter (if present) - highest priority
@@ -1213,7 +1168,23 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       }
 
       if (pageIdxToLoadInitially === 0 && urlPageParam === null && !book.lastChapter && (!book.currentPage || book.currentPage === 0)) {
-        console.log(`[openBook] No valid saved position found, starting from beginning`);
+        console.log(`[openBook] No valid saved position found, attempting to detect substantial page...`);
+        try {
+          const detectionIndex = await ContentDetectionService.findFirstSubstantialPage(
+            currentFileOrder,
+            async (path) => {
+              const content = await loadedZip.file(path)?.async('text');
+              return content || '';
+            },
+            extractedToc
+          );
+          if (detectionIndex !== 0) {
+            pageIdxToLoadInitially = detectionIndex;
+            console.log(`[openBook] Auto-skipped to substantial page: ${detectionIndex}`);
+          }
+        } catch (e) {
+          console.warn('[openBook] Substantial page detection failed:', e);
+        }
       }
 
       // Ensure the page index is within valid bounds
@@ -1221,6 +1192,10 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
 
       setCurrentPageToLoad(pageIdxToLoadInitially); setCurrentPageDisplay(pageIdxToLoadInitially);
       console.log(`[openBook] Successfully prepared: ${book.title}. Page to load: ${pageIdxToLoadInitially} (total pages: ${currentFileOrder.length})`);
+
+      // NOW set reading state to trigger effects with correct page
+      setBookZip(loadedZip);
+      setIsReading(true);
 
       // Navigate to reader URL
       navigate(`/reader/${book.id}?page=${pageIdxToLoadInitially}`);

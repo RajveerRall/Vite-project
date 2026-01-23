@@ -119,7 +119,7 @@ export default defineConfig({
   },
   define: {
     'process.env': {},
-    'global': {}, 
+    'global': {},
   },
   resolve: {
     alias: {
@@ -157,6 +157,11 @@ export default defineConfig({
       '.ngrok.io' // Allow legacy ngrok domains
     ],
     proxy: {
+      '/api/tts': {
+        target: 'https://tts.yoread.com',
+        changeOrigin: true,
+        secure: false, // In case of SSL issues, though widely trusted usually ok
+      },
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,

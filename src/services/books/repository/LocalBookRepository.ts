@@ -59,7 +59,7 @@ export class LocalBookRepository {
       const keys = await localforage.keys();
       const prefix = this.getKeyPrefix();
       const metadataPrefix = prefix ? `${prefix}book_metadata_` : 'book_metadata_';
-      
+
       const bookMetadataKeys = keys.filter(key => key.startsWith(metadataPrefix));
       console.log(
         `[LocalBookRepository] Found ${bookMetadataKeys.length} books with prefix: "${metadataPrefix}"`
@@ -103,6 +103,20 @@ export class LocalBookRepository {
       console.error('[LocalBookRepository] Error loading books:', error);
       console.timeEnd(timerName);
       return [];
+    }
+  }
+
+  /**
+   * Get a single book's file from local storage
+   */
+  async getBookFile(bookId: string): Promise<File | null> {
+    try {
+      const fileKey = this.getFileKey(bookId);
+      const file = (await localforage.getItem(fileKey)) as File;
+      return file || null;
+    } catch (error) {
+      console.error(`[LocalBookRepository] Error getting book file ${bookId}:`, error);
+      return null;
     }
   }
 
@@ -152,7 +166,7 @@ export class LocalBookRepository {
       // Check if this is the default book before removing
       const metadataKey = this.getMetadataKey(bookId);
       const metadata = (await localforage.getItem(metadataKey)) as BookData | null;
-      
+
       if (metadata && DefaultBookService.isDefaultBook(metadata)) {
         console.log(`[LocalBookRepository] Preserving default book: ${metadata.title}`);
         return;

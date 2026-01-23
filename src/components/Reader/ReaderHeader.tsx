@@ -23,6 +23,7 @@ export interface ReaderHeaderProps {
 
   // UI state
   showTTSHighlight: boolean; // Whether to show scroll-to-highlight button
+  className?: string;
 }
 
 /**
@@ -36,7 +37,8 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
   onScrollToHighlight,
   onOpenSettings,
   onOpenChapters,
-  showTTSHighlight,
+  showTTSHighlight, // Kept for interface compatibility but not used
+  className = '',
 }) => {
   const { isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -67,7 +69,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
   }, [isAuthenticated, showAuthModal]);
 
   return (
-    <header className="reader-header">
+    <header className={`reader-header ${className}`}>
       {/* Mobile: Stacked layout */}
       <div className="reader-header-mobile md:hidden">
         <div className="flex items-center justify-between mb-2">
@@ -194,17 +196,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
         </div>
 
         <div className="flex items-center justify-center gap-3 mt-2">
-          {showTTSHighlight && (
-            <button
-              onClick={onScrollToHighlight}
-              className="scroll-highlight-button flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-gray-50"
-              aria-label="Scroll to current highlight"
-              title="Scroll to current highlight"
-            >
-              <Headphones className="w-5 h-5" />
-              <span className="text-sm font-medium">Highlight</span>
-            </button>
-          )}
+          {/* Highlight button removed for immersive mode */}
         </div>
       </div>
 
@@ -327,18 +319,7 @@ export const ReaderHeader: React.FC<ReaderHeaderProps> = ({
             </>
           )}
 
-          {/* Highlight Button - Keep existing functionality */}
-          {showTTSHighlight && (
-            <button
-              onClick={onScrollToHighlight}
-              className="scroll-highlight-button flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-amber-800 transition-colors rounded-lg hover:bg-gray-50"
-              aria-label="Scroll to current highlight"
-              title="Scroll to current highlight"
-            >
-              <Headphones className="w-5 h-5" />
-              <span className="text-sm font-medium">Highlight</span>
-            </button>
-          )}
+          {/* Highlight Button - Removed for immersive mode */}
 
           {/* Desktop: Settings Widget Toggle */}
           {onOpenSettings && (

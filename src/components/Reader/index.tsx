@@ -200,6 +200,7 @@ const Reader: React.FC = () => {
     showNextArrow,
     handlePageClick,
     isEnhanced,
+    isUIVisible
   } = uiState;
 
   const fullCast = useFullCast(
@@ -334,8 +335,16 @@ const Reader: React.FC = () => {
     }
   }, [autoContinueChapters, currentPageDisplay, totalPages, nextPage, isPageLoading, currentPageText]);
 
+
+
+  // Phase 7: Calculate current chapter href for Global Player
+  // htmlFiles corresponds to the spine order, so currentPageDisplay index gives us the current file path.
+  const currentChapterHref = htmlFiles[currentPageDisplay] || '';
+
   const ttsHook = useReaderTTS({
     bookTitle,
+    bookId: currentBook?.id, // Phase 7: Pass real ID
+    currentChapterHref,      // Phase 7: Pass href for loading
     currentPageDisplay,
     currentPageText,
     currentContent,
@@ -529,6 +538,7 @@ const Reader: React.FC = () => {
   return (
     <div className={`reader theme-${theme}`}>
       <ReaderHeader
+        className={!isUIVisible ? 'reader-ui-hidden' : ''}
         bookTitle={bookTitle}
         currentChapterTitle={currentChapterTitle}
         onClose={handleCloseBookCB}
@@ -608,7 +618,9 @@ const Reader: React.FC = () => {
 
         <ReaderContent
           content={currentContent}
-          highlightedContent={isPdfBook ? undefined : (fullCastActive ? fullCastHighlightedContent : ttsHighlightedContent)}
+          // highlightedContent is now only used for full cast scenes, not TTS
+          highlightedContent={fullCastActive ? fullCastHighlightedContent : undefined}
+          activeChunk={ttsHook.activeChunk} // Pass the raw chunk for DOM highlighting
           onPageClick={handlePageClick}
           onChapterNavigation={handleChapterNavigation}
           showNavigationArrows={showNavigationArrows}
@@ -661,6 +673,7 @@ const Reader: React.FC = () => {
           setShouldAutoSummarize(true);
         }}
         onOpenSettings={toggleSettings}
+        isUIVisible={isUIVisible}
       />
       {showFeatureHighlight && (<FeatureHighlight onClose={closeFeatureHighlight} />)}
 

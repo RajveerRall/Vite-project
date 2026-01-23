@@ -11,6 +11,9 @@ import Footer from "./components/Common/Footer";
 import SuspenseLoader from './components/Common/SuspenseLoader';
 import { ToastContainer } from './components/Common/Toast';
 import { ToastProvider, useToast } from './context/ToastContext';
+import { TTSProvider } from './context/TTSContext'; // Phase 7
+import { GlobalAudioPlayer } from './components/TTS/GlobalAudioPlayer'; // Phase 7
+import { MiniPlayer } from './components/TTS/MiniPlayer'; // Phase 7.5
 import GoogleOneTap from './components/Auth/GoogleOneTap';
 // import ScannerPage from './pages/ScannerPage'; // Temporarily disabled
 import './App.css';
@@ -66,9 +69,9 @@ const MainApp: React.FC = () => {
   // This prevents GoogleOneTap from auto-triggering after explicit sign-out
   const googleOneTapComponent = React.useMemo(() => {
     if (!isAuthenticated && !hasExplicitlySignedOut && !Capacitor.isNativePlatform()) {
-      return <GoogleOneTap 
-        onSuccess={handleGoogleSuccess} 
-        onError={handleGoogleError} 
+      return <GoogleOneTap
+        onSuccess={handleGoogleSuccess}
+        onError={handleGoogleError}
       />;
     }
     return null;
@@ -106,7 +109,7 @@ const AppContent: React.FC = () => {
   const { user } = useAuth();
   // Globally listen for TTS usage events and persist to Supabase when needed
   useTTSUsageRecorder();
-  
+
   // Initialize usage tracking on app start and when user changes (only if tracking enabled)
   React.useEffect(() => {
     if (isTrackingEnabled()) {
@@ -115,14 +118,14 @@ const AppContent: React.FC = () => {
       console.log('[App] Usage tracking disabled in development');
     }
   }, []);
-  
+
   React.useEffect(() => {
     // Update tracker when user logs in/out (only if tracking enabled)
     if (isTrackingEnabled()) {
       updateUsageTrackerUserId(user?.id);
     }
   }, [user?.id]);
-  
+
   React.useEffect(() => {
     // Handle warm link
     const sub = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
@@ -131,19 +134,19 @@ const AppContent: React.FC = () => {
         try {
           const { supabase } = await import('./lib/supabase');
           console.log('[Auth Deep Link] Exchanging code for session (warm)...');
-          
+
           // Add timeout protection
           const exchangePromise = supabase.auth.exchangeCodeForSession(url);
           const timeoutPromise = new Promise<never>((_, reject) => {
             setTimeout(() => reject(new Error('Session exchange timeout after 10 seconds')), 10000);
           });
-          
+
           await Promise.race([exchangePromise, timeoutPromise]);
           console.log('[Auth Deep Link] Session exchange complete (warm).');
         } catch (error) {
           console.error('[Auth Deep Link] Session exchange failed (warm):', error);
         } finally {
-          try { await Browser.close(); } catch {}
+          try { await Browser.close(); } catch { }
         }
       }
     });
@@ -157,13 +160,13 @@ const AppContent: React.FC = () => {
         if (url?.startsWith('yoread://auth/callback')) {
           const { supabase } = await import('./lib/supabase');
           console.log('[Auth Deep Link] Exchanging code for session (cold)...');
-          
+
           // Add timeout protection
           const exchangePromise = supabase.auth.exchangeCodeForSession(url);
           const timeoutPromise = new Promise<never>((_, reject) => {
             setTimeout(() => reject(new Error('Session exchange timeout after 10 seconds')), 10000);
           });
-          
+
           await Promise.race([exchangePromise, timeoutPromise]);
           console.log('[Auth Deep Link] Session exchange complete (cold).');
         }
@@ -171,12 +174,12 @@ const AppContent: React.FC = () => {
         console.error('[Auth Deep Link] Session exchange failed (cold):', error);
       }
     })();
-    return () => { 
+    return () => {
       // CapacitorApp.addListener returns a Promise that resolves to a PluginListenerHandle
       // Handle both Promise and direct handle cases
       if (sub && typeof sub === 'object' && 'then' in sub) {
         // It's a Promise
-        (sub as Promise<any>).then(handle => handle?.remove?.()).catch(() => {});
+        (sub as Promise<any>).then(handle => handle?.remove?.()).catch(() => { });
       } else if (sub && typeof (sub as any).remove === 'function') {
         // It's a direct handle
         (sub as any).remove();
@@ -228,7 +231,7 @@ const AppContent: React.FC = () => {
           <SpeechifyAlternative />
         </React.Suspense>
       } />
-      
+
       {/* New topic-based blog routes */}
       <Route path="/topics" element={
         <React.Suspense fallback={<LazyRouteFallback />}>
@@ -245,17 +248,17 @@ const AppContent: React.FC = () => {
           <TopicArticlePage />
         </React.Suspense>
       } />
-      
+
       {/* Scanner - Temporarily disabled */}
       {/* <Route path="/scanner" element={<ScannerPage />} /> */}
-      
+
       {/* Auth callback route for OAuth providers */}
       <Route path="/auth/callback" element={
         <React.Suspense fallback={<LazyRouteFallback />}>
           <AuthCallback />
         </React.Suspense>
       } />
-      
+
       {/* Main app routes - auth required - use wildcard to allow nested routes */}
       <Route path="/*" element={<MainApp />} />
     </Routes>
@@ -268,10 +271,14 @@ const App: React.FC = () => {
       <Router>
         <ToastProvider>
           <BookProvider>
-            <SubscriptionProvider>
-              <AppContent />
-              <ToastWrapper />
-            </SubscriptionProvider>
+            <TTSProvider>
+              <GlobalAudioPlayer />
+              <MiniPlayer />
+              <SubscriptionProvider>
+                <AppContent />
+                <ToastWrapper />
+              </SubscriptionProvider>
+            </TTSProvider>
           </BookProvider>
         </ToastProvider>
       </Router>

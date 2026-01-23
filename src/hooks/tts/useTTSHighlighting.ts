@@ -4,12 +4,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createTTSHighlightService } from '../../services/tts/TTSHighlightService';
+import { HighlightOptions } from '../../types/tts';
 
 export interface UseTTSHighlightingReturn {
   highlightedContent: string;
   highlightChunk: (fullText: string, chunkText: string, chunkIndex: number | null) => void;
   highlightResumePosition: (fullText: string, resumeIndex: number | null) => void;
   clearHighlight: () => void;
+  activeChunk: string | null;
+  chunkIndex: number | null;
 }
 
 /**
@@ -17,12 +20,14 @@ export interface UseTTSHighlightingReturn {
  */
 export function useTTSHighlighting(
   defaultContent: string,
-  instanceId?: string
+  options?: HighlightOptions
 ): UseTTSHighlightingReturn {
   const [highlightedContent, setHighlightedContent] = useState<string>(defaultContent);
+  const [activeChunk, setActiveChunk] = useState<string | null>(null);
+  const [chunkIndex, setChunkIndex] = useState<number | null>(null);
   const highlightService = useCallback(
-    () => createTTSHighlightService(),
-    []
+    () => createTTSHighlightService(options),
+    [options]
   )();
 
   // Update when default content changes
@@ -35,8 +40,10 @@ export function useTTSHighlighting(
    */
   const highlightChunk = useCallback(
     (fullText: string, chunkText: string, chunkIndex: number | null) => {
-      const highlighted = highlightService.highlightChunk(fullText, chunkText, chunkIndex);
+      const highlighted = highlightService.highlightChunk(fullText, chunkText);
       setHighlightedContent(highlighted);
+      setActiveChunk(chunkText);
+      setChunkIndex(chunkIndex);
     },
     [highlightService]
   );
@@ -63,6 +70,8 @@ export function useTTSHighlighting(
   const clearHighlight = useCallback(() => {
     const cleared = highlightService.clearHighlight(highlightedContent);
     setHighlightedContent(cleared);
+    setActiveChunk(null);
+    setChunkIndex(null);
   }, [highlightService, highlightedContent]);
 
   return {
@@ -70,6 +79,8 @@ export function useTTSHighlighting(
     highlightChunk,
     highlightResumePosition,
     clearHighlight,
+    activeChunk,
+    chunkIndex
   };
 }
 

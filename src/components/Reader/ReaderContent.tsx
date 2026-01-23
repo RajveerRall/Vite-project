@@ -10,6 +10,7 @@ export interface ReaderContentProps {
   // Content
   content: string;
   highlightedContent?: string;
+  activeChunk?: string | null;
 
   // Navigation
   onPageClick: () => void;
@@ -33,7 +34,8 @@ export interface ReaderContentProps {
  */
 export const ReaderContent: React.FC<ReaderContentProps> = ({
   content,
-  highlightedContent,
+  highlightedContent, // Keeping this for backward compatibility if needed, but not using for display
+  activeChunk,
   onPageClick,
   onChapterNavigation,
   showNavigationArrows,
@@ -43,10 +45,104 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
   contentRef,
 }) => {
   const { currentBook } = useBook();
-  const displayContent = highlightedContent || content;
+  // Use plain content for display - highlights will be applied via DOM manipulation
+  const displayContent = content;
 
-  // Synchronously restore dimensions immediately after React renders
-  // This prevents layout shift before the async useEffect runs
+  // DOM-based highlighting
+  // Instead of re-rendering everything (which reloads images), we manipulate the DOM directly
+  useEffect(() => {
+    // Clean up previous highlights
+    const contentElement = document.querySelector('.epub-content');
+    if (!contentElement) return;
+
+    // Remove existing highlights but keep text
+    const highlights = contentElement.querySelectorAll('.tts-highlight');
+    highlights.forEach(el => {
+      const parent = el.parentNode;
+      if (parent) {
+        // Unwrap: replace span with its text content
+        const text = el.textContent || '';
+        const textNode = document.createTextNode(text);
+        parent.replaceChild(textNode, el);
+        // Normalize to merge adjacent text nodes
+        parent.normalize();
+      }
+    });
+
+    // Apply new highlight if we have an active chunk
+    if (activeChunk && activeChunk.trim().length > 0) {
+      const cleanChunk = activeChunk.trim();
+
+      // Step 1: Collect all text nodes and build a virtual text buffer
+      // This allows us to match text that spans multiple nodes (e.g. bold/italic)
+      const walker = document.createTreeWalker(
+        contentElement,
+        NodeFilter.SHOW_TEXT,
+        null
+      );
+
+      const nodeMap: { start: number; end: number; node: Text }[] = [];
+      let virtualText = '';
+
+      let currentNode = walker.nextNode();
+      while (currentNode) {
+        const node = currentNode as Text;
+        const text = node.textContent || '';
+        const start = virtualText.length;
+        virtualText += text;
+        const end = virtualText.length;
+
+        nodeMap.push({ start, end, node });
+        currentNode = walker.nextNode();
+      }
+
+      // Step 2: Use regex to find the match in the virtual text buffer
+      // This handles whitespace differences and cross-node matching
+      const escapedChunk = cleanChunk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Replace whitespace in chunk with \s+ to match any whitespace in the DOM
+      const whiteSpaceAgnosticPattern = escapedChunk.replace(/\s+/g, '\\s+');
+      const regex = new RegExp(whiteSpaceAgnosticPattern, 'i');
+
+      const match = virtualText.match(regex);
+
+      if (match && match.index !== undefined) {
+        const matchStart = match.index;
+        const matchEnd = match.index + match[0].length;
+
+        // Step 3: Map the match back to DOM nodes and create highlights
+        nodeMap.forEach(({ start, end, node }) => {
+          const overlapStart = Math.max(start, matchStart);
+          const overlapEnd = Math.min(end, matchEnd);
+
+          if (overlapStart < overlapEnd) {
+            // This node contains part of the match
+            const nodeRelativeStart = overlapStart - start;
+            const nodeRelativeEnd = overlapEnd - start;
+
+            const range = document.createRange();
+            range.setStart(node, nodeRelativeStart);
+            range.setEnd(node, nodeRelativeEnd);
+
+            const span = document.createElement('span');
+            span.className = 'tts-highlight';
+
+            try {
+              // Note: surroundContents is safe because we are wrapping 
+              // purely WITHIN a single Text node here.
+              range.surroundContents(span);
+            } catch (e) {
+              console.warn('[ReaderContent] Multi-node highlighting segment failed:', e);
+            }
+          }
+        });
+      } else {
+        console.log('[ReaderContent] Multi-node Highlight match fail:', {
+          chunk: cleanChunk.substring(0, 30) + (cleanChunk.length > 30 ? '...' : ''),
+        });
+      }
+    }
+  }, [activeChunk]); // Run when active chunk changes
+
   useEffect(() => {
     // Use requestAnimationFrame to run after React has rendered but before paint
     const rafId = requestAnimationFrame(() => {
@@ -70,11 +166,11 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     });
 
     return () => cancelAnimationFrame(rafId);
-  }, [displayContent]); // Run immediately when content changes
+  }, [content]); // Run only when base content changes
 
   // Re-process images after content updates to restore blob URLs if they were lost
   useEffect(() => {
-    if (!displayContent || !currentBook?.file) return;
+    if (!content || !currentBook?.file) return;
 
     const processImages = async () => {
       const contentElement = document.querySelector('.epub-content');
@@ -253,13 +349,19 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     });
 
     return () => cancelAnimationFrame(rafId);
-  }, [displayContent, currentBook?.file]);
+  }, [content, currentBook?.file]);
 
   return (
-    <div className="reader-main" ref={contentRef}>
+    <div
+      className="reader-main"
+      ref={contentRef}
+      onClick={(e) => {
+        console.log('[ReaderContent] reader-main clicked');
+        onPageClick();
+      }}
+    >
       <div
         className="epub-content"
-        onClick={onPageClick}
         onContextMenu={(e) => {
           // Prevent native context menu on text selection to avoid obstruction
           e.preventDefault();
@@ -299,4 +401,3 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     </div>
   );
 };
-

@@ -8,11 +8,11 @@ import {
   PROGRESSIVE_ENHANCEMENT_DELAY,
   NAVIGATION_ARROWS_TIMEOUT,
 } from '../../constants/readerConstants';
-import { 
-  findChapterForPage, 
-  isLastPageOfChapter, 
-  findNextChapter, 
-  findPrevChapter 
+import {
+  findChapterForPage,
+  isLastPageOfChapter,
+  findNextChapter,
+  findPrevChapter
 } from '../../utils/chapterUtils';
 import { throttle } from '../../utils/throttle';
 
@@ -35,6 +35,9 @@ export interface UseReaderUIReturn {
 
   // Progressive enhancement
   isEnhanced: boolean;
+
+  // UI Visibility (Immersive Mode)
+  isUIVisible: boolean;
 }
 
 interface UseReaderUIProps {
@@ -72,6 +75,13 @@ export function useReaderUI({
 
   // Progressive enhancement state
   const [isEnhanced, setIsEnhanced] = useState<boolean>(false);
+
+  // UI Visibility (Immersive Mode)
+  const [isUIVisible, setIsUIVisible] = useState<boolean>(false);
+
+  useEffect(() => {
+    console.log('[useReaderUI] isUIVisible changed:', isUIVisible);
+  }, [isUIVisible]);
 
   // Check if this is the first time opening this book
   const isFirstOpen =
@@ -126,14 +136,14 @@ export function useReaderUI({
     const scrollTop = scrollContainer.scrollTop;
     const scrollHeight = scrollContainer.scrollHeight;
     const clientHeight = scrollContainer.clientHeight;
-    
+
     // Calculate distance from bottom
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
     const threshold = 100; // Show arrows when within 100px of bottom
-    
+
     // Check if we're near the bottom
     const isNearBottom = distanceFromBottom <= threshold;
-    
+
     if (!isNearBottom) {
       setShowNavigationArrows(false);
       setShowPrevArrow(false);
@@ -143,7 +153,7 @@ export function useReaderUI({
 
     // Find current chapter
     const currentChapter = findChapterForPage(currentPageDisplay, toc, htmlFiles);
-    
+
     if (!currentChapter) {
       setShowNavigationArrows(false);
       setShowPrevArrow(false);
@@ -153,7 +163,7 @@ export function useReaderUI({
 
     // Check if we're at the last page of the current chapter
     const isLastPage = isLastPageOfChapter(currentPageDisplay, currentChapter, toc, htmlFiles);
-    
+
     if (!isLastPage) {
       setShowNavigationArrows(false);
       setShowPrevArrow(false);
@@ -167,7 +177,7 @@ export function useReaderUI({
 
     // Show arrows if we're at the end of chapter and there are adjacent chapters
     const shouldShowArrows = isLastPage && (!!nextChapter || !!prevChapter);
-    
+
     setShowNavigationArrows(shouldShowArrows);
     setShowPrevArrow(shouldShowArrows && !!prevChapter);
     setShowNextArrow(shouldShowArrows && !!nextChapter);
@@ -185,7 +195,7 @@ export function useReaderUI({
     }, 150);
 
     scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-    
+
     // Check initial state
     const timeoutId = setTimeout(() => {
       checkChapterEnd();
@@ -202,23 +212,26 @@ export function useReaderUI({
     const timeoutId = setTimeout(() => {
       checkChapterEnd();
     }, 500); // Delay to allow new page to render
-    
+
     return () => clearTimeout(timeoutId);
   }, [currentPageDisplay, checkChapterEnd]);
 
   // Navigation arrows handlers
   const handlePageClick = useCallback(() => {
+    // Toggle UI visibility
+    setIsUIVisible(prev => !prev);
+
     // Keep the old behavior for manual page clicks
     // Mark as manually shown to prevent checkChapterEnd from overriding
     isManualShowRef.current = true;
-    
+
     // Check if there are prev/next chapters available to show appropriate arrows
     if (toc && toc.length > 0 && htmlFiles && htmlFiles.length > 0) {
       const currentChapter = findChapterForPage(currentPageDisplay, toc, htmlFiles);
       if (currentChapter) {
         const nextChapter = findNextChapter(currentChapter, toc);
         const prevChapter = findPrevChapter(currentChapter, toc);
-        
+
         setShowNavigationArrows(true);
         setShowPrevArrow(!!prevChapter);
         setShowNextArrow(!!nextChapter);
@@ -234,7 +247,7 @@ export function useReaderUI({
       setShowPrevArrow(true);
       setShowNextArrow(true);
     }
-    
+
     if (arrowsTimeoutRef.current) {
       clearTimeout(arrowsTimeoutRef.current);
     }
@@ -267,6 +280,7 @@ export function useReaderUI({
     showNextArrow,
     handlePageClick,
     isEnhanced,
+    isUIVisible,
   };
 }
 

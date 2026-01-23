@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef, useEffect, MutableRefObject } from 'react';
 import { IPlaybackStrategy } from '../../services/tts/strategies/IPlaybackStrategy';
 import { getBlobDurationSeconds } from '../../utils/audioUtils';
@@ -19,11 +20,11 @@ export interface UseTTSBufferingReturn {
     fetchSingleChunk: (chunkIndex: number) => Promise<void>;
     prefetchChunks: (startIndex: number) => Promise<void>;
     clearAudioBuffer: () => void;
+    getBlob: (index: number) => Blob | null;
 }
 
 // Constants
 const PREFETCH_CHUNK_COUNT = 4;
-const ONE_MINUTE_MS = 60 * 1000;
 const MAX_AUDIO_BUFFER_SIZE = 10;
 
 /**
@@ -34,11 +35,13 @@ export const useTTSBuffering = ({
     currentChunkIndex,
     selectedVoice,
     ttsSpeed,
-    playbackStrategyRef,
-    readerInstanceId
+    playbackStrategyRef
 }: UseTTSBufferingProps): UseTTSBufferingReturn => {
     // Refs
+    // Stores URL strings for HTML5 playback
     const audioBuffer = useRef<Record<number, string>>({});
+    // Stores actual Blob objects for Seamless playback (Web Audio API)
+    const audioBufferObjects = useRef<Record<number, Blob>>({});
     const durationsBuffer = useRef<Record<number, number>>({});
     const inFlightPrefetchRef = useRef<Set<number>>(new Set());
     const bufferVoiceRef = useRef<string>(selectedVoice);
@@ -51,8 +54,6 @@ export const useTTSBuffering = ({
     const selectedVoiceRef = useRef(selectedVoice);
     useEffect(() => { selectedVoiceRef.current = selectedVoice; }, [selectedVoice]);
 
-
-
     // === Clear audio buffer function ===
     const clearAudioBuffer = useCallback(() => {
         const bufferUrls = Object.values(audioBuffer.current);
@@ -62,10 +63,11 @@ export const useTTSBuffering = ({
             }
         });
         audioBuffer.current = {};
+        audioBufferObjects.current = {};
         setBufferedChunksCount(0);
         // Update the voice tracking ref
         bufferVoiceRef.current = selectedVoiceRef.current;
-    }, [readerInstanceId]);
+    }, []);
 
     // === Clean up old chunks when buffer exceeds limit ===
     const cleanupOldChunks = useCallback((currentIndex: number) => {
@@ -90,9 +92,10 @@ export const useTTSBuffering = ({
                 URL.revokeObjectURL(url);
             }
             delete audioBuffer.current[chunkIndex];
+            delete audioBufferObjects.current[chunkIndex];
             setBufferedChunksCount(prev => Math.max(0, prev - 1));
         });
-    }, [readerInstanceId]);
+    }, []);
 
     // === Handle voice changes ===
     useEffect(() => {
@@ -106,9 +109,14 @@ export const useTTSBuffering = ({
 
     // === Fetch single chunk helper ===
     const fetchSingleChunk = useCallback(async (chunkIndex: number): Promise<void> => {
-        if (chunks.length === 0 || chunkIndex < 0 || chunkIndex >= chunks.length) return;
-        if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex) return; // Already cached
-
+        if (chunks.length === 0 || chunkIndex < 0 || chunkIndex >= chunks.length) {
+            console.warn(`[Buffering] fetchSingleChunk(${chunkIndex}) abort: chunks.length=${chunks.length}`);
+            return;
+        }
+        if (audioBufferObjects.current[chunkIndex]) {
+            // Already cached
+            return;
+        }
         // Check if already in flight
         if (inFlightPrefetchRef.current.has(chunkIndex)) {
             return;
@@ -116,6 +124,7 @@ export const useTTSBuffering = ({
 
         // Mark as in-flight
         inFlightPrefetchRef.current.add(chunkIndex);
+        console.log(`[Buffering] Starting fetch for chunk #${chunkIndex}. Text length: ${chunks[chunkIndex]?.length}`);
 
         try {
             const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
@@ -152,22 +161,27 @@ export const useTTSBuffering = ({
                 throw fetchError;
             }
 
-            if (!response.ok) return;
+            if (!response.ok) {
+                console.error(`[Buffering] TTS Fetch failed for chunk #${chunkIndex}: ${response.status} ${response.statusText}`);
+                return;
+            }
 
             const audioBlob = await response.blob();
+            console.log(`[Buffering] Received blob for chunk #${chunkIndex}, size: ${audioBlob.size} bytes`);
+
             if (audioBlob.size === 0) {
-                console.warn(`[FetchSingle] Received empty audio blob for chunk #${chunkIndex}`);
+                console.warn(`[Buffering] Received empty audio blob for chunk #${chunkIndex}`);
                 return;
             }
 
             const strategy = playbackStrategyRef.current;
-            const isSeamless = strategy && (strategy as any).getStrategyType?.() === 'seamless';
-
-            if (isSeamless && strategy) {
+            // Always prepare chunk if strategy is provided (interface supports it)
+            if (strategy) {
                 try {
+                    console.log(`[Buffering] Preparing chunk #${chunkIndex} for strategy...`);
                     await strategy.prepareChunk(chunkIndex, audioBlob);
                 } catch (err) {
-                    console.warn(`[FetchSingle] Failed to pre-decode chunk #${chunkIndex} for seamless playback`, err);
+                    console.error(`[Buffering] Failed to prepare chunk #${chunkIndex}:`, err);
                 }
             }
 
@@ -179,6 +193,7 @@ export const useTTSBuffering = ({
 
             const audioUrl = URL.createObjectURL(audioBlob);
             audioBuffer.current[chunkIndex] = audioUrl;
+            audioBufferObjects.current[chunkIndex] = audioBlob;
             bufferVoiceRef.current = selectedVoiceRef.current;
             setBufferedChunksCount(prev => prev + 1);
 
@@ -189,7 +204,7 @@ export const useTTSBuffering = ({
         } finally {
             inFlightPrefetchRef.current.delete(chunkIndex);
         }
-    }, [chunks, currentChunkIndex, ttsSpeed, cleanupOldChunks, getBlobDurationSeconds, playbackStrategyRef]);
+    }, [chunks, currentChunkIndex, ttsSpeed, cleanupOldChunks, playbackStrategyRef]);
 
     // === Prefetch chunks function ===
     const prefetchChunks = useCallback(async (startIndex: number) => {
@@ -217,11 +232,10 @@ export const useTTSBuffering = ({
         chunksToCheck.forEach(idx => inFlightPrefetchRef.current.add(idx));
 
         const strategy = playbackStrategyRef.current;
-        const isSeamless = strategy && (strategy as any).getStrategyType?.() === 'seamless';
 
         for (let i = 0; i < chunksToFetch.length; i++) {
             const chunkIndex = normalizedStart + i;
-            if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex) continue;
+            if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex && audioBuffer.current[chunkIndex]) continue;
 
             try {
                 const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
@@ -266,11 +280,12 @@ export const useTTSBuffering = ({
                     continue;
                 }
 
-                if (isSeamless && strategy) {
+                // Always prepare chunk if strategy is provided
+                if (strategy) {
                     try {
                         await strategy.prepareChunk(chunkIndex, audioBlob);
                     } catch (err) {
-                        console.warn(`[Prefetch] Failed to pre-decode chunk #${chunkIndex} for seamless playback`, err);
+                        console.warn(`[Prefetch] Failed to prepare chunk #${chunkIndex}:`, err);
                     }
                 }
 
@@ -282,6 +297,7 @@ export const useTTSBuffering = ({
 
                 const audioUrl = URL.createObjectURL(audioBlob);
                 audioBuffer.current[chunkIndex] = audioUrl;
+                audioBufferObjects.current[chunkIndex] = audioBlob;
                 setBufferedChunksCount(prev => prev + 1);
 
             } catch (error) {
@@ -290,7 +306,7 @@ export const useTTSBuffering = ({
                 inFlightPrefetchRef.current.delete(chunkIndex);
             }
         }
-    }, [chunks, currentChunkIndex, ttsSpeed, getBlobDurationSeconds, playbackStrategyRef]);
+    }, [chunks, currentChunkIndex, ttsSpeed, playbackStrategyRef]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -298,7 +314,12 @@ export const useTTSBuffering = ({
             Object.values(audioBuffer.current).forEach(url => {
                 if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
             });
+            audioBufferObjects.current = {};
         };
+    }, []);
+
+    const getBlob = useCallback((index: number) => {
+        return audioBufferObjects.current[index] || null;
     }, []);
 
     return {
@@ -308,6 +329,7 @@ export const useTTSBuffering = ({
         durationsBuffer,
         fetchSingleChunk,
         prefetchChunks,
-        clearAudioBuffer
+        clearAudioBuffer,
+        getBlob
     };
 };
