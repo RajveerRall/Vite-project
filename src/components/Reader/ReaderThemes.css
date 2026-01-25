@@ -14,7 +14,8 @@
   --reader-border: #e5e7eb;
   --reader-header-bg: #ffffff;
   --reader-sidebar-bg: #f9fafb;
-  --reader-content-bg: #fcf8f0; /* Updated to match new background */
+  --reader-content-bg: #fcf8f0;
+  /* Updated to match new background */
   --reader-hover: #f3f4f6;
   --reader-shadow: rgba(0, 0, 0, 0.1);
   --reader-highlight: #fffb91;
@@ -193,8 +194,10 @@
   cursor: pointer;
 }
 
-.epub-content:hover {
-  background-color: var(--reader-hover, #f3f4f6);
+@media (hover: hover) {
+  .epub-content:hover {
+    background-color: var(--reader-hover, #f3f4f6);
+  }
 }
 
 /* Theme-aware text colors */
@@ -428,7 +431,7 @@
     font-size: 0.85rem;
     padding: 0.5rem;
   }
-  
+
   .settings-widget .settings-select option {
     font-size: 0.85rem;
     padding: 0.5rem;
@@ -478,6 +481,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -490,8 +494,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 /* Mobile responsiveness for settings widget */
@@ -507,12 +516,12 @@
     overflow-x: hidden;
     padding: 1rem;
   }
-  
+
   /* Ensure dropdown stays within the widget */
   .settings-widget .relative {
     position: static;
   }
-  
+
   .settings-widget select {
     position: relative;
     z-index: 20;
@@ -529,14 +538,14 @@
     border-radius: 12px 12px 0 0;
     padding: 1rem;
   }
-  
+
   /* Fix dropdown positioning on small screens */
   .settings-widget .settings-select {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
   }
-  
+
   /* Make the dropdown container take full width */
   .settings-widget .relative {
     width: 100%;
@@ -553,19 +562,19 @@
     max-height: 85vh;
     padding: 1rem 0.75rem;
   }
-  
+
   .settings-widget .grid-cols-3 {
     grid-template-columns: 1fr;
     gap: 0.5rem;
   }
-  
+
   .settings-widget .flex.items-center.space-x-3 {
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
   }
-  
-  .settings-widget .flex.items-center.space-x-3 > * {
+
+  .settings-widget .flex.items-center.space-x-3>* {
     margin: 0;
   }
 }
@@ -670,52 +679,52 @@
     padding: 0.5rem;
     min-height: 60px;
   }
-  
+
   .reader-left .back-button {
     font-size: 0.75rem;
     padding: 0.25rem 0.5rem;
   }
-  
+
   .reader-left .back-button .w-4 {
     width: 0.875rem;
     height: 0.875rem;
   }
-  
+
   .reader-center {
     flex: 1;
     min-width: 0;
     padding: 0 0.5rem;
   }
-  
+
   .reader-center .book-title {
     font-size: 0.9rem;
     line-height: 1.2;
     margin-bottom: 0.125rem;
   }
-  
+
   .reader-center .book-author {
     font-size: 0.75rem;
   }
-  
+
   .reader-right {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 0.25rem;
   }
-  
+
   .settings-button,
   .mobile-toc-button {
     padding: 0.375rem;
     margin-right: 0.25rem;
   }
-  
+
   .settings-button .w-5,
   .mobile-toc-button .w-5 {
     width: 1rem;
     height: 1rem;
   }
-  
+
   .controls-container {
     margin-left: 0.25rem;
   }
@@ -727,26 +736,26 @@
     padding: 0.375rem;
     min-height: 56px;
   }
-  
+
   .reader-left .back-button {
     font-size: 0.7rem;
     padding: 0.25rem;
   }
-  
+
   .reader-center .book-title {
     font-size: 0.8rem;
   }
-  
+
   .reader-center .book-author {
     font-size: 0.7rem;
   }
-  
+
   .settings-button,
   .mobile-toc-button {
     padding: 0.25rem;
     margin-right: 0.125rem;
   }
-  
+
   .settings-button .w-5,
   .mobile-toc-button .w-5 {
     width: 0.875rem;
@@ -760,11 +769,11 @@
     min-height: 48px;
     padding: 0.25rem 0.5rem;
   }
-  
+
   .reader-center .book-title {
     font-size: 0.8rem;
   }
-  
+
   .reader-center .book-author {
     font-size: 0.7rem;
   }
@@ -908,7 +917,7 @@
   .control-button.hidden {
     display: none !important;
   }
-} 
+}
 
 /* Chapter Navigation Arrows */
 .chapter-nav-arrow {
@@ -981,11 +990,11 @@
     height: 40px;
     opacity: 0.8;
   }
-  
+
   .chapter-nav-arrow-left {
     left: 10px;
   }
-  
+
   .chapter-nav-arrow-right {
     right: 10px;
   }
@@ -997,11 +1006,11 @@
     height: 36px;
     opacity: 0.9;
   }
-  
+
   .chapter-nav-arrow-left {
     left: 8px;
   }
-  
+
   .chapter-nav-arrow-right {
     right: 8px;
   }
@@ -1010,4 +1019,4 @@
 /* Ensure arrows are always visible */
 .chapter-nav-arrow {
   display: flex !important;
-} 
+}

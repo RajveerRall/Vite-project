@@ -18,7 +18,7 @@ NC='\033[0m' # No Color
 # Configuration
 PROJECT_DIR="$HOME/Vite-project"
 DEPLOY_DIR="/var/www/yoread.com"
-BRANCH="feature/immersive-reading-mode"
+BRANCH=${1:-$(git branch --show-current)}
 
 # Function to print colored output
 print_status() {
