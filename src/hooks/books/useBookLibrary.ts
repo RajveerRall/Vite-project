@@ -6,7 +6,6 @@ import { BookData } from '@/types/books';
 import { trackEvent } from '../../lib/analytics';
 import { getAdapterForFile } from '../../context/book/formats';
 import { generateUUID } from '../../lib/utils';
-import { BookParsingService } from '../../services/books/BookParsingService';
 
 export interface UseBookLibraryReturn {
   addBook: (file: File) => Promise<BookData>;
@@ -48,6 +47,7 @@ export function useBookLibrary(
           totalPages: meta.totalPages || 0,
           file,
           lastRead: new Date().toISOString(),
+          revision: 0,
         };
 
         // Update local state immediately for fast UI response
@@ -66,13 +66,13 @@ export function useBookLibrary(
           setTimeout(() => {
             try {
               controller.abort();
-            } catch {}
+            } catch { }
           }, 2000);
           fetch(`${baseURL}/api/warmup/kokoro`, {
             method: 'POST',
             signal: controller.signal,
-          }).catch(() => {});
-        } catch {}
+          }).catch(() => { });
+        } catch { }
 
         // Sync to cloud if user is authenticated (fire and forget)
         if (isAuthenticated && syncBookToCloud) {
@@ -107,7 +107,7 @@ export function useBookLibrary(
   const removeBook = useCallback(
     async (bookId: string): Promise<void> => {
       const bookToRemove = books.find(b => b.id === bookId);
-      
+
       // Revoke blob URL if exists
       if (bookToRemove?.coverUrl?.startsWith('blob:')) {
         URL.revokeObjectURL(bookToRemove.coverUrl);
@@ -124,7 +124,7 @@ export function useBookLibrary(
       });
 
       console.log(`[useBookLibrary] Removing book ID: ${bookId}`);
-      
+
       // Remove from local state
       setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
     },

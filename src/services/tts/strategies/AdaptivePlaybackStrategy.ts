@@ -9,6 +9,7 @@ import { IPlaybackStrategy } from './IPlaybackStrategy';
 import { SeamlessPlaybackStrategy } from './SeamlessPlaybackStrategy';
 import { HTML5PlaybackStrategy } from './HTML5PlaybackStrategy';
 import { TTSEventHandlers } from '../../../types/tts';
+import { MediaSessionService } from '../MediaSessionService';
 
 export interface AdaptiveStrategyConfig {
   playbackRate?: number;
@@ -25,7 +26,7 @@ export class AdaptivePlaybackStrategy implements IPlaybackStrategy {
     this.config = config || {};
     this.strategy = this.selectStrategy();
     this.strategyType = this.determineStrategyType();
-    
+
     console.log(`[AdaptiveStrategy] Selected: ${this.strategyType} playback`);
   }
 
@@ -93,10 +94,6 @@ export class AdaptivePlaybackStrategy implements IPlaybackStrategy {
   switchStrategy(type: 'seamless' | 'html5'): void {
     if (type === this.strategyType) return;
 
-    const wasPlaying = this.strategy.isPlaying();
-    const currentTime = this.strategy.getCurrentTime();
-    const currentChunk = this.strategy.getCurrentChunkIndex();
-
     this.strategy.stop();
     this.strategy.cleanup();
 
@@ -161,6 +158,32 @@ export class AdaptivePlaybackStrategy implements IPlaybackStrategy {
 
   async prepareChunk(chunkIndex: number, audioBlob: Blob): Promise<void> {
     return this.strategy.prepareChunk(chunkIndex, audioBlob);
+  }
+
+  setMetadata(metadata: { title: string; author: string; coverUrl?: string }): void {
+    // Also initialize action handlers when metadata is set
+    // This is a good time to ensure the OS knows we have a media session
+    MediaSessionService.setActionHandlers({
+      play: () => this.resume(),
+      pause: () => this.pause(),
+      stop: () => this.stop(),
+      // We can add seek handlers here if we want to support small skips from lock screen
+      seekbackward: (details) => {
+        // const skipTime = details.seekOffset || 10;
+        // Navigation logic is handled by GlobalAudioPlayer/Context
+      },
+      seekforward: (details) => {
+        // const skipTime = details.seekOffset || 10;
+      },
+      previoustrack: () => {
+        // Handled by event handlers on strategy -> GlobalAudioPlayer
+      },
+      nexttrack: () => {
+        // Handled by event handlers on strategy -> GlobalAudioPlayer
+      }
+    });
+
+    this.strategy.setMetadata(metadata);
   }
 
   cleanup(): void {

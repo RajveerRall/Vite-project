@@ -45,8 +45,10 @@ export interface UseReaderTTSReturn {
 
 interface UseReaderTTSProps {
   bookTitle: string;
+  bookAuthor?: string;
   bookId?: string;
   currentChapterHref?: string;
+  chapterTitle?: string;
   currentPageDisplay: number;
   currentPageText: string;
   currentContent: string;
@@ -58,8 +60,10 @@ interface UseReaderTTSProps {
 
 export const useReaderTTS = ({
   bookTitle,
+  bookAuthor = 'Unknown Author',
   bookId,
   currentChapterHref,
+  chapterTitle = 'Reading...',
   currentPageText,
   currentContent,
   // selectedVoice = 'en-US-BrianMultilingualNeural', // Unused in this shim
@@ -150,10 +154,10 @@ export const useReaderTTS = ({
       }
       const targetHref = currentChapterHref || '';
       // When loading a new book/chapter, we start at chunk 0
-      await loadBook(effectiveBookId, targetHref, 0);
+      await loadBook(effectiveBookId, bookTitle, bookAuthor, chapterTitle, targetHref, 0);
       globalPlay();
     }
-  }, [isSpeaking, isPaused, effectiveBookId, currentChapterHref, globalPause, globalPlay, loadBook]);
+  }, [isSpeaking, isPaused, effectiveBookId, bookTitle, bookAuthor, chapterTitle, currentChapterHref, globalPause, globalPlay, loadBook]);
 
   const handleStopTTS = useCallback(() => {
     if (isGlobalActive) globalStop();

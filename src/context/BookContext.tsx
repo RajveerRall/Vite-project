@@ -150,9 +150,6 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   // Reading state (not handled by hooks)
   const [currentBook, setCurrentBook] = useState<BookData | null>(null);
   const [isReading, setIsReading] = useState<boolean>(false);
-  // Phase 3: Loading state for book operations (openBook/closeBook)
-  // Note: isLoading from useBookStorage handles general loading, this is for specific operations
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isBookOperationLoading, setIsBookOperationLoading] = useState<boolean>(false);
   const [isPageLoading, setIsPageLoading] = useState<boolean>(false);
   const [bookTitle, setBookTitle] = useState<string>('');
@@ -727,6 +724,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       if (currentBookRef) {
         const chapterForPage = findChapterForPage(pageIdxToLoad, currentTocRef, filesInOrder);
         const progress = calculateProgress(pageIdxToLoad, filesInOrder.length);
+        const nextRevision = (currentBookRef.revision || 0) + 1;
 
         setBooks(prevBooks =>
           prevBooks.map(b =>
@@ -735,12 +733,13 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
               currentPage: pageIdxToLoad,
               lastChapter: chapterForPage,
               progress,
-              lastRead: new Date().toISOString()
+              lastRead: new Date().toISOString(),
+              revision: nextRevision
             } : b
           )
         );
 
-        syncProgressToCloud(currentBookRef.id, pageIdxToLoad, chapterForPage, progress);
+        syncProgressToCloud(currentBookRef.id, pageIdxToLoad, chapterForPage, progress, nextRevision);
       }
 
       // Process images/CSS (Visuals)
@@ -784,6 +783,8 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
             setCurrentPageText(text);
             const chapterForPage = findChapterForPage(currentPageToLoad, toc, htmlFiles);
             const progress = calculateProgress(currentPageToLoad, htmlFiles.length);
+            const nextRevision = (currentBook.revision || 0) + 1;
+
             setBooks(prevBooks =>
               prevBooks.map(b =>
                 b.id === currentBook.id ? {
@@ -791,12 +792,13 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
                   currentPage: currentPageToLoad,
                   lastChapter: chapterForPage,
                   progress,
-                  lastRead: new Date().toISOString()
+                  lastRead: new Date().toISOString(),
+                  revision: nextRevision
                 } : b
               )
             );
             // Phase 2: Sync progress to cloud using hook
-            syncProgressToCloud(currentBook.id, currentPageToLoad, chapterForPage, progress);
+            syncProgressToCloud(currentBook.id, currentPageToLoad, chapterForPage, progress, nextRevision);
           } catch (e) {
             console.error('[useEffect PageLoad Adapter ERROR]', e);
             setCurrentContent(`<div>Error loading page: ${(e as Error).message}</div>`);

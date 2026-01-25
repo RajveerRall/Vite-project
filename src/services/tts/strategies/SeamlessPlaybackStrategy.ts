@@ -6,6 +6,7 @@
 import { IPlaybackStrategy } from './IPlaybackStrategy';
 import { TTSEventHandlers } from '../../../types/tts';
 import { createTTSSeamlessPlaybackService, TTSSeamlessPlaybackService } from '../TTSSeamlessPlaybackService';
+import { MediaSessionService } from '../MediaSessionService';
 
 export class SeamlessPlaybackStrategy implements IPlaybackStrategy {
   private service: TTSSeamlessPlaybackService;
@@ -25,10 +26,12 @@ export class SeamlessPlaybackStrategy implements IPlaybackStrategy {
 
     this.currentChunkIndex = chunkIndex;
     await this.service.playChunk(chunkIndex);
+    MediaSessionService.setPlaybackState('playing');
   }
 
   pause(): void {
     this.service.pause();
+    MediaSessionService.setPlaybackState('paused');
   }
 
   async resume(): Promise<void> {
@@ -38,6 +41,7 @@ export class SeamlessPlaybackStrategy implements IPlaybackStrategy {
   stop(): void {
     this.service.stop();
     this.currentChunkIndex = null;
+    MediaSessionService.setPlaybackState('none');
   }
 
   setPlaybackRate(rate: number): void {
@@ -74,6 +78,14 @@ export class SeamlessPlaybackStrategy implements IPlaybackStrategy {
 
   cleanup(): void {
     this.service.cleanup();
+  }
+
+  setMetadata(metadata: { title: string; author: string; coverUrl?: string }): void {
+    MediaSessionService.setMetadata({
+      title: metadata.title,
+      artist: metadata.author,
+      artwork: metadata.coverUrl ? [{ src: metadata.coverUrl }] : undefined
+    });
   }
 
   /**

@@ -343,8 +343,10 @@ const Reader: React.FC = () => {
 
   const ttsHook = useReaderTTS({
     bookTitle,
+    bookAuthor,
     bookId: currentBook?.id, // Phase 7: Pass real ID
     currentChapterHref,      // Phase 7: Pass href for loading
+    chapterTitle: currentChapterTitle,
     currentPageDisplay,
     currentPageText,
     currentContent,

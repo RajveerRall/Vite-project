@@ -14,10 +14,13 @@ import { IPlaybackStrategy } from '../../services/tts/strategies/IPlaybackStrate
 export const GlobalAudioPlayer: React.FC = () => {
     const {
         currentBookId,
+        currentBookTitle,
+        currentBookAuthor,
         currentChapterId,
         currentChunkIndex,
         isPlaying,
         isPaused,
+        isLoading,
         playbackRate,
         setTTSState,
     } = useTTS();
@@ -32,6 +35,7 @@ export const GlobalAudioPlayer: React.FC = () => {
 
     // Instances
     const playerInstanceId = useRef(`GlobalPlayer_${Date.now()}`).current;
+    const previousChapterIdRef = useRef<string | null>(null);
 
     // Playback Strategy
     const playbackStrategyRef = useRef<IPlaybackStrategy | null>(null);
@@ -67,6 +71,14 @@ export const GlobalAudioPlayer: React.FC = () => {
 
     // 1. Load Book Structure (Spine/TOC) when book changes
     useEffect(() => {
+        // IMMEDIATE RESET: Wipe old book data from memory when ID changes
+        setStructure(null);
+        setCurrentText('');
+        clearAudioBuffer(); // Clear audio buffers
+        if (playbackStrategyRef.current) {
+            try { playbackStrategyRef.current.stop(); } catch (e) { console.warn('Error stopping strategy:', e); }
+        }
+
         const loadBook = async () => {
             if (!currentBookId) return;
             try {
@@ -81,11 +93,13 @@ export const GlobalAudioPlayer: React.FC = () => {
                 const struct = await EpubParserService.parseEpub(file);
                 setStructure(struct);
 
-                // Extract and store book metadata from EPUB structure
-                setTTSState({
-                    currentBookTitle: struct.title || null,
-                    currentBookAuthor: struct.author || null
-                });
+                // Extract and store book metadata from EPUB structure if not already provided
+                if (!currentBookTitle || !currentBookAuthor) {
+                    setTTSState({
+                        currentBookTitle: currentBookTitle || struct.metadata.title || null,
+                        currentBookAuthor: currentBookAuthor || struct.metadata.author || null
+                    });
+                }
 
                 setError(null);
             } catch (e) {
@@ -104,6 +118,10 @@ export const GlobalAudioPlayer: React.FC = () => {
                 currentBookAuthor: null,
                 currentChapterTitle: null
             });
+            // Also update metadata to none or default
+            if (playbackStrategyRef.current) {
+                playbackStrategyRef.current.setMetadata({ title: 'YoRead', author: 'Ebook Reader' });
+            }
         }
     }, [currentBookId, user?.id]);
 
@@ -126,10 +144,17 @@ export const GlobalAudioPlayer: React.FC = () => {
                 // Clear audio buffers
                 clearAudioBuffer();
 
-                // Reset chunk index when chapter changes to prevent stale playback
-                setTTSState({ currentChunkIndex: 0 });
+                // Clear current text immediately to prevent stale chunks from being played
+                setCurrentText('');
 
                 // Find file path for chapter ID (href)
+
+                // Track previous chapter to prevent resetting chunk index on reload restoration
+                // If previous matches current (or is null on first run), we preserve the restored index
+                if (previousChapterIdRef.current !== null && previousChapterIdRef.current !== currentChapterId) {
+                    setTTSState({ currentChunkIndex: 0 });
+                }
+                previousChapterIdRef.current = currentChapterId;
                 // Logic to match chapterId (which might be TOC ID) to Spine Href needs to be robust.
                 const spineItem = structure.spine.find(href => href.includes(currentChapterId) || currentChapterId.includes(href));
                 const targetHref = spineItem || currentChapterId; // Fallback
@@ -142,6 +167,15 @@ export const GlobalAudioPlayer: React.FC = () => {
                 const { text } = await BookContentService.loadPage(structure.zip, targetHref);
                 setCurrentText(text); // Triggers chunking
                 setTTSState({ isLoading: false }); // Done loading chapter
+
+                // NEW: Update Media Session Metadata
+                if (playbackStrategyRef.current) {
+                    playbackStrategyRef.current.setMetadata({
+                        title: currentBookTitle || 'Untitled Book',
+                        author: currentBookAuthor || 'Unknown Author'
+                        // TODO: Pass coverUrl if available in the future
+                    });
+                }
             } catch (e) {
                 console.error('[GlobalPlayer] Error loading chapter:', e);
             }
@@ -217,6 +251,9 @@ export const GlobalAudioPlayer: React.FC = () => {
         const strategy = playbackStrategyRef.current;
         if (!strategy) return;
 
+        // Prevent playback if loading new content
+        if (isLoading) return;
+
         if (isPlaying && !isPaused && chunks.length > 0) {
             // Start playback if not playing
             if (!strategy.isPlaying()) {
@@ -227,7 +264,7 @@ export const GlobalAudioPlayer: React.FC = () => {
                 strategy.pause();
             }
         }
-    }, [isPlaying, isPaused, chunks, currentChunkIndex, playChunk]);
+    }, [isPlaying, isPaused, isLoading, chunks, currentChunkIndex, playChunk]);
 
 
     // Updates
@@ -257,6 +294,9 @@ export const GlobalAudioPlayer: React.FC = () => {
 
     // React to chunk index change (auto-play next)
     useEffect(() => {
+        // Prevent seeking/playback if loading
+        if (isLoading) return;
+
         if (isPlaying && !isPaused && chunks.length > 0) {
             const strategy = playbackStrategyRef.current;
             // If index changed and we are not playing correct chunk, play it
@@ -264,7 +304,7 @@ export const GlobalAudioPlayer: React.FC = () => {
                 playChunk(currentChunkIndex);
             }
         }
-    }, [currentChunkIndex, isPlaying, isPaused, chunks, playChunk]);
+    }, [currentChunkIndex, isPlaying, isPaused, isLoading, chunks, playChunk]);
 
 
     return null; // Headless

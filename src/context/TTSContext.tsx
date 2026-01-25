@@ -29,7 +29,7 @@ export interface TTSContextValue extends TTSState {
     setTTSState: (state: Partial<TTSState>) => void;
 
     // Methods to load a book into the global player
-    loadBook: (bookId: string, initialChapterId?: string, initialChunkIndex?: number) => Promise<void>;
+    loadBook: (bookId: string, bookTitle: string, bookAuthor: string, chapterTitle: string, initialChapterId?: string, initialChunkIndex?: number) => Promise<void>;
 }
 
 const defaultState: TTSState = {
@@ -60,8 +60,54 @@ interface TTSProviderProps {
     children: ReactNode;
 }
 
+const TTS_STATE_KEY = 'yoread_tts_state';
+
+const getInitialState = (): TTSState => {
+    try {
+        const saved = localStorage.getItem(TTS_STATE_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            // Always start paused/stopped on reload
+            return {
+                ...defaultState,
+                ...parsed,
+                isPlaying: false,
+                isPaused: !!parsed.currentBookId, // Set paused if we have a book, so player shows
+                isLoading: false
+            };
+        }
+    } catch (e) {
+        console.error('Failed to load TTS state:', e);
+    }
+    return defaultState;
+};
+
 export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
-    const [state, setState] = useState<TTSState>(defaultState);
+    const [state, setState] = useState<TTSState>(getInitialState);
+
+    // Persist state changes
+    React.useEffect(() => {
+        const stateToSave = {
+            currentBookId: state.currentBookId,
+            currentBookTitle: state.currentBookTitle,
+            currentBookAuthor: state.currentBookAuthor,
+            currentChapterId: state.currentChapterId,
+            currentChapterTitle: state.currentChapterTitle,
+            currentChunkIndex: state.currentChunkIndex,
+            progressPercentage: state.progressPercentage,
+            playbackRate: state.playbackRate
+        };
+        localStorage.setItem(TTS_STATE_KEY, JSON.stringify(stateToSave));
+    }, [
+        state.currentBookId,
+        state.currentBookTitle,
+        state.currentBookAuthor,
+        state.currentChapterId,
+        state.currentChapterTitle,
+        state.currentChunkIndex,
+        state.progressPercentage,
+        state.playbackRate
+    ]);
 
     // Computed / Actions (Placeholders for now, will be connected to GlobalAudioPlayer logic later)
 
@@ -84,10 +130,20 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
     const skipForward = useCallback(() => { }, []); // Implement later
     const skipBackward = useCallback(() => { }, []); // Implement later
 
-    const loadBook = useCallback(async (bookId: string, initialChapterId?: string, initialChunkIndex?: number) => {
+    const loadBook = useCallback(async (
+        bookId: string,
+        bookTitle: string,
+        bookAuthor: string,
+        chapterTitle: string,
+        initialChapterId?: string,
+        initialChunkIndex?: number
+    ) => {
         setTTSState({
             isLoading: true,
             currentBookId: bookId,
+            currentBookTitle: bookTitle,
+            currentBookAuthor: bookAuthor,
+            currentChapterTitle: chapterTitle,
             currentChapterId: initialChapterId || null,
             currentChunkIndex: initialChunkIndex || 0
         });

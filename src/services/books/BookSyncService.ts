@@ -109,86 +109,96 @@ export class BookSyncService {
     const downloadPromises = missingCloudBooks.map(
       async (cloudBook, index): Promise<BookData | null> => {
         const totalBooks = missingCloudBooks.length;
-        try {
-          console.log(
-            `[BookSyncService] [${index + 1}/${totalBooks}] Starting download: "${cloudBook.title}"`
-          );
 
-          const bookData = await cloudRepository.downloadBookFile(cloudBook);
-          if (!bookData) {
-            throw new Error('Download returned null');
-          }
-
-          // Extract cover if not provided
-          let coverUrl = cloudBook.cover_url || null;
-          if (!coverUrl) {
-            const file = new File(
-              [bookData],
-              `${cloudBook.title}.epub`,
-              { type: 'application/epub+zip' }
+        const downloadWithRetry = async (retries: number = 3): Promise<BookData | null> => {
+          try {
+            console.log(
+              `[BookSyncService] [${index + 1}/${totalBooks}] Starting download (Attempt ${4 - retries}): "${cloudBook.title}"`
             );
-            coverUrl = await cloudRepository.extractCoverFromFile(file);
-          }
 
-          // Create complete book object
-          const completeBook = cloudRepository.convertCloudBookToBookData(
-            cloudBook,
-            new File([bookData], `${cloudBook.title}.epub`, {
-              type: 'application/epub+zip',
-            }),
-            coverUrl
-          );
+            const bookData = await cloudRepository.downloadBookFile(cloudBook);
+            if (!bookData) {
+              throw new Error('Download returned empty data');
+            }
 
-          if (onProgress) {
-            onProgress(
-              index + 1,
-              totalBooks
+            // Extract cover if not provided
+            let coverUrl = cloudBook.cover_url || null;
+            if (!coverUrl) {
+              const file = new File(
+                [bookData],
+                `${cloudBook.title}.epub`,
+                { type: 'application/epub+zip' }
+              );
+              coverUrl = await cloudRepository.extractCoverFromFile(file);
+            }
+
+            // Create complete book object
+            const completeBook = cloudRepository.convertCloudBookToBookData(
+              cloudBook,
+              new File([bookData], `${cloudBook.title}.epub`, {
+                type: 'application/epub+zip',
+              }),
+              coverUrl
             );
+
+            if (onProgress) {
+              onProgress(index + 1, totalBooks);
+            }
+
+            console.log(
+              `[BookSyncService] ✅ [${index + 1}/${totalBooks}] "${cloudBook.title}" downloaded successfully`
+            );
+
+            return completeBook;
+          } catch (error) {
+            console.error(
+              `[BookSyncService] ❌ Attempt ${4 - retries} failed for "${cloudBook.title}":`,
+              error
+            );
+
+            if (retries > 1) {
+              const delay = (4 - retries) * 2000; // Exponential backoff: 2s, 4s
+              console.log(`[BookSyncService] Retrying in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              return downloadWithRetry(retries - 1);
+            }
+
+            if (onProgress) {
+              onProgress(index + 1, totalBooks);
+            }
+
+            // Return failed book placeholder
+            return {
+              id: cloudBook.id,
+              title: `${cloudBook.title} (Download Failed)`,
+              author: cloudBook.author || 'Unknown Author',
+              file: new File([''], 'download-failed.epub', {
+                type: 'application/epub+zip',
+              }),
+              coverUrl: null,
+              currentPage: cloudBook.current_page || 0,
+              lastChapter: cloudBook.last_chapter
+                ? {
+                  id: 'restored-chapter',
+                  href: cloudBook.last_chapter,
+                  label:
+                    cloudBook.last_chapter
+                      .split('/')
+                      .pop()
+                      ?.replace('.html', '') || 'Chapter',
+                  children: [],
+                }
+                : null,
+              totalPages: cloudBook.total_pages || 0,
+              lastRead: cloudBook.last_read || new Date().toISOString(),
+              isDownloading: false,
+              downloadFailed: true,
+              revision: cloudBook.revision || 0
+            };
           }
+        };
 
-          console.log(
-            `[BookSyncService] ✅ [${index + 1}/${totalBooks}] "${cloudBook.title}" downloaded successfully`
-          );
-
-          return completeBook;
-        } catch (error) {
-          console.error(
-            `[BookSyncService] ❌ [${index + 1}/${totalBooks}] Failed to download "${cloudBook.title}":`,
-            error
-          );
-
-          if (onProgress) {
-            onProgress(index + 1, totalBooks);
-          }
-
-          // Return failed book placeholder
-          return {
-            id: cloudBook.id,
-            title: `${cloudBook.title} (Download Failed)`,
-            author: cloudBook.author || 'Unknown Author',
-            file: new File([''], 'download-failed.epub', {
-              type: 'application/epub+zip',
-            }),
-            coverUrl: null,
-            currentPage: cloudBook.current_page || 0,
-            lastChapter: cloudBook.last_chapter
-              ? {
-                id: 'restored-chapter',
-                href: cloudBook.last_chapter,
-                label:
-                  cloudBook.last_chapter
-                    .split('/')
-                    .pop()
-                    ?.replace('.html', '') || 'Chapter',
-                children: [],
-              }
-              : null,
-            totalPages: cloudBook.total_pages || 0,
-            lastRead: cloudBook.last_read || new Date().toISOString(),
-            isDownloading: false,
-            downloadFailed: true,
-          };
-        }
+        return downloadWithRetry();
       }
     );
 

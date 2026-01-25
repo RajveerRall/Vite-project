@@ -11,7 +11,7 @@ export interface UseBookSyncReturn {
     isSyncingFromCloud: boolean;
     syncBooks: (localBooks: BookData[]) => Promise<BookData[]>;
     syncBookToCloud: (book: BookData) => Promise<void>;
-    syncProgressToCloud: (bookId: string, currentPage: number, lastChapter: any, progress: number) => Promise<void>;
+    syncProgressToCloud: (bookId: string, currentPage: number, lastChapter: any, progress: number, revision?: number) => Promise<void>;
     flushProgressSync: () => Promise<void>;
     removeBookFromCloud: (bookId: string) => Promise<void>;
 }
@@ -35,6 +35,7 @@ export function useBookSync(
         currentPage: number;
         lastChapter: any;
         progress: number;
+        revision?: number;
     } | null>(null);
     const currentSyncPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -61,16 +62,17 @@ export function useBookSync(
 
     // Helper function to perform the actual sync
     const performSync = useCallback(
-        async (progress: { bookId: string; currentPage: number; lastChapter: any; progress: number }) => {
+        async (progress: { bookId: string; currentPage: number; lastChapter: any; progress: number, revision?: number }) => {
             try {
                 await cloudRepository!.updateBookProgress(
                     progress.bookId,
                     progress.currentPage,
                     progress.lastChapter,
-                    progress.progress
+                    progress.progress,
+                    progress.revision
                 );
                 console.log(
-                    `[useBookSync] Updated progress for book ${progress.bookId}: page ${progress.currentPage}, progress ${progress.progress}%`
+                    `[useBookSync] Updated progress (Rev ${progress.revision || '?'}) for book ${progress.bookId}: page ${progress.currentPage}, progress ${progress.progress}%`
                 );
             } catch (error) {
                 console.error('[useBookSync] Error syncing progress:', error);
@@ -81,11 +83,11 @@ export function useBookSync(
 
     // Sync reading progress to cloud (with race condition prevention)
     const syncProgressToCloud = useCallback(
-        async (bookId: string, currentPage: number, lastChapter: any, progress: number) => {
+        async (bookId: string, currentPage: number, lastChapter: any, progress: number, revision?: number) => {
             if (!isAuthenticated || !userId || !cloudRepository) return;
 
             // Always store the latest progress
-            pendingProgressRef.current = { bookId, currentPage, lastChapter, progress };
+            pendingProgressRef.current = { bookId, currentPage, lastChapter, progress, revision };
 
             // If a sync is already in progress, chain the new sync after it completes
             if (currentSyncPromiseRef.current) {
@@ -131,7 +133,8 @@ export function useBookSync(
                     if (
                         latestPending &&
                         (latestPending.bookId !== progressToSync.bookId ||
-                            latestPending.currentPage !== progressToSync.currentPage)
+                            latestPending.currentPage !== progressToSync.currentPage ||
+                            latestPending.revision !== progressToSync.revision)
                     ) {
                         // Newer progress arrived while we were syncing, sync it now
                         // This creates a new promise chain

@@ -17,6 +17,7 @@ export interface CloudBookRecord {
   last_read: string;
   file_url?: string | null;
   cover_url?: string | null;
+  revision?: number;
 }
 
 /**
@@ -183,6 +184,7 @@ export class CloudBookRepository {
       total_pages: book.totalPages,
       last_read: book.lastRead,
       progress: book.progress || 0,
+      revision: book.revision || 0,
       file_url: fileUrl,
       cover_url: coverUrl || undefined,
     };
@@ -235,7 +237,8 @@ export class CloudBookRepository {
     bookId: string,
     currentPage: number,
     lastChapter: TOCItem | string | null,
-    progress: number = 0
+    progress: number = 0,
+    revision?: number
   ): Promise<void> {
     const { supabase } = await import('../../../lib/supabase');
 
@@ -244,14 +247,20 @@ export class CloudBookRepository {
         ? lastChapter
         : lastChapter?.href || '';
 
+    const updateData: any = {
+      current_page: currentPage,
+      last_chapter: lastChapterStr,
+      progress: progress,
+      last_read: new Date().toISOString(),
+    };
+
+    if (revision !== undefined) {
+      updateData.revision = revision;
+    }
+
     const { error } = await supabase
       .from('books')
-      .update({
-        current_page: currentPage,
-        last_chapter: lastChapterStr,
-        progress: progress,
-        last_read: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('user_id', this.userId)
       .eq('id', bookId);
 
@@ -612,6 +621,7 @@ export class CloudBookRepository {
       totalPages: cloudBook.total_pages || 0,
       lastRead: cloudBook.last_read || new Date().toISOString(),
       progress: cloudBook.progress || 0,
+      revision: cloudBook.revision || 0,
       isDownloading: false,
     };
   }

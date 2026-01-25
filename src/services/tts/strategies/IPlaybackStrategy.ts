@@ -67,6 +67,11 @@ export interface IPlaybackStrategy {
   prepareChunk(chunkIndex: number, audioBlob: Blob): Promise<void>;
 
   /**
+   * Update media metadata for the strategy (e.g. for Media Session API)
+   */
+  setMetadata(metadata: { title: string; author: string; coverUrl?: string }): void;
+
+  /**
    * Cleanup resources
    */
   cleanup(): void;

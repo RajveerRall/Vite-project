@@ -403,7 +403,7 @@ export class TTSSeamlessPlaybackService {
     this.pausedOffset = 0;
     this.pausedTime = 0;
     this.playbackQueue = [];
-    // Keep decoded buffers for potential resume (but clear playback queue)
+    this.decodedBuffers.clear(); // Clear decoded buffers on stop to prevent stale playback
 
 
     this.eventHandlers.onStop?.();

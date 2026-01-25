@@ -6,6 +6,7 @@
 import { IPlaybackStrategy } from './IPlaybackStrategy';
 import { TTSEventHandlers } from '../../../types/tts';
 import { TTSErrorHandler } from '../TTSErrorHandler';
+import { MediaSessionService } from '../MediaSessionService';
 
 export class HTML5PlaybackStrategy implements IPlaybackStrategy {
   private audioElement: HTMLAudioElement | null = null;
@@ -13,6 +14,7 @@ export class HTML5PlaybackStrategy implements IPlaybackStrategy {
   private playbackRate: number = 1.0;
   private eventHandlers: TTSEventHandlers = {};
   private instanceId: string;
+  private metadata: { title: string; author: string; coverUrl?: string } | null = null;
 
   constructor(instanceId?: string) {
     this.instanceId = instanceId || `HTML5_${Date.now()}`;
@@ -42,6 +44,9 @@ export class HTML5PlaybackStrategy implements IPlaybackStrategy {
       await this.audioElement.play();
       this.currentChunkIndex = chunkIndex;
       this.eventHandlers.onPlay?.(chunkIndex);
+
+      // Update Media Session state
+      MediaSessionService.setPlaybackState('playing');
     } catch (error) {
       const ttsError = TTSErrorHandler.handleAudioError(error);
       this.eventHandlers.onError?.(ttsError);
@@ -76,6 +81,7 @@ export class HTML5PlaybackStrategy implements IPlaybackStrategy {
   pause(): void {
     if (this.audioElement && !this.audioElement.paused) {
       this.audioElement.pause();
+      MediaSessionService.setPlaybackState('paused');
     }
   }
 
@@ -98,6 +104,7 @@ export class HTML5PlaybackStrategy implements IPlaybackStrategy {
     this.cleanupAudio();
     this.currentChunkIndex = null;
     this.eventHandlers.onStop?.();
+    MediaSessionService.setPlaybackState('none');
   }
 
   setPlaybackRate(rate: number): void {
@@ -133,9 +140,16 @@ export class HTML5PlaybackStrategy implements IPlaybackStrategy {
   }
 
   async prepareChunk(chunkIndex: number, audioBlob: Blob): Promise<void> {
-    // HTML5 Audio doesn't need pre-decoding, but we can preload
-    // This is a no-op for HTML5, but maintains interface consistency
     // In practice, blob URLs are created on-demand
+  }
+
+  setMetadata(metadata: { title: string; author: string; coverUrl?: string }): void {
+    this.metadata = metadata;
+    MediaSessionService.setMetadata({
+      title: metadata.title,
+      artist: metadata.author,
+      artwork: metadata.coverUrl ? [{ src: metadata.coverUrl }] : undefined
+    });
   }
 
   private cleanupAudio(): void {
@@ -148,7 +162,7 @@ export class HTML5PlaybackStrategy implements IPlaybackStrategy {
       }
 
       this.audioElement.pause();
-      
+
       if (this.audioElement.src && this.audioElement.src.startsWith('blob:')) {
         URL.revokeObjectURL(this.audioElement.src);
       }

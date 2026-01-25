@@ -1,7 +1,7 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import { BookProvider } from './context/BookContext';
+import { BookProvider, useBook } from './context/BookContext';
 import { useAuth } from './context/AuthContext';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
@@ -107,6 +107,58 @@ const MainApp: React.FC = () => {
 
 const AppContent: React.FC = () => {
   const { user } = useAuth();
+  const { addBook, openBook } = useBook();
+  const navigate = useNavigate();
+  const { addToast } = useToast();
+
+  // Helper to handle incoming file URLs (intents)
+  const handleFileUrl = React.useCallback(async (url: string) => {
+    console.log('[File Intent] Handling URL:', url);
+    const isFileUri = url.startsWith('content://') || url.startsWith('file://');
+
+    if (isFileUri) {
+      try {
+        addToast('Importing book...', 'info');
+
+        // Fetch the file content
+        const response = await fetch(Capacitor.convertFileSrc(url));
+        const blob = await response.blob();
+
+        // Get filename from URL or default
+        let filename = 'imported_book';
+        try {
+          const urlObj = new URL(url);
+          const pathSegments = urlObj.pathname.split('/');
+          filename = decodeURIComponent(pathSegments[pathSegments.length - 1]) || filename;
+        } catch (e) {
+          // If URL parsing fails, try to infer from the string
+          const pathParts = url.split('/');
+          filename = decodeURIComponent(pathParts[pathParts.length - 1]) || filename;
+        }
+
+        // Ensure we have an extension if possible
+        if (!filename.includes('.')) {
+          if (blob.type === 'application/pdf') filename += '.pdf';
+          else if (blob.type === 'application/epub+zip') filename += '.epub';
+        }
+
+        const file = new File([blob], filename, { type: blob.type });
+
+        console.log('[File Intent] Adding book to library:', filename);
+        const newBook = await addBook(file);
+
+        console.log('[File Intent] Auto-opening book:', newBook.title);
+        await openBook(newBook);
+
+        addToast(`Successfully imported: ${newBook.title}`, 'success');
+        navigate(`/reader/${newBook.id}`);
+      } catch (error) {
+        console.error('[File Intent] Error importing file:', error);
+        addToast(`Failed to import book: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+      }
+    }
+  }, [addBook, openBook, navigate, addToast]);
+
   // Globally listen for TTS usage events and persist to Supabase when needed
   useTTSUsageRecorder();
 
@@ -130,6 +182,13 @@ const AppContent: React.FC = () => {
     // Handle warm link
     const sub = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
       console.log('[Auth Deep Link] appUrlOpen url =', url);
+
+      // Handle File Intents
+      if (url?.startsWith('content://') || url?.startsWith('file://')) {
+        handleFileUrl(url);
+        return;
+      }
+
       if (url?.startsWith('yoread://auth/callback')) {
         try {
           const { supabase } = await import('./lib/supabase');
@@ -157,6 +216,13 @@ const AppContent: React.FC = () => {
         const info = await anyApp.getLaunchUrl?.();
         const url = info?.url as string | undefined;
         console.log('[Auth Deep Link] getLaunchUrl url =', url);
+
+        // Handle File Intents (Cold Start)
+        if (url?.startsWith('content://') || url?.startsWith('file://')) {
+          handleFileUrl(url);
+          return;
+        }
+
         if (url?.startsWith('yoread://auth/callback')) {
           const { supabase } = await import('./lib/supabase');
           console.log('[Auth Deep Link] Exchanging code for session (cold)...');
