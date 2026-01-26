@@ -83,7 +83,7 @@
 //   const chunksRef = useRef<string[]>([]);
 //   const startTsRef = useRef<number>(0);
 //   const scenesRef = useRef<Scene[]>([]);
-  
+
 //   // Keep refs in sync with state for use in closures
 //   useEffect(() => {
 //     scenesRef.current = scenes;
@@ -503,19 +503,41 @@
 //         page_number: currentPageDisplay
 //       });
 
-//       // Split text into chunks
-//       const MAX_CHARS = 400;
-//       const paras = fullText.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-//       const sources = paras.length > 0 ? paras : [fullText];
+//       // Split text into chunks at natural boundaries (sentences)
+//       const MAX_CHUNK_CHARS = 200; // Smaller chunks = better sync resolution
+//       
+//       // Simple sentence splitter that handles common cases
+//       const sentences = fullText.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [fullText];
+//       
 //       const newChunks: string[] = [];
-//       for (const src of sources) {
-//         const t = src.trim();
-//         if (!t) continue;
-//         for (let i = 0; i < t.length; i += MAX_CHARS) {
-//           newChunks.push(t.slice(i, i + MAX_CHARS));
+//       let currentChunk = "";
+//       
+//       for (const sentence of sentences) {
+//         const trimmed = sentence.trim();
+//         if (!trimmed) continue;
+//         
+//         // If adding this sentence exceeds MAX_CHUNK_CHARS and we already have content,
+//         // push the current chunk and start a new one.
+//         if (currentChunk.length + trimmed.length > MAX_CHUNK_CHARS && currentChunk.length > 0) {
+//           newChunks.push(currentChunk.trim());
+//           currentChunk = "";
+//         }
+//         
+//         currentChunk += (currentChunk ? " " : "") + trimmed;
+//         
+//         // If a single sentence is still too long (rare), split it hard
+//         while (currentChunk.length > MAX_CHUNK_CHARS * 2) {
+//            newChunks.push(currentChunk.slice(0, MAX_CHUNK_CHARS).trim());
+//            currentChunk = currentChunk.slice(MAX_CHUNK_CHARS);
 //         }
 //       }
+//       
+//       if (currentChunk.trim()) {
+//         newChunks.push(currentChunk.trim());
+//       }
+//       
 //       chunksRef.current = newChunks;
+//       console.log(`[Full Cast] Split text into ${newChunks.length} chunks for synced playback`);
 
 //       // Initialize Audio Context & Unlock Autoplay
 //       const audio = new Audio();
@@ -762,11 +784,31 @@ export function useFullCast(
   const chunksRef = useRef<string[]>([]);
   const startTsRef = useRef<number>(0);
   const scenesRef = useRef<Scene[]>([]);
+  const textRef = useRef<string | undefined>(currentPageText);
+  const contentRef = useRef<string | undefined>(currentContent);
+  const pageDisplayRef = useRef<number>(currentPageDisplay);
+  const hasStartedPlayingRef = useRef<boolean>(false);
 
   // Keep refs in sync with state for use in closures
   useEffect(() => {
     scenesRef.current = scenes;
   }, [scenes]);
+
+  useEffect(() => {
+    textRef.current = currentPageText;
+  }, [currentPageText]);
+
+  useEffect(() => {
+    contentRef.current = currentContent;
+  }, [currentContent]);
+
+  useEffect(() => {
+    pageDisplayRef.current = currentPageDisplay;
+  }, [currentPageDisplay]);
+
+  useEffect(() => {
+    hasStartedPlayingRef.current = hasStartedPlaying;
+  }, [hasStartedPlaying]);
 
   // Update highlighted content when content changes
   useEffect(() => {
@@ -854,7 +896,7 @@ export function useFullCast(
         produce();
       }
     }
-  }, [currentPageDisplay]);
+  }, []); // Stable produce
 
   // --- Consumer ---
   const consume = useCallback(async () => {
@@ -863,7 +905,7 @@ export function useFullCast(
 
     if (audioQueueRef.current.length === 0) {
       produce();
-      if (!hasStartedPlaying) {
+      if (!hasStartedPlayingRef.current) {
         setStatus('Buffering…');
       }
       if (chunkIndexRef.current < chunksRef.current.length || isFetchingRef.current) {
@@ -903,11 +945,11 @@ export function useFullCast(
       audio.volume = 1.0;
 
       const setupHighlighting = () => {
-        if (line?.dialogue && currentPageText) {
+        if (line?.dialogue && textRef.current) {
           try {
             const highlighted = highlightChunkInHtml(
-              currentContent || '',
-              currentPageText,
+              contentRef.current || '',
+              textRef.current,
               line.dialogue
             );
             setHighlightedContent(highlighted);
@@ -931,7 +973,7 @@ export function useFullCast(
               const currentIdx = prevScene?.sceneIndex || 0;
               const result = matchSceneToText(line.dialogue, scenesRef.current, currentIdx);
               const matchedScene = result.scene;
-              if (matchedScene && matchedScene.sceneIndex > currentIdx) {
+              if (matchedScene && (prevScene === null || matchedScene.sceneIndex > currentIdx)) {
                 return matchedScene;
               }
               return prevScene;
@@ -970,6 +1012,7 @@ export function useFullCast(
         } else {
           console.debug('[Full Cast] Play interrupted by pause (will retry):', e);
           setTimeout(async () => {
+            // FIX: Added isPlayingRef check to prevent orphaned retry if stopped
             if (isPlayingRef.current && audio.src === url) {
               try {
                 await audio.play();
@@ -988,7 +1031,7 @@ export function useFullCast(
       // Release the lock so the next trigger can process
       isConsumingRef.current = false;
     }
-  }, [produce, hasStartedPlaying, currentPageText, currentContent]);
+  }, [produce]); // Stable consume (depends on produce which is now stable)
 
   // --- Commands ---
   const pause = useCallback(() => {
@@ -1023,14 +1066,18 @@ export function useFullCast(
     try {
       isPlayingRef.current = false;
       isFetchingRef.current = false;
+      isConsumingRef.current = false; // Reset lock
 
       if (audioRef.current) {
         audioRef.current.onplay = null;
         audioRef.current.onended = null;
         audioRef.current.onerror = null;
+        audioRef.current.onpause = null;
+        audioRef.current.onwaiting = null;
+
         audioRef.current.pause();
         audioRef.current.src = '';
-        audioRef.current.loop = false;
+        audioRef.current.removeAttribute('src'); // Force removal
         audioRef.current.load();
       }
 
@@ -1131,6 +1178,14 @@ export function useFullCast(
   // --- Request Handler ---
   useEffect(() => {
     const handler = async () => {
+      // FIX: IDEMPOTENCY - If already playing, stop current playback before starting new
+      if (isPlayingRef.current || isActive) {
+        console.log('[Full Cast] Instance already active, performing clean restart');
+        stop();
+        // Wait a small bit for cleanup to settle
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
       setIsActive(true);
       setStatus('Preparing Picture Mode...');
       setShowScenes(true);
@@ -1152,18 +1207,42 @@ export function useFullCast(
         page_number: currentPageDisplay
       });
 
-      const MAX_CHARS = 400;
-      const paras = fullText.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-      const sources = paras.length > 0 ? paras : [fullText];
+      // Smart chunking: Split at sentence boundaries for better sync resolution
+      const MAX_CHUNK_CHARS = 200;
+      const paragraphs = fullText.split(/\n\s*\n/);
       const newChunks: string[] = [];
-      for (const src of sources) {
-        const t = src.trim();
-        if (!t) continue;
-        for (let i = 0; i < t.length; i += MAX_CHARS) {
-          newChunks.push(t.slice(i, i + MAX_CHARS));
+
+      for (let p of paragraphs) {
+        p = p.trim();
+        if (!p) continue;
+
+        // Split paragraph into sentences
+        const sentences = p.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [p];
+        let currentChunk = "";
+
+        for (const sentence of sentences) {
+          const s = sentence.trim();
+          if (!s) continue;
+
+          if (currentChunk.length + s.length > MAX_CHUNK_CHARS && currentChunk.length > 0) {
+            newChunks.push(currentChunk.trim());
+            currentChunk = "";
+          }
+
+          currentChunk += (currentChunk ? " " : "") + s;
+
+          // If a single sentence is still too long, split it hard
+          while (currentChunk.length > MAX_CHUNK_CHARS * 2) {
+            newChunks.push(currentChunk.slice(0, MAX_CHUNK_CHARS).trim());
+            currentChunk = currentChunk.slice(MAX_CHUNK_CHARS);
+          }
+        }
+        if (currentChunk.trim()) {
+          newChunks.push(currentChunk.trim());
         }
       }
       chunksRef.current = newChunks;
+      console.log(`[Full Cast] Split text into ${newChunks.length} chunks for synced playback`);
 
       const audio = new Audio();
       audioRef.current = audio;
@@ -1231,7 +1310,7 @@ export function useFullCast(
 
           if (activeScenes.length > 0) {
             try {
-              const allGeneratedImages = await generateSceneImages(activeScenes, (img) => {
+              await generateSceneImages(activeScenes, (img) => {
                 setSceneImages(prev => {
                   const exists = prev.some(i => i.sceneIndex === img.sceneIndex);
                   if (exists) return prev;
@@ -1280,11 +1359,14 @@ export function useFullCast(
     return () => {
       window.removeEventListener('full-cast-request', handler as any);
       if (audioRef.current) {
+        audioRef.current.onplay = null;
+        audioRef.current.onended = null;
+        audioRef.current.onerror = null;
         audioRef.current.pause();
         audioRef.current.src = '';
       }
     };
-  }, [currentPageText, currentContent, currentPageDisplay, bookTitle, getSafeKey, stop, pause, resume, produce, consume]);
+  }, [bookTitle, getSafeKey, stop, pause, resume]); // Stable useEffect. Removed currentPageText, currentContent, currentPageDisplay, produce, consume.
 
   return {
     isActive,

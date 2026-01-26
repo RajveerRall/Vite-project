@@ -40,7 +40,7 @@ export class TTSSeamlessPlaybackService {
   constructor(config?: SeamlessPlaybackConfig) {
     this.instanceId = config?.instanceId || `Seamless_${Date.now()}`;
     this.playbackRate = config?.playbackRate || 1.0;
-    this.maxQueueSize = config?.maxQueueSize || 10;
+    this.maxQueueSize = config?.maxQueueSize || 15;
     this.initializeAudioContext();
   }
 
@@ -141,8 +141,8 @@ export class TTSSeamlessPlaybackService {
         // Build set of protected chunks (current chunk and nearby chunks)
         const protectedChunks = new Set<number>();
         if (this.currentChunkIndex !== null) {
-          // Protect current chunk and chunks within ±2 range (for pause/resume safety)
-          for (let i = -2; i <= 2; i++) {
+          // Protect current chunk and chunks within ±4 range (for backward navigation & prefetch)
+          for (let i = -4; i <= 4; i++) {
             protectedChunks.add(this.currentChunkIndex + i);
           }
         }
@@ -201,26 +201,35 @@ export class TTSSeamlessPlaybackService {
 
     await this.ensureContextResumed();
 
+    // ✅ FIX: Stop any current source IMMEDIATELY when a new chunk is requested
+    // This ensures navigation (Next/Prev) is responsive even if the next chunk takes a moment to load
+    if (this.currentSource) {
+      console.log(`[${this.instanceId}] Stopping current playback for navigation to #${chunkIndex}`);
+      try {
+        if (this.currentSource.onended) {
+          this.currentSource.onended = null;
+        }
+        this.currentSource.stop();
+      } catch (e) {
+        // Already stopped
+      }
+      this.currentSource.disconnect();
+      this.currentSource = null;
+    }
+
+    // Reset scheduled next start time for jump
+    this.nextStartTime = 0;
+
     // Check if chunk is pre-decoded
     const queuedBuffer = this.playbackQueue.find(q => q.chunkIndex === chunkIndex);
     if (!queuedBuffer) {
+      console.warn(`[${this.instanceId}][playChunk] Chunk #${chunkIndex} missing from queue. Call enqueueChunk first.`);
       throw new Error(`Chunk ${chunkIndex} not found in playback queue. Pre-decode it first.`);
     }
 
     const { buffer, duration } = queuedBuffer;
 
     try {
-      // Stop current source if playing
-      if (this.currentSource) {
-        try {
-          this.currentSource.stop();
-        } catch (e) {
-          // Source may have already ended
-        }
-        this.currentSource.disconnect();
-        this.currentSource = null;
-      }
-
       // Create new source
       this.currentSource = this.audioContext!.createBufferSource();
       this.currentSource.buffer = buffer;
@@ -253,7 +262,7 @@ export class TTSSeamlessPlaybackService {
       const endedHandler = () => {
         // Double-check flags when handler fires (defensive check)
         if (this.isPlaying && !this.isPaused) {
-          this.onChunkEnded(chunkIndex, duration);
+          this.onChunkEnded(chunkIndex);
         } else {
           console.log(`[${this.instanceId}] Ignoring onended event - playback state changed`);
         }
@@ -293,7 +302,7 @@ export class TTSSeamlessPlaybackService {
   /**
    * Handle chunk ended - notify external handler only (no internal auto-advance)
    */
-  private onChunkEnded(chunkIndex: number, duration: number): void {
+  private onChunkEnded(chunkIndex: number): void {
     console.log(`[${this.instanceId}] Chunk #${chunkIndex} ended`);
 
     // ✅ FIX: Check if we should process this event (might have been paused/stopped)
@@ -314,13 +323,10 @@ export class TTSSeamlessPlaybackService {
     // Removed internal auto-advance - hook will handle it via onChunkComplete callback
     this.eventHandlers.onChunkComplete?.(chunkIndex);
 
-    // Check if we should end playback (no more chunks and not paused)
-    const hasMoreChunks = this.playbackQueue.length > 0;
-    if (!hasMoreChunks && this.isPlaying && !this.isPaused) {
-      console.log(`[${this.instanceId}] No more chunks in queue, ending playback`);
-      this.isPlaying = false;
-      this.eventHandlers.onStop?.();
-    }
+    // Check if we should end playback? 
+    // ✅ FIX: Removed auto-stop logic based on playbackQueue.length.
+    // In a buffering system, the queue might be empty just because fetch is slow.
+    // The GlobalAudioPlayer/hook now manages the end-of-chapter state based on chunk count.
   }
 
   /**
@@ -402,9 +408,9 @@ export class TTSSeamlessPlaybackService {
     this.nextStartTime = 0;
     this.pausedOffset = 0;
     this.pausedTime = 0;
-    this.playbackQueue = [];
-    this.decodedBuffers.clear(); // Clear decoded buffers on stop to prevent stale playback
-
+    // ✅ FIX: Don't clear playbackQueue here. 
+    // We want to keep pre-decoded chunks available for checking "next" or "prev" navigation
+    // The queue will be managed by enqueueChunk (max size) or explicit cleanup()
 
     this.eventHandlers.onStop?.();
   }

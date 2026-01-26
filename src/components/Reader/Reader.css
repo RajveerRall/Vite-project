@@ -164,7 +164,7 @@
   position: relative;
   /* Needed for absolute positioning of indicators */
   background-color: transparent;
-  /* Remove grey background */
+  /* Removed grey fallback background to prevent flicker in dark mode */
   max-width: 100vw;
   /* Prevent horizontal overflow */
 }
@@ -678,6 +678,39 @@
   transition: width 0.3s ease;
 }
 
+.picture-mode-active .reader-main {
+  padding-bottom: 200px;
+}
+
+.picture-mode-active .epub-content {
+  margin-bottom: 40px;
+}
+
+/* Desktop Side-by-Side Optimization */
+@media (min-width: 768px) {
+  .reader.picture-mode-active {
+    flex-direction: row;
+  }
+
+  .picture-mode-active .integrated-scene-view {
+    /* Styles handled in IntegratedSceneView.css, but this ensures flex item behavior */
+    flex: 0 0 50%;
+    height: 100vh;
+  }
+
+  .picture-mode-active .reader-container {
+    flex: 1;
+    /* Takes remaining 50% */
+    height: 100vh;
+  }
+
+  /* Reset padding for side-by-side as controls aren't covering text in the same way */
+  .picture-mode-active .reader-main {
+    padding-bottom: 120px;
+    /* Standard padding */
+  }
+}
+
 /* Bottom Controls Styling */
 .reader-bottom-controls {
   /* Ensure controls are always on top */
@@ -922,10 +955,7 @@
   padding: 20px;
   /* Warm off-white background */
   background-color: #fcf8f0;
-  /* Warm off-white background */
-  /* background-image: url('/assets/images/subtle-paper-texture.png'); */
-  /* Paper texture - commented out, image not available */
-  /* background-repeat: repeat; */
+
   margin: 1rem;
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -937,6 +967,10 @@
   /* Ensure proper spacing without excessive height */
   min-height: auto;
   /* Remove fixed height constraint */
+
+  /* SUPPRESS MOBILE FEEDBACK */
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
 }
 
 /* Ensure no scrollbar on epub-content even if global styles apply */

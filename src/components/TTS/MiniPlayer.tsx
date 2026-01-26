@@ -1,10 +1,11 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTTS } from '../../context/TTSContext';
 import './MiniPlayer.css';
 
 export const MiniPlayer: React.FC = () => {
     const location = useLocation();
+    const navigate = useNavigate();
     const {
         isPlaying,
         isPaused,
@@ -26,6 +27,12 @@ export const MiniPlayer: React.FC = () => {
     const isVisible = (isPlaying || isPaused) && currentBookId && !isOnReaderPage;
 
     if (!isVisible) return null;
+
+    const handleOpenBook = () => {
+        if (currentBookId) {
+            navigate(`/reader/${currentBookId}`);
+        }
+    };
 
     const handlePlayPause = () => {
         if (isPlaying) {
@@ -66,7 +73,12 @@ export const MiniPlayer: React.FC = () => {
         <div className="mini-player">
             <div className="mini-player-content">
                 {/* Book Info */}
-                <div className="mini-player-info">
+                <div
+                    className="mini-player-info"
+                    onClick={handleOpenBook}
+                    style={{ cursor: 'pointer' }}
+                    title="Return to Reader"
+                >
                     <div className="mini-player-title">
                         {displayTitle}
                     </div>

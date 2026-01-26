@@ -46,7 +46,8 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 }) => {
   const { currentBook } = useBook();
   // Use plain content for display - highlights will be applied via DOM manipulation
-  const displayContent = content;
+  // Use highlightedContent if provided (for Picture Mode/Full Cast), otherwise use plain content
+  const displayContent = highlightedContent || content;
 
   // DOM-based highlighting
   // Instead of re-rendering everything (which reloads images), we manipulate the DOM directly
@@ -237,11 +238,15 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
         if (!epubSrc || epubSrc === 'about:blank') return false;
 
         // Check if image needs processing: no src, about:blank, or not a blob URL
-        const needsProcessing = !src || src === 'about:blank' || !src.startsWith('blob:');
+        let needsProcessing = !src || src === 'about:blank' || !src.startsWith('blob:');
 
-        // If it has a blob URL, check if it's still valid by checking if image has loaded
+        // If it has a blob URL, but that URL is not in our current session cache, it's likely stale
+        if (!needsProcessing && src && src.startsWith('blob:') && !Array.from(imageBlobUrlCache.values()).includes(src)) {
+          needsProcessing = true;
+        }
+
+        // If it still doesn't need processing, check if it's broken
         if (!needsProcessing && imageElement.complete && imageElement.naturalWidth === 0) {
-          // Image failed to load, needs reprocessing
           return true;
         }
 
@@ -350,6 +355,24 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 
     return () => cancelAnimationFrame(rafId);
   }, [content, currentBook?.file]);
+
+  // Auto-scroll to highlight when it changes (for TTS and Picture Mode)
+  useEffect(() => {
+    if (!highlightedContent) return;
+
+    // Small delay to ensure React has finished updating the DOM with the new highlight span
+    const timer = setTimeout(() => {
+      const highlightElement = contentRef.current?.querySelector('.tts-highlight');
+      if (highlightElement) {
+        highlightElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+    }, 60);
+
+    return () => clearTimeout(timer);
+  }, [highlightedContent, contentRef]);
 
   return (
     <div

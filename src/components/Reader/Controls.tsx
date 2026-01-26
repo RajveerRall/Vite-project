@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useRef } from 'react';
-// import { useFullCastUsage } from '../../hooks/useFullCastUsage';
+import { useFullCastUsage } from '../../hooks/useFullCastUsage';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useToast } from '../../context/ToastContext';
-// import { trackEvent } from '../../lib/analytics';
+import { trackEvent } from '../../lib/analytics';
 import { UsageLimitModal } from '../UsageLimitModal';
 import { UsageWarningToast } from '../UsageWarningToast';
 import {
   Headphones,
   PlayCircle, PauseCircle, RotateCcw,
-  Loader2, Square, SkipBack, SkipForward, Settings // ImageIcon removed
+  Loader2, Square, SkipBack, SkipForward, Settings, Image as ImageIcon
 } from 'lucide-react';
 import InteractiveProgressBar from './InteractiveProgressBar';
 import SpeedControlDropdown from './SpeedControlDropdown';
@@ -100,16 +100,16 @@ const Controls: React.FC<ControlsProps> = ({
   currentChapterTitle,
   bookId,
   onReadAloudSummary,
-  // onFullCastGenerateImage,
+  onFullCastGenerateImage,
   isMobile,
   theme,
   onOpenSettings
 }) => {
-  // const {
-  //   usedMinutes: fcUsed,
-  //   totalMinutes: fcTotal,
-  //   remainingMinutes: fcRemaining
-  // } = useFullCastUsage();
+  const {
+    usedMinutes: fcUsed,
+    totalMinutes: fcTotal,
+    remainingMinutes: fcRemaining
+  } = useFullCastUsage();
   const { isLimitExceeded } = useSubscription();
   const { addToast } = useToast();
   const [isAIChatDrawerOpen, setIsAIChatDrawerOpen] = useState(false);
@@ -217,52 +217,38 @@ const Controls: React.FC<ControlsProps> = ({
   // Show Full Cast controls when Full Cast is active
   if (fullCastActive) {
     return (
-      <div className="music-player-controls theme-${theme} rounded-xl border shadow-lg p-6">
+      <div className={`music-player-controls theme-${theme} bg-white rounded-xl border border-gray-200 shadow-lg p-2`}>
         {/* Full Cast Status */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 md:gap-4 px-2 py-1">
           <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span className="inline-flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-            <span>{fullCastStatus}</span>
-            {fullCastBuffered > 0 && (
+            <span className={`inline-flex h-2 w-2 rounded-full ${fullCastNeedsTap ? 'bg-amber-500 animate-pulse' : 'bg-blue-500 animate-pulse'}`} />
+            <span className="font-medium">{fullCastNeedsTap ? "Tap to Play" : fullCastStatus}</span>
+            {fullCastBuffered > 0 && !fullCastNeedsTap && (
               <span className="text-xs bg-gray-100 rounded px-2 py-0.5">Buffered: {fullCastBuffered}</span>
             )}
           </div>
 
           <div className="flex items-center gap-2">
-            {fullCastNeedsTap && (
-              <button
-                className="px-2 py-1 text-xs bg-blue-600 text-white rounded"
-                onClick={() => {
-                  try {
-                    const a = (window as any).__fullCastAudio as HTMLAudioElement | undefined;
-                    a?.play();
-                  } catch { }
-                }}
-              >
-                Tap to Play
-              </button>
-            )}
-
             {!fullCastPaused ? (
               <button
                 onClick={onFullCastPause}
-                className="p-2 rounded-full hover-effect transition-colors"
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                 aria-label="Pause Picture Mode"
                 title="Pause Picture Mode"
               >
-                <PauseCircle size={18} className="theme-icon" />
+                <PauseCircle size={22} className="text-gray-700" />
               </button>
             ) : (
               <button
                 onClick={onFullCastResume}
-                className="p-2 rounded-full hover-effect transition-colors"
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                 aria-label="Resume Picture Mode"
                 title="Resume Picture Mode"
               >
-                <PlayCircle size={18} className="theme-icon" />
+                <PlayCircle size={22} className="text-gray-700" />
               </button>
             )}
-            {/* 
+
             {onFullCastGenerateImage && (
               <button
                 onClick={onFullCastGenerateImage}
@@ -270,9 +256,9 @@ const Controls: React.FC<ControlsProps> = ({
                 aria-label="Generate scene visuals"
                 title="Generate scene visuals"
               >
-                <ImageIcon size={18} className="text-gray-600" />
+                <ImageIcon size={20} className="text-gray-600" />
               </button>
-            )} */}
+            )}
 
             <button
               onClick={onFullCastStop}
@@ -280,7 +266,7 @@ const Controls: React.FC<ControlsProps> = ({
               aria-label="Stop Picture Mode"
               title="Stop Picture Mode"
             >
-              <Square size={18} />
+              <Square size={20} />
             </button>
           </div>
         </div>
@@ -469,7 +455,7 @@ const Controls: React.FC<ControlsProps> = ({
         )} */}
 
         {/* Full Cast Button - Disabled by request */}
-        {/* <button
+        <button
           className={`control-button flex items-center gap-2 px-3 py-2 transition-colors ${fullCastActive
             ? 'bg-blue-50 border-blue-200 text-blue-700'
             : 'hover:bg-gray-50'
@@ -496,7 +482,7 @@ const Controls: React.FC<ControlsProps> = ({
         >
           <ImageIcon size={20} className={fullCastActive ? 'animate-pulse' : ''} />
           <span className="button-text text-sm font-medium">Picture Mode</span>
-        </button> */}
+        </button>
       </div>
 
       {/* Show warning toast for anonymous users near limit */}

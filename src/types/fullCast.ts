@@ -16,6 +16,7 @@ export interface SceneImage {
     anchor_text: string;
     scene_description: string;
     url?: string; // Blob URL for display
+    blob?: Blob; // Raw image data for caching
 }
 
 export interface CachedSceneAnalysis {

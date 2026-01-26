@@ -22,7 +22,7 @@ import { ReaderHeader } from './ReaderHeader';
 import { ReaderContent } from './ReaderContent';
 import { FullCastOverlay } from './FullCastOverlay';
 import { ReaderControlsContainer } from './ReaderControlsContainer';
-import FullCastSceneOverlay from './FullCastSceneOverlay';
+import IntegratedSceneView from './IntegratedSceneView';
 import { SubscriptionLimitModal } from '../Subscription/SubscriptionLimitModal';
 import { useSubscription } from '../../context/SubscriptionContext';
 import MobileTOCDrawer from './MobileTOCDrawer';
@@ -60,7 +60,7 @@ const Reader: React.FC = () => {
   const [autoPlayOnLoad, setAutoPlayOnLoad] = useState<boolean>(false);
 
   // Ref to store handleTTS function so it can be accessed in the callback
-  const handleTTSRef = useRef<(() => void) | null>(null);
+  const handleTTSRef = useRef<((selectedText?: string) => void) | null>(null);
 
   // Ref to store handleStopTTS function so it can be accessed in the callback
   const handleStopTTSRef = useRef<(() => void) | null>(null);
@@ -218,17 +218,13 @@ const Reader: React.FC = () => {
     needsTap: fullCastNeedsTap,
     isPaused: fullCastPaused,
     hasStartedPlaying,
-    scenes,
     sceneImages,
     currentScene,
     isScenesLoading,
-    showScenes,
     highlightedContent: fullCastHighlightedContent,
     pause: fullCastPause,
     resume: fullCastResume,
     stop: fullCastStop,
-    setShowScenes,
-    setCurrentScene,
     handleGenerateSceneImage,
   } = fullCast;
 
@@ -429,8 +425,8 @@ const Reader: React.FC = () => {
   }, [currentPageDisplay, isPageLoading, currentPageText, isLoading, autoPlayOnLoad]);
 
   const { scrollToHighlight } = useAutoScroll({
-    isActive: isSpeaking || isProcessing || isPaused,
-    highlightedContent: ttsHighlightedContent,
+    isActive: isSpeaking || isProcessing || isPaused || fullCastActive,
+    highlightedContent: fullCastActive ? fullCastHighlightedContent : ttsHighlightedContent,
     scrollContainer: document.querySelector('.reader-main') as HTMLElement | null
   });
 
@@ -538,27 +534,54 @@ const Reader: React.FC = () => {
 
 
   return (
-    <div className={`reader theme-${theme}`}>
-      <ReaderHeader
-        className={!isUIVisible ? 'reader-ui-hidden' : ''}
-        bookTitle={bookTitle}
-        currentChapterTitle={currentChapterTitle}
-        onClose={handleCloseBookCB}
-        onScrollToHighlight={scrollToHighlight}
-        onOpenSettings={toggleSettings}
-        onOpenChapters={() => {
-          if (isMobile) {
-            setIsMobileTocOpen(true);
-          } else {
-            setActivePanel('toc');
-          }
-        }}
-        showTTSHighlight={isSpeaking || isProcessing || isPaused}
-      />
+    <div className={`reader theme-${theme} ${fullCastActive ? 'picture-mode-active' : ''}`}>
+
+      {!fullCastActive && (
+        <ReaderHeader
+          className={!isUIVisible ? 'reader-ui-hidden' : ''}
+          bookTitle={bookTitle}
+          currentChapterTitle={currentChapterTitle}
+          onClose={handleCloseBookCB}
+          onScrollToHighlight={scrollToHighlight}
+          onOpenSettings={toggleSettings}
+          onOpenChapters={() => {
+            if (isMobile) {
+              setIsMobileTocOpen(true);
+            } else {
+              setActivePanel('toc');
+            }
+          }}
+          showTTSHighlight={isSpeaking || isProcessing || isPaused}
+        />
+      )}
+
+      {fullCastActive && (
+        <IntegratedSceneView
+          scene={currentScene}
+          bookTitle={bookTitle}
+          imageUrl={(function () {
+            if (currentScene) {
+              const idx = currentScene.sceneIndex;
+              const match = sceneImages.find(img => img.sceneIndex === idx);
+              if (match?.url) return match.url;
+            }
+            return undefined;
+          })()}
+          isLoading={isScenesLoading}
+          onClose={fullCastStop}
+        />
+      )}
 
       <div className="reader-container">
         {((isLoading && !currentContent && !isPlayModeVisible) || (isProcessing && !isSpeaking && !isPaused && !isPlayModeVisible)) ? (
-          <EnhancedLoader />
+          <EnhancedLoader
+            isLoading={isLoading}
+            isProcessing={isProcessing}
+            isSpeaking={isSpeaking}
+            isPaused={isPaused}
+            isPlayModeVisible={isPlayModeVisible}
+            currentContent={currentContent}
+          />
         ) : null}
 
         <FullCastOverlay
@@ -567,31 +590,6 @@ const Reader: React.FC = () => {
           buffered={fullCastBuffered}
           hasStartedPlaying={hasStartedPlaying}
         />
-
-        {isEnhanced && showScenes && (
-          <FullCastSceneOverlay
-            scene={currentScene}
-            allScenes={scenes}
-            currentImageIndex={currentScene?.sceneIndex ?? 0}
-            imageUrl={(function () {
-              if (currentScene) {
-                const idx = currentScene.sceneIndex;
-                const match = sceneImages.find(img => img.sceneIndex === idx);
-                if (match?.url) return match.url;
-              }
-              return undefined;
-            })()}
-            isLoading={isScenesLoading}
-            isVisible={showScenes}
-            onToggle={() => setShowScenes(!showScenes)}
-            onManualNavigate={(index: number) => {
-              const target = scenes.find(s => s.sceneIndex === index);
-              if (target) {
-                setCurrentScene(target);
-              }
-            }}
-          />
-        )}
 
         <SidePanelBar
           activePanel={activePanel}

@@ -5,11 +5,9 @@ import { getBlobDurationSeconds } from '../../utils/audioUtils';
 
 export interface UseTTSBufferingProps {
     chunks: string[];
-    currentChunkIndex: number | null;
     selectedVoice: string;
     ttsSpeed: number;
     playbackStrategyRef: MutableRefObject<IPlaybackStrategy | null>;
-    readerInstanceId: string;
 }
 
 export interface UseTTSBufferingReturn {
@@ -24,15 +22,14 @@ export interface UseTTSBufferingReturn {
 }
 
 // Constants
-const PREFETCH_CHUNK_COUNT = 4;
-const MAX_AUDIO_BUFFER_SIZE = 10;
+const PREFETCH_CHUNK_COUNT = 6;
+const MAX_AUDIO_BUFFER_SIZE = 15;
 
 /**
  * Hook for managing TTS audio buffering and prefetching
  */
 export const useTTSBuffering = ({
     chunks,
-    currentChunkIndex,
     selectedVoice,
     ttsSpeed,
     playbackStrategyRef
@@ -43,7 +40,7 @@ export const useTTSBuffering = ({
     // Stores actual Blob objects for Seamless playback (Web Audio API)
     const audioBufferObjects = useRef<Record<number, Blob>>({});
     const durationsBuffer = useRef<Record<number, number>>({});
-    const inFlightPrefetchRef = useRef<Set<number>>(new Set());
+    const inFlightRequestsRef = useRef<Record<number, Promise<void> | undefined>>({});
     const bufferVoiceRef = useRef<string>(selectedVoice);
     const prevVoiceRef = useRef<string>(selectedVoice);
 
@@ -84,9 +81,9 @@ export const useTTSBuffering = ({
         const bufferKeys = Object.keys(audioBuffer.current).map(Number);
         if (bufferKeys.length <= MAX_AUDIO_BUFFER_SIZE) return;
 
-        // Protect current chunk and nearby chunks (±2 range)
+        // Protect current chunk and nearby chunks (4 behind, 4 ahead)
         const protectedChunks = new Set<number>();
-        for (let i = -2; i <= 2; i++) {
+        for (let i = -4; i <= 4; i++) {
             protectedChunks.add(currentIndex + i);
         }
 
@@ -117,29 +114,17 @@ export const useTTSBuffering = ({
         prevVoiceRef.current = selectedVoice;
     }, [selectedVoice, clearAudioBuffer]);
 
-    // === Fetch single chunk helper ===
-    const fetchSingleChunk = useCallback(async (chunkIndex: number): Promise<void> => {
-        if (chunks.length === 0 || chunkIndex < 0 || chunkIndex >= chunks.length) {
-            console.warn(`[Buffering] fetchSingleChunk(${chunkIndex}) abort: chunks.length=${chunks.length}`);
-            return;
-        }
-        if (audioBufferObjects.current[chunkIndex]) {
-            // Already cached
-            return;
-        }
-        // Check if already in flight
-        if (inFlightPrefetchRef.current.has(chunkIndex)) {
-            return;
-        }
+    // === Internal fetch logic (reusable) ===
+    const internalFetchChunk = useCallback(async (chunkIndex: number): Promise<void> => {
+        if (chunks.length === 0 || chunkIndex < 0 || chunkIndex >= chunks.length) return;
+        if (audioBufferObjects.current[chunkIndex]) return;
 
-        // Mark as in-flight
-        inFlightPrefetchRef.current.add(chunkIndex);
-        console.log(`[Buffering] Starting fetch for chunk #${chunkIndex}. Text length: ${chunks[chunkIndex]?.length}`);
+        console.log(`[Buffering] Starting fetch for chunk #${chunkIndex}.`);
 
         try {
             const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
             const textChunk = chunks[chunkIndex];
-            const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
+            const apiUrl = (import.meta.env.DEV || !ttsApiUrl) ? '/api/tts' : `${ttsApiUrl}/api/tts`;
 
             const params = new URLSearchParams({
                 text: textChunk,
@@ -153,65 +138,24 @@ export const useTTSBuffering = ({
                 params.set('rate', speedParam);
             }
 
-            // Ensure we have an abort controller
             if (!abortControllerRef.current) {
                 abortControllerRef.current = new AbortController();
             }
             const signal = abortControllerRef.current.signal;
 
-            // Individual timeout using another controller (race condition handling)
-            // But we must link it to the main abort signal.
-            // Since fetch only accepts one signal, we rely on the main abortController for "clear/stop"
-            // and a simple timeout logic if needed. 
-            // For simplicity and correctness with the main abort requirement:
-
-            const timeoutId = setTimeout(() => {
-                // We don't want to abort the MAIN controller on timeout, just this request? 
-                // Actually the previous logic created a NEW controller per request.
-                // To support both "abort all" and "timeout per request", we need a composite signal or check aborted status.
-            }, 30000);
-
-            // Actually, to support aborting ALL, we should pass the main signal.
-            // But if one times out, we don't want to kill others. 
-            // Compromise: We check `signal.aborted` before processing.
-            // And we use the main signal for the fetch.
-
-            // NOTE: Reusing the same signal for multiple parallel requests means one abort cancels ALL.
-            // This is desired behavior for `clearAudioBuffer`. 
-
-            let response;
-            try {
-                response = await fetch(`${apiUrl}?${params.toString()}`, {
-                    signal: signal
-                });
-                clearTimeout(timeoutId);
-            } catch (fetchError: any) {
-                clearTimeout(timeoutId);
-                if (fetchError.name === 'AbortError') {
-                    console.warn(`[FetchSingle] TTS request timeout for chunk #${chunkIndex} after 30 seconds`);
-                    return;
-                }
-                throw fetchError;
-            }
+            const response = await fetch(`${apiUrl}?${params.toString()}`, { signal });
 
             if (!response.ok) {
-                console.error(`[Buffering] TTS Fetch failed for chunk #${chunkIndex}: ${response.status} ${response.statusText}`);
+                console.error(`[Buffering] TTS Fetch failed for chunk #${chunkIndex}: ${response.status}`);
                 return;
             }
 
             const audioBlob = await response.blob();
-            console.log(`[Buffering] Received blob for chunk #${chunkIndex}, size: ${audioBlob.size} bytes`);
-
-            if (audioBlob.size === 0) {
-                console.warn(`[Buffering] Received empty audio blob for chunk #${chunkIndex}`);
-                return;
-            }
+            if (audioBlob.size === 0) return;
 
             const strategy = playbackStrategyRef.current;
-            // Always prepare chunk if strategy is provided (interface supports it)
             if (strategy) {
                 try {
-                    console.log(`[Buffering] Preparing chunk #${chunkIndex} for strategy...`);
                     await strategy.prepareChunk(chunkIndex, audioBlob);
                 } catch (err) {
                     console.error(`[Buffering] Failed to prepare chunk #${chunkIndex}:`, err);
@@ -227,126 +171,54 @@ export const useTTSBuffering = ({
             const audioUrl = URL.createObjectURL(audioBlob);
             audioBuffer.current[chunkIndex] = audioUrl;
             audioBufferObjects.current[chunkIndex] = audioBlob;
-            bufferVoiceRef.current = selectedVoiceRef.current;
             setBufferedChunksCount(prev => prev + 1);
 
-            // Clean up old chunks
             cleanupOldChunks(chunkIndex);
-        } catch (error) {
-            console.warn(`[FetchSingle] Failed to fetch chunk #${chunkIndex}`, error);
+        } catch (error: any) {
+            if (error.name !== 'AbortError') {
+                console.warn(`[Buffering] Failed to fetch chunk #${chunkIndex}`, error);
+            }
         } finally {
-            inFlightPrefetchRef.current.delete(chunkIndex);
+            delete inFlightRequestsRef.current[chunkIndex];
         }
-    }, [chunks, currentChunkIndex, ttsSpeed, cleanupOldChunks, playbackStrategyRef]);
+    }, [chunks, ttsSpeed, cleanupOldChunks, playbackStrategyRef]);
+
+    // === Fetch single chunk helper ===
+    const fetchSingleChunk = useCallback(async (chunkIndex: number): Promise<void> => {
+        // If already in memory, we are done
+        if (audioBufferObjects.current[chunkIndex]) return;
+
+        // If a request is already in flight, await it
+        if (inFlightRequestsRef.current[chunkIndex] !== undefined) {
+            console.log(`[Buffering] Awaiting in-flight request for chunk #${chunkIndex}`);
+            await inFlightRequestsRef.current[chunkIndex];
+            return;
+        }
+
+        // Otherwise, start a new one and track its promise
+        const promise = internalFetchChunk(chunkIndex);
+        inFlightRequestsRef.current[chunkIndex] = promise;
+        return await promise;
+    }, [internalFetchChunk]);
 
     // === Prefetch chunks function ===
     const prefetchChunks = useCallback(async (startIndex: number) => {
         if (chunks.length === 0) return;
 
         const normalizedStart = Math.max(0, startIndex);
-        if (normalizedStart >= chunks.length) return;
+        const end = Math.min(normalizedStart + PREFETCH_CHUNK_COUNT, chunks.length);
 
-        // Check if chunks in this range are already being prefetched
-        const chunksToCheck: number[] = [];
-        for (let i = 0; i < PREFETCH_CHUNK_COUNT && normalizedStart + i < chunks.length; i++) {
-            chunksToCheck.push(normalizedStart + i);
+        for (let i = normalizedStart; i < end; i++) {
+            // Already have it?
+            if (audioBufferObjects.current[i]) continue;
+            // Already fetching it?
+            if (inFlightRequestsRef.current[i] !== undefined) continue;
+
+            // Start prefetch (fire and forget, it will clean itself up in finally)
+            const promise = internalFetchChunk(i);
+            inFlightRequestsRef.current[i] = promise;
         }
-
-        // If all chunks are already in flight, skip this prefetch
-        const allInFlight = chunksToCheck.every(idx => inFlightPrefetchRef.current.has(idx));
-        if (allInFlight && chunksToCheck.length > 0) {
-            return;
-        }
-
-        const chunksToFetch = chunks.slice(normalizedStart, normalizedStart + PREFETCH_CHUNK_COUNT);
-        if (chunksToFetch.length === 0) return;
-
-        // Mark chunks as in-flight
-        chunksToCheck.forEach(idx => inFlightPrefetchRef.current.add(idx));
-
-        const strategy = playbackStrategyRef.current;
-
-        for (let i = 0; i < chunksToFetch.length; i++) {
-            const chunkIndex = normalizedStart + i;
-            if (audioBuffer.current[chunkIndex] || currentChunkIndex === chunkIndex && audioBuffer.current[chunkIndex]) continue;
-
-            try {
-                const ttsApiUrl = import.meta.env.VITE_TTS_API_URL || '';
-                const textChunk = chunksToFetch[i];
-                const apiUrl = ttsApiUrl ? `${ttsApiUrl}/api/tts` : '/api/tts';
-
-                const params = new URLSearchParams({
-                    text: textChunk,
-                    voice: selectedVoiceRef.current,
-                    format: 'audio-24khz-48kbitrate-mono-mp3'
-                });
-
-                if (ttsSpeed !== 1) {
-                    const speedPercent = Math.round((ttsSpeed - 1) * 100);
-                    const speedParam = speedPercent > 0 ? `+${speedPercent}%` : `${speedPercent}%`;
-                    params.set('rate', speedParam);
-                }
-
-                // Ensure we have an abort controller
-                if (!abortControllerRef.current) {
-                    abortControllerRef.current = new AbortController();
-                }
-                const signal = abortControllerRef.current.signal;
-
-                // Check abort status before starting
-                if (signal.aborted) continue;
-
-                let response;
-                try {
-                    // Note: Timeout logic removed for brevity/conflict with shared controller, 
-                    // relying on user interactions or global abort for now.
-                    response = await fetch(`${apiUrl}?${params.toString()}`, {
-                        signal: signal
-                    });
-                } catch (fetchError: any) {
-                    clearTimeout(timeoutId);
-                    if (fetchError.name === 'AbortError') {
-                        console.warn(`[Prefetch] TTS request timeout for chunk #${chunkIndex} after 30 seconds`);
-                        continue;
-                    }
-                    throw fetchError;
-                }
-
-                if (!response.ok) continue;
-
-                const audioBlob = await response.blob();
-                if (audioBlob.size === 0) {
-                    console.warn(`[Prefetch] Received empty audio blob for chunk #${chunkIndex}. Skipping.`);
-                    continue;
-                }
-
-                // Always prepare chunk if strategy is provided
-                if (strategy) {
-                    try {
-                        await strategy.prepareChunk(chunkIndex, audioBlob);
-                    } catch (err) {
-                        console.warn(`[Prefetch] Failed to prepare chunk #${chunkIndex}:`, err);
-                    }
-                }
-
-                try {
-                    const headerSeconds = Number(response.headers.get('X-Audio-Duration') || 0);
-                    const seconds = headerSeconds > 0 ? headerSeconds : await getBlobDurationSeconds(audioBlob);
-                    durationsBuffer.current[chunkIndex] = seconds;
-                } catch { }
-
-                const audioUrl = URL.createObjectURL(audioBlob);
-                audioBuffer.current[chunkIndex] = audioUrl;
-                audioBufferObjects.current[chunkIndex] = audioBlob;
-                setBufferedChunksCount(prev => prev + 1);
-
-            } catch (error) {
-                console.warn(`[Prefetch] Failed to fetch chunk #${chunkIndex}`, error);
-            } finally {
-                inFlightPrefetchRef.current.delete(chunkIndex);
-            }
-        }
-    }, [chunks, currentChunkIndex, ttsSpeed, playbackStrategyRef]);
+    }, [chunks, internalFetchChunk]);
 
     // Cleanup on unmount
     useEffect(() => {

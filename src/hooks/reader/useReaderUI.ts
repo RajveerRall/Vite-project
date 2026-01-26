@@ -118,6 +118,8 @@ export function useReaderUI({
     setShowFeatureHighlight(false);
   }, []);
 
+
+
   // Check if we're at the end of a chapter and show arrows accordingly
   const checkChapterEnd = useCallback(() => {
     // Don't override manual arrow display (when user clicks to show arrows)

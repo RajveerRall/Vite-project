@@ -120,7 +120,8 @@ export async function generateSceneImages(
                 finalImageObject = {
                     ...img,
                     sceneIndex: Number(img.sceneIndex),
-                    url: blobUrl
+                    url: blobUrl,
+                    blob: blob // Store blob for persistent caching
                 };
             } else {
                 console.warn(`[SceneAnalysis] Image fetch not ok (${imgResponse.status}) for ${img.filename}, using direct URL fallback`);
@@ -163,7 +164,7 @@ export function matchSceneToText(
 ): { scene: Scene | null, confidence: number } {
 
     // 1. Ignore very short noise to prevent false positives
-    if (!currentText || currentText.length < 12) {
+    if (!currentText || currentText.length < 10) {
         return { scene: null, confidence: 0 };
     }
 
@@ -180,24 +181,28 @@ export function matchSceneToText(
     for (const scene of searchWindow) {
         const normalizedAnchor = normalizeText(scene.anchor_text);
 
-        // 3. EXACT CONTAINMENT (Strongest Signal)
-        // If the spoken text appears essentially verbatim inside the scene anchor.
-        if (normalizedAnchor.includes(normalizedCurrent)) {
+        // 3. EXACT CONTAINMENT (Bidirectional)
+        // Check if spoken text is inside anchor (common case: chunk is sentence of paragraph)
+        // OR if anchor is inside spoken text (short anchor, long chunk)
+        if (normalizedAnchor.includes(normalizedCurrent) || normalizedCurrent.includes(normalizedAnchor)) {
             return { scene, confidence: 1.0 };
         }
 
-        // 4. TOKEN OVERLAP (Fallback for Fuzzy Matches)
+        // 4. TOKEN OVERLAP (Fuzzy Match)
+        // Split and filter for significant words (>3 chars)
         const currentWords = normalizedCurrent.split(' ').filter(w => w.length > 3);
-        const anchorWords = new Set(normalizedAnchor.split(' ').filter(w => w.length > 3));
+        const anchorWordsSet = new Set(normalizedAnchor.split(' ').filter(w => w.length > 3));
 
         if (currentWords.length > 0) {
             let hits = 0;
             for (const word of currentWords) {
-                if (anchorWords.has(word)) hits++;
+                if (anchorWordsSet.has(word)) hits++;
             }
+
+            // Calculate overlap relative to the SPOKEN chunk
+            // If most of the words we are saying right now are in the scene description, it's a match.
             const overlapRatio = hits / currentWords.length;
 
-            // High threshold (75%) for fuzzy matching to avoid false positives (relaxed from 80%)
             if (overlapRatio >= 0.75) {
                 return { scene, confidence: overlapRatio };
             }
@@ -230,5 +235,34 @@ export async function saveSceneAnalysis(key: string, scenes: Scene[], sceneImage
  * Load scene analysis results from local storage
  */
 export async function loadSceneAnalysis(key: string): Promise<CachedSceneAnalysis | null> {
-    return await localforage.getItem(`scene_analysis_${key}`);
+    const data = await localforage.getItem<CachedSceneAnalysis>(`scene_analysis_${key}`);
+    if (!data) return null;
+
+    const baseURL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
+
+    // RE-HYDRATE: Ephemeral blob URLs from previous sessions won't work.
+    if (data.sceneImages) {
+        data.sceneImages = data.sceneImages.map(img => {
+            // Priority 1: If we have the raw Blob, create a NEW valid URL for this session
+            if (img.blob) {
+                return {
+                    ...img,
+                    url: URL.createObjectURL(img.blob)
+                };
+            }
+
+            // Priority 2: If we don't have the Blob but have a filename, 
+            // fallback to a direct server URL (which is permanent while server is up)
+            if (img.filename && (!img.url || img.url.startsWith('blob:'))) {
+                return {
+                    ...img,
+                    url: `${baseURL}/${img.filename}`
+                };
+            }
+
+            return img;
+        });
+    }
+
+    return data;
 }

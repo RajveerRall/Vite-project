@@ -39,6 +39,7 @@ export const GlobalAudioPlayer: React.FC = () => {
 
     // Playback Strategy
     const playbackStrategyRef = useRef<IPlaybackStrategy | null>(null);
+    const lastPlayedChunkRef = useRef<number | null>(null);
     if (!playbackStrategyRef.current) {
         playbackStrategyRef.current = createAdaptivePlaybackStrategy({
             playbackRate,
@@ -60,11 +61,9 @@ export const GlobalAudioPlayer: React.FC = () => {
         getBlob // Exposed from our updated hook
     } = useTTSBuffering({
         chunks,
-        currentChunkIndex,
         selectedVoice: 'en-US-BrianMultilingualNeural', // TODO: Get from settings
         ttsSpeed: playbackRate,
         playbackStrategyRef,
-        readerInstanceId: playerInstanceId
     });
 
     // --- Effects ---
@@ -124,65 +123,84 @@ export const GlobalAudioPlayer: React.FC = () => {
             }
         }
     }, [currentBookId, user?.id]);
+    // Track last seen state to detect transitions
+    const lastChapterIdRef = useRef<string | null>(currentChapterId);
+    const lastChunkIndexRef = useRef<number>(currentChunkIndex);
 
-    // 2. Load Chapter Content when Chapter ID changes
+    // 2. Load Chapter Content when Chapter ID or Loading state changes
     useEffect(() => {
         const loadChapter = async () => {
-            if (!structure || !currentChapterId) return;
+            if (!structure || !currentChapterId || !isLoading) {
+                // Keep refs in sync even when not loading
+                lastChapterIdRef.current = currentChapterId;
+                lastChunkIndexRef.current = currentChunkIndex;
+                return;
+            }
+
+            // Detect if this is a "Natural Navigation" (Page turn) vs "Explicit Jump" (Selection/Seek)
+            const chapterChanged = lastChapterIdRef.current !== currentChapterId;
+            const chunkChanged = lastChunkIndexRef.current !== currentChunkIndex;
+
+            // If chapter changed but chunk index is still pointing to what it was on the previous page,
+            // it's a natural carry-over from EPub navigation. Reset it to 0.
+            if (chapterChanged && !chunkChanged) {
+                console.log(`[GlobalPlayer] Natural transition from ${lastChapterIdRef.current} to ${currentChapterId}. Resetting index to 0.`);
+                setTTSState({ currentChunkIndex: 0 });
+            } else if (chapterChanged && chunkChanged) {
+                console.log(`[GlobalPlayer] Explicit jump to ${currentChapterId} at chunk ${currentChunkIndex}.`);
+            }
+
+            // Sync refs immediately
+            lastChapterIdRef.current = currentChapterId;
+            lastChunkIndexRef.current = currentChunkIndex;
+
+            // SAME CHAPTER SHORT-CIRCUIT
+            // If we are already on this chapter and text is loaded, just clear loading flag
+            if (previousChapterIdRef.current === currentChapterId && currentText) {
+                console.log('[GlobalPlayer] Chapter already loaded, finalizing start');
+                setTTSState({ isLoading: false });
+                return;
+            }
 
             try {
-                // Stop playback and clear buffers when chapter changes
-                const strategy = playbackStrategyRef.current;
-                if (strategy) {
-                    try {
-                        strategy.stop();
-                    } catch (e) {
-                        console.warn('[GlobalPlayer] Error stopping playback:', e);
-                    }
+                // Stop playback and clear buffers
+                if (playbackStrategyRef.current) {
+                    try { playbackStrategyRef.current.stop(); } catch (e) { }
                 }
-
-                // Clear audio buffers
                 clearAudioBuffer();
-
-                // Clear current text immediately to prevent stale chunks from being played
                 setCurrentText('');
 
-                // Find file path for chapter ID (href)
-
-                // Track previous chapter to prevent resetting chunk index on reload restoration
-                // If previous matches current (or is null on first run), we preserve the restored index
-                if (previousChapterIdRef.current !== null && previousChapterIdRef.current !== currentChapterId) {
-                    setTTSState({ currentChunkIndex: 0 });
-                }
                 previousChapterIdRef.current = currentChapterId;
-                // Logic to match chapterId (which might be TOC ID) to Spine Href needs to be robust.
+
+                // Match chapter to spine
                 const spineItem = structure.spine.find(href => href.includes(currentChapterId) || currentChapterId.includes(href));
-                const targetHref = spineItem || currentChapterId; // Fallback
+                const targetHref = spineItem || currentChapterId;
 
                 if (!targetHref) {
                     console.warn('[GlobalPlayer] Could not find spine item for chapter:', currentChapterId);
+                    setTTSState({ isLoading: false });
                     return;
                 }
 
                 const { text } = await BookContentService.loadPage(structure.zip, targetHref);
                 setCurrentText(text); // Triggers chunking
-                setTTSState({ isLoading: false }); // Done loading chapter
+                setTTSState({ isLoading: false }); // Done!
 
-                // NEW: Update Media Session Metadata
+                // Metadata update
                 if (playbackStrategyRef.current) {
                     playbackStrategyRef.current.setMetadata({
                         title: currentBookTitle || 'Untitled Book',
                         author: currentBookAuthor || 'Unknown Author'
-                        // TODO: Pass coverUrl if available in the future
                     });
                 }
             } catch (e) {
                 console.error('[GlobalPlayer] Error loading chapter:', e);
+                setTTSState({ isLoading: false });
             }
         };
 
         loadChapter();
-    }, [currentChapterId, structure, clearAudioBuffer]);
+    }, [currentChapterId, structure, clearAudioBuffer, isLoading]); // Only react to these
 
     // Error reporting
     useEffect(() => {
@@ -217,7 +235,6 @@ export const GlobalAudioPlayer: React.FC = () => {
             // If source is missing, fetch it and wait for completion
             if (!source) {
                 console.log(`[GlobalPlayer] Source missing for chunk ${index}, fetching...`);
-                // fetchSingleChunk already awaits the full fetch + preparation cycle
                 await fetchSingleChunk(index);
 
                 // Now get the source - it should be ready
@@ -226,10 +243,23 @@ export const GlobalAudioPlayer: React.FC = () => {
                 } else {
                     source = audioBuffer.current[index];
                 }
+
+                // SECOND CHANCE: If still missing, wait briefly and try one more time
+                // This covers cases where state updates might be slightly delayed
+                if (!source) {
+                    console.log(`[GlobalPlayer] Source still missing for chunk ${index} after fetch, waiting 500ms...`);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    source = (isSeamless ? getBlob(index) : audioBuffer.current[index]) || undefined;
+                }
+            } else if (isSeamless) {
+                // ✅ FIX: Even if we have the source blob in useTTSBuffering, 
+                // we MUST ensure it's enqueued and decoded in the playback strategy.
+                await strategy.prepareChunk(index, source as Blob);
             }
 
             if (!source) {
-                console.error(`[GlobalPlayer] Failed to load source for chunk ${index} - source not available after fetch`);
+                console.error(`[GlobalPlayer] CRITICAL: Failed to load source for chunk ${index}. Buffering failed or was cancelled.`);
+                // Optionally signal an error state to the UI here
                 return;
             }
 
@@ -246,24 +276,51 @@ export const GlobalAudioPlayer: React.FC = () => {
     }, [chunks, setTTSState, fetchSingleChunk, prefetchChunks, audioBuffer, getBlob]);
 
 
-    // 3. Playback Control
+    const lastContextIndexRef = useRef<number>(currentChunkIndex);
+
+    // 3. Playback Control - Unified effect
     useEffect(() => {
         const strategy = playbackStrategyRef.current;
         if (!strategy) return;
 
+        // Update tracking ref whenever context index changes
+        // We do this AFTER the playback effect logic check below
+
         // Prevent playback if loading new content
-        if (isLoading) return;
+        if (isLoading) {
+            lastContextIndexRef.current = currentChunkIndex; // Keep sync even during loading
+            return;
+        }
 
         if (isPlaying && !isPaused && chunks.length > 0) {
-            // Start playback if not playing
-            if (!strategy.isPlaying()) {
+            // Only play if:
+            // 1. Strategy is not currently playing, OR
+            // 2. Strategy is playing but on the wrong chunk
+            const strategyChunkIndex = strategy.getCurrentChunkIndex();
+            const isPlayingWrongChunk = strategyChunkIndex !== null && strategyChunkIndex !== currentChunkIndex;
+            const isNotPlaying = !strategy.isPlaying();
+
+            // Prevent duplicate calls for the same chunk
+            const isDuplicateCall = lastPlayedChunkRef.current === currentChunkIndex && strategy.isPlaying();
+
+            if ((isNotPlaying || isPlayingWrongChunk) && !isDuplicateCall) {
+                console.log(`[GlobalPlayer] Navigation/Start: chunk ${currentChunkIndex}. Strategy state: ${isNotPlaying ? 'stopped' : `on chunk ${strategyChunkIndex}`}`);
+                lastPlayedChunkRef.current = currentChunkIndex;
                 playChunk(currentChunkIndex);
             }
         } else {
             if (strategy.isPlaying()) {
+                console.log(`[GlobalPlayer] Stopping playback as state is not active`);
                 strategy.pause();
             }
+            // Reset when stopped
+            if (!isPlaying && !isPaused) {
+                lastPlayedChunkRef.current = null;
+            }
         }
+
+        // Update tracking ref
+        lastContextIndexRef.current = currentChunkIndex;
     }, [isPlaying, isPaused, isLoading, chunks, currentChunkIndex, playChunk]);
 
 
@@ -291,20 +348,6 @@ export const GlobalAudioPlayer: React.FC = () => {
             },
         });
     }, [currentChunkIndex, chunks.length, setTTSState]);
-
-    // React to chunk index change (auto-play next)
-    useEffect(() => {
-        // Prevent seeking/playback if loading
-        if (isLoading) return;
-
-        if (isPlaying && !isPaused && chunks.length > 0) {
-            const strategy = playbackStrategyRef.current;
-            // If index changed and we are not playing correct chunk, play it
-            if (strategy && strategy.getCurrentChunkIndex() !== currentChunkIndex) {
-                playChunk(currentChunkIndex);
-            }
-        }
-    }, [currentChunkIndex, isPlaying, isPaused, isLoading, chunks, playChunk]);
 
 
     return null; // Headless

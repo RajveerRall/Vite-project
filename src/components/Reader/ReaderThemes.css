@@ -571,9 +571,7 @@
 }
 
 /* Smooth transitions for theme changes */
-* {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-}
+/* Removed aggressive global transition causing "sticky" UI feel */
 
 /* Ensure proper contrast for all themes */
 .theme-dark input,
@@ -593,6 +591,31 @@
 .theme-sepia .loading-overlay {
   background-color: var(--reader-bg);
   color: var(--reader-text);
+}
+
+/* Simple Loading Overlay theme adaptation */
+.theme-dark .simple-loading-overlay,
+.theme-dark .simple-suspense-container {
+  background: rgba(17, 24, 39, 0.8);
+  /* Dark background with opacity */
+}
+
+.theme-sepia .simple-loading-overlay,
+.theme-sepia .simple-suspense-container {
+  background: rgba(247, 243, 233, 0.8);
+  /* Sepia background with opacity */
+}
+
+.theme-dark .simple-loading-content,
+.theme-dark .simple-suspense-content {
+  background: var(--reader-sidebar-bg);
+  border-color: var(--reader-border);
+}
+
+.theme-sepia .simple-loading-content,
+.theme-sepia .simple-suspense-content {
+  background: var(--reader-sidebar-bg);
+  border-color: var(--reader-border);
 }
 
 /* Bottom Controls Container Theme Support */
