@@ -1,704 +1,4 @@
-// import { useState, useEffect, useCallback, useRef } from 'react';
-// import { trackEvent } from '../../lib/analytics';
-// import { requestFullCast, ttsForLine } from '../../services/fullCastTTS';
-// import { isTrackingEnabled } from '../../utils/trackingConfig';
-// import {
-//   analyzeScenes,
-//   generateSceneImages,
-//   matchSceneToText,
-//   loadSceneAnalysis,
-//   saveSceneAnalysis,
-//   cleanupSceneImages
-// } from '../../services/sceneAnalysis';
-// import { Scene, SceneImage } from '../../types/fullCast';
-// import { highlightChunkInHtml } from '../../utils/htmlHighlight';
-
-// export interface UseFullCastReturn {
-//   // State
-//   isActive: boolean;
-//   status: string;
-//   buffered: number;
-//   needsTap: boolean;
-//   isPaused: boolean;
-//   hasStartedPlaying: boolean;
-
-//   // Visual Scene State
-//   scenes: Scene[];
-//   sceneImages: SceneImage[];
-//   currentScene: Scene | null;
-//   isScenesLoading: boolean;
-//   showScenes: boolean;
-
-//   // Highlighting
-//   highlightedContent: string;
-
-//   // Commands
-//   pause: () => void;
-//   resume: () => void;
-//   stop: () => void;
-//   setShowScenes: (show: boolean) => void;
-//   setCurrentScene: (scene: Scene | null) => void;
-//   handleGenerateSceneImage: () => Promise<void>;
-// }
-
-// interface AudioQueueItem {
-//   blob: Blob;
-//   line: { dialogue: string; provider?: string; voiceId?: string };
-// }
-
-// /**
-//  * Custom hook for managing Picture Mode audiobook playback and visual synchronization
-//  */
-// export function useFullCast(
-//   currentPageText: string | undefined,
-//   currentContent: string | undefined,
-//   currentPageDisplay: number,
-//   bookTitle: string,
-//   currentChapterTitle?: string
-// ): UseFullCastReturn {
-//   // --- Audio State ---
-//   const [isActive, setIsActive] = useState<boolean>(false);
-//   const [status, setStatus] = useState<string>('');
-//   const [buffered, setBuffered] = useState<number>(0);
-//   const [needsTap, setNeedsTap] = useState<boolean>(false);
-//   const [isPaused, setIsPaused] = useState<boolean>(false);
-//   const [hasStartedPlaying, setHasStartedPlaying] = useState<boolean>(false);
-
-//   // --- Visual Scene State ---
-//   const [scenes, setScenes] = useState<Scene[]>([]);
-//   const [sceneImages, setSceneImages] = useState<SceneImage[]>([]);
-//   const [currentScene, setCurrentScene] = useState<Scene | null>(null);
-//   const [isScenesLoading, setIsScenesLoading] = useState<boolean>(false);
-//   const [showScenes, setShowScenes] = useState<boolean>(false);
-
-//   // --- Highlighting State ---
-//   const [highlightedContent, setHighlightedContent] = useState<string>(currentContent || '');
-
-//   // --- Refs ---
-//   const isPlayingRef = useRef<boolean>(false);
-//   const isFetchingRef = useRef<boolean>(false);
-//   const audioQueueRef = useRef<AudioQueueItem[]>([]);
-//   const audioRef = useRef<HTMLAudioElement | null>(null);
-//   const chunkIndexRef = useRef<number>(0);
-//   const chunksRef = useRef<string[]>([]);
-//   const startTsRef = useRef<number>(0);
-//   const scenesRef = useRef<Scene[]>([]);
-
-//   // Keep refs in sync with state for use in closures
-//   useEffect(() => {
-//     scenesRef.current = scenes;
-//   }, [scenes]);
-
-//   // Update highlighted content when content changes
-//   useEffect(() => {
-//     setHighlightedContent(currentContent || '');
-//   }, [currentContent]);
-
-//   // --- Helpers ---
-//   const getSafeKey = useCallback(() => {
-//     return `full-cast-${bookTitle}-${currentChapterTitle || currentPageDisplay}`
-//       .replace(/[^a-z0-9-]/gi, '-')
-//       .toLowerCase();
-//   }, [bookTitle, currentChapterTitle, currentPageDisplay]);
-
-//   // --- Producer ---
-//   const produce = useCallback(async () => {
-//     if (!isPlayingRef.current || isFetchingRef.current) return;
-//     const LOOKAHEAD = 3;
-//     if (audioQueueRef.current.length >= LOOKAHEAD) return;
-
-//     if (chunkIndexRef.current >= chunksRef.current.length) {
-//       if (chunkIndexRef.current === chunksRef.current.length && audioQueueRef.current.length === 0) {
-//         trackEvent('full_cast_completed', {
-//           total_chunks: chunksRef.current.length,
-//           page_number: currentPageDisplay,
-//         });
-//       }
-//       return;
-//     }
-
-//     const currentIdx = chunkIndexRef.current;
-//     isFetchingRef.current = true;
-//     setStatus(`Casting (chunk ${currentIdx + 1}/${chunksRef.current.length})…`);
-//     const chunk = chunksRef.current[currentIdx];
-//     let producedAny = false;
-
-//     try {
-//       // === SIMPLE NARRATION MODE ===
-//       // Bypass LLM and send the entire chunk directly to TTS
-//       const USE_SIMPLE_NARRATION = true;
-
-//       let lines: any[] = [];
-
-//       if (USE_SIMPLE_NARRATION) {
-//         // DIRECT TTS: Treat the whole chunk as one "line"
-//         // The server will handle splitting long text automatically
-//         lines = [{
-//           character: 'Narrator',
-//           dialogue: chunk,
-//           provider: 'msedge',
-//           voiceId: 'en-US-BrianMultilingualNeural'
-//         }];
-//       } else {
-//         // ORIGINAL LLM CASTING
-//         const { script } = await requestFullCast(chunk, {
-//           llm: 'gemini-2.0-flash',
-//           parser: 'chatThread',
-//           useVoiceCasting: true
-//         });
-//         lines = Array.isArray(script) ? script : [];
-//       }
-
-//       for (const line of lines) {
-//         if (!isPlayingRef.current) break;
-//         const dialogue: string = line?.dialogue || line?.line || '';
-//         if (!dialogue) continue;
-//         const provider = line?.provider as string | undefined;
-//         const voiceId = line?.voiceId as string | undefined;
-//         try {
-//           const blob = await ttsForLine(dialogue, provider, voiceId);
-//           audioQueueRef.current.push({ blob, line: { dialogue, provider, voiceId } });
-//           setBuffered(audioQueueRef.current.length);
-//           producedAny = true;
-//         } catch (e) {
-//           console.error('[Full Cast] TTS failed for line', e);
-//         }
-//       }
-//     } catch (e) {
-//       console.error('[Full Cast] casting/synthesis failed for chunk', e);
-//     } finally {
-//       isFetchingRef.current = false;
-//       if (producedAny) {
-//         chunkIndexRef.current = currentIdx + 1;
-//       } else {
-//         if (isPlayingRef.current) {
-//           setTimeout(() => { if (isPlayingRef.current) produce(); }, 800);
-//           return;
-//         }
-//       }
-//       if (isPlayingRef.current && audioQueueRef.current.length < LOOKAHEAD) {
-//         produce();
-//       }
-//     }
-//   }, [currentPageDisplay]);
-
-//   // --- Consumer ---
-//   const consume = useCallback(async () => {
-//     if (!isPlayingRef.current) return;
-//     if (audioQueueRef.current.length === 0) {
-//       produce();
-//       if (!hasStartedPlaying) {
-//         setStatus('Buffering…');
-//       }
-//       if (chunkIndexRef.current < chunksRef.current.length || isFetchingRef.current) {
-//         setTimeout(consume, 500);
-//       }
-//       return;
-//     }
-
-//     const item = audioQueueRef.current.shift()!;
-//     const { blob, line } = item;
-//     setBuffered(audioQueueRef.current.length);
-//     const url = URL.createObjectURL(blob);
-
-//     // Debug: Log which chunk is being played
-//     console.log('[Picture Mode] Playing chunk:', {
-//       dialoguePreview: line?.dialogue?.substring(0, 60),
-//       queueRemaining: audioQueueRef.current.length,
-//       chunkIndex: chunkIndexRef.current
-//     });
-
-//     const audio = audioRef.current!;
-
-//     // FIX: Properly stop and wait for silent loop to finish before loading new chunk
-//     // This prevents AbortError when pause() interrupts play()
-//     try {
-//       audio.pause();
-//       audio.currentTime = 0;
-//       // Wait a small delay to ensure pause completes before loading new source
-//       await new Promise(resolve => setTimeout(resolve, 50));
-//     } catch (e) {
-//       // Ignore pause errors - audio might already be paused or not playing
-//       console.debug('[Full Cast] Pause during transition (non-critical):', e);
-//     }
-
-//     audio.src = url;
-//     audio.loop = false;
-//     audio.volume = 1.0;
-
-//     // FIX: Helper function to set up highlighting - used both in onplay and immediately
-//     const setupHighlighting = () => {
-//       if (line?.dialogue && currentPageText) {
-//         try {
-//           const highlighted = highlightChunkInHtml(
-//             currentContent || '',
-//             currentPageText,
-//             line.dialogue
-//           );
-//           setHighlightedContent(highlighted);
-//           console.log('[Picture Mode] Highlighted dialogue:', line.dialogue.substring(0, 50));
-//         } catch (err) {
-//           console.warn('[Picture Mode] Failed to highlight dialogue:', err);
-//         }
-//       }
-//     };
-
-//     audio.onplay = () => {
-//       startTsRef.current = Date.now();
-//       setStatus('Playing…');
-//       setHasStartedPlaying(true);
-//       setNeedsTap(false);
-
-//       // Highlight the currently spoken dialogue
-//       setupHighlighting();
-
-//       if (scenesRef.current.length > 0 && line?.dialogue) {
-//         if (line.dialogue.length >= 10) { // Relaxed from 15
-//           setCurrentScene(prevScene => {
-//             const currentIdx = prevScene?.sceneIndex || 0;
-//             const context = `[Full Cast Match] Spoken: "${line.dialogue.substring(0, 40)}${line.dialogue.length > 40 ? '...' : ''}"`;
-
-//             const result = matchSceneToText(line.dialogue, scenesRef.current, currentIdx);
-//             const matchedScene = result.scene;
-
-//             if (matchedScene) {
-//               if (matchedScene.sceneIndex > currentIdx) {
-//                 console.log(`${context} -> Matched NEW scene: ${matchedScene.sceneIndex} (Confidence: ${result.confidence.toFixed(2)})`);
-//                 return matchedScene;
-//               } else {
-//                 // Keep existing scene if it's the same or better confidence
-//                 return prevScene;
-//               }
-//             } else {
-//               // Only log failure if it's not super short
-//               if (line.dialogue.length > 20) {
-//                 console.debug(`${context} -> No match found in current window (Lookahead window from index ${currentIdx})`);
-//               }
-//               return prevScene;
-//             }
-//           });
-//         }
-//       } else if (line?.dialogue && scenesRef.current.length === 0) {
-//         console.warn('[Full Cast Match] No scenes available in scenesRef yet to match against.');
-//       }
-//     };
-
-//     audio.onended = () => {
-//       URL.revokeObjectURL(url);
-//       const elapsed = (Date.now() - startTsRef.current) / 1000;
-//       // Re-enabled usage tracking as per user request
-//       if (isTrackingEnabled()) {
-//         window.dispatchEvent(new CustomEvent('tts-usage-updated', {
-//           detail: { seconds: elapsed, source: 'full-cast' }
-//         }));
-//       }
-//       produce();
-//       consume();
-//     };
-
-//     audio.onerror = () => {
-//       URL.revokeObjectURL(url);
-//       consume();
-//     };
-
-//     // FIX: Trigger highlighting immediately when chunk is loaded (before play)
-//     // This ensures highlighting works even with cached chapters where audio might start quickly
-//     setupHighlighting();
-
-//     try {
-//       await audio.play();
-//     } catch (e) {
-//       // Only log non-AbortError errors as warnings
-//       if ((e as any)?.name !== 'AbortError') {
-//         console.error('[Full Cast] play failed', e);
-//         setNeedsTap(true);
-//         setStatus('Tap to start audio');
-//       } else {
-//         // AbortError is expected when pause() interrupts play() - retry after a brief delay
-//         console.debug('[Full Cast] Play interrupted by pause (will retry):', e);
-//         setTimeout(async () => {
-//           if (isPlayingRef.current && audio.src === url) {
-//             try {
-//               await audio.play();
-//             } catch (retryError) {
-//               if ((retryError as any)?.name !== 'AbortError') {
-//                 console.error('[Full Cast] Retry play failed', retryError);
-//                 setNeedsTap(true);
-//                 setStatus('Tap to start audio');
-//               }
-//             }
-//           }
-//         }, 100);
-//       }
-//     }
-//   }, [produce, hasStartedPlaying, currentPageText, currentContent]);
-
-//   // --- Commands ---
-//   const pause = useCallback(() => {
-//     try { audioRef.current?.pause(); } catch { }
-//     isPlayingRef.current = false;
-//     setIsPaused(true);
-//     setStatus('Paused');
-//   }, []);
-
-//   const resume = useCallback(async () => {
-//     if (isPlayingRef.current) return;
-//     isPlayingRef.current = true;
-//     setIsPaused(false);
-
-//     // Check if we already have an audio source loaded. If so, just play it.
-//     if (audioRef.current && audioRef.current.src && audioRef.current.src !== '') {
-//       try {
-//         await audioRef.current.play();
-//         setStatus('Playing…');
-//         return; // Don't call produce/consume if we just resumed existing audio
-//       } catch (e) {
-//         console.error('[Full Cast] resume play failed', e);
-//         setNeedsTap(true);
-//         setStatus('Tap to start audio');
-//       }
-//     }
-
-//     // Fallback: If no audio loaded, try to fetch/play the next chunk
-//     produce();
-//     consume();
-//   }, [produce, consume]);
-
-//   const stop = useCallback(() => {
-//     try {
-//       isPlayingRef.current = false;
-//       isFetchingRef.current = false;
-
-//       if (audioRef.current) {
-//         // Remove all event handlers first
-//         audioRef.current.onplay = null;
-//         audioRef.current.onended = null;
-//         audioRef.current.onerror = null;
-
-//         // Stop and clear audio
-//         audioRef.current.pause();
-//         audioRef.current.src = '';
-//         audioRef.current.loop = false;
-//         audioRef.current.load(); // Force reset the audio element
-//       }
-
-//       // Clear global reference
-//       (window as any).__fullCastAudio = null;
-//       (window as any).__fullCastStop = null;
-//       (window as any).__fullCastPause = null;
-//       (window as any).__fullCastResume = null;
-
-//       if (sceneImages.length > 0) {
-//         cleanupSceneImages(sceneImages);
-//       }
-//     } catch (e) {
-//       console.error('[Full Cast] Error during stop:', e);
-//     } finally {
-//       setIsActive(false);
-//       setNeedsTap(false);
-//       setIsPaused(false);
-//       setHasStartedPlaying(false);
-//       audioQueueRef.current = [];
-//       chunksRef.current = [];
-//       chunkIndexRef.current = 0;
-//       setScenes([]);
-//       setSceneImages([]);
-//       setCurrentScene(null);
-//       // Clear highlighting when stopping
-//       setHighlightedContent(currentContent || '');
-//     }
-//   }, [sceneImages, currentContent]);
-
-//   // --- On-Demand Scene Generation ---
-//   const handleGenerateSceneImage = useCallback(async () => {
-//     try {
-//       setShowScenes(true);
-//       setIsScenesLoading(true);
-
-//       const selection = window.getSelection()?.toString().trim() || '';
-//       const fullText = (currentPageText || currentContent || '').trim();
-//       if (!fullText) {
-//         setIsScenesLoading(false);
-//         return;
-//       }
-
-//       let currentScenes = scenesRef.current;
-//       const safeKey = getSafeKey();
-
-//       if (!currentScenes || currentScenes.length === 0) {
-//         try {
-//           const cached = await loadSceneAnalysis(safeKey);
-//           if (cached && cached.scenes && cached.scenes.length > 0) {
-//             currentScenes = cached.scenes;
-//             setScenes(currentScenes);
-//             setSceneImages(cached.sceneImages || []);
-//           } else {
-//             currentScenes = await analyzeScenes(fullText, bookTitle, {
-//               bookTheme: 'atmospheric narrative',
-//               colorPalette: 'cinematic with dramatic lighting'
-//             });
-//             setScenes(currentScenes);
-//           }
-//         } catch (err) {
-//           console.warn('[Full Cast] Analysis failed:', err);
-//           currentScenes = [];
-//         }
-//       }
-
-//       if (!currentScenes || currentScenes.length === 0) return;
-
-//       let target: Scene | null = null;
-//       if (selection) {
-//         const { scene } = matchSceneToText(selection, currentScenes, 0);
-//         target = scene;
-//       }
-//       if (!target) {
-//         const { scene } = matchSceneToText(fullText.slice(0, 400), currentScenes, 0);
-//         target = scene || currentScenes[0];
-//       }
-//       if (!target) return;
-
-//       setCurrentScene(target);
-
-//       const newImages = await generateSceneImages([target], (img) => {
-//         setSceneImages(prev => [...prev, img]);
-//       });
-
-//       if (newImages && newImages.length > 0) {
-//         setSceneImages(prev => {
-//           const existing = new Set(prev.map(i => i.sceneIndex));
-//           const toAdd = newImages.filter(i => !existing.has(i.sceneIndex));
-//           return [...prev, ...toAdd];
-//         });
-//       }
-//     } catch (err) {
-//       console.error('[Full Cast] Generation failed:', err);
-//     } finally {
-//       setIsScenesLoading(false);
-//     }
-//   }, [currentPageText, currentContent, bookTitle, getSafeKey]);
-
-//   // --- Request Handler ---
-//   useEffect(() => {
-//     const handler = async () => {
-//       // 1. Immediate Feedback
-//       setIsActive(true);
-//       setStatus('Preparing Picture Mode...');
-//       setShowScenes(true); // Show overlay immediately
-//       setIsScenesLoading(true);
-//       isPlayingRef.current = true;
-//       setIsPaused(false);
-//       setHasStartedPlaying(false);
-//       setBuffered(0);
-
-//       const fullText = (currentPageText || currentContent || '').trim();
-//       if (!fullText) {
-//         setIsActive(false);
-//         setIsScenesLoading(false);
-//         return;
-//       }
-
-//       trackEvent('full_cast_processing_start', {
-//         text_length: fullText.length,
-//         page_number: currentPageDisplay
-//       });
-
-//       // Split text into chunks at natural boundaries (sentences)
-//       const MAX_CHUNK_CHARS = 200; // Smaller chunks = better sync resolution
-//       
-//       // Simple sentence splitter that handles common cases
-//       const sentences = fullText.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [fullText];
-//       
-//       const newChunks: string[] = [];
-//       let currentChunk = "";
-//       
-//       for (const sentence of sentences) {
-//         const trimmed = sentence.trim();
-//         if (!trimmed) continue;
-//         
-//         // If adding this sentence exceeds MAX_CHUNK_CHARS and we already have content,
-//         // push the current chunk and start a new one.
-//         if (currentChunk.length + trimmed.length > MAX_CHUNK_CHARS && currentChunk.length > 0) {
-//           newChunks.push(currentChunk.trim());
-//           currentChunk = "";
-//         }
-//         
-//         currentChunk += (currentChunk ? " " : "") + trimmed;
-//         
-//         // If a single sentence is still too long (rare), split it hard
-//         while (currentChunk.length > MAX_CHUNK_CHARS * 2) {
-//            newChunks.push(currentChunk.slice(0, MAX_CHUNK_CHARS).trim());
-//            currentChunk = currentChunk.slice(MAX_CHUNK_CHARS);
-//         }
-//       }
-//       
-//       if (currentChunk.trim()) {
-//         newChunks.push(currentChunk.trim());
-//       }
-//       
-//       chunksRef.current = newChunks;
-//       console.log(`[Full Cast] Split text into ${newChunks.length} chunks for synced playback`);
-
-//       // Initialize Audio Context & Unlock Autoplay
-//       const audio = new Audio();
-//       audioRef.current = audio;
-//       (window as any).__fullCastAudio = audio;
-
-//       // Silent loop for unlock
-//       audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABGDZGF0YQQAAAAAAA==';
-//       audio.loop = true;
-//       audio.volume = 0.01;
-
-//       audio.play().catch(e => {
-//         console.warn("Audio autoplay blocked initially:", e);
-//         setNeedsTap(true);
-//         setStatus("Tap 'Play' when ready");
-//       });
-
-//       // Reset state
-//       isPlayingRef.current = true;
-//       isFetchingRef.current = false;
-//       audioQueueRef.current = [];
-//       chunkIndexRef.current = 0;
-//       startTsRef.current = 0;
-
-//       setIsActive(true);
-//       setStatus('Generating visual scenes…');
-//       setBuffered(0);
-//       setHasStartedPlaying(false);
-//       setScenes([]);
-//       setSceneImages([]);
-//       setCurrentScene(null);
-
-//       // Global controls
-//       (window as any).__fullCastStop = stop;
-//       (window as any).__fullCastPause = pause;
-//       (window as any).__fullCastResume = resume;
-
-//       // Scene Analysis Phase
-//       try {
-//         setIsScenesLoading(true);
-//         const safeKey = getSafeKey();
-//         const cached = await loadSceneAnalysis(safeKey);
-
-//         let activeScenes: Scene[] = [];
-//         let activeImages: SceneImage[] = [];
-
-//         if (cached && cached.scenes && cached.scenes.length > 0) {
-//           activeScenes = cached.scenes;
-//           activeImages = cached.sceneImages || [];
-//           setScenes(activeScenes);
-//           setSceneImages(activeImages);
-//           if (activeScenes[0]) {
-//             setCurrentScene(activeScenes[0]);
-//             setShowScenes(true);
-//           }
-//         } else {
-//           const rawScenes = await analyzeScenes(fullText, bookTitle, {
-//             bookTheme: 'atmospheric narrative',
-//             colorPalette: 'cinematic with dramatic lighting'
-//           });
-//           activeScenes = rawScenes.map((s, i) => ({
-//             ...s,
-//             sceneIndex: typeof s.sceneIndex === 'number' ? s.sceneIndex : i
-//           }));
-//           setScenes(activeScenes);
-//           if (activeScenes[0]) {
-//             setCurrentScene(activeScenes[0]);
-//             setShowScenes(true);
-//           }
-
-//           if (activeScenes.length > 0) {
-//             console.log('[Full Cast] Bulk generating images for', activeScenes.length, 'scenes');
-//             try {
-//               const allGeneratedImages = await generateSceneImages(activeScenes, (img) => {
-//                 console.log('[Full Cast] Image arrived for scene', img.sceneIndex);
-//                 setSceneImages(prev => {
-//                   const exists = prev.some(i => i.sceneIndex === img.sceneIndex);
-//                   if (exists) return prev;
-//                   return [...prev, img];
-//                 });
-//                 activeImages.push(img);
-//               });
-
-//               console.log('[Full Cast] Batch generation complete. total images:', allGeneratedImages.length);
-
-//               if (activeImages.length > 0) {
-//                 saveSceneAnalysis(safeKey, activeScenes, activeImages)
-//                   .then(() => console.log('[Full Cast] Cached results for', safeKey))
-//                   .catch(e => console.warn('[Full Cast] Cache save failed', e));
-//               }
-//             } catch (err) {
-//               console.error('[Full Cast] Batch image generation failed:', err);
-//             }
-//           }
-//         }
-//       } catch (err) {
-//         console.error('[Full Cast] Preparation failed:', err);
-//       } finally {
-//         setIsScenesLoading(false);
-//       }
-
-//       // Start Audio Phase
-//       // FIX: Properly stop silent loop before starting real audio
-//       // This prevents AbortError when the first chunk tries to pause the silent loop
-//       try {
-//         audio.pause();
-//         audio.currentTime = 0;
-//         audio.src = ''; // Clear silent loop source
-//         audio.loop = false;
-//         // Wait a brief moment to ensure pause completes
-//         await new Promise(resolve => setTimeout(resolve, 100));
-//       } catch (e) {
-//         console.debug('[Full Cast] Error stopping silent loop (non-critical):', e);
-//         // Continue anyway - audio might already be stopped
-//         audio.loop = false;
-//         audio.currentTime = 0;
-//         if (audio.src && audio.src.startsWith('data:audio')) {
-//           audio.src = '';
-//         }
-//       }
-
-//       setStatus('Starting audio…');
-//       produce();
-//       consume();
-//     };
-
-//     window.addEventListener('full-cast-request', handler as any);
-//     return () => {
-//       window.removeEventListener('full-cast-request', handler as any);
-//       if (audioRef.current) {
-//         audioRef.current.pause();
-//         audioRef.current.src = '';
-//       }
-//     };
-//   }, [currentPageText, currentContent, currentPageDisplay, bookTitle, getSafeKey, stop, pause, resume, produce, consume]);
-
-//   return {
-//     isActive,
-//     status,
-//     buffered,
-//     needsTap,
-//     isPaused,
-//     hasStartedPlaying,
-//     scenes,
-//     sceneImages,
-//     currentScene,
-//     isScenesLoading,
-//     showScenes,
-//     highlightedContent,
-//     pause,
-//     resume,
-//     stop,
-//     setShowScenes,
-//     setCurrentScene,
-//     handleGenerateSceneImage,
-//   };
-// }
-
-
-
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { trackEvent } from '../../lib/analytics';
 import { requestFullCast, ttsForLine } from '../../services/fullCastTTS';
 import { isTrackingEnabled } from '../../utils/trackingConfig';
@@ -739,6 +39,11 @@ export interface UseFullCastReturn {
   setShowScenes: (show: boolean) => void;
   setCurrentScene: (scene: Scene | null) => void;
   handleGenerateSceneImage: () => Promise<void>;
+
+  // Progress & Seeking
+  currentChunkIndex: number;
+  totalChunks: number;
+  seekToPercentage: (percentage: number) => void;
 }
 
 interface AudioQueueItem {
@@ -770,6 +75,7 @@ export function useFullCast(
   const [currentScene, setCurrentScene] = useState<Scene | null>(null);
   const [isScenesLoading, setIsScenesLoading] = useState<boolean>(false);
   const [showScenes, setShowScenes] = useState<boolean>(false);
+  const [currentChunkIndexState, setCurrentChunkIndexState] = useState<number>(0);
 
   // --- Highlighting State ---
   const [highlightedContent, setHighlightedContent] = useState<string>(currentContent || '');
@@ -817,10 +123,12 @@ export function useFullCast(
 
   // --- Helpers ---
   const getSafeKey = useCallback(() => {
-    return `full-cast-${bookTitle}-${currentChapterTitle || currentPageDisplay}`
+    // Fallback: Use text snippet hash to ensure uniqueness even if chapter title is missing
+    const textSnippet = (currentPageText || '').substring(0, 15).replace(/\s/g, '');
+    return `full-cast-${bookTitle}-${currentChapterTitle || currentPageDisplay}-${textSnippet}`
       .replace(/[^a-z0-9-]/gi, '-')
       .toLowerCase();
-  }, [bookTitle, currentChapterTitle, currentPageDisplay]);
+  }, [bookTitle, currentChapterTitle, currentPageDisplay, currentPageText]);
 
   // --- Producer ---
   const produce = useCallback(async () => {
@@ -886,6 +194,7 @@ export function useFullCast(
       isFetchingRef.current = false;
       if (producedAny) {
         chunkIndexRef.current = currentIdx + 1;
+        setCurrentChunkIndexState(currentIdx + 1);
       } else {
         if (isPlayingRef.current) {
           setTimeout(() => { if (isPlayingRef.current) produce(); }, 800);
@@ -1212,12 +521,24 @@ export function useFullCast(
       const paragraphs = fullText.split(/\n\s*\n/);
       const newChunks: string[] = [];
 
+      // Use Intl.Segmenter for robust, locale-aware sentence splitting (Standard approach)
+      const segmenter = typeof Intl !== 'undefined' && (Intl as any).Segmenter
+        ? new (Intl as any).Segmenter('en', { granularity: 'sentence' })
+        : null;
+
       for (let p of paragraphs) {
         p = p.trim();
         if (!p) continue;
 
-        // Split paragraph into sentences
-        const sentences = p.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [p];
+        let sentences: string[] = [];
+
+        if (segmenter) {
+          // fast, robust, native segmentation
+          sentences = Array.from(segmenter.segment(p)).map((s: any) => s.segment);
+        } else {
+          // Regex fallback (improved to handle quotes)
+          sentences = p.match(/[^.!?]+(?:[.!?]+['”"’)]*)?(?:\s|$)|[^.!?]+$/g) || [p];
+        }
         let currentChunk = "";
 
         for (const sentence of sentences) {
@@ -1241,6 +562,20 @@ export function useFullCast(
           newChunks.push(currentChunk.trim());
         }
       }
+
+      // INTEGRITY CHECK: Verify we haven't lost text during segmentation
+      const joinedChunks = newChunks.join(' ');
+      const normOriginal = fullText.replace(/\s+/g, ' ').trim();
+      const lengthDiff = Math.abs(normOriginal.length - joinedChunks.length);
+
+      if (lengthDiff > 20) {
+        console.warn('[Full Cast] ⚠️  Text Integrity Warning: SEGMENTATION DATA LOSS DETECTED', {
+          originalLen: normOriginal.length,
+          processedLen: joinedChunks.length,
+          diff: lengthDiff
+        });
+      }
+
       chunksRef.current = newChunks;
       console.log(`[Full Cast] Split text into ${newChunks.length} chunks for synced playback`);
 
@@ -1368,6 +703,107 @@ export function useFullCast(
     };
   }, [bookTitle, getSafeKey, stop, pause, resume]); // Stable useEffect. Removed currentPageText, currentContent, currentPageDisplay, produce, consume.
 
+  // --- Deterministic Scene Mapping ---
+  // Pre-calculate which scene each chunk belongs to.
+  // This allows O(1) lookup during seeking and guarantees continuity.
+  // --- Deterministic Scene Mapping ---
+  // Pre-calculate which scene each chunk belongs to.
+  const chunkToSceneMap = useMemo(() => {
+    // Safety check
+    if (!chunksRef.current || chunksRef.current.length === 0 || !scenes || scenes.length === 0) {
+      return [];
+    }
+
+    const map: Scene[] = [];
+    let currentSceneIdx = 0;
+
+    // Normalization helper (lowercase, alphanumeric only)
+    const norm = (t: string) => (t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    chunksRef.current.forEach((chunk, chunkIdx) => {
+      const chunkNorm = norm(chunk);
+
+      // If chunk is empty/punctuation, just use current scene
+      if (chunkNorm.length < 5) {
+        map.push(scenes[currentSceneIdx]);
+        return;
+      }
+
+      // Check "Look Ahead" window (Current + Next 2 scenes)
+      // We look for the FIRST scene that matches this chunk
+      let matchIdx = -1;
+
+      const searchEnd = Math.min(currentSceneIdx + 3, scenes.length);
+      for (let i = currentSceneIdx; i < searchEnd; i++) {
+        const scene = scenes[i];
+        const sceneNorm = norm(scene.anchor_text);
+
+        // Match logic: Does the scene anchor generally contain this chunk?
+        // Or is the chunk so big it contains the anchor?
+        if (sceneNorm.includes(chunkNorm) || (chunkNorm.length > 20 && chunkNorm.includes(sceneNorm.substring(0, 50)))) {
+          matchIdx = i;
+          break;
+        }
+      }
+
+      // If we found a match in a future scene (or current), advance pointer
+      if (matchIdx !== -1) {
+        currentSceneIdx = matchIdx;
+      }
+
+      map.push(scenes[currentSceneIdx]);
+    });
+
+    console.log(`[Full Cast] Scene Map Generated: Coherent scenes assigned to ${map.length}/${chunksRef.current.length} chunks.`);
+    // Debug first few mappings
+    map.slice(0, 5).forEach((s, i) => console.log(`Chunk ${i} -> Scene ${s.sceneIndex}`));
+
+    return map;
+  }, [scenes, chunksRef.current.length]); // Re-run when scenes load or chunks change
+
+  // --- Seeking ---
+  const seekToPercentage = useCallback((percentage: number) => {
+    if (!chunksRef.current.length) return;
+
+    // 1. Calculate target index
+    const targetIndex = Math.floor((percentage / 100) * chunksRef.current.length);
+    const safeIndex = Math.max(0, Math.min(targetIndex, chunksRef.current.length - 1));
+
+    console.log(`[Full Cast] Seeking to ${safeIndex} (${percentage.toFixed(1)}%)`);
+
+    // 2. Stop current playback but keep active state
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = ''; // FIX: Clear src to stop 'consume' retry loop
+      audioRef.current.currentTime = 0;
+    }
+
+    // 3. Reset queue and pointers
+    audioQueueRef.current = [];
+    chunkIndexRef.current = safeIndex;
+    setCurrentChunkIndexState(safeIndex);
+
+    // 4. Force restart consumption
+    // We must break the old lock and manually restart the loop
+    isConsumingRef.current = false;
+
+    // 5. Instant Scene Update
+    // Use the pre-calculated deterministic map
+    const targetScene = chunkToSceneMap[safeIndex];
+    if (targetScene) {
+      console.log(`[Full Cast] Seek mapped to scene: ${targetScene.sceneIndex}`);
+      setCurrentScene(targetScene);
+    }
+
+    if (isActive) {
+      setStatus('Seeking...');
+      isFetchingRef.current = false;
+      produce();
+      // Wait a tick for produce to maybe fill something or just restart loop
+      setTimeout(() => consume(), 0);
+    }
+  }, [isActive, produce, consume]);
+
   return {
     isActive,
     status,
@@ -1387,5 +823,10 @@ export function useFullCast(
     setShowScenes,
     setCurrentScene,
     handleGenerateSceneImage,
+
+    // New Seek Props
+    currentChunkIndex: currentChunkIndexState,
+    totalChunks: chunksRef.current.length,
+    seekToPercentage
   };
 }

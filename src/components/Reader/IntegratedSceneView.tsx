@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, MoreHorizontal, Loader2 } from 'lucide-react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 import type { Scene } from '../../types/fullCast';
 import './IntegratedSceneView.css';
 
@@ -36,14 +36,11 @@ const IntegratedSceneView: React.FC<IntegratedSceneViewProps> = ({
                     <ChevronLeft size={24} />
                 </button>
                 <div className="header-title-container">
-                    <p className="ai-viz-label">✨ AI VISUALIZATION</p>
+                    <p className="ai-viz-label">AI VISUALIZATION</p>
                     <div className="book-title-mini-wrapper">
                         <h2 className="book-title-mini">{bookTitle}</h2>
                     </div>
                 </div>
-                <button className="more-btn">
-                    <MoreHorizontal size={24} />
-                </button>
             </div>
 
             {/* Image Container */}

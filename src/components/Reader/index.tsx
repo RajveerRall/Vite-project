@@ -650,12 +650,14 @@ const Reader: React.FC = () => {
         isProcessing={isProcessing && !(isSpeaking || isPaused)}
         canResume={canTTSResume}
         isReadButtonActive={isSpeaking || isPaused || canTTSResume}
-        currentChunkIndex={_currentChunkIndex}
-        totalChunks={_chunks.length}
+        // Conditionally pass progress tracking depending on which mode is active
+        currentChunkIndex={fullCastActive ? fullCast.currentChunkIndex : _currentChunkIndex}
+        totalChunks={fullCastActive ? fullCast.totalChunks : _chunks.length}
         ttsSpeed={ttsSpeed}
         onSpeedChange={handleSpeedChangeWithStop}
         onPreviewScroll={handlePreviewScroll}
-        onSeekToPercentage={handleSeekToPercentage}
+        // Conditionally pass seek handler
+        onSeekToPercentage={fullCastActive ? fullCast.seekToPercentage : handleSeekToPercentage}
         fullCastStatus={fullCastStatus}
         fullCastBuffered={fullCastBuffered}
         fullCastActive={fullCastActive}

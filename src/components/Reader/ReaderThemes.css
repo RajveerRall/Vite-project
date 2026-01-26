@@ -7,14 +7,18 @@
 }
 
 /* Theme CSS Variables */
+/* Theme CSS Variables */
 .theme-light {
   --reader-bg: #ffffff;
   --reader-text: #1f2937;
+  --reader-text-dimmed: rgba(31, 41, 55, 0.3);
+  /* 30% Opacity */
   --reader-text-secondary: #6b7280;
   --reader-border: #e5e7eb;
   --reader-header-bg: #ffffff;
   --reader-sidebar-bg: #f9fafb;
-  --reader-content-bg: #fcf8f0; /* Updated to match new background */
+  --reader-content-bg: #fcf8f0;
+  /* Updated to match new background */
   --reader-hover: #f3f4f6;
   --reader-shadow: rgba(0, 0, 0, 0.1);
   --reader-highlight: #fffb91;
@@ -24,6 +28,8 @@
 .theme-dark {
   --reader-bg: #111827;
   --reader-text: #e2e8f0;
+  --reader-text-dimmed: rgba(226, 232, 240, 0.3);
+  /* 30% Opacity */
   --reader-text-secondary: #9ca3af;
   --reader-border: #374151;
   --reader-header-bg: #1f2937;
@@ -41,6 +47,8 @@
 .theme-sepia {
   --reader-bg: #f7f3e9;
   --reader-text: #3c2e26;
+  --reader-text-dimmed: rgba(60, 46, 38, 0.3);
+  /* 30% Opacity */
   --reader-text-secondary: #8b6914;
   --reader-border: #e6d4b1;
   --reader-header-bg: #f0e68c;
@@ -70,10 +78,46 @@
   border-right: 1px solid var(--reader-border);
 }
 
-/* Side Panel Bar Theme Support */
-.side-panel-bar {
-  background-color: var(--reader-sidebar-bg);
-  border-right: 1px solid var(--reader-border);
+/* Focus Mode: Dimmed State for Content */
+/* Graceful Failure: Only dim if we successfully found/created a highlight element */
+.epub-content.tts-dimmed:has(.tts-highlight) {
+  color: var(--reader-text-dimmed) !important;
+  transition: color 0.5s ease;
+}
+
+/* Force children to inherit dimmed color, overriding theme-specific span/p rules */
+.epub-content.tts-dimmed:has(.tts-highlight) *,
+.theme-dark .epub-content.tts-dimmed:has(.tts-highlight) p,
+.theme-dark .epub-content.tts-dimmed:has(.tts-highlight) span,
+.theme-sepia .epub-content.tts-dimmed:has(.tts-highlight) p,
+.theme-sepia .epub-content.tts-dimmed:has(.tts-highlight) span {
+  color: inherit !important;
+  border-color: var(--reader-text-dimmed);
+}
+
+/* Focus Mode: Active Sentence - High Specificity Overrides */
+/* Must exceed specificity of the :has() dimming rule */
+.epub-content.tts-dimmed:has(.tts-highlight) .tts-highlight,
+.theme-dark .epub-content.tts-dimmed:has(.tts-highlight) .tts-highlight,
+.theme-sepia .epub-content.tts-dimmed:has(.tts-highlight) .tts-highlight {
+  color: var(--reader-text) !important;
+  /* Restore full opacity and override inherited dimness */
+  background-color: transparent !important;
+  font-weight: normal;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+
+/* Standard Highlight (when NOT in dimmed focus mode, e.g. text selection or search) */
+.tts-highlight {
+  background-color: var(--reader-highlight);
+  border-radius: 3px;
+  padding: 1px 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .theme-dark .side-panel-icon {
@@ -92,6 +136,31 @@
 
 .theme-dark .side-panel-icon.active:hover {
   background-color: #6b7280;
+}
+
+/* Dark Mode Side Panel Containers */
+.theme-dark .side-panel-bar {
+  background-color: #1f2937;
+  border-right-color: #374151;
+}
+
+.theme-dark .side-panel-content {
+  background-color: #1f2937;
+  border-right-color: #374151;
+  color: #e5e7eb;
+}
+
+.theme-dark .side-panel-content-header {
+  border-bottom-color: #374151;
+}
+
+.theme-dark .side-panel-close-btn {
+  color: #9ca3af;
+}
+
+.theme-dark .side-panel-close-btn:hover {
+  background-color: #374151;
+  color: #e5e7eb;
 }
 
 .theme-sepia .side-panel-icon {
@@ -190,12 +259,10 @@
   color: var(--reader-text);
   transition: font-size 0.2s ease, background-color 0.3s ease, color 0.3s ease;
   scroll-behavior: smooth;
-  cursor: pointer;
+  /* Removed cursor: pointer to prevent "hand" icon */
 }
 
-.epub-content:hover {
-  background-color: var(--reader-hover, #f3f4f6);
-}
+/* Removed faulty hover effect that caused "plastic layer" look */
 
 /* Theme-aware text colors */
 .theme-light .book-title,
@@ -428,7 +495,7 @@
     font-size: 0.85rem;
     padding: 0.5rem;
   }
-  
+
   .settings-widget .settings-select option {
     font-size: 0.85rem;
     padding: 0.5rem;
@@ -478,6 +545,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -490,8 +558,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 /* Mobile responsiveness for settings widget */
@@ -507,12 +580,12 @@
     overflow-x: hidden;
     padding: 1rem;
   }
-  
+
   /* Ensure dropdown stays within the widget */
   .settings-widget .relative {
     position: static;
   }
-  
+
   .settings-widget select {
     position: relative;
     z-index: 20;
@@ -529,14 +602,14 @@
     border-radius: 12px 12px 0 0;
     padding: 1rem;
   }
-  
+
   /* Fix dropdown positioning on small screens */
   .settings-widget .settings-select {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
   }
-  
+
   /* Make the dropdown container take full width */
   .settings-widget .relative {
     width: 100%;
@@ -553,19 +626,19 @@
     max-height: 85vh;
     padding: 1rem 0.75rem;
   }
-  
+
   .settings-widget .grid-cols-3 {
     grid-template-columns: 1fr;
     gap: 0.5rem;
   }
-  
+
   .settings-widget .flex.items-center.space-x-3 {
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
   }
-  
-  .settings-widget .flex.items-center.space-x-3 > * {
+
+  .settings-widget .flex.items-center.space-x-3>* {
     margin: 0;
   }
 }
@@ -693,52 +766,52 @@
     padding: 0.5rem;
     min-height: 60px;
   }
-  
+
   .reader-left .back-button {
     font-size: 0.75rem;
     padding: 0.25rem 0.5rem;
   }
-  
+
   .reader-left .back-button .w-4 {
     width: 0.875rem;
     height: 0.875rem;
   }
-  
+
   .reader-center {
     flex: 1;
     min-width: 0;
     padding: 0 0.5rem;
   }
-  
+
   .reader-center .book-title {
     font-size: 0.9rem;
     line-height: 1.2;
     margin-bottom: 0.125rem;
   }
-  
+
   .reader-center .book-author {
     font-size: 0.75rem;
   }
-  
+
   .reader-right {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 0.25rem;
   }
-  
+
   .settings-button,
   .mobile-toc-button {
     padding: 0.375rem;
     margin-right: 0.25rem;
   }
-  
+
   .settings-button .w-5,
   .mobile-toc-button .w-5 {
     width: 1rem;
     height: 1rem;
   }
-  
+
   .controls-container {
     margin-left: 0.25rem;
   }
@@ -750,26 +823,26 @@
     padding: 0.375rem;
     min-height: 56px;
   }
-  
+
   .reader-left .back-button {
     font-size: 0.7rem;
     padding: 0.25rem;
   }
-  
+
   .reader-center .book-title {
     font-size: 0.8rem;
   }
-  
+
   .reader-center .book-author {
     font-size: 0.7rem;
   }
-  
+
   .settings-button,
   .mobile-toc-button {
     padding: 0.25rem;
     margin-right: 0.125rem;
   }
-  
+
   .settings-button .w-5,
   .mobile-toc-button .w-5 {
     width: 0.875rem;
@@ -783,11 +856,11 @@
     min-height: 48px;
     padding: 0.25rem 0.5rem;
   }
-  
+
   .reader-center .book-title {
     font-size: 0.8rem;
   }
-  
+
   .reader-center .book-author {
     font-size: 0.7rem;
   }
@@ -931,7 +1004,7 @@
   .control-button.hidden {
     display: none !important;
   }
-} 
+}
 
 /* Chapter Navigation Arrows */
 .chapter-nav-arrow {
@@ -1004,11 +1077,11 @@
     height: 40px;
     opacity: 0.8;
   }
-  
+
   .chapter-nav-arrow-left {
     left: 10px;
   }
-  
+
   .chapter-nav-arrow-right {
     right: 10px;
   }
@@ -1020,11 +1093,11 @@
     height: 36px;
     opacity: 0.9;
   }
-  
+
   .chapter-nav-arrow-left {
     left: 8px;
   }
-  
+
   .chapter-nav-arrow-right {
     right: 8px;
   }
@@ -1033,4 +1106,4 @@
 /* Ensure arrows are always visible */
 .chapter-nav-arrow {
   display: flex !important;
-} 
+}

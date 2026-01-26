@@ -1516,13 +1516,19 @@ function structureTextForLLM(raw) {
   const result = {
     segments,
     instructions: "CRITICAL RULES:\n" +
-      "1. Dialogue attribution phrases like 'said Sofia', 'whispered Locke', 'replied John', 'she said', 'I said' are NARRATION, not dialogue.\n" +
-      "2. ONLY the actual spoken words inside quotes should be dialogue. The dialogue segments already contain ONLY the spoken text (quotes removed).\n" +
-      "3. Narration segments contain ONLY attribution, actions, and descriptions - NO dialogue text.\n" +
-      "4. DO NOT include dialogue text in narration. If you see dialogue in a narration segment, it has already been extracted to a separate dialogue segment.\n" +
-      "5. All dialogue attribution, actions, and descriptions should be assigned to 'Narrator' character.\n" +
       "6. When generating script lines, if a narration segment contains attribution (e.g., 'she said'), create a narration line with ONLY the attribution, NOT the dialogue that was already extracted."
   };
+
+  // DEBUG LOGGING: Verify text integrity
+  const totalContentLength = segments.reduce((acc, seg) => acc + seg.content.length, 0);
+  console.log(`[structureTextForLLM] Raw: ${raw.length}, Clean: ${cleanText.length}, Structured: ${totalContentLength}`);
+
+  if (Math.abs(cleanText.length - totalContentLength) > 50) {
+    console.warn(`[structureTextForLLM] WARNING: Text loss detected! (${cleanText.length - totalContentLength} chars missing)`);
+    // Sample missing text check
+    const reassembled = segments.map(s => s.content).join('');
+    console.log(`[structureTextForLLM] Preview reassembled: ${reassembled.substring(0, 50)}...`);
+  }
 
   return JSON.stringify(result);
 }
@@ -1985,11 +1991,13 @@ app.post('/api/tts', async (req, res) => {
     .replace(/\u205F/g, ' ')       // Replace Medium mathematical space
     .replace(/\u3000/g, ' ')       // Replace Ideographic space
     .replace(/\s+/g, ' ')          // Replace multiple spaces with single space
-    .replace(/[""]/g, '"')         // Replace smart quotes with regular quotes
-    .replace(/['']/g, "'")         // Replace smart apostrophes with regular apostrophes
-    .replace(/ΓÇ£/g, '"')          // Replace specific smart quote characters
-    .replace(/ΓÇ¥/g, '"')          // Replace specific smart quote characters
-    .replace(/ΓÇö/g, ' - ')        // Replace em dash with regular dash
+    .replace(/[\u2018\u2019\u201B]/g, "'") // Smart single quotes/apostrophes
+    .replace(/[\u201C\u201D\u201F]/g, '"') // Smart double quotes
+    .replace(/\uFEFF/g, '')        // Remove BOM
+    .replace(/ΓÇ£/g, '"')          // Keep fallback for potential upstream double-encoding
+    .replace(/ΓÇ¥/g, '"')          // Keep fallback
+    .replace(/ΓÇÖ/g, "'")          // Keep fallback
+    .replace(/ΓÇö/g, ' - ')        // Keep fallback
     .replace(/\b[A-Z]{2,}\b/g, (match) => {
       // Convert ALL CAPS words to Title Case, but preserve common acronyms
       const commonAcronyms = ['AI', 'API', 'URL', 'HTTP', 'HTTPS', 'JSON', 'XML', 'HTML', 'CSS', 'JS', 'TTS', 'LLM', 'GPT', 'CEO', 'USA', 'UK', 'EU', 'NASA', 'FBI', 'CIA'];

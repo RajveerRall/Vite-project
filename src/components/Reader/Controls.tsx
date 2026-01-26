@@ -13,6 +13,7 @@ import {
 import InteractiveProgressBar from './InteractiveProgressBar';
 import SpeedControlDropdown from './SpeedControlDropdown';
 import MobileAIChatDrawer from './MobileAIChatDrawer';
+import PictureModeControls from './PictureModeControls';
 import { useSmoothProgress } from '../../hooks/tts/useSmoothProgress';
 
 // Import the stylesheet. It will now handle all the appearance styling.
@@ -217,60 +218,21 @@ const Controls: React.FC<ControlsProps> = ({
   // Show Full Cast controls when Full Cast is active
   if (fullCastActive) {
     return (
-      <div className={`music-player-controls theme-${theme} bg-white rounded-xl border border-gray-200 shadow-lg p-2`}>
-        {/* Full Cast Status */}
-        <div className="flex items-center justify-between gap-3 md:gap-4 px-2 py-1">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span className={`inline-flex h-2 w-2 rounded-full ${fullCastNeedsTap ? 'bg-amber-500 animate-pulse' : 'bg-blue-500 animate-pulse'}`} />
-            <span className="font-medium">{fullCastNeedsTap ? "Tap to Play" : fullCastStatus}</span>
-            {fullCastBuffered > 0 && !fullCastNeedsTap && (
-              <span className="text-xs bg-gray-100 rounded px-2 py-0.5">Buffered: {fullCastBuffered}</span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {!fullCastPaused ? (
-              <button
-                onClick={onFullCastPause}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Pause Picture Mode"
-                title="Pause Picture Mode"
-              >
-                <PauseCircle size={22} className="text-gray-700" />
-              </button>
-            ) : (
-              <button
-                onClick={onFullCastResume}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Resume Picture Mode"
-                title="Resume Picture Mode"
-              >
-                <PlayCircle size={22} className="text-gray-700" />
-              </button>
-            )}
-
-            {onFullCastGenerateImage && (
-              <button
-                onClick={onFullCastGenerateImage}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Generate scene visuals"
-                title="Generate scene visuals"
-              >
-                <ImageIcon size={20} className="text-gray-600" />
-              </button>
-            )}
-
-            <button
-              onClick={onFullCastStop}
-              className="p-2 rounded-full hover:bg-red-100 text-red-600 transition-colors"
-              aria-label="Stop Picture Mode"
-              title="Stop Picture Mode"
-            >
-              <Square size={20} />
-            </button>
-          </div>
-        </div>
-      </div>
+      <PictureModeControls
+        theme={theme}
+        active={fullCastActive}
+        status={fullCastStatus}
+        buffered={fullCastBuffered}
+        needsTap={fullCastNeedsTap}
+        paused={fullCastPaused}
+        onPause={onFullCastPause}
+        onResume={onFullCastResume}
+        onStop={onFullCastStop}
+        currentChunkIndex={currentChunkIndex}
+        totalChunks={totalChunks}
+        onSeek={onSeekToPercentage}
+        onPreview={onPreviewScroll}
+      />
     );
   }
 

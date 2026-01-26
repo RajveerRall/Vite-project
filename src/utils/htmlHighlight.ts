@@ -4,10 +4,44 @@
 import { imageBlobUrlCache } from './imageCache';
 
 /**
- * Normalize whitespace in text for comparison
+ * Normalize whitespace and punctuation in text for comparison.
+ * IMPORTANT: Performs 1-to-1 character replacements (or collapses whitespace)
+ * to maintain reliable length mapping for the highlighter.
  */
 function normalizeWhitespace(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
+  return text
+    // Normalize quotes to standard ASCII (1-to-1 mapping checks)
+    .replace(/[\u2018\u2019\u201B]/g, "'") // Smart single quotes
+    .replace(/[\u201C\u201D\u201F]/g, '"') // Smart double quotes
+    // Normalize dashes (1-to-1 mapping checks)
+    .replace(/[\u2013\u2014]/g, '-')       // En-dash, Em-dash
+    // Normalize whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Get the alphanumeric skeleton of a text (stripping all punctuation/whitespace)
+ */
+function getAlphanumericSkeleton(text: string): string {
+  return text.replace(/[^a-zA-Z0-9]/g, '');
+}
+
+/**
+ * Map an index from the alphanumeric skeleton back to the original text
+ */
+function mapSkeletonIndexToOriginal(originalText: string, skeletonIndex: number): number {
+  let currentSkeletonIndex = 0;
+  for (let i = 0; i < originalText.length; i++) {
+    // If char is alphanumeric, it counts towards skeleton index
+    if (/[a-zA-Z0-9]/.test(originalText[i])) {
+      if (currentSkeletonIndex === skeletonIndex) {
+        return i;
+      }
+      currentSkeletonIndex++;
+    }
+  }
+  return -1; // Not found
 }
 
 /**
@@ -34,30 +68,44 @@ function findChunkInHtmlFromDom(
   // This ensures we match exactly what currentPageText contains
   const domTextContent = domElement.textContent || domElement.innerText || '';
   const normalizedDomText = normalizeWhitespace(domTextContent);
-  
+
   // Normalize chunk text for matching
   const normalizedChunk = normalizeWhitespace(chunkText);
   if (!normalizedChunk) {
     return null;
   }
-  
+
   // Find position in normalized DOM text (search entire text first)
   let chunkStartInNormalized = normalizedDomText.indexOf(normalizedChunk);
-  
+
   if (chunkStartInNormalized === -1) {
     // Try with more flexible whitespace matching
     const normalizedDomTextNoSpaces = normalizedDomText.replace(/\s+/g, ' ').trim();
     const normalizedChunkNoSpaces = normalizedChunk.replace(/\s+/g, ' ').trim();
     const pos = normalizedDomTextNoSpaces.indexOf(normalizedChunkNoSpaces);
-    if (pos === -1) {
-      console.warn(`[htmlHighlight] Chunk not found in DOM text content: "${normalizedChunk.substring(0, 50)}..."`);
-      return null;
+
+    if (pos !== -1) {
+      // Approximate position in original normalized text
+      const ratio = pos / normalizedDomTextNoSpaces.length;
+      chunkStartInNormalized = Math.floor(normalizedDomText.length * ratio);
+    } else {
+      // Attempt 3: Aggressive Alphanumeric Match (The "Nuclear Option")
+      // Strip ALL punctuation and whitespace, matching only the reliable character skeleton
+      const domSkeleton = getAlphanumericSkeleton(normalizedDomText);
+      const chunkSkeleton = getAlphanumericSkeleton(normalizedChunk);
+
+      const skeletonPos = domSkeleton.indexOf(chunkSkeleton);
+
+      if (skeletonPos !== -1) {
+        // Map the skeleton position back to the normalized text position
+        chunkStartInNormalized = mapSkeletonIndexToOriginal(normalizedDomText, skeletonPos);
+      } else {
+        console.warn(`[htmlHighlight] Chunk not found even with aggressive match: "${normalizedChunk.substring(0, 50)}..."`);
+        return null;
+      }
     }
-    // Approximate position in original normalized text
-    const ratio = pos / normalizedDomTextNoSpaces.length;
-    chunkStartInNormalized = Math.floor(normalizedDomText.length * ratio);
   }
-  
+
   // If startFromPosition is provided and we found the chunk before it, try to find a later occurrence
   if (startFromPosition !== undefined && startFromPosition > 0 && chunkStartInNormalized < startFromPosition) {
     const laterOccurrence = normalizedDomText.indexOf(normalizedChunk, startFromPosition);
@@ -67,7 +115,7 @@ function findChunkInHtmlFromDom(
       console.warn(`[htmlHighlight] Chunk found at position ${chunkStartInNormalized} but startFromPosition was ${startFromPosition}. Using first occurrence.`);
     }
   }
-  
+
   const chunkEndInNormalized = chunkStartInNormalized + normalizedChunk.length;
 
   // Now we need to map this position back to actual text nodes for highlighting
@@ -80,7 +128,7 @@ function findChunkInHtmlFromDom(
 
   const textNodes: { node: Text; normalizedText: string; originalText: string }[] = [];
   let node: Text | null;
-  
+
   while ((node = walker.nextNode() as Text | null)) {
     const originalText = node.textContent || '';
     if (originalText.trim()) {
@@ -92,33 +140,33 @@ function findChunkInHtmlFromDom(
   // Build normalized HTML text by concatenating text nodes to map positions
   let normalizedHtmlText = '';
   const nodeBoundaries: { nodeIndex: number; startInNormalized: number; endInNormalized: number }[] = [];
-  
+
   for (let i = 0; i < textNodes.length; i++) {
     const { normalizedText } = textNodes[i];
     const startPos = normalizedHtmlText.length;
     normalizedHtmlText += normalizedText;
     const endPos = normalizedHtmlText.length;
-    
+
     nodeBoundaries.push({
       nodeIndex: i,
       startInNormalized: startPos,
       endInNormalized: endPos
     });
-    
+
     // Add space separator between nodes (except for the last one)
     if (i < textNodes.length - 1) {
       normalizedHtmlText += ' ';
     }
   }
-  
+
   // Normalize the reconstructed text
   normalizedHtmlText = normalizeWhitespace(normalizedHtmlText);
-  
+
   // Map position from normalizedDomText to normalizedHtmlText
   // Since both should be similar but might have slight differences due to node concatenation,
   // we'll search for the chunk in normalizedHtmlText and use that position
   let chunkStartInNormalizedHtml = normalizedHtmlText.indexOf(normalizedChunk);
-  
+
   if (chunkStartInNormalizedHtml === -1) {
     // If exact match fails, try to map using ratio
     if (normalizedDomText.length > 0) {
@@ -128,60 +176,60 @@ function findChunkInHtmlFromDom(
       return null;
     }
   }
-  
+
   const chunkEndInNormalizedHtml = chunkStartInNormalizedHtml + normalizedChunk.length;
 
   // Map normalized positions back to actual text nodes
   const resultNodes: { node: Text; startOffset: number; endOffset: number }[] = [];
-  
+
   for (const boundary of nodeBoundaries) {
     // Check if this node overlaps with the chunk
     if (boundary.endInNormalized > chunkStartInNormalizedHtml && boundary.startInNormalized < chunkEndInNormalizedHtml) {
       const { nodeIndex } = boundary;
       const textNode = textNodes[nodeIndex];
-      
+
       // Calculate relative positions within this node
       const nodeRelativeStart = Math.max(0, chunkStartInNormalizedHtml - boundary.startInNormalized);
       const nodeRelativeEnd = Math.min(
         boundary.endInNormalized - boundary.startInNormalized,
         chunkEndInNormalizedHtml - boundary.startInNormalized
       );
-      
+
       // Map normalized positions back to original text positions
       const originalText = textNode.originalText;
       const normalizedNodeText = textNode.normalizedText;
-      
+
       if (normalizedNodeText.length > 0) {
         // Use proportion-based mapping
         const startRatio = nodeRelativeStart / normalizedNodeText.length;
         const endRatio = nodeRelativeEnd / normalizedNodeText.length;
-        
+
         // Find positions in original text
         let highlightStart = 0;
         let highlightEnd = originalText.length;
         let normalizedCount = 0;
         let startFound = false;
-        
+
         for (let i = 0; i < originalText.length; i++) {
           const char = originalText[i];
           const isWhitespace = /\s/.test(char);
-          
+
           // Count non-whitespace or first whitespace in a sequence
           if (!isWhitespace || (i === 0 || !/\s/.test(originalText[i - 1]))) {
             normalizedCount++;
-            
+
             if (!startFound && normalizedCount >= Math.ceil(normalizedNodeText.length * startRatio)) {
               highlightStart = i;
               startFound = true;
             }
-            
+
             if (normalizedCount >= Math.ceil(normalizedNodeText.length * endRatio)) {
               highlightEnd = i + 1;
               break;
             }
           }
         }
-        
+
         resultNodes.push({
           node: textNode.node,
           startOffset: Math.max(0, highlightStart),
@@ -235,7 +283,7 @@ export function highlightTextInHtml(
   images.forEach((img) => {
     const epubSrc = img.getAttribute('data-epub-src');
     const currentSrc = img.getAttribute('src') || img.src;
-    
+
     // Priority 1: Use blob URL from actual DOM (passed in blobUrlMap)
     if (epubSrc && blobUrlMap?.has(epubSrc)) {
       const blobUrl = blobUrlMap.get(epubSrc)!;
@@ -287,43 +335,43 @@ export function highlightTextInHtml(
       // Calculate relative positions within this node
       const nodeRelativeStart = Math.max(0, normalizedStartIndex - textNode.start);
       const nodeRelativeEnd = Math.min(textNode.end - textNode.start, normalizedEndIndex - textNode.start);
-      
+
       if (nodeRelativeEnd > nodeRelativeStart) {
         // Map back to original text positions
         const originalText = textNode.node.textContent || '';
         const normalizedNodeText = normalizeWhitespace(originalText);
-        
+
         // If the normalized text matches the relative range exactly, use simple proportion
         if (normalizedNodeText.length > 0) {
           // Use character-by-character mapping for accuracy
           const startRatio = nodeRelativeStart / normalizedNodeText.length;
           const endRatio = nodeRelativeEnd / normalizedNodeText.length;
-          
+
           let highlightStart = 0;
           let highlightEnd = originalText.length;
           let normalizedCount = 0;
           let startFound = false;
-          
+
           for (let i = 0; i < originalText.length; i++) {
             const char = originalText[i];
             const isWhitespace = /\s/.test(char);
-            
+
             // Count non-whitespace or first whitespace in a sequence
             if (!isWhitespace || (i === 0 || !/\s/.test(originalText[i - 1]))) {
               normalizedCount++;
-              
+
               if (!startFound && normalizedCount >= Math.ceil(normalizedNodeText.length * startRatio)) {
                 highlightStart = i;
                 startFound = true;
               }
-              
+
               if (normalizedCount >= Math.ceil(normalizedNodeText.length * endRatio)) {
                 highlightEnd = i + 1;
                 break;
               }
             }
           }
-          
+
           nodesToHighlight.push({
             node: textNode.node,
             highlightStart: Math.max(0, highlightStart),
@@ -338,7 +386,7 @@ export function highlightTextInHtml(
   for (let i = nodesToHighlight.length - 1; i >= 0; i--) {
     const { node, highlightStart, highlightEnd } = nodesToHighlight[i];
     const text = node.textContent || '';
-    
+
     if (highlightStart === 0 && highlightEnd === text.length) {
       // Entire node should be highlighted
       const highlightSpan = document.createElement('span');
@@ -352,16 +400,16 @@ export function highlightTextInHtml(
       const after = text.substring(highlightEnd);
 
       const fragment = document.createDocumentFragment();
-      
+
       if (before) {
         fragment.appendChild(document.createTextNode(before));
       }
-      
+
       const highlightSpan = document.createElement('span');
       highlightSpan.className = 'tts-highlight';
       highlightSpan.textContent = highlight;
       fragment.appendChild(highlightSpan);
-      
+
       if (after) {
         fragment.appendChild(document.createTextNode(after));
       }
@@ -376,23 +424,23 @@ export function highlightTextInHtml(
   tempImages.forEach((tempImg) => {
     const epubSrc = tempImg.getAttribute('data-epub-src');
     if (!epubSrc) return;
-    
+
     // Check both attribute (raw value) and property (resolved value) to catch about:blank
     const srcAttribute = tempImg.getAttribute('src');
     const srcProperty = tempImg.src;
     let blobUrl = srcProperty;
-    
+
     // Priority order for restoring blob URLs:
     // 1. Already set from blobUrlMap (highest priority - from actual DOM)
     // 2. Preserved map (from HTML string)
     // 3. Global cache (fallback)
     // Check if we need to restore: about:blank in attribute, empty, or not a blob URL
-    const needsRestore = !blobUrl || 
-                        srcAttribute === 'about:blank' || 
-                        blobUrl === 'about:blank' ||
-                        blobUrl.includes('about:blank') ||
-                        !blobUrl.startsWith('blob:');
-    
+    const needsRestore = !blobUrl ||
+      srcAttribute === 'about:blank' ||
+      blobUrl === 'about:blank' ||
+      blobUrl.includes('about:blank') ||
+      !blobUrl.startsWith('blob:');
+
     if (needsRestore) {
       if (blobUrlMap?.has(epubSrc)) {
         blobUrl = blobUrlMap.get(epubSrc)!;
@@ -414,11 +462,11 @@ export function highlightTextInHtml(
         }
       }
     }
-      
+
     // If we have a blob URL, ensure it's set and preserve dimensions
     if (blobUrl && blobUrl.startsWith('blob:')) {
       tempImg.src = blobUrl;
-      
+
       // Remove opacity: 0 that was set for about:blank images
       const currentStyle = tempImg.getAttribute('style') || '';
       if (currentStyle.includes('opacity: 0') || currentStyle.includes('opacity:0')) {
@@ -435,7 +483,7 @@ export function highlightTextInHtml(
         // Set opacity to 1 explicitly
         tempImg.style.opacity = '1';
       }
-      
+
       // Get and set dimensions to prevent layout shift
       const width = tempImg.naturalWidth || tempImg.width || tempImg.offsetWidth;
       const height = tempImg.naturalHeight || tempImg.height || tempImg.offsetHeight;
@@ -491,7 +539,7 @@ export function highlightChunkInHtml(
   images.forEach((img) => {
     const epubSrc = img.getAttribute('data-epub-src');
     const currentSrc = img.getAttribute('src') || img.src;
-    
+
     // Priority 1: Use blob URL from actual DOM (passed in blobUrlMap)
     if (epubSrc && blobUrlMap?.has(epubSrc)) {
       const blobUrl = blobUrlMap.get(epubSrc)!;
@@ -526,17 +574,17 @@ export function highlightChunkInHtml(
   // Use content-based matching to find chunk directly in HTML
   // Pass the tempDiv so we can work with the same DOM instance
   const chunkMatch = findChunkInHtmlFromDom(tempDiv, chunkText, startFromPosition);
-  
+
   if (chunkMatch && chunkMatch.nodes.length > 0) {
     // Debug: Check images before highlighting operations
     const imagesBeforeHighlight = tempDiv.querySelectorAll('img');
-    
+
     // Apply highlights using the matched nodes
     // Process in reverse to maintain node references
     for (let i = chunkMatch.nodes.length - 1; i >= 0; i--) {
       const { node, startOffset, endOffset } = chunkMatch.nodes[i];
       const text = node.textContent || '';
-      
+
       if (startOffset === 0 && endOffset === text.length) {
         // Entire node should be highlighted
         const highlightSpan = document.createElement('span');
@@ -550,16 +598,16 @@ export function highlightChunkInHtml(
         const after = text.substring(endOffset);
 
         const fragment = document.createDocumentFragment();
-        
+
         if (before) {
           fragment.appendChild(document.createTextNode(before));
         }
-        
+
         const highlightSpan = document.createElement('span');
         highlightSpan.className = 'tts-highlight';
         highlightSpan.textContent = highlight;
         fragment.appendChild(highlightSpan);
-        
+
         if (after) {
           fragment.appendChild(document.createTextNode(after));
         }
@@ -567,7 +615,7 @@ export function highlightChunkInHtml(
         node.parentNode?.replaceChild(fragment, node);
       }
     }
-    
+
     // Debug: Check images after highlighting operations
     const imagesAfterHighlight = tempDiv.querySelectorAll('img');
 
@@ -577,23 +625,23 @@ export function highlightChunkInHtml(
     tempImages.forEach((tempImg) => {
       const epubSrc = tempImg.getAttribute('data-epub-src');
       if (!epubSrc) return;
-      
+
       // Check both attribute (raw value) and property (resolved value) to catch about:blank
       const srcAttribute = tempImg.getAttribute('src');
       const srcProperty = tempImg.src;
       let blobUrl = srcProperty;
-      
+
       // Priority order for restoring blob URLs:
       // 1. Already set from blobUrlMap (highest priority - from actual DOM)
       // 2. Preserved map (from HTML string)
       // 3. Global cache (fallback)
       // Check if we need to restore: about:blank in attribute, empty, or not a blob URL
-      const needsRestore = !blobUrl || 
-                          srcAttribute === 'about:blank' || 
-                          blobUrl === 'about:blank' ||
-                          blobUrl.includes('about:blank') ||
-                          !blobUrl.startsWith('blob:');
-      
+      const needsRestore = !blobUrl ||
+        srcAttribute === 'about:blank' ||
+        blobUrl === 'about:blank' ||
+        blobUrl.includes('about:blank') ||
+        !blobUrl.startsWith('blob:');
+
       if (needsRestore) {
         if (blobUrlMap?.has(epubSrc)) {
           blobUrl = blobUrlMap.get(epubSrc)!;
@@ -615,11 +663,11 @@ export function highlightChunkInHtml(
           }
         }
       }
-      
+
       // If we have a blob URL, ensure it's set and preserve dimensions
       if (blobUrl && blobUrl.startsWith('blob:')) {
         tempImg.src = blobUrl;
-        
+
         // Remove opacity: 0 that was set for about:blank images
         const currentStyle = tempImg.getAttribute('style') || '';
         if (currentStyle.includes('opacity: 0') || currentStyle.includes('opacity:0')) {
@@ -636,7 +684,7 @@ export function highlightChunkInHtml(
           // Set opacity to 1 explicitly
           tempImg.style.opacity = '1';
         }
-        
+
         // Get and set dimensions to prevent layout shift
         const width = tempImg.naturalWidth || tempImg.width || tempImg.offsetWidth;
         const height = tempImg.naturalHeight || tempImg.height || tempImg.offsetHeight;
@@ -662,7 +710,7 @@ export function highlightChunkInHtml(
   // Fallback: use the old character-position-based approach if content-based matching fails
   const normalizedFull = normalizeWhitespace(fullText);
   const normalizedChunk = normalizeWhitespace(chunkText);
-  
+
   // Calculate starting position for fallback search based on chunk index
   let fallbackSearchStart = 0;
   if (chunkIndex !== undefined && chunkIndex > 0 && allChunks) {
@@ -675,9 +723,9 @@ export function highlightChunkInHtml(
     }
     fallbackSearchStart = Math.max(0, fallbackSearchStart - 10);
   }
-  
+
   const normalizedStartIndex = normalizedFull.indexOf(normalizedChunk, fallbackSearchStart);
-  
+
   if (normalizedStartIndex === -1) {
     return htmlContent;
   }
@@ -697,7 +745,7 @@ export function highlightChunkInHtml(
     }
     lastWasWhitespace = isWhitespace;
   }
-  
+
   const endIndex = startIndex !== -1 ? startIndex + chunkText.length : -1;
 
   if (startIndex === -1 || endIndex <= startIndex) {

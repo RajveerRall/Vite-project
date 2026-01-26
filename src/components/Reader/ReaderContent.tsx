@@ -100,8 +100,18 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       // Step 2: Use regex to find the match in the virtual text buffer
       // This handles whitespace differences and cross-node matching
       const escapedChunk = cleanChunk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // Replace whitespace in chunk with \s+ to match any whitespace in the DOM
-      const whiteSpaceAgnosticPattern = escapedChunk.replace(/\s+/g, '\\s+');
+
+      // Robust Pattern Generation:
+      // 1. Replace whitespaces with \s+ to match newlines/tabs
+      // 2. Replace quotes/apostrophes with flexible classes to match instances of smart quotes
+      // 3. Replace ellipses with flexible matcher
+      const whiteSpaceAgnosticPattern = escapedChunk
+        .replace(/\s+/g, '\\s+')
+        .replace(/['’‘]/g, "['’‘]") // Match any single quote style
+        .replace(/["”“]/g, '["”“]') // Match any double quote style
+        .replace(/[-–—]/g, '[-–—]') // Match any dash style
+        .replace(/\\\./g, '\\.?'); // Allow optional dots (ONLY target literal \.)
+
       const regex = new RegExp(whiteSpaceAgnosticPattern, 'i');
 
       const match = virtualText.match(regex);
@@ -358,7 +368,9 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
 
   // Auto-scroll to highlight when it changes (for TTS and Picture Mode)
   useEffect(() => {
-    if (!highlightedContent) return;
+    // Determine if we should attempt to scroll
+    const shouldScroll = (activeChunk && activeChunk.trim().length > 0) || highlightedContent;
+    if (!shouldScroll) return;
 
     // Small delay to ensure React has finished updating the DOM with the new highlight span
     const timer = setTimeout(() => {
@@ -372,7 +384,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
     }, 60);
 
     return () => clearTimeout(timer);
-  }, [highlightedContent, contentRef]);
+  }, [highlightedContent, activeChunk, contentRef]);
 
   return (
     <div
@@ -384,7 +396,7 @@ export const ReaderContent: React.FC<ReaderContentProps> = ({
       }}
     >
       <div
-        className="epub-content"
+        className={`epub-content ${(activeChunk && activeChunk.trim().length > 0) || (highlightedContent && highlightedContent !== content) ? 'tts-dimmed' : ''}`}
         onContextMenu={(e) => {
           // Prevent native context menu on text selection to avoid obstruction
           e.preventDefault();
