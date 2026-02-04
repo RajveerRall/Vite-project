@@ -30,7 +30,11 @@ export const MiniPlayer: React.FC = () => {
 
     const handleOpenBook = () => {
         if (currentBookId) {
-            navigate(`/reader/${currentBookId}`);
+            const params = new URLSearchParams();
+            if (currentChapterId) {
+                params.set('chapter', currentChapterId);
+            }
+            navigate(`/reader/${currentBookId}?${params.toString()}`);
         }
     };
 

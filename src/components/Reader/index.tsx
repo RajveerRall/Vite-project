@@ -357,6 +357,7 @@ const Reader: React.FC = () => {
     currentChunkIndex: _currentChunkIndex,
     isSpeaking,
     isProcessing,
+    isBuffering,
     isPaused,
     useKokoroTTS,
     handleTTS,
@@ -648,6 +649,7 @@ const Reader: React.FC = () => {
         isReading={isSpeaking}
         isPaused={isPaused}
         isProcessing={isProcessing && !(isSpeaking || isPaused)}
+        isBuffering={isBuffering}
         canResume={canTTSResume}
         isReadButtonActive={isSpeaking || isPaused || canTTSResume}
         // Conditionally pass progress tracking depending on which mode is active

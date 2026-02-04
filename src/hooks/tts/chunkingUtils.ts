@@ -41,6 +41,12 @@ function isAbbreviationAtPosition(text: string, position: number): boolean {
 
     // Check if last word + period matches an abbreviation
     const wordWithPeriod = lastWord + text[position];
+    // Check for Initials (e.g. "P.", "J.")
+    // Matches single uppercase letter followed by dot
+    if (/^[A-Z]\.$/.test(wordWithPeriod)) {
+        return true;
+    }
+
     const isSingleWordAbbr = ABBREVIATIONS.some(abbr => {
         const abbrClean = abbr.replace(/\\/g, ''); // Remove regex escaping
         const pattern = new RegExp(`^${abbrClean}$`, 'i');

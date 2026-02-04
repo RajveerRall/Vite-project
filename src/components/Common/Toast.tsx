@@ -8,7 +8,7 @@ interface ToastProps {
 }
 
 export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
-  
+
   const getToastStyles = () => {
     switch (toast.type) {
       case 'error':
@@ -88,7 +88,7 @@ interface ToastContainerProps {
 
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove }) => {
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
+    <div className="fixed top-36 right-4 z-50 space-y-2">
       {toasts.map((toast) => (
         <ToastComponent key={toast.id} toast={toast} onRemove={onRemove} />
       ))}

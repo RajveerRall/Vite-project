@@ -14,6 +14,7 @@ export interface ReaderControlsContainerProps extends ControlsProps {
   isMobile?: boolean;
   theme?: 'light' | 'dark' | 'sepia';
   isUIVisible?: boolean;
+  isBuffering?: boolean;
 }
 
 /**
@@ -31,6 +32,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
   onReadAloudSummary,
   onFullCastGenerateImage,
   isUIVisible = true,
+  isBuffering,
   ...controlsProps
 }) => {
   console.log('[ReaderControlsContainer] Rendering. isUIVisible:', isUIVisible);
@@ -75,6 +77,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
             onFullCastGenerateImage={onFullCastGenerateImage}
             fullCastStatus={fullCastStatus}
             fullCastBuffered={fullCastBuffered}
+            isBuffering={isBuffering}
           />
         </div>
       </div>
@@ -93,6 +96,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
             onFullCastGenerateImage={onFullCastGenerateImage}
             fullCastStatus={fullCastStatus}
             fullCastBuffered={fullCastBuffered}
+            isBuffering={isBuffering}
           />
         </div>
       </div>

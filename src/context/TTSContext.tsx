@@ -13,6 +13,7 @@ export interface TTSState {
     currentChapterTitle: string | null; // Store chapter title for display
     currentChunkIndex: number;
     progressPercentage: number;
+    isBuffering: boolean; // Indicates if player is waiting for data
 }
 
 export interface TTSContextValue extends TTSState {
@@ -30,12 +31,23 @@ export interface TTSContextValue extends TTSState {
 
     // Methods to load a book into the global player
     loadBook: (bookId: string, bookTitle: string, bookAuthor: string, chapterTitle: string, initialChapterId?: string, initialChunkIndex?: number) => Promise<void>;
+
+    // Register Player Capabilities (Dependency Injection)
+    registerCapabilities: (caps: {
+        checkAudioAvailability: (index: number) => Promise<boolean>,
+        prioritizeChunk: (index: number) => void
+    }) => void;
+
+    // Direct access for consumers
+    checkAudioAvailability: (index: number) => Promise<boolean>;
+    prioritizeChunk: (index: number) => void;
 }
 
 const defaultState: TTSState = {
     isPlaying: false,
     isPaused: false,
     isLoading: false,
+    isBuffering: false,
     playbackRate: 1.0,
     currentBookId: null,
     currentBookTitle: null,
@@ -73,7 +85,8 @@ const getInitialState = (): TTSState => {
                 ...parsed,
                 isPlaying: false,
                 isPaused: !!parsed.currentBookId, // Set paused if we have a book, so player shows
-                isLoading: false
+                isLoading: false,
+                isBuffering: false
             };
         }
     } catch (e) {
@@ -84,6 +97,15 @@ const getInitialState = (): TTSState => {
 
 export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
     const [state, setState] = useState<TTSState>(getInitialState);
+
+    // Dynamic Capabilities (Injected by Player)
+    const capabilitiesRef = React.useRef<{
+        checkAudioAvailability: (index: number) => Promise<boolean>;
+        prioritizeChunk: (index: number) => void;
+    }>({
+        checkAudioAvailability: async () => true, // Default: Assume yes if no player
+        prioritizeChunk: () => { }
+    });
 
     // Persist state changes
     React.useEffect(() => {
@@ -119,7 +141,7 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
     // Actions (to be implemented/connected to player)
     const play = useCallback(() => setTTSState({ isPlaying: true, isPaused: false }), [setTTSState]);
     const pause = useCallback(() => setTTSState({ isPlaying: false, isPaused: true }), [setTTSState]);
-    const stop = useCallback(() => setTTSState({ isPlaying: false, isPaused: false, currentBookId: null }), [setTTSState]);
+    const stop = useCallback(() => setTTSState({ isPlaying: false, isPaused: false, isBuffering: false, currentBookId: null }), [setTTSState]);
     const setPlaybackRate = useCallback((rate: number) => setTTSState({ playbackRate: rate }), [setTTSState]);
 
     const seekToChunk = useCallback((index: number) => {
@@ -150,6 +172,16 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
         // GlobalPlayer will react to this state change and start loading
     }, [setTTSState]);
 
+    const registerCapabilities = useCallback((caps: {
+        checkAudioAvailability: (index: number) => Promise<boolean>,
+        prioritizeChunk: (index: number) => void
+    }) => {
+        capabilitiesRef.current = caps;
+    }, []);
+
+    const checkAudioAvailability = useCallback((index: number) => capabilitiesRef.current.checkAudioAvailability(index), []);
+    const prioritizeChunk = useCallback((index: number) => capabilitiesRef.current.prioritizeChunk(index), []);
+
     const value: TTSContextValue = {
         ...state,
         play,
@@ -160,7 +192,10 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
         skipForward,
         skipBackward,
         setTTSState,
-        loadBook
+        loadBook,
+        checkAudioAvailability,
+        prioritizeChunk,
+        registerCapabilities
     };
 
     return (

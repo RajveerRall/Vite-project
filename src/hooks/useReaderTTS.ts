@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAnonymousUsageLimit } from './useAnonymousUsageLimit';
-import { useTTSChunking } from './tts/useTTSChunking';
 import { useTTS } from '../context/TTSContext';
+import { useToast } from '../context/ToastContext';
+import { useTTSChunking } from './tts/useTTSChunking';
 import { useTTSHighlighting } from './tts/useTTSHighlighting';
 
 export interface UseReaderTTSReturn {
@@ -11,6 +12,7 @@ export interface UseReaderTTSReturn {
     isSpeaking: boolean;
     isProcessing: boolean;
     isPaused: boolean;
+    isBuffering: boolean; // Add this
     resumeIndex: number | null;
     hasFinishedPlayback: boolean;
     useKokoroTTS: boolean;
@@ -81,15 +83,21 @@ export const useReaderTTS = ({
         isPlaying: globalIsPlaying,
         isPaused: globalIsPaused,
         isLoading: globalIsLoading,
+        isBuffering: globalIsBuffering, // Get this
         currentBookId: globalBookId,
+        currentChapterId: globalChapterId,
         currentChunkIndex: globalChunkIndex,
         play: globalPlay,
         pause: globalPause,
         stop: globalStop,
         loadBook,
         setPlaybackRate: globalSetRate,
-        seekToChunk: globalSeek
+        seekToChunk: globalSeek,
+        checkAudioAvailability,
+        prioritizeChunk
     } = useTTS();
+
+    const { addToast } = useToast();
 
     // === Local Processing ===
     const chunkingHook = useTTSChunking({ text: currentPageText });
@@ -97,10 +105,14 @@ export const useReaderTTS = ({
 
     // === Derived State ===
     const isGlobalActive = globalBookId === effectiveBookId;
-    const isSpeaking = isGlobalActive && globalIsPlaying;
-    const isPaused = isGlobalActive && globalIsPaused;
-    const isProcessing = isGlobalActive && globalIsLoading;
-    const currentChunkIndex = isGlobalActive ? globalChunkIndex : null;
+    // CRITICAL FIX: Only consider global state active for THIS chapter
+    const isChapterActive = isGlobalActive && (globalChapterId === currentChapterHref);
+
+    const isSpeaking = isChapterActive && globalIsPlaying;
+    const isPaused = isChapterActive && globalIsPaused;
+    const isProcessing = isChapterActive && globalIsLoading;
+    const isBuffering = isChapterActive && globalIsBuffering;
+    const currentChunkIndex = isChapterActive ? globalChunkIndex : null;
 
     const [useKokoroTTS] = useState(false);
 
@@ -210,11 +222,22 @@ export const useReaderTTS = ({
 
         // 2. Playback logic branches
         // If we found a specific target (selection), we ALWAYS jump there
+        // If we found a specific target (selection), we ALWAYS jump there
         if (targetIndex !== null) {
             if (!effectiveBookId) {
                 console.error('[useReaderTTS] No effectiveBookId for playback');
                 return;
             }
+
+            // Smart Scrubbing Check
+            const isAvailable = await checkAudioAvailability(targetIndex);
+            if (!isAvailable) {
+                console.log(`[SmartScrub] Target chunk ${targetIndex} missing. Prioritizing.`);
+                prioritizeChunk(targetIndex);
+                addToast('Please wait while this part of the chapter is being generated...', 'info');
+                // Proceed to seek anyway - Player will buffer
+            }
+
             console.log(`[useReaderTTS] JUMP to #${targetIndex} in "${targetHref}"`);
 
             // If already playing this book/chapter, we can just seek? 
@@ -256,28 +279,65 @@ export const useReaderTTS = ({
         // Stub
     }, []);
 
-    const handlePreviousSentence = useCallback(() => {
+    const handlePreviousSentence = useCallback(async () => {
         if (isGlobalActive && currentChunkIndex !== null && currentChunkIndex > 0) {
-            globalSeek(currentChunkIndex - 1);
+            const target = currentChunkIndex - 1;
+            if (await checkAudioAvailability(target)) {
+                globalSeek(target);
+            } else {
+                prioritizeChunk(target);
+                addToast('Please wait while this part is generated...', 'info');
+            }
         }
-    }, [isGlobalActive, currentChunkIndex, globalSeek]);
+    }, [isGlobalActive, currentChunkIndex, globalSeek, checkAudioAvailability, prioritizeChunk, addToast]);
 
-    const handleNextSentence = useCallback(() => {
+    const handleNextSentence = useCallback(async () => {
         if (isGlobalActive && currentChunkIndex !== null) {
-            globalSeek(currentChunkIndex + 1);
+            const target = currentChunkIndex + 1;
+            // For next sentence, we might want to be more lenient? The player handles "waiting" automatically for sequential playback.
+            // BUT if the user explicitly CLICKS "Next", we might want to ensure it's there?
+            // Actually, PersistentPlayer.playChunk ALREADY handles waiting for sequential next.
+            // But GlobalSeek forces a jump which might bypass "waiting" state if we aren't careful?
+            // PersistentPlayer `playChunk` sets `isBuffering`.
+            // So actually, for Next/Prev buttons, we might simply let the Player handle the buffering state!
+            // Why? Because `globalSeek` eventually calls `playChunk`.
+            // The only reason we intercepted `handleTTS` (click to seek) is to prevent the **Highlight Jump**.
+
+            // If I click Next, I EXPECT the highlight to move to Next. If it buffers, it should show buffering.
+            // The issue with Click-to-seek was jumping to a paragraph way down the page and having silence.
+
+            // So actually, maybe we DON'T need to block Next/Prev? 
+            // "Prevent the highlight from jumping to un-downloaded audio segments."
+            // If I click Next, and it jumps, and buffers... is that bad?
+            // Yes, if it stays silent for 5 seconds.
+
+            // I will apply the same strict check.
+            if (await checkAudioAvailability(target)) {
+                globalSeek(target);
+            } else {
+                prioritizeChunk(target);
+                addToast('Please wait while this part is generated...', 'info');
+            }
         }
-    }, [isGlobalActive, currentChunkIndex, globalSeek]);
+    }, [isGlobalActive, currentChunkIndex, globalSeek, checkAudioAvailability, prioritizeChunk, addToast]);
 
     const handlePreviewScroll = useCallback((_percentage: number) => {
         // Placeholder
     }, []);
 
-    const handleSeekToPercentage = useCallback((percentage: number) => {
+    const handleSeekToPercentage = useCallback(async (percentage: number) => {
         if (chunks.length > 0) {
             const index = Math.floor((percentage / 100) * chunks.length);
-            globalSeek(Math.min(index, chunks.length - 1));
+            const target = Math.min(index, chunks.length - 1);
+
+            if (await checkAudioAvailability(target)) {
+                globalSeek(target);
+            } else {
+                prioritizeChunk(target);
+                addToast('Please wait while this part is generated...', 'info');
+            }
         }
-    }, [chunks.length, globalSeek]);
+    }, [chunks.length, globalSeek, checkAudioAvailability, prioritizeChunk, addToast]);
 
     const setPlaybackRate = useCallback((rate: number) => {
         globalSetRate(rate);
@@ -290,6 +350,7 @@ export const useReaderTTS = ({
         isSpeaking,
         isProcessing,
         isPaused,
+        isBuffering,
         resumeIndex: currentChunkIndex || 0,
         hasFinishedPlayback: !isSpeaking && !isPaused && wasPlayingRef.current === false && currentChunkIndex === chunks.length - 1,
         useKokoroTTS,

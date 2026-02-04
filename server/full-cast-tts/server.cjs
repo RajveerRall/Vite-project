@@ -2817,9 +2817,42 @@ app.post('/api/analyze-scenes', async (req, res) => {
       throw new Error(`Gemini LLM not available${hasKey ? ' (model not registered)' : ' (GEMINI_API_KEY missing)'}`);
     }
 
-    const startTime = Date.now();
-    const response = await llm.execute(prompt);
+    // Retry logic for Scene Analysis (handle 429/503 errors)
+    let response = null;
+    let lastError = null;
+    const MAX_RETRIES = 3;
 
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        if (attempt > 0) {
+          const delay = 1000 * Math.pow(2, attempt); // 2s, 4s, 8s
+          console.log(`[analyze-scenes] Retry attempt ${attempt}/${MAX_RETRIES} after ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        const startTime = Date.now(); // Track specific attempt time
+        response = await llm.execute(prompt);
+        break; // Success
+      } catch (err) {
+        lastError = err;
+        const msg = err.message || String(err);
+        // Only retry on rate limits (429) or transient server errors (503)
+        const isRetryable = msg.includes('429') || msg.includes('Too Many Requests') || msg.includes('503') || msg.includes('Quota exceeded');
+
+        if (!isRetryable) {
+          console.error(`[analyze-scenes] Non-retryable error: ${msg}`);
+          throw err;
+        }
+
+        console.warn(`[analyze-scenes] Limit hit on attempt ${attempt}: ${msg}`);
+        if (attempt === MAX_RETRIES) {
+          console.error(`[analyze-scenes] Max retries reached.`);
+          throw new Error(`Scene analysis failed after ${MAX_RETRIES} retries due to rate limits. Please try again later.`);
+        }
+      }
+    }
+
+    // response is guaranteed to be set if we break the loop, or we threw an error
     console.log(`[analyze-scenes] LLM response received (${response.length} chars)`);
 
     // Parse JSON response (handle markdown code blocks and validate/repair)

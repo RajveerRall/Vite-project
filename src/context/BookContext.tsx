@@ -1117,8 +1117,33 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
         }
       }
 
-      // PRIORITY 2: If no URL param, try to use the lastChapter if it exists and is valid
-      if (urlPageParam === null) {
+      const urlChapterParam = urlParams.get('chapter');
+      if (pageIdxToLoadInitially === 0 && urlChapterParam) {
+        console.log(`[openBook] Found URL chapter parameter: ${urlChapterParam}`);
+        // Logic similar to lastChapter matching
+        const chapterPath = urlChapterParam.split('#')[0];
+        const pageIndexFromChapterParam = currentFileOrder.findIndex(file => {
+          // Strategy 1: Exact match
+          if (file === chapterPath) return true;
+          // Strategy 2: File ends with the chapter path
+          if (file.endsWith('/' + chapterPath)) return true;
+          // Strategy 3: Chapter path ends with the file name
+          const fileName = file.split('/').pop() || '';
+          const chapterFileName = chapterPath.split('/').pop() || '';
+          if (fileName === chapterFileName && fileName.length > 0) return true;
+          return false;
+        });
+
+        if (pageIndexFromChapterParam !== -1) {
+          pageIdxToLoadInitially = pageIndexFromChapterParam;
+          console.log(`[openBook] Matched URL chapter param to page: ${pageIdxToLoadInitially}`);
+        } else {
+          console.warn(`[openBook] Could not match URL chapter param: ${urlChapterParam}`);
+        }
+      }
+
+      // PRIORITY 2: If no URL param (page or chapter), try to use the lastChapter if it exists and is valid
+      if (urlPageParam === null && urlChapterParam === null) {
         console.log(`[openBook] Book restoration data - currentPage: ${book.currentPage}, lastChapter: ${book.lastChapter?.label || 'none'}`);
 
         // First, try to use the lastChapter if it exists and is valid
@@ -1164,12 +1189,12 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       }
 
       // Final fallback: if we still have pageIdxToLoadInitially === 0 and no URL param was set
-      if (pageIdxToLoadInitially === 0 && urlPageParam === null && book.currentPage != null && book.currentPage >= 0 && book.currentPage < currentFileOrder.length) {
+      if (pageIdxToLoadInitially === 0 && urlPageParam === null && urlChapterParam === null && book.currentPage != null && book.currentPage >= 0 && book.currentPage < currentFileOrder.length) {
         pageIdxToLoadInitially = book.currentPage;
         console.log(`[openBook] Final fallback: Using saved currentPage: ${book.currentPage}`);
       }
 
-      if (pageIdxToLoadInitially === 0 && urlPageParam === null && !book.lastChapter && (!book.currentPage || book.currentPage === 0)) {
+      if (pageIdxToLoadInitially === 0 && urlPageParam === null && urlChapterParam === null && !book.lastChapter && (!book.currentPage || book.currentPage === 0)) {
         console.log(`[openBook] No valid saved position found, attempting to detect substantial page...`);
         try {
           const detectionIndex = await ContentDetectionService.findFirstSubstantialPage(

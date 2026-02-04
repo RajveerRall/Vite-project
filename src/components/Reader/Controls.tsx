@@ -64,7 +64,10 @@ export interface ControlsProps {
   isMobile?: boolean;
   theme?: 'light' | 'dark' | 'sepia';
   // Settings
+  // Settings
   onOpenSettings?: () => void;
+  // Buffering state (for displaying spinner)
+  isBuffering?: boolean;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -104,7 +107,8 @@ const Controls: React.FC<ControlsProps> = ({
   onFullCastGenerateImage,
   isMobile,
   theme,
-  onOpenSettings
+  onOpenSettings,
+  isBuffering = false // Default to false
 }) => {
   const {
     usedMinutes: fcUsed,
@@ -154,6 +158,14 @@ const Controls: React.FC<ControlsProps> = ({
       return {
         icon: 'loading',
         title: 'Preparing audio...',
+        disabled: true,
+      };
+    }
+
+    if (isBuffering) {
+      return {
+        icon: 'loading',
+        title: 'Buffering audio...',
         disabled: true,
       };
     }
