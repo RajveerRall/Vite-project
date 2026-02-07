@@ -19,7 +19,7 @@ import { useAuth } from "./AuthContext";
 // import { generateUUID } from '../lib/utils'; // Phase 2: No longer needed directly (handled by hooks)
 import { registerAdapter, getAdapterForFile } from './book/formats';
 import { epubAdapter } from './book/formats/epubAdapter';
-import { pdfAdapter } from './book/formats/pdfAdapter';
+// import { pdfAdapter } from './book/formats/pdfAdapter';
 import { mobiAdapter } from './book/formats/mobiAdapter';
 import { ContentDetectionService } from '../services/books/ContentDetectionService';
 // import { saveReaderState } from '../utils/readerState'; // Phase 3: Now handled by useBookNavigation hook
@@ -116,7 +116,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
   useEffect(() => {
     try {
       registerAdapter(epubAdapter);
-      registerAdapter(pdfAdapter);
+      // registerAdapter(pdfAdapter);
       registerAdapter(mobiAdapter);
     } catch { }
   }, []);

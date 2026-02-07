@@ -27,7 +27,7 @@ export class BookParsingService {
   static async parseBookFile(file: File): Promise<BookMetadata> {
     const adapter = await getAdapterForFile(file);
     if (!adapter) {
-      throw new Error('Unsupported format. Currently supported: EPUB, PDF, MOBI');
+      throw new Error('Unsupported format. Currently supported: EPUB, MOBI');
     }
 
     const { meta } = await adapter.open(file);
@@ -46,7 +46,7 @@ export class BookParsingService {
   static async parseEpubDirectly(file: File): Promise<BookMetadata> {
     const zip = new JSZip();
     const loadedZip = await zip.loadAsync(file);
-    
+
     const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
     if (!containerXml) {
       throw new Error('Invalid EPUB: container.xml not found');
@@ -56,14 +56,14 @@ export class BookParsingService {
     const parser = new DOMParser();
     const containerDoc = parser.parseFromString(containerXml, 'application/xml');
     const rootfiles = containerDoc.getElementsByTagName('rootfile');
-    
+
     if (rootfiles.length === 0) {
       throw new Error('Invalid EPUB: No rootfile found');
     }
 
     const opfPath = rootfiles[0].getAttribute('full-path') || '';
     const opfContent = await loadedZip.file(opfPath)?.async('text');
-    
+
     if (!opfContent) {
       throw new Error(`Invalid EPUB: OPF file not found at ${opfPath}`);
     }
@@ -71,7 +71,7 @@ export class BookParsingService {
     const opfDoc = parser.parseFromString(opfContent, 'application/xml');
     const titleElement = opfDoc.getElementsByTagName('dc:title')[0];
     const authorElement = opfDoc.getElementsByTagName('dc:creator')[0];
-    
+
     const title = titleElement?.textContent?.trim() || 'Unknown Title';
     const author = authorElement?.textContent?.trim() || 'Unknown Author';
 

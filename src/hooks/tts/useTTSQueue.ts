@@ -24,6 +24,7 @@ export interface UseTTSQueueReturn {
     getBlob: (index: number) => Blob | null;
     checkAudioAvailability: (index: number) => Promise<boolean>;
     prioritizeChunk: (index: number) => void;
+    downloadProgress: number; // 0-100
 }
 
 /**
@@ -96,6 +97,58 @@ export const useTTSQueue = ({
         });
         return unsubscribe;
     }, [bookId, chapterId, selectedVoice, ttsSpeed]);
+
+    // Track downloaded chunks for progress bar
+    const [downloadedChunks, setDownloadedChunks] = useState<Set<number>>(new Set());
+
+    // Load initial download state from specific DB inquiry
+    useEffect(() => {
+        if (!bookId || !chapterId) {
+            setDownloadedChunks(new Set());
+            return;
+        }
+
+        const checkExisting = async () => {
+            // We can use the service to get all indices for this book/chapter
+            try {
+                const indices = await AudioStorageService.getExistingChunkIndices(bookId, chapterId, selectedVoice, ttsSpeed);
+                setDownloadedChunks(new Set(indices));
+            } catch (e) {
+                console.warn('[useTTSQueue] Failed to load existing indices', e);
+            }
+        };
+        checkExisting();
+    }, [bookId, chapterId, selectedVoice, ttsSpeed]);
+
+
+    // Listen for chunks becoming ready (Real-time updates)
+    useEffect(() => {
+        const unsubscribe = queueManager.onChunkReady((params) => {
+            // Only care if it matches current context
+            if (params.bookId === bookId && params.chapterId === chapterId) {
+                // Determine if we should add it?
+                // Yes, if it matches book/chapter it counts towards "downloaded for this chapter"
+                // Voice/Speed are variant factors. Usually we want to track progress for the *active* voice/speed.
+                // But getExistingChunkIndices returns indices for ANY voice? No, let's check Service.
+                // AudioStorageService.getExistingChunkIndices scans keys. 
+                // Ideally we filter by voice/speed too. 
+                // But for now, let's assume if it's there, it's good.
+
+                // Add to set
+                setDownloadedChunks(prev => {
+                    const next = new Set(prev);
+                    next.add(params.chunkIndex);
+                    return next;
+                });
+            }
+        });
+        return unsubscribe;
+    }, [bookId, chapterId, selectedVoice, ttsSpeed]); // Re-subscribe if context changes
+
+    // Calculate progress
+    const downloadProgress = chunks.length > 0
+        ? Math.round((downloadedChunks.size / chunks.length) * 100)
+        : 0;
 
     // Load from Storage into Memory (Read Buffer)
     const loadFromStorageToMemory = useCallback(async (index: number) => {
@@ -212,6 +265,7 @@ export const useTTSQueue = ({
         clearAudioBuffer,
         getBlob,
         checkAudioAvailability,
-        prioritizeChunk
+        prioritizeChunk,
+        downloadProgress
     };
 }

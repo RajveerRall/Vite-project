@@ -23,7 +23,8 @@
     "supabase:functions:deploy": "supabase functions deploy",
     "supabase:functions:deploy:webhook": "supabase functions deploy dodo-webhook",
     "supabase:functions:logs": "supabase functions logs",
-    "clean-dist": "rm -rf dist"
+    "clean-dist": "rm -rf dist",
+    "generate-assets": "capacitor-assets generate --android"
   },
   "dependencies": {
     "@capacitor/app": "^7.1.0",

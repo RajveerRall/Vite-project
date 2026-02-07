@@ -371,6 +371,7 @@ const Reader: React.FC = () => {
     highlightedContent: ttsHighlightedContent,
     setPlaybackRate,
     anonymousLimit,
+    downloadProgress,
   } = ttsHook;
 
   // Also check subscription limit status (moved here after isSpeaking/isProcessing are defined)
@@ -678,6 +679,7 @@ const Reader: React.FC = () => {
         }}
         onOpenSettings={toggleSettings}
         isUIVisible={isUIVisible}
+        downloadProgress={downloadProgress}
       />
       {showFeatureHighlight && (<FeatureHighlight onClose={closeFeatureHighlight} />)}
 

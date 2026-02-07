@@ -63,7 +63,8 @@ export const PersistentTTSPlayer: React.FC = () => {
         clearAudioBuffer, // Clears memory buffer (not storage)
         getBlob, // Get blob from memory
         checkAudioAvailability,
-        prioritizeChunk
+        prioritizeChunk,
+        downloadProgress
     } = useTTSQueue({
         chunks,
         bookId: currentBookId || '',
@@ -397,8 +398,11 @@ export const PersistentTTSPlayer: React.FC = () => {
         const progress = chunks.length > 0
             ? Math.round(((currentChunkIndex + 1) / chunks.length) * 100)
             : 0;
-        setTTSState({ progressPercentage: progress });
-    }, [currentChunkIndex, chunks.length, setTTSState]);
+        setTTSState({
+            progressPercentage: progress,
+            downloadProgress: downloadProgress
+        });
+    }, [currentChunkIndex, chunks.length, downloadProgress, setTTSState]);
 
     // Register capabilities with Context
     useEffect(() => {

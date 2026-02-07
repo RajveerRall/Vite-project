@@ -13,6 +13,7 @@ export interface TTSState {
     currentChapterTitle: string | null; // Store chapter title for display
     currentChunkIndex: number;
     progressPercentage: number;
+    downloadProgress: number; // Percentage of chunks downloaded (0-100)
     isBuffering: boolean; // Indicates if player is waiting for data
 }
 
@@ -55,7 +56,8 @@ const defaultState: TTSState = {
     currentChapterId: null,
     currentChapterTitle: null,
     currentChunkIndex: 0,
-    progressPercentage: 0
+    progressPercentage: 0,
+    downloadProgress: 0
 };
 
 const TTSContext = createContext<TTSContextValue | undefined>(undefined);
@@ -117,6 +119,7 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
             currentChapterTitle: state.currentChapterTitle,
             currentChunkIndex: state.currentChunkIndex,
             progressPercentage: state.progressPercentage,
+            downloadProgress: state.downloadProgress,
             playbackRate: state.playbackRate
         };
         localStorage.setItem(TTS_STATE_KEY, JSON.stringify(stateToSave));
@@ -128,6 +131,7 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
         state.currentChapterTitle,
         state.currentChunkIndex,
         state.progressPercentage,
+        state.downloadProgress,
         state.playbackRate
     ]);
 

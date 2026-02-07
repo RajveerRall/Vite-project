@@ -10,19 +10,19 @@ const SpeechifyAlternative: React.FC = () => {
   const faqs = [
     {
       question: "Is there a free alternative to Speechify?",
-      answer: "Yes, Yoread.com is a completely free Speechify alternative. Unlike Speechify, Yoread offers unlimited text-to-speech conversion for PDFs, ePubs, and documents without requiring a credit card or a premium subscription."
+      answer: "Yes, Yoread.com is a completely free Speechify alternative. Unlike Speechify, Yoread offers unlimited text-to-speech conversion for ePubs and documents without requiring a credit card or a premium subscription."
     },
     {
       question: "Does Yoread have a word limit like Speechify?",
       answer: "No, Yoread is designed to be unlimited. You can upload long textbooks, research papers, or novels and listen to the entire document without hitting the premium voice limits found in other tools."
     },
     {
-      question: "Can I listen to PDFs for free without signing up?",
-      answer: "Yes. Yoread allows you to convert PDF to audio immediately in your browser. There is no need to create an account, download an app, or log in to start listening."
+      question: "Can I listen to books for free without signing up?",
+      answer: "Yes. Yoread allows you to convert ebooks to audio immediately in your browser. There is no need to create an account, download an app, or log in to start listening."
     },
     {
       question: "What file formats does Yoread support?",
-      answer: "Yoread supports a wide range of formats including PDF, ePub (eBooks), DOCX (Word), AZW3 (Kindle), and standard text files, making it a versatile tool for students and readers."
+      answer: "Yoread supports a wide range of formats including ePub (eBooks), DOCX (Word), AZW3 (Kindle), and standard text files, making it a versatile tool for students and readers."
     }
   ];
 
@@ -42,20 +42,20 @@ const SpeechifyAlternative: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <SEO 
+      <SEO
         title="The Best Free Speechify Alternative (2025) | Unlimited Text to Speech"
         description="Looking for a Speechify alternative? Yoread offers free, unlimited text to speech with natural voices. No credit card required."
         keywords={['Speechify alternative', 'free text to speech', 'unlimited TTS', 'free Speechify', 'text to speech free', 'TTS alternative', 'Voiceforge browser tool', 'Natural Reader alternative']}
         url="https://yoread.com/speechify-alternative"
       />
-      
+
       {/* FAQ Schema Structured Data */}
       <Helmet>
         <script type="application/ld+json">
           {JSON.stringify(faqSchema)}
         </script>
       </Helmet>
-      
+
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -71,7 +71,7 @@ const SpeechifyAlternative: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Hero Section */}
         <div className="text-center mb-12">
@@ -99,7 +99,7 @@ const SpeechifyAlternative: React.FC = () => {
             }}
           >
             <span className="relative z-10">Try Yoread for Free</span>
-            <div 
+            <div
               className="absolute inset-0 pointer-events-none"
               style={{
                 background: 'linear-gradient(to bottom, transparent 0%, transparent 50%, rgba(0, 0, 0, 0.3) 100%)'
@@ -207,7 +207,7 @@ const SpeechifyAlternative: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       <Footer />
     </div>
   );

@@ -138,8 +138,7 @@ const AppContent: React.FC = () => {
 
         // Ensure we have an extension if possible
         if (!filename.includes('.')) {
-          if (blob.type === 'application/pdf') filename += '.pdf';
-          else if (blob.type === 'application/epub+zip') filename += '.epub';
+          if (blob.type === 'application/epub+zip') filename += '.epub';
         }
 
         const file = new File([blob], filename, { type: blob.type });
@@ -287,11 +286,11 @@ const AppContent: React.FC = () => {
           <EpubToAudiobook />
         </React.Suspense>
       } />
-      <Route path="/ai-pdf-reader" element={
+      {/* <Route path="/ai-pdf-reader" element={
         <React.Suspense fallback={<LazyRouteFallback />}>
           <AIPDFReader />
         </React.Suspense>
-      } />
+      } /> */}
       <Route path="/speechify-alternative" element={
         <React.Suspense fallback={<LazyRouteFallback />}>
           <SpeechifyAlternative />

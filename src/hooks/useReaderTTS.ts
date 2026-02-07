@@ -19,6 +19,7 @@ export interface UseReaderTTSReturn {
     highlightedContent: string;
     activeChunk: string | null;
     bufferedChunksCount: number;
+    downloadProgress: number; // 0-100
 
     // TTS Controls
     handleTTS: (selectedText?: string) => void;
@@ -94,7 +95,8 @@ export const useReaderTTS = ({
         setPlaybackRate: globalSetRate,
         seekToChunk: globalSeek,
         checkAudioAvailability,
-        prioritizeChunk
+        prioritizeChunk,
+        downloadProgress // Get this
     } = useTTS();
 
     const { addToast } = useToast();
@@ -357,6 +359,7 @@ export const useReaderTTS = ({
         highlightedContent,
         activeChunk,
         bufferedChunksCount: 0,
+        downloadProgress,
 
         handleTTS,
         handleStopTTS,

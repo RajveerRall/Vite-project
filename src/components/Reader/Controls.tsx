@@ -68,6 +68,7 @@ export interface ControlsProps {
   onOpenSettings?: () => void;
   // Buffering state (for displaying spinner)
   isBuffering?: boolean;
+  downloadProgress?: number;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -108,7 +109,8 @@ const Controls: React.FC<ControlsProps> = ({
   isMobile,
   theme,
   onOpenSettings,
-  isBuffering = false // Default to false
+  isBuffering = false, // Default to false
+  downloadProgress = 0
 }) => {
   const {
     usedMinutes: fcUsed,
@@ -257,6 +259,7 @@ const Controls: React.FC<ControlsProps> = ({
           {/* Chapter Progress Bar */}
           <InteractiveProgressBar
             progress={chapterProgress}
+            downloadProgress={downloadProgress}
             onPreview={onPreviewScroll || (() => { })}
             onSeek={onSeekToPercentage || (() => { })}
             isActive={!!(onPreviewScroll && onSeekToPercentage) && isReadModeActive && !isDisabledDueToLimit}

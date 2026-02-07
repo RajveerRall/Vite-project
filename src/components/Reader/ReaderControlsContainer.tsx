@@ -15,6 +15,7 @@ export interface ReaderControlsContainerProps extends ControlsProps {
   theme?: 'light' | 'dark' | 'sepia';
   isUIVisible?: boolean;
   isBuffering?: boolean;
+  downloadProgress?: number;
 }
 
 /**
@@ -33,9 +34,11 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
   onFullCastGenerateImage,
   isUIVisible = true,
   isBuffering,
+  downloadProgress,
   ...controlsProps
 }) => {
-  console.log('[ReaderControlsContainer] Rendering. isUIVisible:', isUIVisible);
+  // console.log('[ReaderControlsContainer] Rendering. isUIVisible:', isUIVisible);
+
   // Create handlers that include analytics tracking
   const handleFullCastStop = () => {
     trackEvent('full_cast_stop', {
@@ -64,8 +67,8 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
   return (
     <>
       {/* Mobile Controls */}
-      <div className={`reader-bottom-controls fixed bottom-0 left-0 right-0 border-t border-gray-200 shadow-lg z-30 md:hidden ${!isUIVisible ? 'reader-ui-hidden' : ''}`}>
-        <div className="px-4 py-3">
+      <div className={`reader-bottom-controls-mobile md:hidden fixed bottom-0 left-0 right-0 z-30 ${!isUIVisible ? 'reader-ui-hidden' : ''}`}>
+        <div className="px-4 py-2">
           <Controls
             {...controlsProps}
             onFullCastStop={handleFullCastStop}
@@ -78,6 +81,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
             fullCastStatus={fullCastStatus}
             fullCastBuffered={fullCastBuffered}
             isBuffering={isBuffering}
+            downloadProgress={downloadProgress}
           />
         </div>
       </div>
@@ -97,10 +101,10 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
             fullCastStatus={fullCastStatus}
             fullCastBuffered={fullCastBuffered}
             isBuffering={isBuffering}
+            downloadProgress={downloadProgress}
           />
         </div>
       </div>
     </>
   );
 };
-

@@ -32,7 +32,7 @@ export function useBookLibrary(
         // Detect and open via registered adapter
         const adapter = await getAdapterForFile(file);
         if (!adapter) {
-          throw new Error('Unsupported format. Currently supported: EPUB, PDF, MOBI');
+          throw new Error('Unsupported format. Currently supported: EPUB, MOBI');
         }
 
         // Use adapter.open to obtain metadata
