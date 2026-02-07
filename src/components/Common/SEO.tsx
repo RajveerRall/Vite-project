@@ -60,7 +60,7 @@ const SEO: React.FC<SEOProps> = ({
           name: 'Vite Reader',
           logo: {
             '@type': 'ImageObject',
-            url: '/assets/yologo.webp',
+            url: '/assets/yologo.png',
           },
         },
         datePublished: publishedAt,
@@ -89,10 +89,10 @@ const SEO: React.FC<SEOProps> = ({
       <meta name="author" content={author} />
       <meta name="robots" content="index, follow" />
       <meta name="googlebot" content="index, follow" />
-      
+
       {/* Canonical URL */}
       {url && <link rel="canonical" href={url} />}
-      
+
       {/* Open Graph / Facebook */}
       <meta property="og:type" content={type} />
       <meta property="og:title" content={title} />
@@ -109,19 +109,19 @@ const SEO: React.FC<SEOProps> = ({
       {tags.map((tag, index) => (
         <meta key={index} property="article:tag" content={tag} />
       ))}
-      
+
       {/* Twitter */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={cleanDescription} />
       {image && <meta name="twitter:image" content={image} />}
-      
+
       {/* Additional SEO Meta Tags */}
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
       <meta name="language" content="English" />
       <meta name="revisit-after" content="7 days" />
-      
+
       {/* Article-specific meta tags */}
       {type === 'article' && (
         <>
@@ -133,14 +133,14 @@ const SEO: React.FC<SEOProps> = ({
           ))}
         </>
       )}
-      
+
       {/* Structured Data */}
       {structuredData && (
         <script type="application/ld+json">
           {JSON.stringify(structuredData)}
         </script>
       )}
-      
+
       {/* Additional structured data for blog */}
       {type === 'article' && (
         <script type="application/ld+json">

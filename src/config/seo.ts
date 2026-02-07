@@ -7,8 +7,8 @@ export const SEO_CONFIG = {
     title: 'Vite Reader - Digital Reading & Blog Platform',
     description: 'Discover a world of digital reading and insightful blog content. Explore books, articles, and stories in a modern, reader-friendly platform.',
     url: 'https://yoread.com', // Updated with actual domain
-    logo: '/assets/yologo.webp', // Updated with actual logo path
-    favicon: '/assets/yologo.webp',
+    logo: '/assets/yologo.png', // Updated with actual logo path
+    favicon: '/assets/yologo.ico',
     language: 'en-US',
     author: 'Vite Reader Team',
   },
@@ -51,23 +51,23 @@ export const SEO_CONFIG = {
   optimization: {
     // Meta description length (Google recommends 150-160 characters)
     maxDescriptionLength: 160,
-    
+
     // Title length (Google displays 50-60 characters)
     maxTitleLength: 60,
-    
+
     // Keywords limit
     maxKeywords: 10,
-    
+
     // Tags limit
     maxTags: 8,
-    
+
     // Reading time calculation
     wordsPerMinute: 200,
-    
+
     // Image optimization
     ogImageWidth: 1200,
     ogImageHeight: 630,
-    
+
     // Canonical URL settings
     canonicalBaseUrl: 'https://yoread.com', // Updated with actual domain
   },
@@ -76,15 +76,15 @@ export const SEO_CONFIG = {
   content: {
     // Minimum content length for good SEO
     minWordCount: 300,
-    
+
     // Optimal content length for blog posts
     optimalWordCount: 1500,
-    
+
     // Reading time thresholds
     shortRead: 3, // minutes
     mediumRead: 7, // minutes
     longRead: 15, // minutes
-    
+
     // Content structure recommendations
     recommendedHeadings: ['h1', 'h2', 'h3', 'h4'],
     recommendedParagraphs: 3, // minimum paragraphs per section
@@ -98,7 +98,7 @@ export const SEO_CONFIG = {
       crawlDelay: 1,
       sitemapUrl: '/sitemap.xml',
     },
-    
+
     // Sitemap settings
     sitemap: {
       changefreq: {
@@ -114,13 +114,13 @@ export const SEO_CONFIG = {
         static: 0.6,
       },
     },
-    
+
     // Schema.org markup
     schema: {
       organization: {
         name: 'Vite Reader',
         url: 'https://yoread.com',
-        logo: 'https://yoread.com/assets/yologo.webp',
+        logo: 'https://yoread.com/assets/yologo.png',
         sameAs: [
           'https://twitter.com/vitereader',
           'https://linkedin.com/company/vite-reader',
@@ -142,7 +142,7 @@ export const SEO_CONFIG = {
       sizes: [200, 400, 800, 1200],
       quality: 85,
     },
-    
+
     // Caching
     cache: {
       static: '1 year',

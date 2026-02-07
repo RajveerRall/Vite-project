@@ -159,7 +159,7 @@ const Header: React.FC = () => {
             <Link to="/" className="flex items-center gap-3 group">
               <div>
                 <img
-                  src="/assets/yologo.webp"
+                  src="/assets/yologo.png"
                   alt="YoRead Logo"
                   className="h-10 w-10 sm:h-12 sm:w-12 object-contain transition-transform duration-200 group-hover:scale-105"
                 />
@@ -258,8 +258,8 @@ const Header: React.FC = () => {
                 {!isAuthenticated && anonymousLimit && (
                   <div className="flex items-center gap-2 text-sm">
                     <div className={`px-3 py-1 rounded-full ${anonymousLimit.isLimitReached ? 'bg-red-100 text-red-700' :
-                        anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
-                          'bg-gray-100 text-gray-700'
+                      anonymousLimit.isCritical ? 'bg-amber-100 text-amber-700' :
+                        'bg-gray-100 text-gray-700'
                       }`}>
                       <span className="font-medium">
                         {anonymousLimit.remainingMinutes}/{anonymousLimit.limitMinutes} min left
