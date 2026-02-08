@@ -159,7 +159,7 @@ const Header: React.FC = () => {
             <Link to="/" className="flex items-center gap-3 group">
               <div>
                 <img
-                  src="/assets/yologo.png"
+                  src="/assets/yologo.ico"
                   alt="YoRead Logo"
                   className="h-10 w-10 sm:h-12 sm:w-12 object-contain transition-transform duration-200 group-hover:scale-105"
                 />

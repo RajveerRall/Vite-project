@@ -112,7 +112,7 @@ const BookGrid: React.FC<BookGridProps> = ({ books }) => {
 
                         <div className="book-actions p-3 pt-0 flex gap-2">
                             <button
-                                className={`flex-1 flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg font-medium transition-all duration-200 ${book.isDownloading
+                                className={`flex-1 flex items-center justify-center gap-1.5 text-xs px-2 sm:px-3 py-2 rounded-lg font-medium transition-all duration-200 ${book.isDownloading
                                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                     : 'bg-amber-800 hover:bg-amber-900 text-white shadow-sm hover:shadow-md'
                                     }`}

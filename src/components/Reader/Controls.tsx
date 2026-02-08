@@ -391,7 +391,8 @@ const Controls: React.FC<ControlsProps> = ({
       {/* Original Action Buttons */}
       <div className="flex items-center gap-x-2 flex-shrink-0">
         {/* AI Summary Button - Mobile Only */}
-        {isMobile && (
+        {/* AI Summary Button - Mobile Only - DISABLED requested by user */}
+        {/* {isMobile && (
           <MobileAIChatDrawer
             theme={theme || 'light'}
             currentPageText={currentPageText}
@@ -401,7 +402,7 @@ const Controls: React.FC<ControlsProps> = ({
             isOpen={isAIChatDrawerOpen}
             onOpenChange={setIsAIChatDrawerOpen}
           />
-        )}
+        )} */}
 
 
         {/* Read Aloud Button */}

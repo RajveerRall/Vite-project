@@ -34,14 +34,14 @@ const SidePanelBar: React.FC<SidePanelBarProps> = ({ activePanel, onPanelChange,
       >
         <List className="w-5 h-5" />
       </button>
-      <button
+      {/* <button
         className={`side-panel-icon ${activePanel === 'ai-chat' ? 'active' : ''}`}
         onClick={handleAIChatClick}
         aria-label={activePanel === 'ai-chat' ? 'Close AI Summary' : 'Open AI Summary'}
         title={activePanel === 'ai-chat' ? 'Close AI Summary' : 'Open AI Summary'}
       >
         <MessageSquare className="w-5 h-5" />
-      </button>
+      </button> */}
     </div>
   );
 };
