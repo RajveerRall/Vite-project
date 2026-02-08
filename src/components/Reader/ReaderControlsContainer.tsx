@@ -67,7 +67,7 @@ export const ReaderControlsContainer: React.FC<ReaderControlsContainerProps> = (
   return (
     <>
       {/* Mobile Controls */}
-      <div className={`reader-bottom-controls-mobile md:hidden fixed bottom-0 left-0 right-0 z-30 ${!isUIVisible ? 'reader-ui-hidden' : ''}`}>
+      <div className={`reader-bottom-controls reader-bottom-controls-mobile md:hidden fixed bottom-0 left-0 right-0 z-30 ${!isUIVisible ? 'reader-ui-hidden' : ''}`}>
         <div className="px-4 py-2">
           <Controls
             {...controlsProps}
