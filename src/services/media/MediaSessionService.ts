@@ -1,4 +1,4 @@
-import { MusicControls } from 'capacitor-music-controls-plugin';
+import { CapacitorMusicControls } from 'capacitor-music-controls-plugin';
 import { Capacitor } from '@capacitor/core';
 
 /**
@@ -31,7 +31,7 @@ export class MediaSessionService {
         try {
             this.currentMetadata = metadata;
 
-            await MusicControls.create({
+            await CapacitorMusicControls.create({
                 track: metadata.chapterTitle || 'Chapter',
                 artist: metadata.bookAuthor || 'Unknown Author',
                 album: metadata.bookTitle,
@@ -70,7 +70,7 @@ export class MediaSessionService {
         }
 
         try {
-            await MusicControls.updateIsPlaying({ isPlaying });
+            await CapacitorMusicControls.updateIsPlaying({ isPlaying });
             console.log('[MediaSession] Updated playback state:', isPlaying ? 'playing' : 'paused');
         } catch (error) {
             console.error('[MediaSession] Failed to update playback state:', error);
@@ -112,7 +112,7 @@ export class MediaSessionService {
         }
 
         try {
-            await MusicControls.destroy();
+            await CapacitorMusicControls.destroy();
             this.isInitialized = false;
             this.currentMetadata = null;
             console.log('[MediaSession] Destroyed');
@@ -134,7 +134,7 @@ export class MediaSessionService {
             return () => { };
         }
 
-        const listener = MusicControls.addListener('controlsNotification', (info: any) => {
+        const listener = CapacitorMusicControls.addListener('controlsNotification', (info: any) => {
             console.log('[MediaSession] Control event:', info.message);
 
             switch (info.message) {
@@ -168,7 +168,7 @@ export class MediaSessionService {
         }
 
         try {
-            await MusicControls.listen();
+            await CapacitorMusicControls.listen();
             console.log('[MediaSession] Started listening for control events');
         } catch (error) {
             console.error('[MediaSession] Failed to start listening:', error);
