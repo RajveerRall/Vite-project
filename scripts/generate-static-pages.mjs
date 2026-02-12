@@ -52,7 +52,7 @@ if (!STRAPI_API_TOKEN) {
 async function fetchFromStrapi(query, variables = {}) {
   console.log('🔍 Making request to:', `${STRAPI_API_URL}/graphql`);
   console.log('🔍 Query:', query.substring(0, 100) + '...');
-  
+
   const response = await fetch(`${STRAPI_API_URL}/graphql`, {
     method: 'POST',
     headers: {
@@ -72,7 +72,7 @@ async function fetchFromStrapi(query, variables = {}) {
   }
 
   const data = await response.json();
-  
+
   if (data.errors) {
     console.error('❌ GraphQL errors:', data.errors);
     throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
@@ -191,7 +191,7 @@ function generateTopicHTML(topic) {
 // Generate HTML for an individual article
 function generateArticleHTML(article) {
   const readingTime = Math.ceil((article.content?.length || 0) / 200); // Rough estimate: 200 chars per minute
-  
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -205,6 +205,76 @@ function generateArticleHTML(article) {
     <meta property="og:description" content="${article.excerpt || article.title}">
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://yoread.com/topics/${article.topic?.slug}/${article.slug}">
+    <meta property="og:site_name" content="YoRead">
+    <meta property="article:published_time" content="${article.publishedAt}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${article.title} - Vite Reader">
+    <meta name="twitter:description" content="${article.excerpt || article.title}">
+    
+    <!-- Article Schema for Rich Snippets -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "${article.title}",
+      "description": "${article.excerpt || article.title}",
+      "author": {
+        "@type": "Person",
+        "name": "${article.author?.username || article.author || 'YoRead Team'}"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "YoRead",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://yoread.com/assets/yologo.png"
+        }
+      },
+      "datePublished": "${article.publishedAt}",
+      "dateModified": "${article.publishedAt}",
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "https://yoread.com/topics/${article.topic?.slug}/${article.slug}"
+      },
+      "articleSection": "${article.topic?.name || 'General'}",
+      "wordCount": ${article.content?.length || 0}
+    }
+    </script>
+    
+    <!-- Breadcrumb Schema for Navigation -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://yoread.com"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Topics",
+          "item": "https://yoread.com/topics"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "${article.topic?.name || 'Topic'}",
+          "item": "https://yoread.com/topics/${article.topic?.slug}"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "${article.title}",
+          "item": "https://yoread.com/topics/${article.topic?.slug}/${article.slug}"
+        }
+      ]
+    }
+    </script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -284,13 +354,13 @@ function generateSitemap(topics, articles) {
 async function generateStaticPages() {
   try {
     console.log('🚀 Starting static page generation...');
-    
+
     // Create output directories
     await fs.mkdir(path.join(OUTPUT_DIR, 'topics'), { recursive: true });
-    
+
     // Fetch all data from Strapi
     console.log('📡 Fetching data from Strapi...');
-    
+
     const topicsData = await fetchFromStrapi(`
       query GetTopics {
         topics {
@@ -313,7 +383,7 @@ async function generateStaticPages() {
         }
       }
     `);
-    
+
     const articlesData = await fetchFromStrapi(`
       query GetAllArticles {
         articles {
@@ -337,17 +407,17 @@ async function generateStaticPages() {
         }
       }
     `);
-    
+
     const topics = topicsData.topics || [];
     const articles = articlesData.articles || [];
-    
+
     console.log(`📚 Found ${topics.length} topics and ${articles.length} articles`);
-    
+
     // Generate topics list page
     console.log('📝 Generating topics list page...');
     const topicsListHTML = generateTopicListHTML(topics);
     await fs.writeFile(path.join(OUTPUT_DIR, 'topics', 'index.html'), topicsListHTML);
-    
+
     // Generate individual topic pages
     for (const topic of topics) {
       console.log(`📝 Generating topic page: ${topic.name}`);
@@ -355,7 +425,7 @@ async function generateStaticPages() {
       await fs.mkdir(path.join(OUTPUT_DIR, 'topics', topic.slug), { recursive: true });
       await fs.writeFile(path.join(OUTPUT_DIR, 'topics', topic.slug, 'index.html'), topicHTML);
     }
-    
+
     // Generate individual article pages
     for (const article of articles) {
       if (article.topic?.slug) {
@@ -365,12 +435,12 @@ async function generateStaticPages() {
         await fs.writeFile(path.join(OUTPUT_DIR, 'topics', article.topic.slug, article.slug, 'index.html'), articleHTML);
       }
     }
-    
+
     // Generate sitemap
     console.log('🗺️ Generating sitemap...');
     const sitemap = generateSitemap(topics, articles);
     await fs.writeFile(path.join(OUTPUT_DIR, 'sitemap-topics.xml'), sitemap);
-    
+
     // Update main sitemap.xml to include topics
     console.log('🗺️ Updating main sitemap...');
     const mainSitemapPath = path.join(OUTPUT_DIR, 'sitemap.xml');
@@ -390,13 +460,13 @@ async function generateStaticPages() {
     } catch (error) {
       console.warn('⚠️ Could not update main sitemap:', error.message);
     }
-    
+
     console.log('✅ Static page generation completed successfully!');
     console.log(`📁 Generated ${topics.length + 1} topic pages`);
     console.log(`📁 Generated ${articles.length} article pages`);
     console.log(`🗺️ Generated sitemap-topics.xml`);
     console.log(`📂 Output directory: ${OUTPUT_DIR}`);
-    
+
   } catch (error) {
     console.error('❌ Error generating static pages:', error);
     process.exit(1);

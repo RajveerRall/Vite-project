@@ -99,9 +99,10 @@ const SEO: React.FC<SEOProps> = ({
       <meta property="og:description" content={cleanDescription} />
       <meta property="og:url" content={url} />
       {image && <meta property="og:image" content={image} />}
+      {!image && <meta property="og:image" content="https://yoread.com/assets/yologo.png" />}
       {image && <meta property="og:image:width" content="1200" />}
       {image && <meta property="og:image:height" content="630" />}
-      <meta property="og:site_name" content="Vite Reader" />
+      <meta property="og:site_name" content="YoRead" />
       {author && <meta property="og:author" content={author} />}
       {publishedAt && <meta property="article:published_time" content={publishedAt} />}
       {updatedAt && <meta property="article:modified_time" content={updatedAt} />}

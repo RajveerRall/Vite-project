@@ -86,6 +86,45 @@
     }
     </script>
     
+    <!-- Organization Schema for Brand Authority -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "YoRead",
+      "url": "https://yoread.com",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://yoread.com/assets/yologo.png",
+        "width": 512,
+        "height": 512
+      },
+      "description": "Free AI-powered ebook reader with text-to-speech technology. Transform any EPUB into an audiobook instantly.",
+      "foundingDate": "2024",
+      "applicationCategory": "ReadingApplication",
+      "operatingSystem": "Web Browser, Android",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+    
+    <!-- Breadcrumb Schema for Home Page -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [{
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://yoread.com"
+      }]
+    }
+    </script>
+    
     <!-- ANALYTICS_PLACEHOLDER -->
 
     <!-- Critical CSS - Inline to prevent render blocking -->

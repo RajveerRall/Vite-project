@@ -22,6 +22,8 @@ import { Capacitor } from '@capacitor/core';
 import { initializeUsageTracking, updateUsageTrackerUserId } from './services/tts/index';
 import { isTrackingEnabled } from './utils/trackingConfig';
 import { SubscriptionProvider } from './context/SubscriptionContext';
+import { UsageTracker } from './services/retention/UsageTracker';
+import { NotificationScheduler } from './services/retention/NotificationScheduler';
 
 // Lazy load the ReaderWrapper component since it's heavy and not needed initially
 const ReaderWrapper = React.lazy(() => import('./components/Reader/ReaderWrapper'));
@@ -107,9 +109,15 @@ const MainApp: React.FC = () => {
 
 const AppContent: React.FC = () => {
   const { user } = useAuth();
-  const { addBook, openBook } = useBook();
+  const { addBook, openBook, books } = useBook();
   const navigate = useNavigate();
   const { addToast } = useToast();
+
+  // Ref to access books without causing dependency issues
+  const booksRef = React.useRef(books);
+  React.useEffect(() => {
+    booksRef.current = books;
+  }, [books]);
 
   // Helper to handle incoming file URLs (intents)
   const handleFileUrl = React.useCallback(async (url: string) => {
@@ -176,6 +184,53 @@ const AppContent: React.FC = () => {
       updateUsageTrackerUserId(user?.id);
     }
   }, [user?.id]);
+
+  // Retention System: Track app state changes for smart notifications
+  React.useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      return; // Only run on mobile
+    }
+
+    let debounceTimer: NodeJS.Timeout | null = null;
+
+    const handleAppStateChange = async (state: { isActive: boolean }) => {
+      // Debounce rapid app switching
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+
+      debounceTimer = setTimeout(async () => {
+        if (state.isActive) {
+          // User opened the app
+          console.log('[Retention] App became active');
+          await UsageTracker.logSession();
+          await NotificationScheduler.cancelAll();
+        } else {
+          // User backgrounded the app
+          console.log('[Retention] App went to background');
+          const currentBooks = booksRef.current;
+          await NotificationScheduler.scheduleReminders(currentBooks);
+        }
+      }, 500); // 500ms debounce
+    };
+
+    const listener = CapacitorApp.addListener('appStateChange', handleAppStateChange);
+
+    // Also track on initial mount (app opened)
+    UsageTracker.logSession().catch(console.error);
+
+    return () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      // Handle both Promise and direct handle cases
+      if (listener && typeof listener === 'object' && 'then' in listener) {
+        (listener as Promise<any>).then(handle => handle?.remove?.()).catch(() => { });
+      } else if (listener && typeof (listener as any).remove === 'function') {
+        (listener as any).remove();
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     // Handle warm link

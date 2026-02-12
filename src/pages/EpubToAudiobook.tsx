@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Upload, Download, Play, Pause, Settings, FileText, Headphones, Zap, Clock, CheckCircle, ArrowLeft, RotateCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/Common/SEO';
+import { Helmet } from 'react-helmet-async';
 import { useAudiobookGeneration } from '../hooks/useAudiobookGeneration';
 
 interface AudiobookSettings {
@@ -42,7 +43,7 @@ const EpubToAudiobook: React.FC = () => {
     // Split by newlines and find first non-empty line
     const lines = content.split(/\r?\n/);
     let firstLine = '';
-    
+
     for (const line of lines) {
       const trimmed = line.trim();
       if (trimmed.length > 0) {
@@ -63,21 +64,21 @@ const EpubToAudiobook: React.FC = () => {
 
     return firstLine;
   };
-  
+
   // Use the new audiobook generation hook
-  const { 
-    isInitializing, 
-    isGenerating, 
-    progress, 
-    error, 
-    chapters, 
-    chapterAudios, 
-    extractChapters, 
-    generateSingleChapter, 
-    regenerateChapter, 
-    downloadChapter, 
-    streamChapter, 
-    reset 
+  const {
+    isInitializing,
+    isGenerating,
+    progress,
+    error,
+    chapters,
+    chapterAudios,
+    extractChapters,
+    generateSingleChapter,
+    regenerateChapter,
+    downloadChapter,
+    streamChapter,
+    reset
   } = useAudiobookGeneration();
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,13 +150,52 @@ const EpubToAudiobook: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-             <SEO 
-               title="EPUB to Audiobook Converter - YoRead (Free)"
-               description="Convert your EPUB books to high-quality audiobooks with AI voices - completely free! Create professional audiobooks with chapter markers and custom settings."
-               keywords={['epub to audiobook', 'ebook converter', 'audiobook generator', 'text to speech', 'AI voices', 'free audiobook converter']}
-               url="https://yoread.com/epub-to-audiobook"
-             />
-      
+      <SEO
+        title="EPUB to Audiobook Converter - YoRead (Free)"
+        description="Convert your EPUB books to high-quality audiobooks with AI voices - completely free! Create professional audiobooks with chapter markers and custom settings."
+        keywords={['epub to audiobook', 'ebook converter', 'audiobook generator', 'text to speech', 'AI voices', 'free audiobook converter']}
+        url="https://yoread.com/epub-to-audiobook"
+      />
+
+      {/* SoftwareApplication Schema for SEO */}
+      <Helmet>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "EPUB to Audiobook Converter",
+            "applicationCategory": "MultimediaApplication",
+            "operatingSystem": "Web Browser",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "description": "Convert your EPUB books to high-quality audiobooks with AI voices - completely free! Create professional audiobooks with chapter markers and custom settings.",
+            "featureList": [
+              "AI-powered text-to-speech voices",
+              "EPUB to audiobook conversion",
+              "Free unlimited conversions",
+              "Chapter markers support",
+              "Customizable voice settings",
+              "Offline processing",
+              "No registration required",
+              "Multiple AI voice options"
+            ],
+            "screenshot": "https://yoread.com/assets/epub-converter-screenshot.png",
+            "url": "https://yoread.com/epub-to-audiobook",
+            "author": {
+              "@type": "Organization",
+              "name": "YoRead"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "YoRead"
+            }
+          })}
+        </script>
+      </Helmet>
+
       {/* Header matching your site's style */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -171,28 +211,28 @@ const EpubToAudiobook: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-               {/* Page Header */}
-               <div className="text-center mb-8">
-                 <div className="flex items-center justify-center mb-4">
-                   <div className="bg-amber-100 p-3 rounded-full">
-                     <Headphones className="w-8 h-8 text-amber-800" />
-                   </div>
-                 </div>
-                 <div className="flex items-center justify-center mb-3">
-                   <h1 className="text-3xl md:text-4xl font-semibold text-gray-900 mr-3">
-                     EPUB to Audiobook Converter
-                   </h1>
-                   <span className="bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded-full">
-                     FREE
-                   </span>
-                 </div>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Transform your EPUB books into professional audiobooks with AI-powered voices, 
-                chapter markers, and customizable settings. <span className="font-semibold text-green-700">Completely free to use!</span>
-              </p>
-               </div>
+        {/* Page Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-4">
+            <div className="bg-amber-100 p-3 rounded-full">
+              <Headphones className="w-8 h-8 text-amber-800" />
+            </div>
+          </div>
+          <div className="flex items-center justify-center mb-3">
+            <h1 className="text-3xl md:text-4xl font-semibold text-gray-900 mr-3">
+              EPUB to Audiobook Converter
+            </h1>
+            <span className="bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded-full">
+              FREE
+            </span>
+          </div>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Transform your EPUB books into professional audiobooks with AI-powered voices,
+            chapter markers, and customizable settings. <span className="font-semibold text-green-700">Completely free to use!</span>
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
@@ -206,7 +246,7 @@ const EpubToAudiobook: React.FC = () => {
                   FREE
                 </span>
               </h2>
-              
+
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-amber-400 transition-colors">
                 <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
                 <div className="space-y-3">
@@ -230,38 +270,38 @@ const EpubToAudiobook: React.FC = () => {
                 </div>
               </div>
 
-                     {uploadedFile && (
-                       <div className="mt-4 space-y-3">
-                         <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                           <div className="flex items-center">
-                             <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
-                             <span className="text-green-800 font-medium text-sm">
-                               {uploadedFile.name} uploaded successfully
-                             </span>
-                           </div>
-                         </div>
-                         
-                         {chapters.length === 0 && (
-                           <button
-                             onClick={handleExtractChapters}
-                             disabled={isInitializing}
-                             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                           >
-                             {isInitializing ? (
-                               <>
-                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                 Extracting Chapters...
-                               </>
-                             ) : (
-                               <>
-                                 <FileText className="w-4 h-4 mr-2" />
-                                 Extract Chapters
-                               </>
-                             )}
-                           </button>
-                         )}
-                       </div>
-                     )}
+              {uploadedFile && (
+                <div className="mt-4 space-y-3">
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center">
+                      <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
+                      <span className="text-green-800 font-medium text-sm">
+                        {uploadedFile.name} uploaded successfully
+                      </span>
+                    </div>
+                  </div>
+
+                  {chapters.length === 0 && (
+                    <button
+                      onClick={handleExtractChapters}
+                      disabled={isInitializing}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                    >
+                      {isInitializing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                          Extracting Chapters...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Extract Chapters
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Processing Status */}
@@ -271,7 +311,7 @@ const EpubToAudiobook: React.FC = () => {
                   <Zap className="w-5 h-5 mr-2 text-amber-800" />
                   Generating Audiobook
                 </h3>
-                
+
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-700">
@@ -281,26 +321,26 @@ const EpubToAudiobook: React.FC = () => {
                       {progress.estimatedTime}
                     </span>
                   </div>
-                  
+
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-amber-600 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${progress.progress}%` }}
                     />
                   </div>
-                  
+
                   <div className="text-center">
                     <span className="text-lg font-semibold text-gray-900">
                       {progress.progress}%
                     </span>
                   </div>
-                  
+
                   {progress.totalChapters > 0 && (
                     <div className="text-center text-sm text-gray-600">
                       Chapter {progress.currentChapter} of {progress.totalChapters}
                     </div>
                   )}
-                  
+
                   {progress.stage === 'initializing' && (
                     <div className="text-center text-xs text-blue-600 mt-2">
                       <div className="flex items-center justify-center">
@@ -322,14 +362,14 @@ const EpubToAudiobook: React.FC = () => {
                   <FileText className="w-5 h-5 mr-2 text-amber-800" />
                   Chapters ({chapters.length})
                 </h3>
-                
+
                 <div className="space-y-3">
                   {chapters.map((chapter, index) => {
                     const chapterAudio = chapterAudios.find(ca => ca.chapterIndex === chapter.index);
                     const isGenerated = chapterAudio?.isGenerated || false;
                     const isGenerating = chapterAudio?.isGenerating || false;
                     const hasError = chapterAudio?.error;
-                    
+
                     return (
                       <div key={chapter.index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                         <div className="flex-1">
@@ -348,7 +388,7 @@ const EpubToAudiobook: React.FC = () => {
                             </p>
                           )}
                         </div>
-                        
+
                         <div className="flex items-center space-x-2">
                           {isGenerated ? (
                             <>
@@ -439,7 +479,7 @@ const EpubToAudiobook: React.FC = () => {
                 <Settings className="w-5 h-5 mr-2 text-amber-800" />
                 Audiobook Settings
               </h3>
-              
+
               <div className="space-y-6">
                 {/* Voice Selection */}
                 <div>
@@ -559,34 +599,34 @@ const EpubToAudiobook: React.FC = () => {
               </div>
             </div>
 
-                  {/* Generate All Chapters Button */}
-                  {chapters.length > 0 && (
-                    <button
-                      onClick={() => {
-                        // Generate all chapters that haven't been generated yet
-                        chapters.forEach((chapter, index) => {
-                          const chapterAudio = chapterAudios.find(ca => ca.chapterIndex === chapter.index);
-                          if (!chapterAudio?.isGenerated && !chapterAudio?.isGenerating) {
-                            handleGenerateChapter(chapter.index);
-                          }
-                        });
-                      }}
-                      disabled={isGenerating || chapterAudios.every(ca => ca.isGenerated)}
-                      className="w-full bg-amber-800 hover:bg-amber-900 text-white py-3 px-4 rounded-md font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="w-4 h-4 mr-2" />
-                          Generate All Chapters
-                        </>
-                      )}
-                    </button>
-                  )}
+            {/* Generate All Chapters Button */}
+            {chapters.length > 0 && (
+              <button
+                onClick={() => {
+                  // Generate all chapters that haven't been generated yet
+                  chapters.forEach((chapter, index) => {
+                    const chapterAudio = chapterAudios.find(ca => ca.chapterIndex === chapter.index);
+                    if (!chapterAudio?.isGenerated && !chapterAudio?.isGenerating) {
+                      handleGenerateChapter(chapter.index);
+                    }
+                  });
+                }}
+                disabled={isGenerating || chapterAudios.every(ca => ca.isGenerated)}
+                className="w-full bg-amber-800 hover:bg-amber-900 text-white py-3 px-4 rounded-md font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              >
+                {isGenerating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 mr-2" />
+                    Generate All Chapters
+                  </>
+                )}
+              </button>
+            )}
 
             {/* Features */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
