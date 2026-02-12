@@ -380,6 +380,26 @@ export const PersistentTTSPlayer: React.FC = () => {
         }
     }, [isPlaying, isPaused]);
 
+    // Subscribe to lock screen control events
+    useEffect(() => {
+        const cleanup = MediaSessionService.subscribe({
+            onPlay: () => {
+                console.log('[PersistentPlayer] Lock screen play button pressed');
+                setTTSState({ isPlaying: true, isPaused: false });
+            },
+            onPause: () => {
+                console.log('[PersistentPlayer] Lock screen pause button pressed');
+                setTTSState({ isPlaying: false, isPaused: true });
+            },
+            onStop: () => {
+                console.log('[PersistentPlayer] Lock screen stop button pressed');
+                setTTSState({ isPlaying: false, isPaused: false });
+            }
+        });
+
+        return cleanup;
+    }, [setTTSState]);
+
 
     // Updates
     useEffect(() => {

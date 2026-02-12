@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { BookData } from '@/types/books';
 import { trackEvent } from '../../lib/analytics';
 import { saveReaderState } from '../../utils/readerState';
+import { Capacitor } from '@capacitor/core';
 
 export interface UseBookNavigationReturn {
   // Navigation is handled by setters in BookContext
@@ -34,11 +35,15 @@ export function useBookNavigation(
 
       // Only update if page or book actually changed (prevents unnecessary re-renders during TTS)
       if (pageChanged || bookChanged) {
-        // Update URL without navigation (replaceState prevents history spam)
-        const newUrl = `/reader/${currentBook.id}?page=${currentPageDisplay}`;
-        window.history.replaceState({}, '', newUrl);
+        // Skip URL manipulation on mobile - it causes localhost navigation errors
+        // Mobile apps don't need URL sync since there's no address bar
+        if (!Capacitor.isNativePlatform()) {
+          // Update URL without navigation (replaceState prevents history spam)
+          const newUrl = `/reader/${currentBook.id}?page=${currentPageDisplay}`;
+          window.history.replaceState({}, '', newUrl);
+        }
 
-        // Save to localStorage for state restoration
+        // Save to localStorage for state restoration (works on all platforms)
         saveReaderState({
           bookId: currentBook.id,
           page: currentPageDisplay,

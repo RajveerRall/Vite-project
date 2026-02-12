@@ -1,6 +1,5 @@
 
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
-import { MediaSessionService } from '../services/media/MediaSessionService';
 
 export interface TTSState {
     isPlaying: boolean;
@@ -146,17 +145,14 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
     // Actions (to be implemented/connected to player)
     const play = useCallback(() => {
         setTTSState({ isPlaying: true, isPaused: false });
-        MediaSessionService.updatePlaybackState(true).catch(console.error);
     }, [setTTSState]);
 
     const pause = useCallback(() => {
         setTTSState({ isPlaying: false, isPaused: true });
-        MediaSessionService.updatePlaybackState(false).catch(console.error);
     }, [setTTSState]);
 
     const stop = useCallback(() => {
         setTTSState({ isPlaying: false, isPaused: false, isBuffering: false, currentBookId: null });
-        MediaSessionService.destroy().catch(console.error);
     }, [setTTSState]);
     const setPlaybackRate = useCallback((rate: number) => setTTSState({ playbackRate: rate }), [setTTSState]);
 
@@ -186,17 +182,6 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
             currentChunkIndex: initialChunkIndex || 0
         });
 
-        // Initialize media session for lock screen controls
-        await MediaSessionService.initialize({
-            bookTitle,
-            bookAuthor,
-            chapterTitle,
-            coverUrl: undefined // Will be set by GlobalAudioPlayer if available
-        }, false);
-
-        // Enable listening for lock screen control events
-        await MediaSessionService.listen();
-
         // GlobalPlayer will react to this state change and start loading
     }, [setTTSState]);
 
@@ -209,26 +194,6 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
 
     const checkAudioAvailability = useCallback((index: number) => capabilitiesRef.current.checkAudioAvailability(index), []);
     const prioritizeChunk = useCallback((index: number) => capabilitiesRef.current.prioritizeChunk(index), []);
-
-    // Subscribe to lock screen control events
-    React.useEffect(() => {
-        const cleanup = MediaSessionService.subscribe({
-            onPlay: () => {
-                console.log('[TTSContext] Lock screen play triggered');
-                play();
-            },
-            onPause: () => {
-                console.log('[TTSContext] Lock screen pause triggered');
-                pause();
-            },
-            onStop: () => {
-                console.log('[TTSContext] Lock screen stop triggered');
-                stop();
-            }
-        });
-
-        return cleanup;
-    }, [play, pause, stop]);
 
     const value: TTSContextValue = {
         ...state,
