@@ -10,6 +10,7 @@ import { useTTSChunking } from '../../hooks/tts/useTTSChunking';
 import { useTTSQueue } from '../../hooks/tts/useTTSQueue'; // New Hook
 import { createAdaptivePlaybackStrategy } from '../../services/tts/strategies/AdaptivePlaybackStrategy';
 import { IPlaybackStrategy } from '../../services/tts/strategies/IPlaybackStrategy';
+import { MediaSessionService } from '../../services/media/MediaSessionService';
 
 export const PersistentTTSPlayer: React.FC = () => {
     const {
@@ -215,6 +216,20 @@ export const PersistentTTSPlayer: React.FC = () => {
                         author: currentBookAuthor || 'Unknown Author'
                     });
                 }
+
+                // Initialize media session for lock screen controls
+                const chapterTitle = structure.toc.find(item =>
+                    item.href.includes(currentChapterId) || currentChapterId.includes(item.href)
+                )?.label || 'Chapter';
+
+                await MediaSessionService.initialize({
+                    bookTitle: currentBookTitle || structure.metadata.title || 'Untitled Book',
+                    bookAuthor: currentBookAuthor || structure.metadata.author || 'Unknown Author',
+                    chapterTitle: chapterTitle,
+                    coverUrl: undefined // TODO: Add cover URL if available
+                }, isPlaying && !isPaused);
+
+                await MediaSessionService.listen();
             } catch (e) {
                 console.error('[PersistentPlayer] Error loading chapter:', e);
                 setTTSState({ isLoading: false });
@@ -352,6 +367,18 @@ export const PersistentTTSPlayer: React.FC = () => {
 
         lastContextIndexRef.current = currentChunkIndex;
     }, [isPlaying, isPaused, isLoading, chunks, currentChunkIndex, playChunk, setTTSState]);
+
+    // Sync media session with playback state
+    useEffect(() => {
+        if (isPlaying && !isPaused) {
+            MediaSessionService.updatePlaybackState(true).catch(console.error);
+        } else if (isPaused) {
+            MediaSessionService.updatePlaybackState(false).catch(console.error);
+        } else if (!isPlaying && !isPaused) {
+            // Stopped completely
+            MediaSessionService.destroy().catch(console.error);
+        }
+    }, [isPlaying, isPaused]);
 
 
     // Updates
