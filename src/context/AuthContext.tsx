@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
-import { identifyUser } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
 import { getSessionSafely } from '../lib/authToken';
 
@@ -36,9 +35,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(false);
   const [authInitialized, setAuthInitialized] = useState(false);
   // Initialize from localStorage to persist across page reloads
-  const [hasExplicitlySignedOut, setHasExplicitlySignedOut] = useState(() => {
-    return localStorage.getItem(SIGN_OUT_FLAG_KEY) === 'true';
-  });
+  const [hasExplicitlySignedOut, setHasExplicitlySignedOut] = useState(false);
+
+  // MOCK USER for Free Usage
+  const mockUser: User = {
+    id: 'guest-user-123',
+    email: 'guest@yoread.app',
+    app_metadata: {},
+    user_metadata: { full_name: 'Guest User' },
+    aud: 'authenticated',
+    created_at: new Date().toISOString()
+  };
 
   // Guard against multiple simultaneous sign-out calls
   const isSigningOutRef = useRef(false);
@@ -129,57 +136,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.user) {
         setUser(data.user);
-
-
-
-        // ========================================
-        // NEW: CONVERT ANONYMOUS SESSION
-        // ========================================
-        try {
-          const { getSessionStatus, markSessionAsConverted } = await import('../utils/anonymousSession');
-          const { hasSession, sessionId } = getSessionStatus();
-
-          if (hasSession && sessionId) {
-            console.log('[Auth] Converting anonymous session to user:', sessionId);
-
-            const { data: conversionData, error: conversionError } = await supabase.rpc(
-              'convert_anonymous_to_user',
-              {
-                p_session_id: sessionId,
-                p_user_id: data.user.id
-              }
-            );
-
-            if (conversionError) {
-              console.warn('[Auth] Failed to convert anonymous session:', conversionError);
-            } else {
-              console.log('[Auth] Successfully converted anonymous usage:', conversionData);
-              markSessionAsConverted();
-            }
-          }
-        } catch (conversionErr) {
-          console.warn('[Auth] Error during session conversion:', conversionErr);
-        }
-
-        // Identify user in Amplitude
-        identifyUser(data.user.id, {
-          user_id: data.user.id,
-          email: data.user.email,
-          sign_in_method: 'email',
-          platform: 'web',
-          auth_event: 'sign_in',
-          timestamp: new Date().toISOString()
-        });
-
-        // ✅ NEW: Re-initialize usage tracking with the new user ID
-        // This ensures the tracker is aware of the authenticated user immediately
-        try {
-          const { initializeUsageTracking } = await import('../services/tts/index');
-          await initializeUsageTracking(data.user.id);
-          console.log('[AuthContext] Re-initialized usage tracking for user:', data.user.id);
-        } catch (trackingError) {
-          console.warn('[AuthContext] Failed to re-initialize usage tracking on sign-in:', trackingError);
-        }
       }
     } catch (error) {
       console.error('Sign in failed:', error);
@@ -188,6 +144,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }
   };
+
+  // Skip actual Supabase check and use mock user
+  useEffect(() => {
+    setUser(mockUser);
+    setAuthInitialized(true);
+  }, []);
 
   // We're now using Google's pre-built sign-in buttons
   // This method is kept for backward compatibility but is no longer used
@@ -302,171 +264,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // The checkExistingSession will only be called when explicitly needed
   // (e.g., when user clicks Sign In button)
 
-  // Subscribe to Supabase auth state changes so UI stays in sync (Google, email, etc.)
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-
-    (async () => {
-      try {
-        // First, get initial session to determine auth state immediately
-        let initialSession = null;
-        let sessionError = null;
-
-        try {
-          const result = await supabase.auth.getSession();
-          initialSession = result.data?.session ?? null;
-          sessionError = result.error;
-        } catch (getSessionError: any) {
-          // ✅ FIX: Handle errors from getSession() (including invalid refresh token)
-          const errorMessage = getSessionError?.message || '';
-          const isInvalidRefreshToken =
-            errorMessage.includes('Invalid Refresh Token') ||
-            errorMessage.includes('Refresh Token Not Found') ||
-            errorMessage.includes('refresh_token') ||
-            getSessionError?.name === 'AuthApiError';
-
-          if (isInvalidRefreshToken) {
-            console.log('[AuthContext] Refresh token invalid/expired - treating as normal sign-out');
-            // Clear any stale session data silently
-            try {
-              await supabase.auth.signOut();
-            } catch {
-              // Ignore - session is already invalid
-            }
-            setUser(null);
-            setAuthInitialized(true);
-            return; // Exit early - this is normal, not an error
-          }
-
-          // For other errors, log and continue
-          console.warn('[AuthContext] getSession() error (non-critical):', getSessionError);
-          sessionError = getSessionError;
-        }
-
-        // Handle error returned in response (not thrown)
-        if (sessionError) {
-          const errorMessage = sessionError?.message || '';
-          if (errorMessage.includes('Invalid Refresh Token') ||
-            errorMessage.includes('Refresh Token Not Found')) {
-            console.log('[AuthContext] Refresh token invalid/expired - treating as normal sign-out');
-            setUser(null);
-            setAuthInitialized(true);
-            return; // Exit early - this is normal, not an error
-          }
-        }
-
-        // Check if user explicitly signed out before processing session
-        const explicitlySignedOut = localStorage.getItem(SIGN_OUT_FLAG_KEY) === 'true';
-        if (explicitlySignedOut && initialSession?.user) {
-          // User explicitly signed out - clear the session
-          console.log('[AuthContext] Explicit sign-out detected, clearing session...');
-          await supabase.auth.signOut();
-          setUser(null);
-          setAuthInitialized(true);
-          return; // Exit early - don't process session
-        }
-
-        if (initialSession?.user) {
-          setUser(initialSession.user);
-        }
-        // Mark as initialized after initial check
-        setAuthInitialized(true);
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          // Wrap entire callback in try-catch to prevent crashes
-          try {
-            console.log('[AuthContext] onAuthStateChange:', event, session);
-
-            // CRITICAL: If user explicitly signed out, reject any auto sign-in attempts
-            // Read from localStorage directly to get the current value (not stale closure)
-            const explicitlySignedOut = localStorage.getItem(SIGN_OUT_FLAG_KEY) === 'true';
-            if (event === 'SIGNED_IN' && explicitlySignedOut) {
-              console.warn('[AuthContext] ⚠️ Auto sign-in detected after explicit sign-out - rejecting and signing out immediately');
-              // Immediately sign out to prevent auto-login
-              try {
-                await supabase.auth.signOut();
-                console.log('[AuthContext] Successfully rejected auto sign-in and signed out');
-              } catch (signOutError) {
-                console.error('[AuthContext] Failed to sign out after rejecting auto sign-in:', signOutError);
-              }
-              // Don't update user state - keep them signed out
-              setAuthInitialized(true);
-              return; // Exit early - don't process this sign-in event
-            }
-
-            const nextUser = session?.user ?? null;
-            setUser(nextUser);
-            setAuthInitialized(true);
-
-            if (event === 'SIGNED_OUT') {
-              // Don't set the flag here - it should only be set by explicit signOut()
-              // This event can fire for session expiry, not just user action
-              console.log('[AuthContext] SIGNED_OUT event - not setting explicit flag');
-            } else if (nextUser) {
-              // ✅ FIXED: Check if user explicitly signed out before processing conversion
-              // Read from localStorage directly to get the current value (not stale closure)
-              const explicitlySignedOut = localStorage.getItem(SIGN_OUT_FLAG_KEY) === 'true';
-              if (explicitlySignedOut) {
-                console.log('[AuthContext] User explicitly signed out - skipping anonymous session conversion and DodoPayments setup');
-                // Clear user state since user wants to stay signed out
-                setUser(null);
-                // Don't process conversion - user wants to stay signed out
-                return; // Exit early - don't process conversion
-              }
-
-              // User signed in - clear the flag (only reached if hasExplicitlySignedOut was false)
-              // This means it was an explicit sign-in (not auto-triggered) or the flag was already cleared
-              localStorage.removeItem(SIGN_OUT_FLAG_KEY);
-              setHasExplicitlySignedOut(false);
-
-
-
-              // ========================================
-              // NEW: CONVERT ANONYMOUS SESSION (for OAuth flows)
-              // ========================================
-              try {
-                const { getSessionStatus, markSessionAsConverted } = await import('../utils/anonymousSession');
-                const { hasSession, sessionId } = getSessionStatus();
-
-                if (hasSession && sessionId) {
-                  console.log('[Auth] Converting anonymous session to user (OAuth):', sessionId);
-
-                  const { data: conversionData, error: conversionError } = await supabase.rpc(
-                    'convert_anonymous_to_user',
-                    {
-                      p_session_id: sessionId,
-                      p_user_id: nextUser.id
-                    }
-                  );
-
-                  if (conversionError) {
-                    console.warn('[Auth] Failed to convert anonymous session (OAuth):', conversionError);
-                  } else {
-                    console.log('[Auth] Successfully converted anonymous usage (OAuth):', conversionData);
-                    markSessionAsConverted();
-                  }
-                }
-              } catch (conversionErr) {
-                console.warn('[Auth] Error during session conversion (OAuth):', conversionErr);
-              }
-            }
-          } catch (error) {
-            // Error boundary: catch any errors in the auth state change callback
-            // This prevents the entire app from crashing if something goes wrong
-            console.error('[AuthContext] Error in onAuthStateChange callback:', error);
-            // Don't throw - keep the app running even if auth state change fails
-            setAuthInitialized(true); // Still mark as initialized even on error
-          }
-        });
-        unsubscribe = () => subscription.unsubscribe();
-      } catch (error) {
-        console.error('[AuthContext] Failed to subscribe to auth state changes:', error);
-        setAuthInitialized(true); // Mark as initialized even if subscription fails
-      }
-    })();
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+    // Auth bypass: no need to subscribe to Supabase events
+    return () => { };
   }, []);
 
   // Log the current auth state for debugging

@@ -226,6 +226,8 @@ const Reader: React.FC = () => {
     resume: fullCastResume,
     stop: fullCastStop,
     handleGenerateSceneImage,
+    apiError: fullCastApiError,
+    setApiError: setFullCastApiError,
   } = fullCast;
 
   // === Custom Hooks ===
@@ -591,6 +593,8 @@ const Reader: React.FC = () => {
           status={fullCastStatus}
           buffered={fullCastBuffered}
           hasStartedPlaying={hasStartedPlaying}
+          apiError={fullCastApiError}
+          onClose={() => setFullCastApiError(null)}
         />
 
         <SidePanelBar

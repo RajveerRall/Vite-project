@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import localforage from 'localforage';
 import { trackEvent } from '../../lib/analytics';
 import { requestFullCast, ttsForLine } from '../../services/fullCastTTS';
 import { isTrackingEnabled } from '../../utils/trackingConfig';
@@ -44,6 +45,10 @@ export interface UseFullCastReturn {
   currentChunkIndex: number;
   totalChunks: number;
   seekToPercentage: (percentage: number) => void;
+
+  // Errors
+  apiError: string | null;
+  setApiError: (error: string | null) => void;
 }
 
 interface AudioQueueItem {
@@ -75,6 +80,7 @@ export function useFullCast(
   const [currentScene, setCurrentScene] = useState<Scene | null>(null);
   const [isScenesLoading, setIsScenesLoading] = useState<boolean>(false);
   const [showScenes, setShowScenes] = useState<boolean>(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [currentChunkIndexState, setCurrentChunkIndexState] = useState<number>(0);
 
   // --- Highlighting State ---
@@ -439,10 +445,11 @@ export function useFullCast(
             setScenes(currentScenes);
             setSceneImages(cached.sceneImages || []);
           } else {
+            const userKey = await localforage.getItem<string>('user_gemini_api_key') || undefined;
             currentScenes = await analyzeScenes(fullText, bookTitle, {
               bookTheme: 'atmospheric narrative',
               colorPalette: 'cinematic with dramatic lighting'
-            });
+            }, userKey);
             setScenes(currentScenes);
           }
         } catch (err) {
@@ -466,9 +473,10 @@ export function useFullCast(
 
       setCurrentScene(target);
 
+      const userKey = await localforage.getItem<string>('user_gemini_api_key') || undefined;
       const newImages = await generateSceneImages([target], (img) => {
         setSceneImages(prev => [...prev, img]);
-      });
+      }, {}, userKey);
 
       if (newImages && newImages.length > 0) {
         setSceneImages(prev => {
@@ -477,8 +485,14 @@ export function useFullCast(
           return [...prev, ...toAdd];
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Full Cast] Generation failed:', err);
+      // Check for API key related errors
+      if (err.message?.includes('401') || err.message?.includes('403') || err.message?.includes('invalid') || err.message?.includes('API key')) {
+        setApiError('Invalid or unauthorized API key. Please check your settings.');
+      } else if (err.message?.includes('429') || err.message?.includes('limit') || err.message?.includes('Quota')) {
+        setApiError('API Rate limit exceeded or quota reached.');
+      }
     } finally {
       setIsScenesLoading(false);
     }
@@ -629,10 +643,11 @@ export function useFullCast(
             setShowScenes(true);
           }
         } else {
+          const userKey = await localforage.getItem<string>('user_gemini_api_key') || undefined;
           const rawScenes = await analyzeScenes(fullText, bookTitle, {
             bookTheme: 'atmospheric narrative',
             colorPalette: 'cinematic with dramatic lighting'
-          });
+          }, userKey);
           activeScenes = rawScenes.map((s, i) => ({
             ...s,
             sceneIndex: typeof s.sceneIndex === 'number' ? s.sceneIndex : i
@@ -645,6 +660,7 @@ export function useFullCast(
 
           if (activeScenes.length > 0) {
             try {
+              const userKey = await localforage.getItem<string>('user_gemini_api_key') || undefined;
               await generateSceneImages(activeScenes, (img) => {
                 setSceneImages(prev => {
                   const exists = prev.some(i => i.sceneIndex === img.sceneIndex);
@@ -652,7 +668,7 @@ export function useFullCast(
                   return [...prev, img];
                 });
                 activeImages.push(img);
-              });
+              }, {}, userKey);
 
               if (activeImages.length > 0) {
                 saveSceneAnalysis(safeKey, activeScenes, activeImages)
@@ -664,8 +680,14 @@ export function useFullCast(
             }
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('[Full Cast] Preparation failed:', err);
+        // Check for API key related errors
+        if (err.message?.includes('401') || err.message?.includes('403') || err.message?.includes('invalid') || err.message?.includes('API key')) {
+          setApiError('Invalid or unauthorized API key. Please check your settings.');
+        } else if (err.message?.includes('429') || err.message?.includes('limit') || err.message?.includes('Quota')) {
+          setApiError('API Rate limit exceeded or quota reached.');
+        }
       } finally {
         setIsScenesLoading(false);
       }
@@ -720,7 +742,7 @@ export function useFullCast(
     // Normalization helper (lowercase, alphanumeric only)
     const norm = (t: string) => (t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    chunksRef.current.forEach((chunk, chunkIdx) => {
+    chunksRef.current.forEach((chunk) => {
       const chunkNorm = norm(chunk);
 
       // If chunk is empty/punctuation, just use current scene
@@ -823,6 +845,8 @@ export function useFullCast(
     setShowScenes,
     setCurrentScene,
     handleGenerateSceneImage,
+    apiError,
+    setApiError,
 
     // New Seek Props
     currentChunkIndex: currentChunkIndexState,

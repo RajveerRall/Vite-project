@@ -50,10 +50,12 @@ export const useTTSQueue = ({
 
     const [bufferedChunksCount, setBufferedChunksCount] = useState(0);
 
-    const checkInterval = useRef<NodeJS.Timeout | null>(null);
-
     // Queue Manager Interface
     const queueManager = TTSQueueManager.getInstance();
+
+    const prioritizeChunk = useCallback((index: number) => {
+        queueManager.prioritize(bookId, chapterId, index);
+    }, [bookId, chapterId]);
 
     // Reset queue when chapter changes
     useEffect(() => {
@@ -75,28 +77,14 @@ export const useTTSQueue = ({
             // Calling prioritize is safer as it handles queue logic.
 
             queueManager.addToQueue(requests).then(() => {
-                if (initialChunkIndex > 0 && initialChunkIndex < chunks.length) {
-                    console.log(`[useTTSQueue] Initializing with priority on chunk ${initialChunkIndex}`);
-                    queueManager.prioritize(bookId, chapterId, initialChunkIndex);
-                }
+                // ALWAYS prioritize the starting chunk for the current context
+                console.log(`[useTTSQueue] Initializing with priority on chunk ${initialChunkIndex}`);
+                queueManager.prioritize(bookId, chapterId, initialChunkIndex);
             });
         }
-    }, [bookId, chapterId, chunks.length, selectedVoice, ttsSpeed]); // Re-queue if voice/speed changes
+    }, [bookId, chapterId, chunks.length, selectedVoice, ttsSpeed]); // Re-queue if voice/speed changes. NOTE: removed initialChunkIndex from deps to avoid full resets on scroll
 
-    // Listen for chunks becoming ready
-    useEffect(() => {
-        const unsubscribe = queueManager.onChunkReady((params) => {
-            // Only care if it matches current context
-            if (params.bookId === bookId && params.chapterId === chapterId &&
-                params.voice === selectedVoice && params.speed === ttsSpeed) {
 
-                // If we were waiting for this chunk or it's close, load it into memory
-                // For now, let's just log. The prefetch logic (below) will handle loading.
-                // Or we can proactively load it if it's within range?
-            }
-        });
-        return unsubscribe;
-    }, [bookId, chapterId, selectedVoice, ttsSpeed]);
 
     // Track downloaded chunks for progress bar
     const [downloadedChunks, setDownloadedChunks] = useState<Set<number>>(new Set());
@@ -107,6 +95,9 @@ export const useTTSQueue = ({
             setDownloadedChunks(new Set());
             return;
         }
+
+        // IMMEDIATE RESET: Ensure progress bar clears instantly on context change
+        setDownloadedChunks(new Set());
 
         const checkExisting = async () => {
             // We can use the service to get all indices for this book/chapter
@@ -124,16 +115,13 @@ export const useTTSQueue = ({
     // Listen for chunks becoming ready (Real-time updates)
     useEffect(() => {
         const unsubscribe = queueManager.onChunkReady((params) => {
-            // Only care if it matches current context
-            if (params.bookId === bookId && params.chapterId === chapterId) {
-                // Determine if we should add it?
-                // Yes, if it matches book/chapter it counts towards "downloaded for this chapter"
-                // Voice/Speed are variant factors. Usually we want to track progress for the *active* voice/speed.
-                // But getExistingChunkIndices returns indices for ANY voice? No, let's check Service.
-                // AudioStorageService.getExistingChunkIndices scans keys. 
-                // Ideally we filter by voice/speed too. 
-                // But for now, let's assume if it's there, it's good.
-
+            // STRICT CHECK: Only care if it matches current context exactly
+            if (
+                params.bookId === bookId &&
+                params.chapterId === chapterId &&
+                params.voice === selectedVoice &&
+                params.speed === ttsSpeed
+            ) {
                 // Add to set
                 setDownloadedChunks(prev => {
                     const next = new Set(prev);
@@ -188,6 +176,12 @@ export const useTTSQueue = ({
         queueManager.stop();
     }, []);
 
+    // Clear memory buffer when critical synthesis parameters change 
+    // This ensures we don't play stale blobs from the wrong voice/speed
+    useEffect(() => {
+        clearAudioBuffer();
+    }, [selectedVoice, ttsSpeed, clearAudioBuffer]);
+
     // Fetch Single Chunk (Called by Player when it needs data NOW)
     const fetchSingleChunk = useCallback(async (chunkIndex: number) => {
         // 1. Check Memory
@@ -197,7 +191,10 @@ export const useTTSQueue = ({
         const found = await loadFromStorageToMemory(chunkIndex);
         if (found) return;
 
-        // 3. Wait for Queue (Polling pattern since we need to wait)
+        // 3. PRIORITIZE: If we are here, we don't have it. Tell the queue to MOVE IT to the front.
+        prioritizeChunk(chunkIndex);
+
+        // 4. Wait for Queue (Polling pattern since we need to wait)
         // Since QueueManager is running, we just need to wait for it to land in Storage
         console.log(`[useTTSQueue] Waiting for chunk ${chunkIndex} to download...`);
 
@@ -223,10 +220,14 @@ export const useTTSQueue = ({
         for (let i = 0; i < 3; i++) {
             const idx = startIndex + i;
             if (idx < chunks.length) {
-                loadFromStorageToMemory(idx);
+                const found = await loadFromStorageToMemory(idx);
+                if (!found) {
+                    // Not in storage? Prioritize it in the background queue
+                    prioritizeChunk(idx);
+                }
             }
         }
-    }, [chunks.length, loadFromStorageToMemory]);
+    }, [chunks.length, loadFromStorageToMemory, prioritizeChunk]);
 
     const getBlob = useCallback((index: number) => {
         return audioBufferObjects.current[index] || null;
@@ -245,9 +246,6 @@ export const useTTSQueue = ({
         });
     }, [bookId, chapterId, selectedVoice, ttsSpeed]);
 
-    const prioritizeChunk = useCallback((index: number) => {
-        queueManager.prioritize(bookId, chapterId, index);
-    }, [bookId, chapterId]);
 
     // Cleanup on unmount
     useEffect(() => {

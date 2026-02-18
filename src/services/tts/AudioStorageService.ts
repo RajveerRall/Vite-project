@@ -104,6 +104,7 @@ export class AudioStorageService {
                     }
                 }
             });
+            console.log(`[AudioStorage] Found ${existingIndices.size} chunks for prefix: ${prefix}`);
             return existingIndices;
         } catch (error) {
             console.error('[AudioStorage] Failed to get existing indices:', error);

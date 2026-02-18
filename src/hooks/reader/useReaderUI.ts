@@ -77,7 +77,7 @@ export function useReaderUI({
   const [isEnhanced, setIsEnhanced] = useState<boolean>(false);
 
   // UI Visibility (Immersive Mode)
-  const [isUIVisible, setIsUIVisible] = useState<boolean>(false);
+  const [isUIVisible, setIsUIVisible] = useState<boolean>(true);
 
   useEffect(() => {
     console.log('[useReaderUI] isUIVisible changed:', isUIVisible);

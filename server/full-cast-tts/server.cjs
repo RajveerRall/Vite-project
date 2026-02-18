@@ -95,7 +95,7 @@
 //   msedgeApiKey: process.env.MSEDGE_API_KEY || process.env.VITE_MSEDGE_API_KEY,
 //   // Kokoro
 //   kokoroApiUrl: process.env.KOKORO_API_URL || process.env.VITE_KOKORO_API_URL,
-//   kokoroApiKey: process.env.KOKORO_API_KEY || process.env.VITE_KOKORO_API_KEY,
+// # kokoroApiKey: process.env.KOKORO_API_KEY || process.env.VITE_KOKORO_API_KEY,
 // };
 
 // // Choose LLM (prefer Gemini)
@@ -856,7 +856,7 @@ const app = express();
 const corsOptions = {
   origin: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'X-User-Id', 'X-User-Email'],
+  allowedHeaders: ['Content-Type', 'X-User-Id', 'X-User-Email', 'x-gemini-api-key'],
 };
 app.use(cors(corsOptions));
 
@@ -1611,6 +1611,7 @@ if (usageTracker) {
 
 // Body: { text: string, llm?: string, parser?: 'simple'|'intelligent'|'singleNarrator', useVoiceCasting?: boolean, apiKeys?: { openai?, gemini?, cartesia? } }
 app.post('/api/full-cast-tts', async (req, res) => {
+  const userApiKey = req.headers['x-gemini-api-key'] || req.headers['X-Gemini-API-Key'];
   const { text, llm, parser = 'intelligent', useVoiceCasting = true, apiKeys } = req.body || {};
   if (!text || typeof text !== 'string') {
     console.warn('[full-cast-tts] 400: text is required');
@@ -1622,7 +1623,7 @@ app.post('/api/full-cast-tts', async (req, res) => {
     // Build config and LLM chain
     const mergedKeys = {
       openai: (apiKeys && apiKeys.openai) || ENV_KEYS.openai,
-      gemini: (apiKeys && apiKeys.gemini) || ENV_KEYS.gemini,
+      gemini: userApiKey || (apiKeys && apiKeys.gemini) || ENV_KEYS.gemini,
       cartesia: (apiKeys && apiKeys.cartesia) || ENV_KEYS.cartesia,
     };
     // Prefer explicit llm; else prefer configured Gemini model if available; else OpenAI.
@@ -1646,8 +1647,17 @@ app.post('/api/full-cast-tts', async (req, res) => {
     console.log(`[full-cast-tts] [req ${req.reqId}] LLM fallback chain:`, llmFallbackChain);
 
     const structured = structureTextForLLM(text);
+
+    // Use the user's API key if provided to create a temporary factory
+    const factoryToUse = userApiKey ? new ModularAIFactory({
+      openai: mergedKeys.openai ? { apiKey: mergedKeys.openai } : undefined,
+      gemini: { apiKey: mergedKeys.gemini, model: GEMINI_MODEL },
+      msedge: ENV_KEYS.msedgeBaseUrl ? { baseUrl: ENV_KEYS.msedgeBaseUrl, apiKey: ENV_KEYS.msedgeApiKey } : undefined,
+      kokoro: ENV_KEYS.kokoroApiUrl ? { apiUrl: ENV_KEYS.kokoroApiUrl, apiKey: ENV_KEYS.kokoroApiKey } : undefined,
+    }) : sharedFactory;
+
     // Use factory chain per package docs, with intelligentCastingParser by default
-    const script = await sharedFactory.createAndExecuteChain({
+    const script = await factoryToUse.createAndExecuteChain({
       llmIds: llmFallbackChain,
       parserId: parser === 'simple' ? 'simpleDialogueParser'
         : parser === 'singleNarrator' ? 'singleNarratorParser'
@@ -1817,7 +1827,14 @@ async function processChunkWithRetry(
         console.log(`[chat-thread] [req ${reqId}] Retry attempt ${attempt}/${maxRetries}`);
       }
 
-      const script = await sharedFactory.createAndExecuteChain({
+      const factoryToUse = userApiKey ? new ModularAIFactory({
+        openai: ENV_KEYS.openai ? { apiKey: ENV_KEYS.openai } : undefined,
+        gemini: { apiKey: userApiKey, model: GEMINI_MODEL },
+        msedge: ENV_KEYS.msedgeBaseUrl ? { baseUrl: ENV_KEYS.msedgeBaseUrl, apiKey: ENV_KEYS.msedgeApiKey } : undefined,
+        kokoro: ENV_KEYS.kokoroApiUrl ? { apiUrl: ENV_KEYS.kokoroApiUrl, apiKey: ENV_KEYS.kokoroApiKey } : undefined,
+      }) : sharedFactory;
+
+      const script = await factoryToUse.createAndExecuteChain({
         llmIds: llmFallbackChain,
         parserId: 'chatThreadParser',
         rawTextInput: structured,
@@ -1870,6 +1887,7 @@ async function processChunkWithRetry(
 }
 
 app.post('/api/chat-thread', async (req, res) => {
+  const userApiKey = req.headers['x-gemini-api-key'] || req.headers['X-Gemini-API-Key'];
   const { sessionId, text, llm, inputChunkId } = req.body || {};
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ error: 'text is required' });
@@ -2141,6 +2159,35 @@ app.post('/api/tts', async (req, res) => {
           includeTiming: includeTiming || false,
           includeSrt: includeSrt || false
         });
+
+        // Usage Tracking for chunks
+        if (usageTracker) {
+          try {
+            const estimatedSeconds = Number(chunkResult?.actualDurationSeconds)
+              || Number(chunkResult?.estimatedDurationSeconds)
+              || Number(chunkResult?.durationSeconds)
+              || Math.round((Number(chunkResult?.duration_ms) || 0) / 1000)
+              || Math.max(0.1, chunk.length * 0.06); // Heuristic if no duration available
+
+            usageTracker.trackUsage({
+              provider: selected,
+              voiceId: validatedVoiceId || '-',
+              text: chunk,
+              characterCount: chunk.length,
+              estimatedDurationSeconds: estimatedSeconds,
+              metadata: {
+                format: 'audio/mpeg',
+                userId: req.header('x-user-id'),
+                userEmail: req.header('x-user-email'),
+                chunked: true,
+                chunkIndex: i,
+                totalChunks: chunks.length
+              }
+            });
+          } catch (err) {
+            console.warn('[tts] Failed to track usage for chunked TTS:', err);
+          }
+        }
 
         if (chunkResult.audioBuffer) {
           audioBuffers.push(chunkResult.audioBuffer);
@@ -2743,6 +2790,8 @@ OUTPUT (JSON):
 
 // POST /api/analyze-scenes
 app.post('/api/analyze-scenes', async (req, res) => {
+  const userApiKey = req.headers['x-gemini-api-key'] || req.headers['X-Gemini-API-Key'];
+  console.log(`[analyze-scenes] Received request. User API Key present: ${!!userApiKey}`);
   const {
     text,
     bookTitle,
@@ -2800,8 +2849,16 @@ app.post('/api/analyze-scenes', async (req, res) => {
     ].filter(Boolean);
 
     let llm = null;
+    // Use user-provided API key if available
+    const factoryToUse = userApiKey ? new ModularAIFactory({
+      openai: ENV_KEYS.openai ? { apiKey: ENV_KEYS.openai } : undefined,
+      gemini: { apiKey: userApiKey, model: ANALYSIS_LLM_MODEL },
+      msedge: ENV_KEYS.msedgeBaseUrl ? { baseUrl: ENV_KEYS.msedgeBaseUrl, apiKey: ENV_KEYS.msedgeApiKey } : undefined,
+      kokoro: ENV_KEYS.kokoroApiUrl ? { apiUrl: ENV_KEYS.kokoroApiUrl, apiKey: ENV_KEYS.kokoroApiKey } : undefined,
+    }) : sharedFactory;
+
     for (const m of candidateModels) {
-      llm = sharedFactory.getLLM(m);
+      llm = factoryToUse.getLLM(m);
       if (llm) {
         if (m !== ANALYSIS_LLM_MODEL) {
           console.warn(`[analyze-scenes] Using fallback LLM model: ${m}`);
@@ -3034,6 +3091,7 @@ app.post('/api/analyze-scenes', async (req, res) => {
 // POST /api/generate-scene-images
 // Generates images from scene analysis prompts using Gemini Imagen
 app.post('/api/generate-scene-images', async (req, res) => {
+  const userApiKey = req.headers['x-gemini-api-key'] || req.headers['X-Gemini-API-Key'];
   const { scenes, videoFormat = 'youtube', referenceImages = [], useSavedReferences = false, styleKey } = req.body;
 
   if (!Array.isArray(scenes) || scenes.length === 0) {
@@ -3047,7 +3105,7 @@ app.post('/api/generate-scene-images', async (req, res) => {
     const { GoogleGenAI } = require('@google/genai');
 
     const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey: userApiKey || process.env.GEMINI_API_KEY,
     });
 
     const model = 'gemini-2.5-flash-image';

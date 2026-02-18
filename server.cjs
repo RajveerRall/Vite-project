@@ -11,6 +11,16 @@ const app = express();
 // Note: Subscription webhook is now handled by Supabase Edge Function
 const dodopaymentsApi = require('./server/dodopayments-api.cjs');
 
+// Initialize Usage Tracker (shared with full-cast-tts)
+let usageTracker;
+try {
+  const { getUsageTracker } = require('./server/full-cast-tts/vendor/modular-tts/dist/core/usage-tracking.js');
+  usageTracker = getUsageTracker();
+  console.log('[Server] Usage tracking initialized for standard TTS');
+} catch (error) {
+  console.warn('[Server] Failed to initialize usage tracking:', error.message);
+}
+
 const PORT = process.env.PORT || 8080;
 // --------> ADD THIS DEBUG LINE <--------
 console.log(`--->>> DEBUG: Value of process.env.PORT is: '${process.env.PORT}' (Type: ${typeof process.env.PORT})`);
@@ -91,6 +101,32 @@ const handleTTS = async (req, res) => {
 
     // Generate the stream and pipe it to response
     const { audioStream } = await tts.toStream(sanitizedText, options);
+
+    // Track Usage
+    if (usageTracker) {
+      try {
+        // Heuristic: ~0.06s per character (approx avg speaking rate)
+        // This is an estimation since MsEdgeTTS doesn't return duration for streams
+        const estimatedDuration = Math.max(0.1, sanitizedText.length * 0.06);
+
+        usageTracker.trackUsage({
+          provider: 'msedge',
+          voiceId: voiceName,
+          text: sanitizedText,
+          characterCount: sanitizedText.length,
+          estimatedDurationSeconds: estimatedDuration,
+          metadata: {
+            endpoint: 'standard-tts',
+            format: outputFormat,
+            rate: options.rate,
+            pitch: options.pitch
+          }
+        });
+      } catch (err) {
+        console.warn('Usage tracking error:', err);
+      }
+    }
+
     audioStream.pipe(res);
 
     // Handle stream errors
@@ -148,7 +184,7 @@ const handleUserBooks = async (req, res) => {
           currentBooks.push(book);
           console.log(`[User Books API] Added new book: ${book.title}`);
         }
-        
+
         userBooksStorage.set(userId, currentBooks);
         break;
 
@@ -219,7 +255,7 @@ app.get('*', (req, res) => {
 // Ensure only ONE app.listen call exists if you modified it
 if (typeof PORT !== 'undefined') { // Check to prevent duplicate listen if PORT was also defined
   app.listen(PORT, '0.0.0.0', () => {
-     console.log(`Server running on 0.0.0.0:${PORT}, serving frontend and API`);
+    console.log(`Server running on 0.0.0.0:${PORT}, serving frontend and API`);
   });
 }
 

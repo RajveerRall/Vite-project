@@ -18,6 +18,7 @@ import { useSmoothProgress } from '../../hooks/tts/useSmoothProgress';
 
 // Import the stylesheet. It will now handle all the appearance styling.
 import './Controls.css';
+import GeminiKeyModal from '../Settings/GeminiKeyModal';
 
 export interface ControlsProps {
   readingProgress: number;
@@ -120,6 +121,7 @@ const Controls: React.FC<ControlsProps> = ({
   const { isLimitExceeded } = useSubscription();
   const { addToast } = useToast();
   const [isAIChatDrawerOpen, setIsAIChatDrawerOpen] = useState(false);
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
 
   // Calculate raw chapter progress percentage (memoized)
   const rawChapterProgress = useMemo(() => {
@@ -438,10 +440,19 @@ const Controls: React.FC<ControlsProps> = ({
             ? 'bg-blue-50 border-blue-200 text-blue-700'
             : 'hover:bg-gray-50'
             }`}
-          onClick={() => {
+          onClick={async () => {
             // Check quota if needed (but don't block guest access entirely)
             if (fcTotal > 0 && fcUsed >= fcTotal) {
               addToast('Picture Mode monthly limit reached (15 mins).', 'info');
+              return;
+            }
+
+            // check if api key exists
+            const { default: localforage } = await import('localforage');
+            const key = await localforage.getItem<string>('user_gemini_api_key');
+
+            if (!key) {
+              setIsKeyModalOpen(true);
               return;
             }
 
@@ -461,6 +472,15 @@ const Controls: React.FC<ControlsProps> = ({
           <ImageIcon size={20} className={fullCastActive ? 'animate-pulse' : ''} />
           <span className="button-text text-sm font-medium">Picture Mode</span>
         </button>
+
+        <GeminiKeyModal
+          isOpen={isKeyModalOpen}
+          onClose={() => setIsKeyModalOpen(false)}
+          onSuccess={() => {
+            const event = new CustomEvent('full-cast-request');
+            window.dispatchEvent(event);
+          }}
+        />
       </div>
 
       {/* Show warning toast for anonymous users near limit */}

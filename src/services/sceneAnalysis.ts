@@ -27,7 +27,8 @@ function normalizeText(text: string): string {
 export async function analyzeScenes(
     text: string,
     bookTitle: string,
-    options: SceneAnalysisOptions = {}
+    options: SceneAnalysisOptions = {},
+    apiKey?: string
 ): Promise<Scene[]> {
     const baseURL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
 
@@ -38,6 +39,7 @@ export async function analyzeScenes(
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            ...(apiKey ? { 'X-Gemini-API-Key': apiKey } : {})
         },
         body: JSON.stringify({
             text,
@@ -72,7 +74,8 @@ export async function generateSceneImages(
     scenes: Scene[],
     // Optional callback to notify caller as each image is generated
     onImageGenerated?: (image: SceneImage) => void,
-    options: SceneAnalysisOptions = {}
+    options: SceneAnalysisOptions = {},
+    apiKey?: string
 ): Promise<SceneImage[]> {
     if (scenes.length === 0) {
         console.warn('[SceneAnalysis] No scenes to generate images for');
@@ -87,6 +90,7 @@ export async function generateSceneImages(
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            ...(apiKey ? { 'X-Gemini-API-Key': apiKey } : {})
         },
         body: JSON.stringify({
             scenes,

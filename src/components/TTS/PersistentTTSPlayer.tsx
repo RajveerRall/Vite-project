@@ -246,6 +246,21 @@ export const PersistentTTSPlayer: React.FC = () => {
         }
     }, [error, addToast]);
 
+    // Speed change notification
+    const lastSpeedRef = useRef(playbackRate);
+    useEffect(() => {
+        if (lastSpeedRef.current !== playbackRate) {
+            // Only show toast if we have an active book/chapter
+            if (currentBookId && currentChapterId) {
+                addToast(
+                    `Speed set to ${playbackRate}x. New audio is being prepared and will take effect in a few sentences.`,
+                    'info'
+                );
+            }
+            lastSpeedRef.current = playbackRate;
+        }
+    }, [playbackRate, currentBookId, currentChapterId, addToast]);
+
 
     // Helper: Play Chunk
     const playChunk = useCallback(async (index: number) => {

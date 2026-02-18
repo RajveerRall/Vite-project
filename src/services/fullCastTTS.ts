@@ -3,6 +3,7 @@ export interface FullCastOptions {
   parser?: 'simple' | 'intelligent' | 'singleNarrator' | 'chatThread';
   useVoiceCasting?: boolean;
   sessionId?: string;
+  apiKey?: string;
 }
 
 export interface DialogueLine {
@@ -43,17 +44,18 @@ export async function requestFullCast(text: string, options: FullCastOptions = {
         'Content-Type': 'application/json',
         ...(userId ? { 'X-User-Id': userId } : {}),
         ...(userEmail ? { 'X-User-Email': userEmail } : {}),
+        ...(options.apiKey ? { 'X-Gemini-API-Key': options.apiKey } : {}),
       },
-      body: JSON.stringify({ 
-        sessionId, 
-        text, 
+      body: JSON.stringify({
+        sessionId,
+        text,
         llm: options.llm,
         inputChunkId: `chunk-${Date.now()}`
       })
     });
     if (!response.ok) {
       let detail = '';
-      try { detail = await response.text(); } catch {}
+      try { detail = await response.text(); } catch { }
       throw new Error(`Chat-thread request failed: ${response.status} ${detail}`.trim());
     }
     const data = await response.json();
@@ -67,12 +69,13 @@ export async function requestFullCast(text: string, options: FullCastOptions = {
       'Content-Type': 'application/json',
       ...(userId ? { 'X-User-Id': userId } : {}),
       ...(userEmail ? { 'X-User-Email': userEmail } : {}),
+      ...(options.apiKey ? { 'X-Gemini-API-Key': options.apiKey } : {}),
     },
     body: JSON.stringify({ text, ...options })
   });
   if (!response.ok) {
     let detail = '';
-    try { detail = await response.text(); } catch {}
+    try { detail = await response.text(); } catch { }
     throw new Error(`Full cast request failed: ${response.status} ${detail}`.trim());
   }
   const data = await response.json();
@@ -103,16 +106,17 @@ export async function ttsForLine(text: string, provider?: string, voiceId?: stri
   });
   if (!response.ok) {
     let detail = '';
-    try { detail = await response.text(); } catch {}
+    try { detail = await response.text(); } catch { }
     throw new Error(`TTS request failed: ${response.status} ${detail}`.trim());
   }
   return await response.blob();
 }
 
 export async function summarizeChapter(
-  text: string, 
-  chapterTitle?: string, 
-  llm?: string
+  text: string,
+  chapterTitle?: string,
+  llm?: string,
+  apiKey?: string
 ): Promise<{ summary: string; chapterTitle: string | null }> {
   const baseURL = import.meta.env.VITE_FULL_CAST_TTS_URL || 'http://localhost:4001';
   let userId: string | undefined;
@@ -133,17 +137,18 @@ export async function summarizeChapter(
       'Content-Type': 'application/json',
       ...(userId ? { 'X-User-Id': userId } : {}),
       ...(userEmail ? { 'X-User-Email': userEmail } : {}),
+      ...(llm?.includes('gemini') ? { 'X-Gemini-API-Key': apiKey } : {}), // Potential future-proofing if options had it
     },
     body: JSON.stringify({ text, chapterTitle, llm })
   });
 
   if (!response.ok) {
     let detail = '';
-    try { 
+    try {
       const errorData = await response.json();
       detail = errorData.error || response.statusText;
     } catch {
-      try { detail = await response.text(); } catch {}
+      try { detail = await response.text(); } catch { }
     }
     throw new Error(`Chapter summarization failed: ${response.status} ${detail}`.trim());
   }

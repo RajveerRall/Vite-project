@@ -47,8 +47,16 @@ export class LocalBookRepository {
   }
 
   /**
+   * Get cover key for a book
+   */
+  private getCoverKey(bookId: string): string {
+    const prefix = this.getKeyPrefix();
+    return prefix ? `${prefix}book_cover_${bookId}` : `book_cover_${bookId}`;
+  }
+
+  /**
    * Load all books from local storage
-   * Regenerates cover URLs since blob URLs don't persist across page reloads
+   * Uses cached covers if available, otherwise regenerates and caches them
    */
   async loadAllBooks(): Promise<BookData[]> {
     console.log('[LocalBookRepository] Loading books from storage');
@@ -78,19 +86,41 @@ export class LocalBookRepository {
             `[LocalBookRepository] Loaded: ${metadata.title}, page: ${metadata.currentPage}, chapter: ${metadata.lastChapter?.label || 'none'}`
           );
 
-          // Regenerate cover URL since blob URLs don't persist
-          const freshCoverUrl = await regenerateCoverUrl(file);
-          const bookWithFreshCover: BookData = {
+          // Try to get cached cover blob first
+          const coverKey = this.getCoverKey(bookId);
+          const cachedCoverBlob = (await localforage.getItem(coverKey)) as Blob | null;
+          let freshCoverUrl: string | null = null;
+
+          if (cachedCoverBlob) {
+            freshCoverUrl = URL.createObjectURL(cachedCoverBlob);
+            // console.log(`[LocalBookRepository] Used cached cover for "${metadata.title}"`);
+          } else {
+            // Regenerate cover URL from file (slow)
+            const rawCoverUrl = await regenerateCoverUrl(file);
+            if (rawCoverUrl) {
+              // Fetch blob from the created object URL to store it
+              try {
+                const response = await fetch(rawCoverUrl);
+                const blob = await response.blob();
+                await localforage.setItem(coverKey, blob);
+                freshCoverUrl = rawCoverUrl;
+                console.log(`[LocalBookRepository] Regenerated and cached cover for "${metadata.title}"`);
+              } catch (e) {
+                console.warn(`[LocalBookRepository] Failed to cache cover for "${metadata.title}"`, e);
+                freshCoverUrl = rawCoverUrl;
+              }
+            } else {
+              console.log(`[LocalBookRepository] Fast cover generation failed for "${metadata.title}"`);
+            }
+          }
+
+          const bookWithCover: BookData = {
             ...metadata,
             file,
             coverUrl: freshCoverUrl || metadata.coverUrl,
           };
 
-          console.log(
-            `[LocalBookRepository] Cover regenerated for "${metadata.title}": ${freshCoverUrl ? 'Success' : 'Failed'}`
-          );
-
-          loadedBooks.push(bookWithFreshCover);
+          loadedBooks.push(bookWithCover);
         }
       }
 
@@ -131,6 +161,19 @@ export class LocalBookRepository {
 
       await localforage.setItem(metadataKey, metadata);
       await localforage.setItem(fileKey, file);
+
+      // Cache cover if present and is a blob URL
+      if (book.coverUrl && book.coverUrl.startsWith('blob:')) {
+        try {
+          const coverKey = this.getCoverKey(book.id);
+          const response = await fetch(book.coverUrl);
+          const blob = await response.blob();
+          await localforage.setItem(coverKey, blob);
+        } catch (e) {
+          console.warn(`[LocalBookRepository] Failed to cache cover on save for "${book.title}"`, e);
+        }
+      }
+
 
       console.log(
         `[LocalBookRepository] Saved book: ${metadata.title}, page: ${metadata.currentPage}, chapter: ${metadata.lastChapter?.label || 'none'}`
@@ -173,8 +216,10 @@ export class LocalBookRepository {
       }
 
       const fileKey = this.getFileKey(bookId);
+      const coverKey = this.getCoverKey(bookId);
       await localforage.removeItem(metadataKey);
       await localforage.removeItem(fileKey);
+      await localforage.removeItem(coverKey);
 
       console.log(`[LocalBookRepository] Removed book: ${bookId}`);
     } catch (error) {

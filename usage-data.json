@@ -713,5 +713,16 @@
     },
     "id": "1760095001336-c2v8a7kxl",
     "timestamp": "2025-10-10T11:16:41.336Z"
+  },
+  {
+    "provider": "msedge",
+    "voiceId": "en-US-BrianMultilingualNeural",
+    "text": "Testing the usage tracking system with a clean JSON file.",
+    "characterCount": 57,
+    "metadata": {
+      "format": "audio/mpeg"
+    },
+    "id": "1771421205323-voozykb6l",
+    "timestamp": "2026-02-18T13:26:45.323Z"
   }
 ]

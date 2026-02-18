@@ -1,6 +1,5 @@
 
 import { AudioStorageService, AudioStorageKeyParams } from './AudioStorageService';
-import { getBlobDurationSeconds } from '../../utils/audioUtils';
 
 export interface TTSRequest extends AudioStorageKeyParams {
     text: string;
@@ -22,7 +21,6 @@ export class TTSQueueManager {
     private queue: QueueItem[] = [];
     private activeRequests = 0;
     private status: QueueStatus = 'idle';
-    private processingPromise: Promise<void> | null = null;
     private abortController: AbortController | null = null;
     private onChunkReadyCallbacks: ((params: AudioStorageKeyParams) => void)[] = [];
 
@@ -32,7 +30,6 @@ export class TTSQueueManager {
 
     // Smart Concurrency
     // If we have less than this many next-chunks ready, we panic (go fast)
-    private readonly PANIC_THRESHOLD = 3;
     private currentChapterId: string | null = null;
     private lastCompletedIndex: number = -1;
 
@@ -65,85 +62,50 @@ export class TTSQueueManager {
         if (requests.length === 0) return;
 
         // Optimization: Batch check existence vs DB
-        // We assume all requests are for the same book/chapter usually
         const first = requests[0];
-        const existingIndices = await AudioStorageService.getExistingChunkIndices(first.bookId, first.chapterId);
+        const existingIndices = await AudioStorageService.getExistingChunkIndices(
+            first.bookId,
+            first.chapterId,
+            first.voice,
+            first.speed
+        );
 
         const newItems: QueueItem[] = [];
 
         for (const req of requests) {
-            // Check if we already have it in DB
-            // Note: This assumes voice/speed haven't changed.
-            // If they change, we might need a stricter check, but for now cache is by book/chapter/idx/voice/speed
-            // The getExistingChunkIndices only checks book/chapter/idx. 
-            // FIXME: The key includes voice/speed. The simplified check might return false positives if voice changed.
-            // BUT: If the user changes voice, the prefix logic in AudioStorageService doesn't filter by voice.
-            // Let's verify AudioStorageService implementation.
-            // Prefix: `book_${safeBookId}_ch_${safeChapterId}_`
-            // Key: `..._v_${params.voice}_s_${params.speed}_idx_${params.chunkIndex}`
-            // The batch check logic I wrote just splits by `_idx_`. 
-            // It ignores voice/speed in the key parts before `_idx_`.
-            // So if I have "MaleVoice" saved, and request "FemaleVoice", `existingIndices` will say "Yes I have index 5".
-            // That's WRONG. We need to check voice/speed too.
+            const exists = existingIndices.has(req.chunkIndex);
+            if (!exists) {
+                // Check if already in queue
+                const inQueue = this.queue.find(item =>
+                    item.chunkIndex === req.chunkIndex &&
+                    item.chapterId === req.chapterId &&
+                    item.bookId === req.bookId
+                );
 
-            // Reverting to robust check for safety, OR updating Service?
-            // "The user wants to start from the middle... tts is firing... timeout".
-            // Speed is critical. 
-            // Let's rely on standard check for now BUT optimize it?
-            // No, 584 checks is simply too slow.
-            // Let's assume voice/speed is constant for the batch.
-
-            // Fallback: If verifying properly is hard, let's just use the slow loop but with Promise.all?
-            // Promise.all of 500 items might choke the thread.
-
-            // Let's stick to the fast approach but be careful.
-            // If I return `hasAudio` to use `getItem`, it's not THAT slow if parallelized.
-            // But `keys()` is fast.
-            // I'll stick to individual checks but parallelized in chunks.
-            // OR I fix the batch check to be accurate.
-        }
-
-        // Actually, let's use parallel checks with concurrency limit.
-        // It's safer than parsing keys if key format changes.
-
-        const CHECK_CONCURRENCY = 20;
-        for (let i = 0; i < requests.length; i += CHECK_CONCURRENCY) {
-            const batch = requests.slice(i, i + CHECK_CONCURRENCY);
-            await Promise.all(batch.map(async (req) => {
-                const exists = await AudioStorageService.hasAudio(req);
-                if (!exists) {
-                    // Check if already in queue
-                    const inQueue = this.queue.find(item =>
-                        item.chunkIndex === req.chunkIndex &&
-                        item.chapterId === req.chapterId &&
-                        item.bookId === req.bookId
-                    );
-
-                    if (!inQueue) {
-                        newItems.push({
-                            ...req,
-                            status: 'pending',
-                            attempts: 0,
-                            addedAt: Date.now()
-                        });
-                    }
-                } else {
-                    // Note completed
-                    if (req.chapterId === this.currentChapterId) {
-                        this.lastCompletedIndex = Math.max(this.lastCompletedIndex, req.chunkIndex);
-                    }
+                if (!inQueue) {
+                    newItems.push({
+                        ...req,
+                        status: 'pending',
+                        attempts: 0,
+                        addedAt: Date.now()
+                    });
                 }
-            }));
+            } else {
+                // Note completed
+                if (req.chapterId === this.currentChapterId) {
+                    this.lastCompletedIndex = Math.max(this.lastCompletedIndex, req.chunkIndex);
+                }
+            }
         }
 
         if (newItems.length > 0) {
             this.queue.push(...newItems);
             // Sort by index to prioritize early chunks
             this.queue.sort((a, b) => a.chunkIndex - b.chunkIndex);
-            console.log(`[TTSQueueManager] Added ${newItems.length} chunks to queue. Total pending: ${this.queue.length}`);
+            console.log(`[TTSQueueManager] Added ${newItems.length} chunks to queue. (Found ${existingIndices.size} in cache for speed ${first.speed}). Total pending: ${this.queue.length}`);
             this.startProcessing();
         } else {
-            console.log('[TTSQueueManager] All chunks already cached.');
+            console.log(`[TTSQueueManager] All chunks already cached for speed ${first.speed}.`);
         }
     }
 
@@ -156,28 +118,29 @@ export class TTSQueueManager {
 
     public prioritize(bookId: string, chapterId: string, chunkIndex: number) {
         console.log(`[TTSQueueManager] Request to prioritize: Book=${bookId}, Ch=${chapterId}, Chunk=${chunkIndex}`);
-        const index = this.queue.findIndex(req =>
-            req.bookId === bookId &&
-            req.chapterId === chapterId &&
-            req.chunkIndex === chunkIndex
-        );
 
-        if (index > 0) {
-            // Move to front
-            const [item] = this.queue.splice(index, 1);
-            this.queue.unshift(item);
-            console.log(`[TTSQueueManager] Prioritized chunk ${chunkIndex}. New Queue Head: ${this.queue[0].chunkIndex}`);
+        // Robust re-ordering: 
+        // 1. Move all items for THIS context starting from chunkIndex to the front
+        // 2. Keep them in ascending order
+        // 3. Move items for THIS context BEFORE chunkIndex to the back
 
-            // Kickstart processing if idle
-            this.startProcessing();
-        } else if (index === 0) {
-            console.log(`[TTSQueueManager] Chunk ${chunkIndex} is already at the front/processing.`);
-        } else {
-            console.warn(`[TTSQueueManager] Prioritize failed: Chunk ${chunkIndex} not found in pending queue. Queue length: ${this.queue.length}`);
-            this.queue.forEach((i, idx) => {
-                if (idx < 5) console.log(`   [${idx}] Chunk ${i.chunkIndex} (${i.status})`);
-            });
+        const contextItems = this.queue.filter(req => req.bookId === bookId && req.chapterId === chapterId);
+        const otherItems = this.queue.filter(req => req.bookId !== bookId || req.chapterId !== chapterId);
+
+        if (contextItems.length === 0) {
+            console.warn(`[TTSQueueManager] Prioritize failed: No chunks found for Book=${bookId}, Ch=${chapterId} in queue.`);
+            return;
         }
+
+        const sequels = contextItems.filter(i => i.chunkIndex >= chunkIndex).sort((a, b) => a.chunkIndex - b.chunkIndex);
+        const precursors = contextItems.filter(i => i.chunkIndex < chunkIndex).sort((a, b) => a.chunkIndex - b.chunkIndex);
+
+        this.queue = [...sequels, ...precursors, ...otherItems];
+
+        console.log(`[TTSQueueManager] Re-ordered queue. New Head: Chunk ${this.queue[0]?.chunkIndex}. Total queue: ${this.queue.length}`);
+
+        // Kickstart processing if idle
+        this.startProcessing();
     }
 
     private notifyChunkReady(item: QueueItem) {
@@ -239,17 +202,7 @@ export class TTSQueueManager {
         // Let's stick to the PRD: "buffer < 3". 
         // Since we don't track playback pos here, let's assume "Active Downloads" is the regulator.
 
-        const MAX_CONCURRENT = 2;
-        const SAFE_CONCURRENT = 1;
-
-        // For now, let's play it safe and use 1 concurrent request to start, 
-        // unless we see we have a LOT to do?
-        // Actually, `useTTSQueue` will know the playback position. 
-        // Maybe we just expose `setHighPriority(true/false)`?
-        // Let's stick to SAFE_CONCURRENT = 1 for now to satisfy "polite" requirement.
-        // But allow 2 if queue is very large?
-
-        const concurrency = SAFE_CONCURRENT;
+        const concurrency = 1;
 
         while (this.activeRequests < concurrency && this.queue.length > 0 && this.status === 'downloading') {
             const item = this.queue.shift(); // Get next priority item
@@ -306,6 +259,8 @@ export class TTSQueueManager {
             voice: req.voice,
             format: 'audio-24khz-48kbitrate-mono-mp3'
         });
+
+        console.log(`[TTSQueueManager] Fetching chunk ${req.chunkIndex} for Book=${req.bookId}, Speed=${req.speed}`);
 
         if (req.speed !== 1) {
             const speedPercent = Math.round((req.speed - 1) * 100);

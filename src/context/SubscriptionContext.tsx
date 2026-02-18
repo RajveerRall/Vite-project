@@ -55,8 +55,15 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
    * Fetch subscription info using REST API (bypasses hanging RPC calls)
    */
   const refreshSubscription = useCallback(async () => {
-    if (!isAuthenticated || !user?.id) {
-      setSubscriptionInfo(null);
+    // In local/free mode, or if not authenticated, do not attempt to fetch
+    if (!isAuthenticated || !user?.id || user.id.startsWith('guest-')) {
+      // Set default "free mode" subscription info if needed, or just null
+      setSubscriptionInfo({
+        status: 'active',
+        plan_id: 'pro_plan', // Mock as pro/free
+        current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
+        cancel_at_period_end: false
+      } as any);
       return;
     }
 
@@ -90,8 +97,13 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
    * Fetch usage limit info using REST API (bypasses hanging RPC calls)
    */
   const refreshUsageLimit = useCallback(async () => {
-    if (!isAuthenticated || !user?.id) {
-      setUsageLimit(null);
+    // In local/free mode, or if not authenticated, do not attempt to fetch
+    if (!isAuthenticated || !user?.id || user.id.startsWith('guest-')) {
+      setUsageLimit({
+        minutes_used: 0,
+        minutes_limit: 9999,
+        reset_date: new Date().toISOString()
+      } as any);
       setUsageLimitLoading(false);
       return;
     }
@@ -127,12 +139,13 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Initial load - fetch subscription info and usage limit on sign-in
   useEffect(() => {
-    if (isAuthenticated && user?.id) {
+    if (isAuthenticated && user?.id && !user.id.startsWith('guest-')) {
       refreshSubscription();
       refreshUsageLimit();
     } else {
-      setSubscriptionInfo(null);
-      setUsageLimit(null);
+      // Manually trigger the mock values for guest/unauth
+      refreshSubscription();
+      refreshUsageLimit();
     }
   }, [isAuthenticated, user?.id, refreshSubscription, refreshUsageLimit]);
 
@@ -153,21 +166,13 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => window.removeEventListener('tts-usage-updated', handleUsageUpdate);
   }, [refreshUsageLimit, refreshSubscription]);
 
-  // Computed values
-  const isSubscribed = subscriptionInfo?.subscription?.status === 'active' || subscriptionInfo?.subscription?.status === 'trial';
-  // Check limit_exceeded flag OR if remaining is less than 0.1 minutes (defensive check for decimal precision issues)
-  // If usageLimit is null but we are authenticated, we might be hitting a transient error (e.g. 401).
-  // In this case, we'll check subscriptionInfo as a secondary source.
-  const isLimitExceeded = !!((usageLimit?.limit_exceeded ?? false) ||
-    (usageLimit && usageLimit.minutes_remaining !== null && usageLimit.minutes_remaining <= 0) ||
-    (isAuthenticated && !usageLimit && !loading &&
-      subscriptionInfo?.profile &&
-      (subscriptionInfo.profile.tts_minutes_used >= subscriptionInfo.profile.tts_minutes_limit) &&
-      (subscriptionInfo.profile.prepaid_minutes || 0) <= 0));
+  // Computed values - OVERRIDDEN FOR FREE MODE
+  const isSubscribed = true;
+  const isLimitExceeded = false;
   // Calculate total remaining including prepaid (already included in minutes_remaining from DB, but ensure it's correct)
-  const minutesRemaining = usageLimit?.minutes_remaining ?? null;
-  const prepaidMinutes = usageLimit?.prepaid_minutes ?? 0;
-  const subscriptionStatus = subscriptionInfo?.subscription?.status ?? null;
+  const minutesRemaining = 9999;
+  const prepaidMinutes = 9999;
+  const subscriptionStatus = 'active';
 
   // Combined loading state (either subscription or usage limit loading)
   const combinedLoading = loading || usageLimitLoading;
