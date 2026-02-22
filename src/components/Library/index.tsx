@@ -1,19 +1,13 @@
 // src/components/Library/index.tsx
 import React, { useRef, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { useBook } from '../../context/BookContext';
 import BookGrid from './BookGrid';
 import './Library.css';
 import { trackEvent } from '../../lib/analytics'; // Make sure to import it
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from '../../context/ToastContext'; // Import useToast
-import AppBetaModal from '../AppBetaModal'; // Import the new modal component
-import { useAppBetaForm } from '../../hooks/useAppBetaForm'; // Import the new hook
-// Book collage now uses optimized sprite sheet instead of individual images
-
-
 const Library: React.FC = () => {
-  const { books, addBook, isLoading, openBook, isSyncingFromCloud } = useBook();
+  const { books, addBook, openBook, isSyncingFromCloud } = useBook();
   const { isAuthenticated, user } = useAuth();
   const { addToast } = useToast(); // Use the useToast hook
   // showcase/sample loading removed
@@ -24,10 +18,8 @@ const Library: React.FC = () => {
   // const [toastMessage, setToastMessage] = useState<string>('');
   // const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
-  // NEW STATE FOR APP BETA FEATURE
-  const [showBetaBanner, setShowBetaBanner] = useState(true); // Banner visible by default
-  const [isBetaModalOpen, setIsBetaModalOpen] = useState(false);
-  const { submitBetaForm, isLoading: isFormLoading, isSuccess, error, setIsSuccess } = useAppBetaForm();
+  // NEW STATE FOR APP DOWNLOAD FEATURE
+  const [showDownloadBanner, setShowDownloadBanner] = useState(true); // Banner visible by default
 
 
 
@@ -110,12 +102,12 @@ const Library: React.FC = () => {
 
   // Load banner preference from localStorage (to hide if dismissed)
   useEffect(() => {
-    const bannerDismissed = localStorage.getItem('yoread_app_beta_banner_dismissed');
+    const bannerDismissed = localStorage.getItem('yoread_app_download_banner_dismissed');
     if (bannerDismissed === 'true') {
-      setShowBetaBanner(false);
+      setShowDownloadBanner(false);
     } else {
       // Track banner impression if not dismissed
-      trackEvent('app_beta_banner_impression', {
+      trackEvent('app_download_banner_impression', {
         user_id: user?.id || 'anonymous',
         platform: 'web',
       });
@@ -124,31 +116,12 @@ const Library: React.FC = () => {
 
   // Handler to dismiss the banner
   const handleDismissBanner = () => {
-    setShowBetaBanner(false);
-    localStorage.setItem('yoread_app_beta_banner_dismissed', 'true');
-    trackEvent('app_beta_banner_dismissed', {
+    setShowDownloadBanner(false);
+    localStorage.setItem('yoread_app_download_banner_dismissed', 'true');
+    trackEvent('app_download_banner_dismissed', {
       user_id: user?.id || 'anonymous',
       platform: 'web',
     });
-  };
-
-  // Handler to open the modal
-  const handleOpenBetaModal = () => {
-    setIsBetaModalOpen(true);
-    // Reset form state when opening a new form
-    setIsSuccess(false);
-    trackEvent('app_beta_modal_opened', {
-      user_id: user?.id || 'anonymous',
-      platform: 'web',
-    });
-  };
-
-  // Handler to close the modal
-  const handleCloseBetaModal = () => {
-    setIsBetaModalOpen(false);
-    // Optionally reset form state completely here if you want to clear inputs
-    // setEmail(''); 
-    // setReason('');
   };
 
   // // Hide toast after 3 seconds
@@ -297,16 +270,23 @@ const Library: React.FC = () => {
           {/* Content - stays within max-w-5xl */}
           <div className="relative z-20">
 
-            {/* NEW: APP BETA ANNOUNCEMENT BANNER */}
-            {showBetaBanner && (
+            {/* NEW: APP DOWNLOAD ANNOUNCEMENT BANNER */}
+            {showDownloadBanner && (
               <div className="app-beta-banner">
                 <p className="app-beta-banner-text">
-                  🚀 Yoread Android App Beta is LIVE! Join now to get 10 hours of FREE listening!
+                  🚀 Yoread is now on the Play Store! Download for natural voice listening.
                 </p>
                 <div className="app-beta-banner-actions">
-                  <button onClick={handleOpenBetaModal} className="app-beta-banner-button">
+                  <a
+                    href="https://play.google.com/store/apps/details?id=com.yoread.app&hl=en_IN&utm_source=yoread_web&utm_medium=banner&utm_campaign=app_launch"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="app-beta-banner-button"
+                    style={{ textDecoration: 'none' }}
+                    onClick={() => trackEvent('app_download_banner_click', { platform: 'web' })}
+                  >
                     Get App
-                  </button>
+                  </a>
                   <button onClick={handleDismissBanner} className="app-beta-banner-dismiss">
                     &times;
                   </button>
@@ -415,17 +395,6 @@ const Library: React.FC = () => {
         )}
 
       </main>
-
-      {/* NEW: APP BETA MODAL */}
-      <AppBetaModal
-        isOpen={isBetaModalOpen}
-        onClose={handleCloseBetaModal}
-        onSubmit={submitBetaForm}
-        isLoading={isFormLoading}
-        isSuccess={isSuccess}
-        error={error}
-      />
-
     </div>
   );
 };

@@ -34,6 +34,29 @@ const Header: React.FC = () => {
             <span className="px-4 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-bold border border-green-200 shadow-sm hidden sm:inline-block">
               Free Mode
             </span>
+
+            {/* Mobile App Download CTA */}
+            <a
+              href="https://play.google.com/store/apps/details?id=com.yoread.app&hl=en_IN&utm_source=yoread_web&utm_medium=header&utm_campaign=app_launch"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs sm:text-sm font-bold transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+            >
+              <svg
+                className="w-4 h-4 sm:w-5 h-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Download App</span>
+            </a>
           </div>
 
         </div>

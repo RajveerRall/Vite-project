@@ -1118,3 +1118,113 @@ button[class*="bg-gray-200"]:not([class*="cursor-not-allowed"]):hover::before {
     /* Increased from text-4xl (2.25rem) */
   }
 }
+
+/* App Download Banner */
+.app-beta-banner {
+  background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 10px 15px -3px rgba(146, 64, 14, 0.3), 0 4px 6px -2px rgba(146, 64, 14, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: slideDownBg 0.5s ease-out;
+  position: relative;
+  overflow: hidden;
+  z-index: 30;
+}
+
+.app-beta-banner::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+@keyframes slideDownBg {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.app-beta-banner-text {
+  font-weight: 600;
+  font-size: 1rem;
+  margin: 0;
+  text-align: center;
+}
+
+.app-beta-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.app-beta-banner-button {
+  background-color: white !important;
+  color: #92400e !important;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.app-beta-banner-button:hover {
+  background-color: #fffbeb !important;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.app-beta-banner-dismiss {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: all 0.2s;
+}
+
+.app-beta-banner-dismiss:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+@media (min-width: 640px) {
+  .app-beta-banner {
+    flex-direction: row;
+    padding: 0.75rem 1.5rem;
+    text-align: left;
+  }
+
+  .app-beta-banner-text {
+    text-align: left;
+  }
+}
