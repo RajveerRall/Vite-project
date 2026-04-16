@@ -1,0 +1,31 @@
+/* Google Sign-In Button Styles */
+.google-sign-in-container {
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+}
+
+.google-sign-in-button {
+  transition: all 0.2s ease-in-out !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.google-sign-in-button:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* One Tap Dialog Styles */
+#credential_picker_container {
+  top: 0 !important;
+  left: unset !important;
+  right: 20px !important;
+}
+
+/* Mobile Styles */
+@media (max-width: 640px) {
+  #credential_picker_container {
+    right: 10px !important;
+  }
+}

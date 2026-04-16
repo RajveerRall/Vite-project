@@ -1,0 +1,5 @@
+
+
+   * I removed the second, incorrect set of getPosts and getPostBySlug functions.
+   * The remaining functions correctly query for the data and attributes fields and return the nested data your frontend components
+     will expect.

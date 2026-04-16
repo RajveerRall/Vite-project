@@ -1,3517 +1,3 @@
-// // // // // // // // // // src/components/Reader/SimplePlayMode.tsx
-// // // // // // // // // import React, { useState, useEffect } from 'react';
-// // // // // // // // // import { useTextToSpeech } from '../../hooks/useTextToSpeech';
-// // // // // // // // // import './SimplePlayMode.css';
-
-// // // // // // // // // interface SimplePlayModeProps {
-// // // // // // // // //   currentPageContent: string;
-// // // // // // // // //   onClose: () => void;
-// // // // // // // // // }
-
-// // // // // // // // // const SimplePlayMode: React.FC<SimplePlayModeProps> = ({
-// // // // // // // // //   currentPageContent,
-// // // // // // // // //   onClose
-// // // // // // // // // }) => {
-// // // // // // // // //   // Use our TTS hook
-// // // // // // // // //   const { speak, stop, isSpeaking, voices } = useTextToSpeech();
-// // // // // // // // //   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-// // // // // // // // //   const [rate, setRate] = useState<number>(1);
-  
-// // // // // // // // //   // Find a default voice on component mount
-// // // // // // // // //   useEffect(() => {
-// // // // // // // // //     if (voices.length > 0 && !selectedVoice) {
-// // // // // // // // //       // Try to find a female English voice first
-// // // // // // // // //       const femaleVoice = voices.find(
-// // // // // // // // //         voice => voice.lang.startsWith('en') && voice.name.includes('Female')
-// // // // // // // // //       );
-      
-// // // // // // // // //       // Then try any English voice
-// // // // // // // // //       const englishVoice = voices.find(voice => voice.lang.startsWith('en'));
-      
-// // // // // // // // //       // Set the selected voice
-// // // // // // // // //       setSelectedVoice(femaleVoice || englishVoice || voices[0]);
-// // // // // // // // //     }
-// // // // // // // // //   }, [voices, selectedVoice]);
-  
-// // // // // // // // //   // Start speech with the current settings
-// // // // // // // // //   const startSpeech = () => {
-// // // // // // // // //     speak(currentPageContent, { 
-// // // // // // // // //       voice: selectedVoice,
-// // // // // // // // //       rate 
-// // // // // // // // //     });
-// // // // // // // // //   };
-  
-// // // // // // // // //   // Handle voice selection
-// // // // // // // // //   const handleVoiceChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-// // // // // // // // //     const voiceURI = event.target.value;
-// // // // // // // // //     const voice = voices.find(v => v.voiceURI === voiceURI) || null;
-// // // // // // // // //     setSelectedVoice(voice);
-// // // // // // // // //   };
-  
-// // // // // // // // //   // Handle rate change
-// // // // // // // // //   const handleRateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-// // // // // // // // //     setRate(parseFloat(event.target.value));
-// // // // // // // // //   };
-  
-// // // // // // // // //   // Clear speech synthesis when component unmounts
-// // // // // // // // //   useEffect(() => {
-// // // // // // // // //     return () => {
-// // // // // // // // //       stop();
-// // // // // // // // //     };
-// // // // // // // // //   }, [stop]);
-
-// // // // // // // // //   return (
-// // // // // // // // //     <div className="simple-play-mode">
-// // // // // // // // //       <div className="play-mode-content">
-// // // // // // // // //         <div className="play-mode-header">
-// // // // // // // // //           <h2>Audio Player</h2>
-// // // // // // // // //           <button onClick={onClose} className="close-button">×</button>
-// // // // // // // // //         </div>
-        
-// // // // // // // // //         <div className="play-mode-controls">
-// // // // // // // // //           <div className="control-group">
-// // // // // // // // //             <label htmlFor="voice-select">Voice:</label>
-// // // // // // // // //             <select 
-// // // // // // // // //               id="voice-select" 
-// // // // // // // // //               value={selectedVoice?.voiceURI || ''}
-// // // // // // // // //               onChange={handleVoiceChange}
-// // // // // // // // //             >
-// // // // // // // // //               {voices.map(voice => (
-// // // // // // // // //                 <option key={voice.voiceURI} value={voice.voiceURI}>
-// // // // // // // // //                   {voice.name} ({voice.lang})
-// // // // // // // // //                 </option>
-// // // // // // // // //               ))}
-// // // // // // // // //             </select>
-// // // // // // // // //           </div>
-          
-// // // // // // // // //           <div className="control-group">
-// // // // // // // // //             <label htmlFor="rate-slider">Speed: {rate.toFixed(1)}x</label>
-// // // // // // // // //             <input
-// // // // // // // // //               type="range"
-// // // // // // // // //               id="rate-slider"
-// // // // // // // // //               min="0.5"
-// // // // // // // // //               max="2"
-// // // // // // // // //               step="0.1"
-// // // // // // // // //               value={rate}
-// // // // // // // // //               onChange={handleRateChange}
-// // // // // // // // //             />
-// // // // // // // // //           </div>
-          
-// // // // // // // // //           <div className="button-group">
-// // // // // // // // //             {!isSpeaking ? (
-// // // // // // // // //               <button onClick={startSpeech} className="play-button">Play</button>
-// // // // // // // // //             ) : (
-// // // // // // // // //               <button onClick={stop} className="stop-button">Stop</button>
-// // // // // // // // //             )}
-// // // // // // // // //           </div>
-// // // // // // // // //         </div>
-        
-// // // // // // // // //         <div className="play-mode-text">
-// // // // // // // // //           <p className="content-preview">{currentPageContent.slice(0, 300)}...</p>
-// // // // // // // // //           <p className="instruction-text">
-// // // // // // // // //             {isSpeaking 
-// // // // // // // // //               ? "Reading text aloud..." 
-// // // // // // // // //               : "Click Play to start reading text aloud"}
-// // // // // // // // //           </p>
-// // // // // // // // //         </div>
-// // // // // // // // //       </div>
-// // // // // // // // //     </div>
-// // // // // // // // //   );
-// // // // // // // // // };
-
-// // // // // // // // // export default SimplePlayMode;
-
-
-// // // // // // // // // src/components/Reader/KokoroPlayMode.tsx// src/components/Reader/KokoroPlayMode.tsx
-// // // // // // // // import React, { useState, useEffect, useRef } from 'react';
-// // // // // // // // import { KokoroTTS, TextSplitterStream } from 'kokoro-js';
-// // // // // // // // import './SimplePlayMode.css';
-
-// // // // // // // // // Define interface for progress info
-// // // // // // // // interface ProgressInfo {
-// // // // // // // //   progress: number;
-// // // // // // // //   loaded: number;
-// // // // // // // //   total: number;
-// // // // // // // // }
-
-// // // // // // // // interface KokoroPlayModeProps {
-// // // // // // // //   currentPageContent: string;
-// // // // // // // //   onClose: () => void;
-// // // // // // // // }
-
-// // // // // // // // const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
-// // // // // // // //   currentPageContent,
-// // // // // // // //   onClose
-// // // // // // // // }) => {
-// // // // // // // //   const [isPlaying, setIsPlaying] = useState(false);
-// // // // // // // //   const [isPaused, setIsPaused] = useState(false);
-// // // // // // // //   const [isLoading, setIsLoading] = useState(false);
-// // // // // // // //   const [loadingProgress, setLoadingProgress] = useState(0);
-// // // // // // // //   const [currentText, setCurrentText] = useState('');
-// // // // // // // //   const [playbackRate, setPlaybackRate] = useState(1.0);
-// // // // // // // //   const [modelLoaded, setModelLoaded] = useState(false);
-// // // // // // // //   const [errorMessage, setErrorMessage] = useState('');
-  
-// // // // // // // //   // Refs
-// // // // // // // //   const ttsRef = useRef<any>(null);
-// // // // // // // //   const splitterRef = useRef<TextSplitterStream | null>(null);
-// // // // // // // //   const streamRef = useRef<any>(null);
-// // // // // // // //   const audioContextRef = useRef<AudioContext | null>(null);
-// // // // // // // //   const audioQueueRef = useRef<AudioBuffer[]>([]);
-// // // // // // // //   const currentAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
-// // // // // // // //   const abortControllerRef = useRef<AbortController | null>(null);
-  
-// // // // // // // //   // Initialize Kokoro TTS
-// // // // // // // //   useEffect(() => {
-// // // // // // // //     const initTTS = async () => {
-// // // // // // // //       try {
-// // // // // // // //         setIsLoading(true);
-// // // // // // // //         setLoadingProgress(10);
-// // // // // // // //         console.log("Initializing Kokoro TTS...");
-        
-// // // // // // // //         // Initialize the AudioContext
-// // // // // // // //         audioContextRef.current = new AudioContext();
-        
-// // // // // // // //         // Initialize Kokoro TTS
-// // // // // // // //         const model_id = "onnx-community/Kokoro-82M-v1.0-ONNX";
-// // // // // // // //         setLoadingProgress(30);
-        
-// // // // // // // //         // Use the correct dtype based on device capability
-// // // // // // // //         const supportsWebGPU = 'gpu' in navigator;
-// // // // // // // //         console.log("WebGPU supported:", supportsWebGPU);
-        
-// // // // // // // //         const tts = await KokoroTTS.from_pretrained(model_id, {
-// // // // // // // //           dtype: "fp32", // Options: "fp32", "fp16", "q8", "q4", "q4f16"
-// // // // // // // //           device: supportsWebGPU ? "webgpu" : "wasm", // Use WebGPU if available
-// // // // // // // //           progress_callback: (progressInfo: ProgressInfo) => {
-// // // // // // // //             console.log("Loading progress:", progressInfo);
-// // // // // // // //             // Ensure we're using a number for calculations
-// // // // // // // //             const progressValue = typeof progressInfo === 'number' 
-// // // // // // // //               ? progressInfo 
-// // // // // // // //               : (progressInfo.progress || 0);
-              
-// // // // // // // //             setLoadingProgress(30 + Math.round(progressValue * 70));
-// // // // // // // //           }
-// // // // // // // //         });
-        
-// // // // // // // //         console.log("Kokoro TTS model loaded successfully");
-// // // // // // // //         ttsRef.current = tts;
-// // // // // // // //         setLoadingProgress(100);
-// // // // // // // //         setIsLoading(false);
-// // // // // // // //         setModelLoaded(true);
-// // // // // // // //       } catch (error: unknown) {
-// // // // // // // //         console.error('Error initializing Kokoro TTS:', error);
-// // // // // // // //         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-// // // // // // // //         setErrorMessage(`Failed to initialize TTS: ${errorMsg}`);
-// // // // // // // //         setIsLoading(false);
-// // // // // // // //       }
-// // // // // // // //     };
-    
-// // // // // // // //     initTTS();
-    
-// // // // // // // //     // Cleanup
-// // // // // // // //     return () => {
-// // // // // // // //       cleanupAudio();
-// // // // // // // //       if (audioContextRef.current) {
-// // // // // // // //         audioContextRef.current.close();
-// // // // // // // //       }
-// // // // // // // //     };
-// // // // // // // //   }, []);
-  
-// // // // // // // //   // Function to clean up audio playback
-// // // // // // // //   const cleanupAudio = () => {
-// // // // // // // //     if (abortControllerRef.current) {
-// // // // // // // //       abortControllerRef.current.abort();
-// // // // // // // //       abortControllerRef.current = null;
-// // // // // // // //     }
-    
-// // // // // // // //     if (currentAudioSourceRef.current) {
-// // // // // // // //       currentAudioSourceRef.current.stop();
-// // // // // // // //       currentAudioSourceRef.current.disconnect();
-// // // // // // // //       currentAudioSourceRef.current = null;
-// // // // // // // //     }
-    
-// // // // // // // //     if (splitterRef.current) {
-// // // // // // // //       splitterRef.current.close();
-// // // // // // // //       splitterRef.current = null;
-// // // // // // // //     }
-    
-// // // // // // // //     streamRef.current = null;
-// // // // // // // //     audioQueueRef.current = [];
-// // // // // // // //   };
-  
-// // // // // // // //   // Start TTS playback
-// // // // // // // //   const startPlayback = async () => {
-// // // // // // // //     if (!ttsRef.current || isPlaying) return;
-    
-// // // // // // // //     try {
-// // // // // // // //       setIsPlaying(true);
-// // // // // // // //       setIsPaused(false);
-// // // // // // // //       cleanupAudio();
-// // // // // // // //       setErrorMessage('');
-      
-// // // // // // // //       console.log("Starting Kokoro TTS playback");
-      
-// // // // // // // //       // Create a new abort controller
-// // // // // // // //       abortControllerRef.current = new AbortController();
-// // // // // // // //       const signal = abortControllerRef.current.signal;
-      
-// // // // // // // //       // Create a new splitter and stream
-// // // // // // // //       const splitter = new TextSplitterStream();
-// // // // // // // //       splitterRef.current = splitter;
-      
-// // // // // // // //       // Set up the stream
-// // // // // // // //       const stream = ttsRef.current.stream(splitter);
-// // // // // // // //       streamRef.current = stream;
-      
-// // // // // // // //       // Process the stream
-// // // // // // // //       (async () => {
-// // // // // // // //         try {
-// // // // // // // //           let fullText = '';
-          
-// // // // // // // //           for await (const chunk of stream) {
-// // // // // // // //             // Check if we've been aborted
-// // // // // // // //             if (signal.aborted) break;
-            
-// // // // // // // //             // Extract text and audio from the chunk
-// // // // // // // //             const { text, audio } = chunk as { text: string; audio: any };
-// // // // // // // //             console.log("Received chunk:", { text, hasAudio: !!audio });
-            
-// // // // // // // //             fullText += text;
-// // // // // // // //             setCurrentText(fullText);
-            
-// // // // // // // //             if (!audio) {
-// // // // // // // //               console.warn("No audio in chunk");
-// // // // // // // //               continue;
-// // // // // // // //             }
-            
-// // // // // // // //             // Check what methods are available on the audio object
-// // // // // // // //             console.log("Audio object methods:", Object.getOwnPropertyNames(Object.getPrototypeOf(audio)));
-            
-// // // // // // // //             try {
-// // // // // // // //               // Handle Kokoro's audio format
-// // // // // // // //               if (audio.toBlob && typeof audio.toBlob === 'function') {
-// // // // // // // //                 console.log("Using toBlob method");
-// // // // // // // //                 const blob = await audio.toBlob();
-// // // // // // // //                 const audioData = await blob.arrayBuffer();
-// // // // // // // //                 playAudioFromArrayBuffer(audioData);
-// // // // // // // //               }
-// // // // // // // //               else if (audio.toWav && typeof audio.toWav === 'function') {
-// // // // // // // //                 console.log("Using toWav method");
-// // // // // // // //                 const wavData = audio.toWav();
-// // // // // // // //                 const blob = new Blob([wavData], { type: 'audio/wav' });
-// // // // // // // //                 const audioData = await blob.arrayBuffer();
-// // // // // // // //                 playAudioFromArrayBuffer(audioData);
-// // // // // // // //               }
-// // // // // // // //               else if (audio.audio && audio.sampling_rate) {
-// // // // // // // //                 console.log("Using raw audio data");
-// // // // // // // //                 playRawAudioData(audio.audio, audio.sampling_rate);
-// // // // // // // //               }
-// // // // // // // //               else {
-// // // // // // // //                 console.error("Unrecognized audio format:", audio);
-// // // // // // // //               }
-// // // // // // // //             } catch (audioError) {
-// // // // // // // //               console.error("Error processing audio chunk:", audioError);
-// // // // // // // //             }
-// // // // // // // //           }
-// // // // // // // //         } catch (error: unknown) {
-// // // // // // // //           if (!signal.aborted) {
-// // // // // // // //             console.error('Error processing TTS stream:', error);
-// // // // // // // //             const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-// // // // // // // //             setErrorMessage(`Error playing audio: ${errorMsg}`);
-// // // // // // // //             setIsPlaying(false);
-// // // // // // // //           }
-// // // // // // // //         }
-// // // // // // // //       })();
-      
-// // // // // // // //       // Feed the text to the stream
-// // // // // // // //       const cleanText = preprocessText(currentPageContent);
-// // // // // // // //       const sentences = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
-      
-// // // // // // // //       console.log(`Splitting text into ${sentences.length} sentences`);
-      
-// // // // // // // //       for (const sentence of sentences) {
-// // // // // // // //         if (signal.aborted) break;
-// // // // // // // //         splitter.push(sentence);
-// // // // // // // //         console.log("Pushed sentence to stream:", sentence);
-// // // // // // // //         await new Promise(resolve => setTimeout(resolve, 10));
-// // // // // // // //       }
-      
-// // // // // // // //       // Close the stream
-// // // // // // // //       console.log("Closing text splitter stream");
-// // // // // // // //       splitter.close();
-      
-// // // // // // // //     } catch (error: unknown) {
-// // // // // // // //       console.error('Error starting TTS playback:', error);
-// // // // // // // //       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-// // // // // // // //       setErrorMessage(`Failed to start audio: ${errorMsg}`);
-// // // // // // // //       setIsPlaying(false);
-// // // // // // // //     }
-// // // // // // // //   };
-  
-// // // // // // // //   // Play audio from ArrayBuffer
-// // // // // // // //   const playAudioFromArrayBuffer = async (audioData: ArrayBuffer) => {
-// // // // // // // //     if (!audioContextRef.current) return;
-    
-// // // // // // // //     try {
-// // // // // // // //       console.log("Decoding audio data");
-// // // // // // // //       const audioBuffer = await audioContextRef.current.decodeAudioData(audioData);
-      
-// // // // // // // //       audioQueueRef.current.push(audioBuffer);
-      
-// // // // // // // //       // If this is the first audio chunk, start playing
-// // // // // // // //       if (audioQueueRef.current.length === 1 && !currentAudioSourceRef.current) {
-// // // // // // // //         playNextAudio();
-// // // // // // // //       }
-// // // // // // // //     } catch (error) {
-// // // // // // // //       console.error("Error decoding audio data:", error);
-// // // // // // // //     }
-// // // // // // // //   };
-  
-// // // // // // // //   // Play raw audio data (Float32Array with sampling rate)
-// // // // // // // //   const playRawAudioData = (audioData: Float32Array, sampleRate: number) => {
-// // // // // // // //     if (!audioContextRef.current) return;
-    
-// // // // // // // //     try {
-// // // // // // // //       console.log("Creating audio buffer from raw data");
-      
-// // // // // // // //       // Create an audio buffer
-// // // // // // // //       const audioBuffer = audioContextRef.current.createBuffer(
-// // // // // // // //         1, // mono
-// // // // // // // //         audioData.length,
-// // // // // // // //         sampleRate
-// // // // // // // //       );
-      
-// // // // // // // //       // Copy the data to the audio buffer
-// // // // // // // //       const channelData = audioBuffer.getChannelData(0);
-// // // // // // // //       for (let i = 0; i < audioData.length; i++) {
-// // // // // // // //         channelData[i] = audioData[i];
-// // // // // // // //       }
-      
-// // // // // // // //       audioQueueRef.current.push(audioBuffer);
-      
-// // // // // // // //       // If this is the first audio chunk, start playing
-// // // // // // // //       if (audioQueueRef.current.length === 1 && !currentAudioSourceRef.current) {
-// // // // // // // //         playNextAudio();
-// // // // // // // //       }
-// // // // // // // //     } catch (error) {
-// // // // // // // //       console.error("Error creating audio buffer:", error);
-// // // // // // // //     }
-// // // // // // // //   };
-  
-// // // // // // // //   // Preprocess text to improve TTS quality
-// // // // // // // //   const preprocessText = (text: string): string => {
-// // // // // // // //     // Remove excess whitespace
-// // // // // // // //     let cleaned = text.replace(/\s+/g, ' ').trim();
-    
-// // // // // // // //     // Replace common abbreviations
-// // // // // // // //     cleaned = cleaned.replace(/(\w)\.(\w)/g, '$1. $2'); // e.g., "Mr.Smith" -> "Mr. Smith"
-    
-// // // // // // // //     // Add periods to make sure we have complete sentences
-// // // // // // // //     if (!cleaned.endsWith('.') && !cleaned.endsWith('!') && !cleaned.endsWith('?')) {
-// // // // // // // //       cleaned += '.';
-// // // // // // // //     }
-    
-// // // // // // // //     return cleaned;
-// // // // // // // //   };
-  
-// // // // // // // //   // Play the next audio chunk in the queue
-// // // // // // // //   const playNextAudio = () => {
-// // // // // // // //     if (!audioContextRef.current || audioQueueRef.current.length === 0 || isPaused) return;
-    
-// // // // // // // //     console.log("Playing next audio chunk");
-    
-// // // // // // // //     // Create a new audio source
-// // // // // // // //     const source = audioContextRef.current.createBufferSource();
-// // // // // // // //     source.buffer = audioQueueRef.current[0];
-// // // // // // // //     source.playbackRate.value = playbackRate;
-// // // // // // // //     source.connect(audioContextRef.current.destination);
-    
-// // // // // // // //     // Store the source so we can stop it if needed
-// // // // // // // //     currentAudioSourceRef.current = source;
-    
-// // // // // // // //     // Remove this buffer from the queue
-// // // // // // // //     audioQueueRef.current.shift();
-    
-// // // // // // // //     // When this audio chunk ends, play the next one
-// // // // // // // //     source.onended = () => {
-// // // // // // // //       console.log("Audio chunk ended");
-// // // // // // // //       currentAudioSourceRef.current = null;
-      
-// // // // // // // //       if (audioQueueRef.current.length > 0) {
-// // // // // // // //         playNextAudio();
-// // // // // // // //       } else if (!splitterRef.current) {
-// // // // // // // //         // If we're done and the splitter is closed, we're finished
-// // // // // // // //         console.log("Playback complete");
-// // // // // // // //         setIsPlaying(false);
-// // // // // // // //       }
-// // // // // // // //     };
-    
-// // // // // // // //     // Start playback
-// // // // // // // //     source.start();
-// // // // // // // //     console.log("Started audio source");
-// // // // // // // //   };
-  
-// // // // // // // //   // Pause playback
-// // // // // // // //   const pausePlayback = () => {
-// // // // // // // //     setIsPaused(true);
-    
-// // // // // // // //     if (currentAudioSourceRef.current) {
-// // // // // // // //       currentAudioSourceRef.current.stop();
-// // // // // // // //       currentAudioSourceRef.current = null;
-// // // // // // // //     }
-// // // // // // // //   };
-  
-// // // // // // // //   // Resume playback
-// // // // // // // //   const resumePlayback = () => {
-// // // // // // // //     setIsPaused(false);
-// // // // // // // //     playNextAudio();
-// // // // // // // //   };
-  
-// // // // // // // //   // Stop playback
-// // // // // // // //   const stopPlayback = () => {
-// // // // // // // //     setIsPlaying(false);
-// // // // // // // //     setIsPaused(false);
-// // // // // // // //     setCurrentText('');
-// // // // // // // //     cleanupAudio();
-// // // // // // // //   };
-  
-// // // // // // // //   // Update playback rate
-// // // // // // // //   const handleRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-// // // // // // // //     const newRate = parseFloat(e.target.value);
-// // // // // // // //     setPlaybackRate(newRate);
-    
-// // // // // // // //     // Update the rate of the current audio source if one is playing
-// // // // // // // //     if (currentAudioSourceRef.current) {
-// // // // // // // //       currentAudioSourceRef.current.playbackRate.value = newRate;
-// // // // // // // //     }
-// // // // // // // //   };
-  
-// // // // // // // //   // Handle component unmount
-// // // // // // // //   useEffect(() => {
-// // // // // // // //     return () => {
-// // // // // // // //       cleanupAudio();
-// // // // // // // //     };
-// // // // // // // //   }, []);
-
-// // // // // // // //   return (
-// // // // // // // //     <div className="simple-play-mode">
-// // // // // // // //       <div className="play-mode-content">
-// // // // // // // //         <div className="play-mode-header">
-// // // // // // // //           <h2>Kokoro Audio Player</h2>
-// // // // // // // //           <button onClick={onClose} className="close-button">×</button>
-// // // // // // // //         </div>
-        
-// // // // // // // //         {isLoading ? (
-// // // // // // // //           <div className="loading-container">
-// // // // // // // //             <div className="loading-progress">
-// // // // // // // //               <div 
-// // // // // // // //                 className="progress-bar" 
-// // // // // // // //                 style={{ width: `${loadingProgress}%` }}
-// // // // // // // //               ></div>
-// // // // // // // //             </div>
-// // // // // // // //             <p>Loading Kokoro TTS ({loadingProgress}%)...</p>
-// // // // // // // //             <p className="loading-info">This may take a moment as the AI model is being loaded</p>
-// // // // // // // //           </div>
-// // // // // // // //         ) : errorMessage ? (
-// // // // // // // //           <div className="error-container">
-// // // // // // // //             <p className="error-message">{errorMessage}</p>
-// // // // // // // //             <button onClick={onClose} className="error-close-button">Close</button>
-// // // // // // // //           </div>
-// // // // // // // //         ) : (
-// // // // // // // //           <>
-// // // // // // // //             <div className="control-group">
-// // // // // // // //               <label htmlFor="rate-slider">Speed: {playbackRate.toFixed(1)}x</label>
-// // // // // // // //               <input
-// // // // // // // //                 type="range"
-// // // // // // // //                 id="rate-slider"
-// // // // // // // //                 min="0.5"
-// // // // // // // //                 max="2"
-// // // // // // // //                 step="0.1"
-// // // // // // // //                 value={playbackRate}
-// // // // // // // //                 onChange={handleRateChange}
-// // // // // // // //               />
-// // // // // // // //             </div>
-            
-// // // // // // // //             <div className="button-group">
-// // // // // // // //               {!isPlaying ? (
-// // // // // // // //                 <button 
-// // // // // // // //                   onClick={startPlayback} 
-// // // // // // // //                   className="play-button"
-// // // // // // // //                   disabled={!modelLoaded}
-// // // // // // // //                 >
-// // // // // // // //                   {modelLoaded ? 'Start Reading' : 'Model Loading...'}
-// // // // // // // //                 </button>
-// // // // // // // //               ) : isPaused ? (
-// // // // // // // //                 <button onClick={resumePlayback} className="play-button">Resume</button>
-// // // // // // // //               ) : (
-// // // // // // // //                 <div className="playing-controls">
-// // // // // // // //                   <button onClick={pausePlayback} className="pause-button">Pause</button>
-// // // // // // // //                   <button onClick={stopPlayback} className="stop-button">Stop</button>
-// // // // // // // //                 </div>
-// // // // // // // //               )}
-// // // // // // // //             </div>
-            
-// // // // // // // //             <div className="play-mode-text">
-// // // // // // // //               {isPlaying ? (
-// // // // // // // //                 <p className="current-text">{currentText}</p>
-// // // // // // // //               ) : (
-// // // // // // // //                 <p className="content-preview">{currentPageContent.slice(0, 300)}...</p>
-// // // // // // // //               )}
-// // // // // // // //               <p className="instruction-text">
-// // // // // // // //                 {isPlaying 
-// // // // // // // //                   ? "Reading text using Kokoro TTS..." 
-// // // // // // // //                   : modelLoaded 
-// // // // // // // //                     ? "Click Start Reading to use Kokoro's AI voice" 
-// // // // // // // //                     : "Please wait for the model to load..."}
-// // // // // // // //               </p>
-// // // // // // // //             </div>
-// // // // // // // //           </>
-// // // // // // // //         )}
-// // // // // // // //       </div>
-// // // // // // // //     </div>
-// // // // // // // //   );
-// // // // // // // // };
-
-// // // // // // // // export default KokoroPlayMode;
-
-
-
-
-// // // // // // // // src/components/Reader/KokoroPlayMode.tsx
-// // // // // // // import React, { useState, useEffect, useRef } from 'react';
-// // // // // // // import { KokoroTTS, TextSplitterStream } from 'kokoro-js';
-// // // // // // // import './SimplePlayMode.css';
-
-// // // // // // // interface KokoroPlayModeProps {
-// // // // // // //   currentPageContent: string;
-// // // // // // //   onClose: () => void;
-// // // // // // // }
-
-// // // // // // // const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
-// // // // // // //   currentPageContent,
-// // // // // // //   onClose
-// // // // // // // }) => {
-// // // // // // //   const [isPlaying, setIsPlaying] = useState(false);
-// // // // // // //   const [isPaused, setIsPaused] = useState(false);
-// // // // // // //   const [isLoading, setIsLoading] = useState(false);
-// // // // // // //   const [loadingProgress, setLoadingProgress] = useState(0);
-// // // // // // //   const [currentText, setCurrentText] = useState('');
-// // // // // // //   const [playbackRate, setPlaybackRate] = useState(1.0);
-// // // // // // //   const [modelLoaded, setModelLoaded] = useState(false);
-// // // // // // //   const [errorMessage, setErrorMessage] = useState('');
-  
-// // // // // // //   // Refs
-// // // // // // //   const ttsRef = useRef<any>(null);
-// // // // // // //   const splitterRef = useRef<TextSplitterStream | null>(null);
-// // // // // // //   const streamRef = useRef<any>(null);
-// // // // // // //   const audioContextRef = useRef<AudioContext | null>(null);
-// // // // // // //   const audioQueueRef = useRef<AudioBuffer[]>([]);
-// // // // // // //   const currentAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
-// // // // // // //   const abortControllerRef = useRef<AbortController | null>(null);
-  
-// // // // // // //   // Initialize Kokoro TTS
-// // // // // // //   useEffect(() => {
-// // // // // // //     const initTTS = async () => {
-// // // // // // //       try {
-// // // // // // //         setIsLoading(true);
-// // // // // // //         setLoadingProgress(10);
-// // // // // // //         console.log("Initializing Kokoro TTS...");
-        
-// // // // // // //         // Initialize the AudioContext
-// // // // // // //         if (!audioContextRef.current) {
-// // // // // // //           audioContextRef.current = new AudioContext();
-// // // // // // //         }
-        
-// // // // // // //         // Initialize Kokoro TTS
-// // // // // // //         const model_id = "onnx-community/Kokoro-82M-v1.0-ONNX";
-// // // // // // //         setLoadingProgress(30);
-        
-// // // // // // //         // Use the correct dtype based on device capability
-// // // // // // //         const supportsWebGPU = 'gpu' in navigator;
-// // // // // // //         console.log("WebGPU supported:", supportsWebGPU);
-        
-// // // // // // //         const tts = await KokoroTTS.from_pretrained(model_id, {
-// // // // // // //           dtype: "q8", // Options: "fp32", "fp16", "q8", "q4", "q4f16"
-// // // // // // //           device: supportsWebGPU ? "webgpu" : "wasm", // Use WebGPU if available
-// // // // // // //           progress_callback: (progressInfo) => {
-// // // // // // //             console.log("Loading progress:", progressInfo);
-            
-// // // // // // //             // Handle different progress info formats
-// // // // // // //             let progressValue = 0;
-// // // // // // //             if (typeof progressInfo === 'number') {
-// // // // // // //               progressValue = progressInfo;
-// // // // // // //             } else if (progressInfo && typeof progressInfo === 'object') {
-// // // // // // //               if ('progress' in progressInfo) {
-// // // // // // //                 progressValue = (progressInfo as any).progress;
-// // // // // // //               } else if ('status' in progressInfo && (progressInfo as any).status === 'complete') {
-// // // // // // //                 progressValue = 1;
-// // // // // // //               } else if ('loaded' in progressInfo && 'total' in progressInfo) {
-// // // // // // //                 progressValue = (progressInfo as any).loaded / (progressInfo as any).total;
-// // // // // // //               }
-// // // // // // //             }
-              
-// // // // // // //             setLoadingProgress(30 + Math.round(progressValue * 70));
-// // // // // // //           }
-// // // // // // //         });
-        
-// // // // // // //         console.log("Kokoro TTS model loaded successfully");
-// // // // // // //         ttsRef.current = tts;
-// // // // // // //         setLoadingProgress(100);
-// // // // // // //         setIsLoading(false);
-// // // // // // //         setModelLoaded(true);
-// // // // // // //       } catch (error: unknown) {
-// // // // // // //         console.error('Error initializing Kokoro TTS:', error);
-// // // // // // //         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-// // // // // // //         setErrorMessage(`Failed to initialize TTS: ${errorMsg}`);
-// // // // // // //         setIsLoading(false);
-// // // // // // //       }
-// // // // // // //     };
-    
-// // // // // // //     initTTS();
-    
-// // // // // // //     // Cleanup
-// // // // // // //     return () => {
-// // // // // // //       cleanupAudio();
-// // // // // // //       if (audioContextRef.current) {
-// // // // // // //         audioContextRef.current.close().catch(err => console.error("Error closing audio context:", err));
-// // // // // // //         audioContextRef.current = null;
-// // // // // // //       }
-// // // // // // //     };
-// // // // // // //   }, []);
-  
-// // // // // // //   // Function to clean up audio playback
-// // // // // // //   const cleanupAudio = () => {
-// // // // // // //     console.log("Cleaning up audio");
-    
-// // // // // // //     // Stop the audio context - this should stop all audio immediately
-// // // // // // //     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-// // // // // // //       try {
-// // // // // // //         // Suspend the audio context (stops audio processing)
-// // // // // // //         audioContextRef.current.suspend().catch(err => 
-// // // // // // //           console.error("Error suspending audio context:", err)
-// // // // // // //         );
-// // // // // // //       } catch (error) {
-// // // // // // //         console.error("Error with audio context during cleanup:", error);
-// // // // // // //       }
-// // // // // // //     }
-    
-// // // // // // //     // Abort the stream processing
-// // // // // // //     if (abortControllerRef.current) {
-// // // // // // //       abortControllerRef.current.abort();
-// // // // // // //       abortControllerRef.current = null;
-// // // // // // //     }
-    
-// // // // // // //     // Stop and disconnect any current audio source
-// // // // // // //     if (currentAudioSourceRef.current) {
-// // // // // // //       try {
-// // // // // // //         currentAudioSourceRef.current.stop();
-// // // // // // //         currentAudioSourceRef.current.disconnect();
-// // // // // // //       } catch (error) {
-// // // // // // //         console.error("Error stopping audio source:", error);
-// // // // // // //       }
-// // // // // // //       currentAudioSourceRef.current = null;
-// // // // // // //     }
-    
-// // // // // // //     // Close the text splitter
-// // // // // // //     if (splitterRef.current) {
-// // // // // // //       splitterRef.current.close();
-// // // // // // //       splitterRef.current = null;
-// // // // // // //     }
-    
-// // // // // // //     // Reset other refs and state
-// // // // // // //     streamRef.current = null;
-// // // // // // //     audioQueueRef.current = [];
-    
-// // // // // // //     console.log("Audio cleanup complete");
-// // // // // // //   };
-  
-// // // // // // //   // Start TTS playback
-// // // // // // //   const startPlayback = async () => {
-// // // // // // //     if (!ttsRef.current || isPlaying) return;
-    
-// // // // // // //     try {
-// // // // // // //       // If audio context was suspended, resume it
-// // // // // // //       if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-// // // // // // //         await audioContextRef.current.resume();
-// // // // // // //       }
-      
-// // // // // // //       setIsPlaying(true);
-// // // // // // //       setIsPaused(false);
-// // // // // // //       cleanupAudio();
-// // // // // // //       setErrorMessage('');
-      
-// // // // // // //       console.log("Starting Kokoro TTS playback");
-      
-// // // // // // //       // Create a new abort controller
-// // // // // // //       abortControllerRef.current = new AbortController();
-// // // // // // //       const signal = abortControllerRef.current.signal;
-      
-// // // // // // //       // Create a new splitter and stream
-// // // // // // //       const splitter = new TextSplitterStream();
-// // // // // // //       splitterRef.current = splitter;
-      
-// // // // // // //       // Set up the stream
-// // // // // // //       const stream = ttsRef.current.stream(splitter);
-// // // // // // //       streamRef.current = stream;
-      
-// // // // // // //       // Process the stream
-// // // // // // //       (async () => {
-// // // // // // //         try {
-// // // // // // //           let fullText = '';
-          
-// // // // // // //           for await (const chunk of stream) {
-// // // // // // //             // Check if we've been aborted
-// // // // // // //             if (signal.aborted) {
-// // // // // // //               console.log("Stream processing aborted");
-// // // // // // //               break;
-// // // // // // //             }
-            
-// // // // // // //             // Extract text and audio from the chunk
-// // // // // // //             const { text, audio } = chunk as { text: string; audio: any };
-// // // // // // //             console.log("Received chunk:", { text, hasAudio: !!audio });
-            
-// // // // // // //             fullText += text;
-// // // // // // //             setCurrentText(fullText);
-            
-// // // // // // //             if (!audio) {
-// // // // // // //               console.warn("No audio in chunk");
-// // // // // // //               continue;
-// // // // // // //             }
-            
-// // // // // // //             // Check what methods are available on the audio object
-// // // // // // //             console.log("Audio object methods:", Object.getOwnPropertyNames(Object.getPrototypeOf(audio)));
-            
-// // // // // // //             try {
-// // // // // // //               // Handle Kokoro's audio format
-// // // // // // //               if (audio.toBlob && typeof audio.toBlob === 'function') {
-// // // // // // //                 console.log("Using toBlob method");
-// // // // // // //                 const blob = await audio.toBlob();
-// // // // // // //                 const audioData = await blob.arrayBuffer();
-// // // // // // //                 await playAudioFromArrayBuffer(audioData);
-// // // // // // //               }
-// // // // // // //               else if (audio.toWav && typeof audio.toWav === 'function') {
-// // // // // // //                 console.log("Using toWav method");
-// // // // // // //                 const wavData = audio.toWav();
-// // // // // // //                 const blob = new Blob([wavData], { type: 'audio/wav' });
-// // // // // // //                 const audioData = await blob.arrayBuffer();
-// // // // // // //                 await playAudioFromArrayBuffer(audioData);
-// // // // // // //               }
-// // // // // // //               else if (audio.audio && audio.sampling_rate) {
-// // // // // // //                 console.log("Using raw audio data");
-// // // // // // //                 playRawAudioData(audio.audio, audio.sampling_rate);
-// // // // // // //               }
-// // // // // // //               else {
-// // // // // // //                 console.error("Unrecognized audio format:", audio);
-// // // // // // //               }
-// // // // // // //             } catch (audioError) {
-// // // // // // //               console.error("Error processing audio chunk:", audioError);
-// // // // // // //             }
-// // // // // // //           }
-// // // // // // //         } catch (error: unknown) {
-// // // // // // //           if (!signal.aborted) {
-// // // // // // //             console.error('Error processing TTS stream:', error);
-// // // // // // //             const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-// // // // // // //             setErrorMessage(`Error playing audio: ${errorMsg}`);
-// // // // // // //             setIsPlaying(false);
-// // // // // // //           }
-// // // // // // //         }
-// // // // // // //       })();
-      
-// // // // // // //       // Feed the text to the stream
-// // // // // // //       const cleanText = preprocessText(currentPageContent);
-// // // // // // //       const sentences = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
-      
-// // // // // // //       console.log(`Splitting text into ${sentences.length} sentences`);
-      
-// // // // // // //       for (const sentence of sentences) {
-// // // // // // //         if (signal.aborted) break;
-// // // // // // //         splitter.push(sentence);
-// // // // // // //         console.log("Pushed sentence to stream:", sentence);
-// // // // // // //         await new Promise(resolve => setTimeout(resolve, 10));
-// // // // // // //       }
-      
-// // // // // // //       // Close the stream
-// // // // // // //       console.log("Closing text splitter stream");
-// // // // // // //       splitter.close();
-      
-// // // // // // //     } catch (error: unknown) {
-// // // // // // //       console.error('Error starting TTS playback:', error);
-// // // // // // //       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-// // // // // // //       setErrorMessage(`Failed to start audio: ${errorMsg}`);
-// // // // // // //       setIsPlaying(false);
-// // // // // // //     }
-// // // // // // //   };
-  
-// // // // // // //   // Play audio from ArrayBuffer
-// // // // // // //   const playAudioFromArrayBuffer = async (audioData: ArrayBuffer) => {
-// // // // // // //     if (!audioContextRef.current) return;
-    
-// // // // // // //     try {
-// // // // // // //       console.log("Decoding audio data");
-// // // // // // //       const audioBuffer = await audioContextRef.current.decodeAudioData(audioData);
-      
-// // // // // // //       audioQueueRef.current.push(audioBuffer);
-      
-// // // // // // //       // If this is the first audio chunk, start playing
-// // // // // // //       if (audioQueueRef.current.length === 1 && !currentAudioSourceRef.current && !isPaused) {
-// // // // // // //         playNextAudio();
-// // // // // // //       }
-// // // // // // //     } catch (error) {
-// // // // // // //       console.error("Error decoding audio data:", error);
-// // // // // // //     }
-// // // // // // //   };
-  
-// // // // // // //   // Play raw audio data (Float32Array with sampling rate)
-// // // // // // //   const playRawAudioData = (audioData: Float32Array, sampleRate: number) => {
-// // // // // // //     if (!audioContextRef.current) return;
-    
-// // // // // // //     try {
-// // // // // // //       console.log("Creating audio buffer from raw data");
-      
-// // // // // // //       // Create an audio buffer
-// // // // // // //       const audioBuffer = audioContextRef.current.createBuffer(
-// // // // // // //         1, // mono
-// // // // // // //         audioData.length,
-// // // // // // //         sampleRate
-// // // // // // //       );
-      
-// // // // // // //       // Copy the data to the audio buffer
-// // // // // // //       const channelData = audioBuffer.getChannelData(0);
-// // // // // // //       for (let i = 0; i < audioData.length; i++) {
-// // // // // // //         channelData[i] = audioData[i];
-// // // // // // //       }
-      
-// // // // // // //       audioQueueRef.current.push(audioBuffer);
-      
-// // // // // // //       // If this is the first audio chunk, start playing
-// // // // // // //       if (audioQueueRef.current.length === 1 && !currentAudioSourceRef.current && !isPaused) {
-// // // // // // //         playNextAudio();
-// // // // // // //       }
-// // // // // // //     } catch (error) {
-// // // // // // //       console.error("Error creating audio buffer:", error);
-// // // // // // //     }
-// // // // // // //   };
-  
-// // // // // // //   // Preprocess text to improve TTS quality
-// // // // // // //   const preprocessText = (text: string): string => {
-// // // // // // //     // Remove excess whitespace
-// // // // // // //     let cleaned = text.replace(/\s+/g, ' ').trim();
-    
-// // // // // // //     // Replace common abbreviations
-// // // // // // //     cleaned = cleaned.replace(/(\w)\.(\w)/g, '$1. $2'); // e.g., "Mr.Smith" -> "Mr. Smith"
-    
-// // // // // // //     // Add periods to make sure we have complete sentences
-// // // // // // //     if (!cleaned.endsWith('.') && !cleaned.endsWith('!') && !cleaned.endsWith('?')) {
-// // // // // // //       cleaned += '.';
-// // // // // // //     }
-    
-// // // // // // //     return cleaned;
-// // // // // // //   };
-  
-// // // // // // //   // Play the next audio chunk in the queue
-// // // // // // //   const playNextAudio = () => {
-// // // // // // //     if (!audioContextRef.current || audioQueueRef.current.length === 0 || isPaused) return;
-    
-// // // // // // //     console.log("Playing next audio chunk");
-    
-// // // // // // //     // Create a new audio source
-// // // // // // //     const source = audioContextRef.current.createBufferSource();
-// // // // // // //     source.buffer = audioQueueRef.current[0];
-// // // // // // //     source.playbackRate.value = playbackRate;
-// // // // // // //     source.connect(audioContextRef.current.destination);
-    
-// // // // // // //     // Store the source so we can stop it if needed
-// // // // // // //     currentAudioSourceRef.current = source;
-    
-// // // // // // //     // Remove this buffer from the queue
-// // // // // // //     audioQueueRef.current.shift();
-    
-// // // // // // //     // When this audio chunk ends, play the next one
-// // // // // // //     source.onended = () => {
-// // // // // // //       console.log("Audio chunk ended");
-// // // // // // //       currentAudioSourceRef.current = null;
-      
-// // // // // // //       if (audioQueueRef.current.length > 0 && !isPaused) {
-// // // // // // //         playNextAudio();
-// // // // // // //       } else if (!splitterRef.current) {
-// // // // // // //         // If we're done and the splitter is closed, we're finished
-// // // // // // //         console.log("Playback complete");
-// // // // // // //         setIsPlaying(false);
-// // // // // // //       }
-// // // // // // //     };
-    
-// // // // // // //     // Start playback
-// // // // // // //     source.start();
-// // // // // // //     console.log("Started audio source");
-// // // // // // //   };
-  
-// // // // // // //   // Pause playback
-// // // // // // //   const pausePlayback = () => {
-// // // // // // //     console.log("Pause requested");
-// // // // // // //     setIsPaused(true);
-    
-// // // // // // //     // Immediately stop any playing audio
-// // // // // // //     if (audioContextRef.current) {
-// // // // // // //       console.log("Suspending audio context to pause");
-// // // // // // //       audioContextRef.current.suspend().catch(err => 
-// // // // // // //         console.error("Error suspending audio context:", err)
-// // // // // // //       );
-// // // // // // //     }
-    
-// // // // // // //     if (currentAudioSourceRef.current) {
-// // // // // // //       try {
-// // // // // // //         console.log("Stopping current audio source");
-// // // // // // //         currentAudioSourceRef.current.stop();
-// // // // // // //         currentAudioSourceRef.current.disconnect();
-// // // // // // //         currentAudioSourceRef.current = null;
-// // // // // // //       } catch (error) {
-// // // // // // //         console.error("Error stopping audio source:", error);
-// // // // // // //       }
-// // // // // // //     }
-// // // // // // //   };
-  
-// // // // // // //   // Resume playback
-// // // // // // //   const resumePlayback = () => {
-// // // // // // //     console.log("Resume requested");
-// // // // // // //     setIsPaused(false);
-    
-// // // // // // //     // Resume audio context
-// // // // // // //     if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-// // // // // // //       console.log("Resuming audio context");
-// // // // // // //       audioContextRef.current.resume().then(() => {
-// // // // // // //         // Start playing the next audio in the queue
-// // // // // // //         if (audioQueueRef.current.length > 0) {
-// // // // // // //           playNextAudio();
-// // // // // // //         }
-// // // // // // //       }).catch(err => console.error("Error resuming audio context:", err));
-// // // // // // //     } else {
-// // // // // // //       // Start playing the next audio in the queue
-// // // // // // //       if (audioQueueRef.current.length > 0) {
-// // // // // // //         playNextAudio();
-// // // // // // //       }
-// // // // // // //     }
-// // // // // // //   };
-  
-// // // // // // //   // Stop playback
-// // // // // // //   const stopPlayback = () => {
-// // // // // // //     console.log("Stop requested");
-// // // // // // //     setIsPlaying(false);
-// // // // // // //     setIsPaused(false);
-// // // // // // //     setCurrentText('');
-    
-// // // // // // //     // More aggressive audio cleanup
-// // // // // // //     if (audioContextRef.current) {
-// // // // // // //       console.log("Suspending audio context to stop");
-// // // // // // //       audioContextRef.current.suspend().catch(err => 
-// // // // // // //         console.error("Error suspending audio context:", err)
-// // // // // // //       );
-// // // // // // //     }
-    
-// // // // // // //     cleanupAudio();
-// // // // // // //   };
-  
-// // // // // // //   // Update playback rate
-// // // // // // //   const handleRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-// // // // // // //     const newRate = parseFloat(e.target.value);
-// // // // // // //     setPlaybackRate(newRate);
-    
-// // // // // // //     // Update the rate of the current audio source if one is playing
-// // // // // // //     if (currentAudioSourceRef.current) {
-// // // // // // //       currentAudioSourceRef.current.playbackRate.value = newRate;
-// // // // // // //     }
-// // // // // // //   };
-  
-// // // // // // //   // Handle proper cleanup when closed
-// // // // // // //   const handleClose = () => {
-// // // // // // //     console.log("PlayMode closing");
-    
-// // // // // // //     // First stop all audio
-// // // // // // //     stopPlayback();
-    
-// // // // // // //     // Ensure audio context is closed properly
-// // // // // // //     if (audioContextRef.current) {
-// // // // // // //       if (audioContextRef.current.state !== 'closed') {
-// // // // // // //         audioContextRef.current.close().catch(err => 
-// // // // // // //           console.error("Error closing audio context:", err)
-// // // // // // //         );
-// // // // // // //       }
-// // // // // // //       audioContextRef.current = null;
-// // // // // // //     }
-    
-// // // // // // //     // Now call the parent's onClose
-// // // // // // //     onClose();
-// // // // // // //   };
-  
-// // // // // // //   // Handle component unmount
-// // // // // // //   useEffect(() => {
-// // // // // // //     return () => {
-// // // // // // //       console.log("Component unmounting");
-// // // // // // //       stopPlayback();
-      
-// // // // // // //       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-// // // // // // //         audioContextRef.current.close().catch(err => 
-// // // // // // //           console.error("Error closing audio context:", err)
-// // // // // // //         );
-// // // // // // //         audioContextRef.current = null;
-// // // // // // //       }
-// // // // // // //     };
-// // // // // // //   }, []);
-
-// // // // // // //   return (
-// // // // // // //     <div className="simple-play-mode">
-// // // // // // //       <div className="play-mode-content">
-// // // // // // //         <div className="play-mode-header">
-// // // // // // //           <h2>Kokoro Audio Player</h2>
-// // // // // // //           <button onClick={handleClose} className="close-button">×</button>
-// // // // // // //         </div>
-        
-// // // // // // //         {isLoading ? (
-// // // // // // //           <div className="loading-container">
-// // // // // // //             <div className="loading-progress">
-// // // // // // //               <div 
-// // // // // // //                 className="progress-bar" 
-// // // // // // //                 style={{ width: `${loadingProgress}%` }}
-// // // // // // //               ></div>
-// // // // // // //             </div>
-// // // // // // //             <p>Loading Kokoro TTS ({loadingProgress}%)...</p>
-// // // // // // //             <p className="loading-info">This may take a moment as the AI model is being loaded</p>
-// // // // // // //           </div>
-// // // // // // //         ) : errorMessage ? (
-// // // // // // //           <div className="error-container">
-// // // // // // //             <p className="error-message">{errorMessage}</p>
-// // // // // // //             <button onClick={handleClose} className="error-close-button">Close</button>
-// // // // // // //           </div>
-// // // // // // //         ) : (
-// // // // // // //           <>
-// // // // // // //             <div className="control-group">
-// // // // // // //               <label htmlFor="rate-slider">Speed: {playbackRate.toFixed(1)}x</label>
-// // // // // // //               <input
-// // // // // // //                 type="range"
-// // // // // // //                 id="rate-slider"
-// // // // // // //                 min="0.5"
-// // // // // // //                 max="2"
-// // // // // // //                 step="0.1"
-// // // // // // //                 value={playbackRate}
-// // // // // // //                 onChange={handleRateChange}
-// // // // // // //               />
-// // // // // // //             </div>
-            
-// // // // // // //             <div className="button-group">
-// // // // // // //               {!isPlaying ? (
-// // // // // // //                 <button 
-// // // // // // //                   onClick={startPlayback} 
-// // // // // // //                   className="play-button"
-// // // // // // //                   disabled={!modelLoaded}
-// // // // // // //                 >
-// // // // // // //                   {modelLoaded ? 'Start Reading' : 'Model Loading...'}
-// // // // // // //                 </button>
-// // // // // // //               ) : isPaused ? (
-// // // // // // //                 <button onClick={resumePlayback} className="play-button">Resume</button>
-// // // // // // //               ) : (
-// // // // // // //                 <div className="playing-controls">
-// // // // // // //                   <button onClick={pausePlayback} className="pause-button">Pause</button>
-// // // // // // //                   <button onClick={stopPlayback} className="stop-button">Stop</button>
-// // // // // // //                 </div>
-// // // // // // //               )}
-// // // // // // //             </div>
-            
-// // // // // // //             <div className="play-mode-text">
-// // // // // // //               {isPlaying ? (
-// // // // // // //                 <p className="current-text">{currentText}</p>
-// // // // // // //               ) : (
-// // // // // // //                 <p className="content-preview">{currentPageContent.slice(0, 300)}...</p>
-// // // // // // //               )}
-// // // // // // //               <p className="instruction-text">
-// // // // // // //                 {isPlaying 
-// // // // // // //                   ? "Reading text using Kokoro TTS..." 
-// // // // // // //                   : modelLoaded 
-// // // // // // //                     ? "Click Start Reading to use Kokoro's AI voice" 
-// // // // // // //                     : "Please wait for the model to load..."}
-// // // // // // //               </p>
-// // // // // // //             </div>
-// // // // // // //           </>
-// // // // // // //         )}
-// // // // // // //       </div>
-// // // // // // //     </div>
-// // // // // // //   );
-// // // // // // // };
-
-// // // // // // // export default KokoroPlayMode;
-
-
-// // // // // import React, { useState, useEffect, useRef } from 'react';
-// // // // // import { KokoroTTSService } from '../../services/KokoroTTSService';
-// // // // // import './SimplePlayMode.css';
-
-// // // // // interface KokoroPlayModeProps {
-// // // // //   currentPageContent: string;
-// // // // //   onClose: () => void;
-// // // // // }
-
-// // // // // const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
-// // // // //   currentPageContent,
-// // // // //   onClose
-// // // // // }) => {
-// // // // //   // State
-// // // // //   const [isPlaying, setIsPlaying] = useState(false);
-// // // // //   const [isPaused, setIsPaused] = useState(false);
-// // // // //   const [isLoading, setIsLoading] = useState(false);
-// // // // //   const [loadingProgress, setLoadingProgress] = useState(0);
-// // // // //   const [currentText, setCurrentText] = useState('');
-// // // // //   const [playbackRate, setPlaybackRate] = useState(1.0);
-// // // // //   const [modelLoaded, setModelLoaded] = useState(false);
-// // // // //   const [errorMessage, setErrorMessage] = useState('');
-// // // // //   const [showPlayMode, setShowPlayMode] = useState(false);
-// // // // //   const audioContextRef = useRef<AudioContext | null>(null);
-  
-// // // // //   // TTS Service ref
-// // // // //   const ttsServiceRef = useRef<KokoroTTSService | null>(null);
-  
-// // // // //   // Initialize TTS service
-// // // // //   useEffect(() => {
-// // // // //     // Create TTS service instance
-// // // // //     const ttsService = new KokoroTTSService();
-// // // // //     ttsServiceRef.current = ttsService;
-    
-// // // // //     // Initialize the service
-// // // // //     const initTTS = async () => {
-// // // // //       try {
-// // // // //         setIsLoading(true);
-        
-// // // // //         // Set callbacks
-// // // // //         ttsService.setCallbacks(
-// // // // //           // Text update callback
-// // // // //           (text: string) => setCurrentText(text),
-// // // // //           // Error callback
-// // // // //           (error: string) => {
-// // // // //             setErrorMessage(error);
-// // // // //             setIsPlaying(false);
-// // // // //           },
-// // // // //           // Completion callback
-// // // // //           () => setIsPlaying(false)
-// // // // //         );
-        
-// // // // //         // Initialize the service
-// // // // //         await ttsService.initialize(
-// // // // //           // Progress callback
-// // // // //           (progress: number) => setLoadingProgress(progress)
-// // // // //         );
-
-
-// // // // //         // // Store the audio context if exposed by your TTS service
-// // // // //         // if (ttsService.audioContext) {
-// // // // //         //   audioContextRef.current = ttsService.audioContext;
-// // // // //         // }
-        
-// // // // //         setIsLoading(false);
-// // // // //         setModelLoaded(true);
-// // // // //       } catch (error) {
-// // // // //         console.error('Error initializing TTS service:', error);
-// // // // //         setErrorMessage('Failed to initialize TTS service');
-// // // // //         setIsLoading(false);
-// // // // //       }
-// // // // //     };
-    
-// // // // //     initTTS();
-    
-// // // // //     // Cleanup
-// // // // //     // Cleanup
-// // // // //     return () => {
-// // // // //         // This cleanup now happens in handleClose, but as a fallback:
-// // // // //         if (ttsServiceRef.current) {
-// // // // //           ttsServiceRef.current.dispose();
-// // // // //           ttsServiceRef.current = null;
-// // // // //         }
-        
-// // // // //         if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-// // // // //           audioContextRef.current.close().catch(err => 
-// // // // //             console.error("Error closing audio context:", err)
-// // // // //           );
-// // // // //           audioContextRef.current = null;
-// // // // //         }
-// // // // //       };
-// // // // //     }, []);
-  
-// // // // //   // Start TTS playback
-// // // // //   const startPlayback = async () => {
-// // // // //     if (!ttsServiceRef.current || isPlaying) return;
-    
-// // // // //     try {
-// // // // //       setIsPlaying(true);
-// // // // //       setIsPaused(false);
-// // // // //       setErrorMessage('');
-      
-// // // // //       // Start playback
-// // // // //       await ttsServiceRef.current.playText(currentPageContent);
-// // // // //     } catch (error) {
-// // // // //       console.error('Error starting playback:', error);
-// // // // //       setIsPlaying(false);
-// // // // //       setErrorMessage('Failed to start playback');
-// // // // //     }
-// // // // //   };
-  
-// // // // //   // Pause playback
-// // // // //   const pausePlayback = () => {
-// // // // //     if (!ttsServiceRef.current) return;
-    
-// // // // //     setIsPaused(true);
-// // // // //     ttsServiceRef.current.pause();
-// // // // //   };
-
-// // // // //     // Handle proper cleanup when closed
-// // // // //     // Modify your handleClose function
-// // // // //     // Handle proper cleanup when closed
-// // // // //   // const handleClose = () => {
-// // // // //   //     console.log("PlayMode closing");
-      
-// // // // //   //     // First stop all audio
-// // // // //   //     stopPlayback();
-      
-// // // // //   //     // Ensure TTS service is properly disposed
-// // // // //   //     if (ttsServiceRef.current) {
-// // // // //   //       ttsServiceRef.current.dispose();
-// // // // //   //       ttsServiceRef.current = null;
-// // // // //   //     }
-      
-// // // // //   //     // Now call the parent's onClose
-// // // // //   //     onClose();
-// // // // //   // };
-  
-
-// // // // //   // Handle proper cleanup when closed
-// // // // //   const handleClose = () => {
-// // // // //     console.log("PlayMode closing");
-    
-// // // // //     try {
-// // // // //       // First stop all audio
-// // // // //       if (ttsServiceRef.current) {
-// // // // //         // Stop playback if playing
-// // // // //         if (isPlaying) {
-// // // // //           stopPlayback();
-// // // // //         }
-        
-// // // // //         // Ensure TTS service is properly disposed
-// // // // //         ttsServiceRef.current.dispose();
-// // // // //         ttsServiceRef.current = null;
-// // // // //       }
-// // // // //     } catch (error) {
-// // // // //       console.error("Error during cleanup:", error);
-// // // // //     } finally {
-// // // // //       // Always call the parent's onClose, even if there's an error
-// // // // //       console.log("Calling parent onClose function");
-// // // // //       onClose();
-// // // // //     }
-// // // // //   };
-
-// // // // //   // Handle component unmount
-// // // // //   useEffect(() => {
-// // // // //     return () => {
-// // // // //       console.log("Component unmounting");
-      
-// // // // //       // Same cleanup as handleClose
-// // // // //       stopPlayback();
-      
-// // // // //       if (ttsServiceRef.current) {
-// // // // //         ttsServiceRef.current.dispose();
-// // // // //         ttsServiceRef.current = null;
-// // // // //       }
-// // // // //     };
-// // // // //   }, []);
-
-
-// // // // //   // Resume playback
-// // // // //   const resumePlayback = () => {
-// // // // //     if (!ttsServiceRef.current) return;
-    
-// // // // //     setIsPaused(false);
-// // // // //     ttsServiceRef.current.resume();
-// // // // //   };
-  
-// // // // //   // Stop playback
-// // // // //   const stopPlayback = () => {
-// // // // //     if (!ttsServiceRef.current) return;
-    
-// // // // //     setIsPlaying(false);
-// // // // //     setIsPaused(false);
-// // // // //     setCurrentText('');
-// // // // //     ttsServiceRef.current.stop();
-// // // // //   };
-  
-// // // // //   // Update playback rate
-// // // // //   const handleRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-// // // // //     if (!ttsServiceRef.current) return;
-    
-// // // // //     const newRate = parseFloat(e.target.value);
-// // // // //     setPlaybackRate(newRate);
-// // // // //     ttsServiceRef.current.setPlaybackRate(newRate);
-// // // // //   };
-
-// // // // //   return (
-// // // // //     <div className="simple-play-mode">
-// // // // //       <div className="play-mode-content">
-// // // // //         <div className="play-mode-header">
-// // // // //           <h2>Kokoro Audio Player</h2>
-// // // // //           <button onClick={handleClose} className="close-button">×</button>
-// // // // //         </div>
-        
-// // // // //         {isLoading ? (
-// // // // //           <div className="loading-container">
-// // // // //             <div className="loading-progress">
-// // // // //               <div 
-// // // // //                 className="progress-bar" 
-// // // // //                 style={{ width: `${loadingProgress}%` }}
-// // // // //               ></div>
-// // // // //             </div>
-// // // // //             <p>Loading Kokoro TTS ({loadingProgress}%)...</p>
-// // // // //             <p className="loading-info">This may take a moment as the AI model is being loaded</p>
-// // // // //           </div>
-// // // // //         ) : errorMessage ? (
-// // // // //           <div className="error-container">
-// // // // //             <p className="error-message">{errorMessage}</p>
-// // // // //             <button onClick={handleClose} className="error-close-button">Close</button>
-// // // // //           </div>
-// // // // //         ) : (
-// // // // //           <>
-// // // // //             <div className="control-group">
-// // // // //               <label htmlFor="rate-slider">Speed: {playbackRate.toFixed(1)}x</label>
-// // // // //               <input
-// // // // //                 type="range"
-// // // // //                 id="rate-slider"
-// // // // //                 min="0.5"
-// // // // //                 max="2"
-// // // // //                 step="0.1"
-// // // // //                 value={playbackRate}
-// // // // //                 onChange={handleRateChange}
-// // // // //               />
-// // // // //             </div>
-            
-// // // // //             <div className="button-group">
-// // // // //               {!isPlaying ? (
-// // // // //                 <button 
-// // // // //                   onClick={startPlayback} 
-// // // // //                   className="play-button"
-// // // // //                   disabled={!modelLoaded}
-// // // // //                 >
-// // // // //                   {modelLoaded ? 'Start Reading' : 'Model Loading...'}
-// // // // //                 </button>
-// // // // //               ) : isPaused ? (
-// // // // //                 <button onClick={resumePlayback} className="play-button">Resume</button>
-// // // // //               ) : (
-// // // // //                 <div className="playing-controls">
-// // // // //                   <button onClick={pausePlayback} className="pause-button">Pause</button>
-// // // // //                   <button onClick={stopPlayback} className="stop-button">Stop</button>
-// // // // //                 </div>
-// // // // //               )}
-// // // // //             </div>
-
-            
-// // // // //             <div className="play-mode-text">
-// // // // //               {isPlaying ? (
-// // // // //                 <p className="current-text">{currentText}</p>
-// // // // //               ) : (
-// // // // //                 <p className="content-preview">{currentPageContent.slice(0, 300)}...</p>
-// // // // //               )}
-// // // // //               <p className="instruction-text">
-// // // // //                 {isPlaying 
-// // // // //                   ? "Reading text using Kokoro TTS..." 
-// // // // //                   : modelLoaded 
-// // // // //                     ? "Click Start Reading to use Kokoro's AI voice" 
-// // // // //                     : "Please wait for the model to load..."}
-// // // // //               </p>
-// // // // //             </div>
-// // // // //           </>
-// // // // //         )}
-// // // // //       </div>
-// // // // //     </div>
-// // // // //   );
-// // // // // };
-
-// // // // // export default KokoroPlayMode;
-
-
-
-// // // // import React, { useState, useEffect, useRef } from 'react';
-// // // // import { KokoroTTSService } from '../../services/KokoroTTSService';
-// // // // import './SimplePlayMode.css';
-
-// // // // interface KokoroPlayModeProps {
-// // // //   currentPageContent: string;
-// // // //   onClose: () => void;
-// // // // }
-
-// // // // const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
-// // // //   currentPageContent,
-// // // //   onClose
-// // // // }) => {
-// // // //   // State
-// // // //   const [isPlaying, setIsPlaying] = useState(false);
-// // // //   const [isPaused, setIsPaused] = useState(false);
-// // // //   const [isLoading, setIsLoading] = useState(false);
-// // // //   const [loadingProgress, setLoadingProgress] = useState(0);
-// // // //   const [currentText, setCurrentText] = useState('');
-// // // //   const [playbackRate, setPlaybackRate] = useState(1.0);
-// // // //   const [modelLoaded, setModelLoaded] = useState(false);
-// // // //   const [errorMessage, setErrorMessage] = useState('');
-// // // //   const [estimatedTime, setEstimatedTime] = useState(10);
-// // // //   const [playbackFinished, setPlaybackFinished] = useState(false);
-// // // //   const [segments, setSegments] = useState<string[]>([]);
-// // // //   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
-// // // //   const [allChunksProcessed, setAllChunksProcessed] = useState(false);
-  
-// // // //   // Refs
-// // // //   const ttsServiceRef = useRef<KokoroTTSService | null>(null);
-// // // //   const textContainerRef = useRef<HTMLDivElement>(null);
-  
-// // // //   // Split text into segments on initialization
-// // // //   useEffect(() => {
-// // // //     // Simple sentence splitting (you can make this more sophisticated)
-// // // //     const splitText = currentPageContent.match(/[^.!?]+[.!?]+/g) || [currentPageContent];
-// // // //     setSegments(splitText);
-// // // //   }, [currentPageContent]);
-  
-// // // //   // Initialize TTS service
-// // // //   useEffect(() => {
-// // // //     // Create TTS service instance
-// // // //     const ttsService = new KokoroTTSService();
-// // // //     ttsServiceRef.current = ttsService;
-    
-// // // //     // Initialize the service
-// // // //     const initTTS = async () => {
-// // // //       try {
-// // // //         setIsLoading(true);
-        
-// // // //         // Set callbacks
-// // // //         ttsService.setCallbacks(
-// // // //           // Text update callback
-// // // //           (text: string) => {
-// // // //             setCurrentText(text);
-// // // //             // Scroll text container to show current text
-// // // //             if (textContainerRef.current) {
-// // // //               textContainerRef.current.scrollTop = textContainerRef.current.scrollHeight;
-// // // //             }
-// // // //           },
-// // // //           // Error callback
-// // // //           (error: string) => {
-// // // //             setErrorMessage(error);
-// // // //             setIsPlaying(false);
-// // // //           },
-// // // //           // Completion callback
-// // // //           () => {
-// // // //             setIsPlaying(false);
-// // // //             setPlaybackFinished(true);
-// // // //           }
-// // // //         );
-        
-// // // //         // Initialize the service
-// // // //         await ttsService.initialize(
-// // // //           // Progress callback
-// // // //           (progress: number) => {
-// // // //             setLoadingProgress(progress);
-// // // //             // Update estimated time based on progress
-// // // //             const remainingTime = Math.ceil((100 - progress) / 10); // Simple estimate
-// // // //             setEstimatedTime(remainingTime);
-// // // //           }
-// // // //         );
-        
-// // // //         setIsLoading(false);
-// // // //         setModelLoaded(true);
-// // // //       } catch (error) {
-// // // //         console.error('Error initializing TTS service:', error);
-// // // //         setErrorMessage('Failed to initialize TTS service');
-// // // //         setIsLoading(false);
-// // // //       }
-// // // //     };
-    
-// // // //     initTTS();
-    
-// // // //     // Cleanup
-// // // //     return () => {
-// // // //       cleanupPlayback();
-// // // //     };
-// // // //   }, []);
-  
-// // // //   // Handle proper cleanup
-// // // //   const cleanupPlayback = () => {
-// // // //     console.log("Cleaning up playback");
-    
-// // // //     try {
-// // // //       // Stop playback if active
-// // // //       if (isPlaying) {
-// // // //         stopPlayback();
-// // // //       }
-      
-// // // //       // Dispose of TTS service
-// // // //       if (ttsServiceRef.current) {
-// // // //         ttsServiceRef.current.dispose();
-// // // //         ttsServiceRef.current = null;
-// // // //       }
-// // // //     } catch (error) {
-// // // //       console.error("Error during cleanup:", error);
-// // // //     }
-// // // //   };
-  
-// // // //   // Handle close
-// // // //   const handleClose = () => {
-// // // //     console.log("PlayMode closing");
-    
-// // // //     try {
-// // // //       cleanupPlayback();
-// // // //     } catch (error) {
-// // // //       console.error("Error during close:", error);
-// // // //     } finally {
-// // // //       // Always call parent's onClose
-// // // //       onClose();
-// // // //     }
-// // // //   };
-  
-// // // //   // Start TTS playback
-// // // //   const startPlayback = async (fromSegment = 0) => {
-// // // //     if (!ttsServiceRef.current || (isPlaying && !isPaused)) return;
-    
-// // // //     try {
-// // // //       setIsPlaying(true);
-// // // //       setIsPaused(false);
-// // // //       setErrorMessage('');
-// // // //       setPlaybackFinished(false);
-// // // //       setCurrentSegmentIndex(fromSegment);
-      
-// // // //       // Get text starting from the specified segment
-// // // //       const textToPlay = segments.slice(fromSegment).join(' ');
-      
-// // // //       // Start playback
-// // // //       await ttsServiceRef.current.playText(textToPlay);
-// // // //       setAllChunksProcessed(true);
-// // // //     } catch (error) {
-// // // //       console.error('Error starting playback:', error);
-// // // //       setIsPlaying(false);
-// // // //       setErrorMessage('Failed to start playback');
-// // // //     }
-// // // //   };
-  
-// // // //   // Pause playback
-// // // //   const pausePlayback = () => {
-// // // //     if (!ttsServiceRef.current) return;
-    
-// // // //     setIsPaused(true);
-// // // //     ttsServiceRef.current.pause();
-// // // //   };
-  
-// // // //   // Resume playback
-// // // //   const resumePlayback = () => {
-// // // //     if (!ttsServiceRef.current) return;
-    
-// // // //     setIsPaused(false);
-// // // //     ttsServiceRef.current.resume();
-// // // //   };
-  
-// // // //   // Stop playback
-// // // //   const stopPlayback = () => {
-// // // //     if (!ttsServiceRef.current) return;
-    
-// // // //     try {
-// // // //       setIsPlaying(false);
-// // // //       setIsPaused(false);
-// // // //       setCurrentText('');
-// // // //       ttsServiceRef.current.stop();
-// // // //     } catch (error) {
-// // // //       console.error("Error stopping playback:", error);
-// // // //     }
-// // // //   };
-  
-// // // //   // Navigate forward
-// // // //   const handleForward = () => {
-// // // //     if (currentSegmentIndex < segments.length - 1) {
-// // // //       stopPlayback();
-// // // //       startPlayback(currentSegmentIndex + 1);
-// // // //     }
-// // // //   };
-  
-// // // //   // Navigate backward
-// // // //   const handleBackward = () => {
-// // // //     if (currentSegmentIndex > 0) {
-// // // //       stopPlayback();
-// // // //       startPlayback(currentSegmentIndex - 1);
-// // // //     }
-// // // //   };
-  
-// // // //   // Update playback rate
-// // // //   const handleRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-// // // //     if (!ttsServiceRef.current) return;
-    
-// // // //     const newRate = parseFloat(e.target.value);
-// // // //     setPlaybackRate(newRate);
-// // // //     ttsServiceRef.current.setPlaybackRate(newRate);
-// // // //   };
-  
-// // // //   // Handlers for UI controls
-// // // //   const handlePlay = () => {
-// // // //     if (isPaused) {
-// // // //       resumePlayback();
-// // // //     } else {
-// // // //       startPlayback(currentSegmentIndex);
-// // // //     }
-// // // //   };
-  
-// // // //   const handlePause = () => {
-// // // //     pausePlayback();
-// // // //   };
-  
-// // // //   const handleStop = () => {
-// // // //     stopPlayback();
-// // // //     setCurrentSegmentIndex(0);
-// // // //   };
-  
-// // // //   // Text to display in the reader
-// // // //   const textToDisplay = isPlaying ? currentText || segments[currentSegmentIndex] || '' : 
-// // // //                                    currentPageContent.slice(0, 300) + '...';
-
-// // // //   return (
-// // // //     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-50">
-// // // //       <div
-// // // //         className={`
-// // // //           relative bg-white text-gray-900 rounded-lg shadow-lg transition-all duration-300 overflow-hidden 
-// // // //           ${!isPlaying
-// // // //             ? "w-[300px] h-[400px] sm:w-[650px] sm:max-h-[85%] sm:p-6"
-// // // //             : "w-full h-full sm:max-w-[800px] sm:h-[85%]"}
-// // // //         `}
-// // // //       >
-// // // //         {/* Always-visible Close Icon */}
-// // // //         <button
-// // // //           className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 z-50 focus:outline-none"
-// // // //           onClick={handleClose}
-// // // //           aria-label="Close"
-// // // //         >
-// // // //           ×
-// // // //         </button>
-
-// // // //         {playbackFinished && (
-// // // //           <div className="flex items-center justify-center p-4 bg-yellow-100 text-yellow-800">
-// // // //             Playback finished. Click "Stop" or "Close" to exit.
-// // // //           </div>
-// // // //         )}
-
-// // // //         {errorMessage ? (
-// // // //           <div className="flex flex-col items-center justify-center h-full">
-// // // //             <p className="mt-4 text-base sm:text-lg font-medium text-red-600">
-// // // //               {errorMessage}
-// // // //             </p>
-// // // //             <button 
-// // // //               onClick={handleClose}
-// // // //               className="mt-4 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md"
-// // // //             >
-// // // //               Close
-// // // //             </button>
-// // // //           </div>
-// // // //         ) : isLoading ? (
-// // // //           <div className="flex flex-col items-center justify-center h-full">
-// // // //             <div className="w-full max-w-md bg-gray-200 rounded-full h-2.5 mb-4">
-// // // //               <div className="bg-gray-700 h-2.5 rounded-full" style={{ width: `${loadingProgress}%` }}></div>
-// // // //             </div>
-// // // //             <p className="mt-4 text-base sm:text-lg font-medium">
-// // // //               Your audio will start in approximately {estimatedTime} seconds...
-// // // //             </p>
-// // // //           </div>
-// // // //         ) : !isPlaying ? (
-// // // //           <div className="flex flex-col items-center justify-center gap-4 relative h-full">
-// // // //             <h2 className="text-xl sm:text-2xl font-bold mb-4">Kokoro Audio Player</h2>
-// // // //             <button
-// // // //               onClick={handlePlay}
-// // // //               className="bg-gray-700 hover:bg-gray-800 text-white px-6 py-2 rounded-md shadow-md transition-colors focus:outline-none"
-// // // //               disabled={!modelLoaded}
-// // // //             >
-// // // //               {modelLoaded ? 'Start Audiobook' : 'Model Loading...'}
-// // // //             </button>
-            
-// // // //             <div className="mt-8 px-4">
-// // // //               <label htmlFor="rate-slider" className="block text-sm font-medium text-gray-700 mb-1">
-// // // //                 Speed: {playbackRate.toFixed(1)}x
-// // // //               </label>
-// // // //               <input
-// // // //                 type="range"
-// // // //                 id="rate-slider"
-// // // //                 min="0.5"
-// // // //                 max="2"
-// // // //                 step="0.1"
-// // // //                 value={playbackRate}
-// // // //                 onChange={handleRateChange}
-// // // //                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-// // // //               />
-// // // //             </div>
-            
-// // // //             <div className="mt-8 max-h-48 overflow-y-auto p-4 border border-gray-200 rounded bg-gray-50 w-full max-w-md">
-// // // //               <p className="text-sm text-gray-700">
-// // // //                 {currentPageContent.slice(0, 300)}...
-// // // //               </p>
-// // // //             </div>
-// // // //           </div>
-// // // //         ) : (
-// // // //           <div
-// // // //             className="relative w-full h-full bg-[#f8f5e6] p-4 sm:p-8 overflow-y-auto"
-// // // //             ref={textContainerRef}
-// // // //           >
-// // // //             <p className="text-base sm:text-2xl leading-relaxed font-serif">
-// // // //               {textToDisplay}
-// // // //             </p>
-// // // //           </div>
-// // // //         )}
-
-// // // //         {isPlaying && !errorMessage && (
-// // // //           <div className="absolute bottom-4 left-0 right-0 flex justify-center flex-wrap gap-4">
-// // // //             <button
-// // // //               onClick={handleBackward}
-// // // //               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none"
-// // // //               disabled={currentSegmentIndex <= 0}
-// // // //             >
-// // // //               ← Back
-// // // //             </button>
-            
-// // // //             {isPaused ? (
-// // // //               <button
-// // // //                 onClick={handlePlay}
-// // // //                 className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-// // // //               >
-// // // //                 ▶ Resume
-// // // //               </button>
-// // // //             ) : (
-// // // //               <button
-// // // //                 onClick={handlePause}
-// // // //                 className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-// // // //               >
-// // // //                 ⏸ Pause
-// // // //               </button>
-// // // //             )}
-            
-// // // //             <button
-// // // //               onClick={handleForward}
-// // // //               disabled={!allChunksProcessed && currentSegmentIndex >= segments.length - 1}
-// // // //               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none"
-// // // //             >
-// // // //               Forward →
-// // // //             </button>
-            
-// // // //             <button
-// // // //               onClick={handleStop}
-// // // //               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-// // // //             >
-// // // //               ⏹ Stop
-// // // //             </button>
-// // // //           </div>
-// // // //         )}
-        
-// // // //         {isPlaying && (
-// // // //           <div className="absolute top-4 right-12">
-// // // //             <div className="flex items-center">
-// // // //               <label htmlFor="playback-rate" className="mr-2 text-sm font-medium text-gray-700">
-// // // //                 Speed:
-// // // //               </label>
-// // // //               <select
-// // // //                 id="playback-rate"
-// // // //                 value={playbackRate}
-// // // //                 onChange={(e) => {
-// // // //                   const newRate = parseFloat(e.target.value);
-// // // //                   setPlaybackRate(newRate);
-// // // //                   if (ttsServiceRef.current) {
-// // // //                     ttsServiceRef.current.setPlaybackRate(newRate);
-// // // //                   }
-// // // //                 }}
-// // // //                 className="form-select rounded border-gray-300 text-sm"
-// // // //               >
-// // // //                 <option value="0.5">0.5x</option>
-// // // //                 <option value="0.75">0.75x</option>
-// // // //                 <option value="1">1x</option>
-// // // //                 <option value="1.25">1.25x</option>
-// // // //                 <option value="1.5">1.5x</option>
-// // // //                 <option value="1.75">1.75x</option>
-// // // //                 <option value="2">2x</option>
-// // // //               </select>
-// // // //             </div>
-// // // //           </div>
-// // // //         )}
-// // // //       </div>
-// // // //     </div>
-// // // //   );
-// // // // };
-
-// // // // export default KokoroPlayMode;
-
-
-
-// // // import React, { useState, useEffect, useRef } from 'react';
-// // // import { KokoroTTSService } from '../../services/KokoroTTSService';
-// // // import './SimplePlayMode.css';
-
-// // // interface KokoroPlayModeProps {
-// // //   currentPageContent: string;
-// // //   onClose: () => void;
-// // // }
-
-// // // // Interface for text chunks
-// // // interface TextChunk {
-// // //   id: number;
-// // //   text: string;
-// // //   isProcessed: boolean;
-// // //   isPlaying: boolean;
-// // // }
-
-// // // const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
-// // //   currentPageContent,
-// // //   onClose
-// // // }) => {
-// // //   // State
-// // //   const [isPlaying, setIsPlaying] = useState(false);
-// // //   const [isPaused, setIsPaused] = useState(false);
-// // //   const [isLoading, setIsLoading] = useState(false);
-// // //   const [loadingProgress, setLoadingProgress] = useState(0);
-// // //   const [currentText, setCurrentText] = useState('');
-// // //   const [playbackRate, setPlaybackRate] = useState(1.0);
-// // //   const [modelLoaded, setModelLoaded] = useState(false);
-// // //   const [errorMessage, setErrorMessage] = useState('');
-// // //   const [estimatedTime, setEstimatedTime] = useState(10);
-// // //   const [playbackFinished, setPlaybackFinished] = useState(false);
-  
-// // //   // Text chunk management
-// // //   const [textChunks, setTextChunks] = useState<TextChunk[]>([]);
-// // //   const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
-// // //   const [displayedText, setDisplayedText] = useState('');
-  
-// // //   // Refs
-// // //   const ttsServiceRef = useRef<KokoroTTSService | null>(null);
-// // //   const textContainerRef = useRef<HTMLDivElement>(null);
-  
-// // //   // Split text into chunks on initialization
-// // //   useEffect(() => {
-// // //     // Split text into roughly 200 character chunks
-// // //     const chunkSize = 200;
-// // //     const words = currentPageContent.split(' ');
-// // //     const chunks: TextChunk[] = [];
-    
-// // //     let currentChunk = '';
-// // //     let chunkId = 0;
-    
-// // //     for (const word of words) {
-// // //       if ((currentChunk + ' ' + word).length <= chunkSize) {
-// // //         currentChunk += (currentChunk ? ' ' : '') + word;
-// // //       } else {
-// // //         chunks.push({
-// // //           id: chunkId++,
-// // //           text: currentChunk,
-// // //           isProcessed: false,
-// // //           isPlaying: false
-// // //         });
-// // //         currentChunk = word;
-// // //       }
-// // //     }
-    
-// // //     // Add the last chunk if it's not empty
-// // //     if (currentChunk) {
-// // //       chunks.push({
-// // //         id: chunkId,
-// // //         text: currentChunk,
-// // //         isProcessed: false,
-// // //         isPlaying: false
-// // //       });
-// // //     }
-    
-// // //     setTextChunks(chunks);
-// // //   }, [currentPageContent]);
-  
-// // //   // Update displayed text when chunks or current chunk changes
-// // //   useEffect(() => {
-// // //     if (textChunks.length === 0) return;
-    
-// // //     // Combine all processed chunks and the current one
-// // //     const processedChunks = textChunks
-// // //       .filter((chunk, index) => index < currentChunkIndex || (index === currentChunkIndex && isPlaying))
-// // //       .map(chunk => chunk.text);
-    
-// // //     setDisplayedText(processedChunks.join(' '));
-    
-// // //     // Auto-scroll to bottom of text container
-// // //     if (textContainerRef.current && isPlaying) {
-// // //       textContainerRef.current.scrollTop = textContainerRef.current.scrollHeight;
-// // //     }
-// // //   }, [textChunks, currentChunkIndex, isPlaying]);
-  
-// // //   // Initialize TTS service
-// // //   useEffect(() => {
-// // //     // Create TTS service instance
-// // //     const ttsService = new KokoroTTSService();
-// // //     ttsServiceRef.current = ttsService;
-    
-// // //     // Initialize the service
-// // //     const initTTS = async () => {
-// // //       try {
-// // //         setIsLoading(true);
-        
-// // //         // Set callbacks
-// // //         ttsService.setCallbacks(
-// // //           // Text update callback - update current text as TTS processes it
-// // //           (text: string) => {
-// // //             setCurrentText(text);
-            
-// // //             // Find which chunk this text belongs to
-// // //             const chunkIndex = findChunkForText(text);
-// // //             if (chunkIndex !== -1 && chunkIndex !== currentChunkIndex) {
-// // //               // Mark previous chunks as processed
-// // //               updateChunkStatus(chunkIndex);
-// // //               setCurrentChunkIndex(chunkIndex);
-// // //             }
-// // //           },
-// // //           // Error callback
-// // //           (error: string) => {
-// // //             setErrorMessage(error);
-// // //             setIsPlaying(false);
-// // //           },
-// // //           // Completion callback
-// // //           () => {
-// // //             setIsPlaying(false);
-// // //             setPlaybackFinished(true);
-// // //             // Mark all chunks as processed
-// // //             const updatedChunks = textChunks.map(chunk => ({
-// // //               ...chunk,
-// // //               isProcessed: true,
-// // //               isPlaying: false
-// // //             }));
-// // //             setTextChunks(updatedChunks);
-// // //           }
-// // //         );
-        
-// // //         // Initialize the service
-// // //         await ttsService.initialize(
-// // //           // Progress callback
-// // //           (progress: number) => {
-// // //             setLoadingProgress(progress);
-// // //             // Update estimated time based on progress
-// // //             const remainingTime = Math.ceil((100 - progress) / 10);
-// // //             setEstimatedTime(remainingTime);
-// // //           }
-// // //         );
-        
-// // //         setIsLoading(false);
-// // //         setModelLoaded(true);
-// // //       } catch (error) {
-// // //         console.error('Error initializing TTS service:', error);
-// // //         setErrorMessage('Failed to initialize TTS service');
-// // //         setIsLoading(false);
-// // //       }
-// // //     };
-    
-// // //     initTTS();
-    
-// // //     // Cleanup
-// // //     return () => {
-// // //       cleanupPlayback();
-// // //     };
-// // //   }, []);
-  
-// // //   // Find which chunk contains the given text
-// // //   const findChunkForText = (text: string): number => {
-// // //     // This is a simplistic approach - in a real implementation, you might need
-// // //     // more sophisticated text matching
-// // //     for (let i = 0; i < textChunks.length; i++) {
-// // //       if (textChunks[i].text.includes(text.substring(0, 20))) {
-// // //         return i;
-// // //       }
-// // //     }
-// // //     return -1;
-// // //   };
-  
-// // //   // Update the status of chunks up to the given index
-// // //   const updateChunkStatus = (currentIndex: number) => {
-// // //     const updatedChunks = textChunks.map((chunk, index) => ({
-// // //       ...chunk,
-// // //       isProcessed: index < currentIndex,
-// // //       isPlaying: index === currentIndex
-// // //     }));
-// // //     setTextChunks(updatedChunks);
-// // //   };
-  
-// // //   // Handle proper cleanup
-// // //   const cleanupPlayback = () => {
-// // //     console.log("Cleaning up playback");
-    
-// // //     try {
-// // //       // Stop playback if active
-// // //       if (isPlaying) {
-// // //         stopPlayback();
-// // //       }
-      
-// // //       // Dispose of TTS service
-// // //       if (ttsServiceRef.current) {
-// // //         try {
-// // //           ttsServiceRef.current.dispose();
-// // //         } catch (error) {
-// // //           console.warn("Error disposing TTS service:", error);
-// // //         }
-// // //         ttsServiceRef.current = null;
-// // //       }
-// // //     } catch (error) {
-// // //       console.error("Error during cleanup:", error);
-// // //     }
-// // //   };
-  
-// // //   // Handle close
-// // //   const handleClose = () => {
-// // //     console.log("PlayMode closing");
-    
-// // //     try {
-// // //       cleanupPlayback();
-// // //     } catch (error) {
-// // //       console.error("Error during close:", error);
-// // //     } finally {
-// // //       // Always call parent's onClose
-// // //       onClose();
-// // //     }
-// // //   };
-  
-// // //   // Start TTS playback
-// // //   const startPlayback = async (fromChunkIndex = 0) => {
-// // //     if (!ttsServiceRef.current || (isPlaying && !isPaused)) return;
-    
-// // //     try {
-// // //       setIsPlaying(true);
-// // //       setIsPaused(false);
-// // //       setErrorMessage('');
-// // //       setPlaybackFinished(false);
-// // //       setCurrentChunkIndex(fromChunkIndex);
-      
-// // //       // Get text from the specified chunk onward
-// // //       const textToPlay = textChunks
-// // //         .slice(fromChunkIndex)
-// // //         .map(chunk => chunk.text)
-// // //         .join(' ');
-      
-// // //       // Reset chunk status
-// // //       const updatedChunks = textChunks.map((chunk, index) => ({
-// // //         ...chunk,
-// // //         isProcessed: index < fromChunkIndex,
-// // //         isPlaying: index === fromChunkIndex
-// // //       }));
-// // //       setTextChunks(updatedChunks);
-      
-// // //       // Start playback
-// // //       await ttsServiceRef.current.playText(textToPlay);
-// // //     } catch (error) {
-// // //       console.error('Error starting playback:', error);
-// // //       setIsPlaying(false);
-// // //       setErrorMessage('Failed to start playback');
-// // //     }
-// // //   };
-  
-// // //   // Pause playback
-// // //   const pausePlayback = () => {
-// // //     if (!ttsServiceRef.current) return;
-    
-// // //     setIsPaused(true);
-    
-// // //     // Update the current chunk to not be playing
-// // //     const updatedChunks = [...textChunks];
-// // //     if (currentChunkIndex < updatedChunks.length) {
-// // //       updatedChunks[currentChunkIndex] = {
-// // //         ...updatedChunks[currentChunkIndex],
-// // //         isPlaying: false
-// // //       };
-// // //       setTextChunks(updatedChunks);
-// // //     }
-    
-// // //     ttsServiceRef.current.pause();
-// // //   };
-  
-// // //   // Resume playback
-// // //   const resumePlayback = () => {
-// // //     if (!ttsServiceRef.current) return;
-    
-// // //     setIsPaused(false);
-    
-// // //     // Update the current chunk to be playing
-// // //     const updatedChunks = [...textChunks];
-// // //     if (currentChunkIndex < updatedChunks.length) {
-// // //       updatedChunks[currentChunkIndex] = {
-// // //         ...updatedChunks[currentChunkIndex],
-// // //         isPlaying: true
-// // //       };
-// // //       setTextChunks(updatedChunks);
-// // //     }
-    
-// // //     ttsServiceRef.current.resume();
-// // //   };
-  
-// // //   // Stop playback
-// // //   const stopPlayback = () => {
-// // //     if (!ttsServiceRef.current) return;
-    
-// // //     try {
-// // //       setIsPlaying(false);
-// // //       setIsPaused(false);
-// // //       setCurrentText('');
-// // //       setCurrentChunkIndex(0);
-      
-// // //       // Reset all chunks
-// // //       const updatedChunks = textChunks.map(chunk => ({
-// // //         ...chunk,
-// // //         isProcessed: false,
-// // //         isPlaying: false
-// // //       }));
-// // //       setTextChunks(updatedChunks);
-// // //       setDisplayedText('');
-      
-// // //       ttsServiceRef.current.stop();
-// // //     } catch (error) {
-// // //       console.error("Error stopping playback:", error);
-// // //     }
-// // //   };
-  
-// // //   // Navigate forward
-// // //   const handleForward = () => {
-// // //     if (currentChunkIndex < textChunks.length - 1) {
-// // //       stopPlayback();
-// // //       startPlayback(currentChunkIndex + 1);
-// // //     }
-// // //   };
-  
-// // //   // Navigate backward
-// // //   const handleBackward = () => {
-// // //     if (currentChunkIndex > 0) {
-// // //       stopPlayback();
-// // //       startPlayback(currentChunkIndex - 1);
-// // //     }
-// // //   };
-  
-// // //   // Update playback rate
-// // //   const handleRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-// // //     if (!ttsServiceRef.current) return;
-    
-// // //     const newRate = parseFloat(e.target.value);
-// // //     setPlaybackRate(newRate);
-// // //     ttsServiceRef.current.setPlaybackRate(newRate);
-// // //   };
-  
-// // //   // Handlers for UI controls
-// // //   const handlePlay = () => {
-// // //     if (isPaused) {
-// // //       resumePlayback();
-// // //     } else {
-// // //       startPlayback(currentChunkIndex);
-// // //     }
-// // //   };
-  
-// // //   const handlePause = () => {
-// // //     pausePlayback();
-// // //   };
-  
-// // //   const handleStop = () => {
-// // //     stopPlayback();
-// // //   };
-
-// // //   return (
-// // //     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-50">
-// // //       <div
-// // //         className={`
-// // //           relative bg-white text-gray-900 rounded-lg shadow-lg transition-all duration-300 overflow-hidden 
-// // //           ${!isPlaying
-// // //             ? "w-[300px] h-[400px] sm:w-[650px] sm:max-h-[85%] sm:p-6"
-// // //             : "w-full h-full sm:max-w-[800px] sm:h-[85%]"}
-// // //         `}
-// // //       >
-// // //         {/* Always-visible Close Icon */}
-// // //         <button
-// // //           className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 z-50 focus:outline-none"
-// // //           onClick={handleClose}
-// // //           aria-label="Close"
-// // //         >
-// // //           ×
-// // //         </button>
-
-// // //         {playbackFinished && (
-// // //           <div className="flex items-center justify-center p-4 bg-yellow-100 text-yellow-800">
-// // //             Playback finished. Click "Stop" or "Close" to exit.
-// // //           </div>
-// // //         )}
-
-// // //         {errorMessage ? (
-// // //           <div className="flex flex-col items-center justify-center h-full">
-// // //             <p className="mt-4 text-base sm:text-lg font-medium text-red-600">
-// // //               {errorMessage}
-// // //             </p>
-// // //             <button 
-// // //               onClick={handleClose}
-// // //               className="mt-4 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md"
-// // //             >
-// // //               Close
-// // //             </button>
-// // //           </div>
-// // //         ) : isLoading ? (
-// // //           <div className="flex flex-col items-center justify-center h-full">
-// // //             <div className="w-full max-w-md bg-gray-200 rounded-full h-2.5 mb-4">
-// // //               <div className="bg-gray-700 h-2.5 rounded-full" style={{ width: `${loadingProgress}%` }}></div>
-// // //             </div>
-// // //             <p className="mt-4 text-base sm:text-lg font-medium">
-// // //               Your audio will start in approximately {estimatedTime} seconds...
-// // //             </p>
-// // //           </div>
-// // //         ) : !isPlaying ? (
-// // //           <div className="flex flex-col items-center justify-center gap-4 relative h-full">
-// // //             <h2 className="text-xl sm:text-2xl font-bold mb-4">Kokoro Audio Player</h2>
-// // //             <button
-// // //               onClick={handlePlay}
-// // //               className="bg-gray-700 hover:bg-gray-800 text-white px-6 py-2 rounded-md shadow-md transition-colors focus:outline-none"
-// // //               disabled={!modelLoaded}
-// // //             >
-// // //               {modelLoaded ? 'Start Audiobook' : 'Model Loading...'}
-// // //             </button>
-            
-// // //             <div className="mt-8 px-4">
-// // //               <label htmlFor="rate-slider" className="block text-sm font-medium text-gray-700 mb-1">
-// // //                 Speed: {playbackRate.toFixed(1)}x
-// // //               </label>
-// // //               <input
-// // //                 type="range"
-// // //                 id="rate-slider"
-// // //                 min="0.5"
-// // //                 max="2"
-// // //                 step="0.1"
-// // //                 value={playbackRate}
-// // //                 onChange={handleRateChange}
-// // //                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-// // //               />
-// // //             </div>
-            
-// // //             <div className="mt-8 max-h-48 overflow-y-auto p-4 border border-gray-200 rounded bg-gray-50 w-full max-w-md">
-// // //               <p className="text-sm text-gray-700">
-// // //                 {textChunks.length > 0 ? textChunks[0].text + '...' : 'Loading text...'}
-// // //               </p>
-// // //             </div>
-// // //           </div>
-// // //         ) : (
-// // //           <div
-// // //             className="relative w-full h-full bg-[#f8f5e6] p-4 sm:p-8 overflow-y-auto"
-// // //             ref={textContainerRef}
-// // //           >
-// // //             <p className="text-base sm:text-2xl leading-relaxed font-serif">
-// // //               {displayedText}
-// // //               {isPaused ? '' : 
-// // //                 <span className="inline-block animate-pulse">|</span>
-// // //               }
-// // //             </p>
-// // //           </div>
-// // //         )}
-
-// // //         {isPlaying && !errorMessage && (
-// // //           <div className="absolute bottom-4 left-0 right-0 flex justify-center flex-wrap gap-4">
-// // //             <button
-// // //               onClick={handleBackward}
-// // //               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none disabled:opacity-50"
-// // //               disabled={currentChunkIndex <= 0}
-// // //             >
-// // //               ← Back
-// // //             </button>
-            
-// // //             {isPaused ? (
-// // //               <button
-// // //                 onClick={handlePlay}
-// // //                 className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-// // //               >
-// // //                 ▶ Resume
-// // //               </button>
-// // //             ) : (
-// // //               <button
-// // //                 onClick={handlePause}
-// // //                 className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-// // //               >
-// // //                 ⏸ Pause
-// // //               </button>
-// // //             )}
-            
-// // //             <button
-// // //               onClick={handleForward}
-// // //               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none disabled:opacity-50"
-// // //               disabled={currentChunkIndex >= textChunks.length - 1}
-// // //             >
-// // //               Forward →
-// // //             </button>
-            
-// // //             <button
-// // //               onClick={handleStop}
-// // //               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-// // //             >
-// // //               ⏹ Stop
-// // //             </button>
-// // //           </div>
-// // //         )}
-        
-// // //         {isPlaying && (
-// // //           <div className="absolute top-4 right-12">
-// // //             <div className="flex items-center">
-// // //               <span className="mr-2 text-sm font-medium text-gray-700">
-// // //                 Chunk: {currentChunkIndex + 1}/{textChunks.length}
-// // //               </span>
-// // //               <select
-// // //                 value={playbackRate}
-// // //                 onChange={(e) => {
-// // //                   const newRate = parseFloat(e.target.value);
-// // //                   setPlaybackRate(newRate);
-// // //                   if (ttsServiceRef.current) {
-// // //                     ttsServiceRef.current.setPlaybackRate(newRate);
-// // //                   }
-// // //                 }}
-// // //                 className="form-select rounded border-gray-300 text-sm"
-// // //               >
-// // //                 <option value="0.5">0.5x</option>
-// // //                 <option value="0.75">0.75x</option>
-// // //                 <option value="1">1x</option>
-// // //                 <option value="1.25">1.25x</option>
-// // //                 <option value="1.5">1.5x</option>
-// // //                 <option value="1.75">1.75x</option>
-// // //                 <option value="2">2x</option>
-// // //               </select>
-// // //             </div>
-// // //           </div>
-// // //         )}
-// // //       </div>
-// // //     </div>
-// // //   );
-// // // };
-
-// // // export default KokoroPlayMode;
-
-
-
-// // // KokoroPlayMode.tsx
-// // import React, { useState, useEffect, useRef } from 'react';
-// // import { KokoroTTSService } from '../../services/KokoroTTSService';
-// // import { TextProcessingService } from '../../services/TextProcessingService';
-// // import { TextChunk } from '../../types/TextProcessingTypes';
-// // import './SimplePlayMode.css';
-
-// // interface KokoroPlayModeProps {
-// //   currentPageContent: string;
-// //   onClose: () => void;
-// // }
-
-// // const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
-// //   currentPageContent,
-// //   onClose
-// // }) => {
-// //   // State
-// //   const [isPlaying, setIsPlaying] = useState(false);
-// //   const [isPaused, setIsPaused] = useState(false);
-// //   const [isLoading, setIsLoading] = useState(false);
-// //   const [loadingProgress, setLoadingProgress] = useState(0);
-// //   const [playbackRate, setPlaybackRate] = useState(1.0);
-// //   const [modelLoaded, setModelLoaded] = useState(false);
-// //   const [errorMessage, setErrorMessage] = useState('');
-// //   const [estimatedTime, setEstimatedTime] = useState(10);
-// //   const [playbackFinished, setPlaybackFinished] = useState(false);
-  
-// //   // Text chunk management
-// //   const [textChunks, setTextChunks] = useState<TextChunk[]>([]);
-// //   const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
-// //   const [displayedText, setDisplayedText] = useState('');
-  
-// //   // Refs
-// //   const ttsServiceRef = useRef<KokoroTTSService | null>(null);
-// //   const textProcessingRef = useRef<TextProcessingService | null>(null);
-// //   const textContainerRef = useRef<HTMLDivElement>(null);
-  
-// //   // Initialize services
-// //   useEffect(() => {
-// //     // Create text processing service
-// //     const textProcessingService = new TextProcessingService();
-// //     textProcessingRef.current = textProcessingService;
-    
-// //     // Process the initial text
-// //     const initialChunks = textProcessingService.processText(currentPageContent);
-// //     setTextChunks(initialChunks);
-    
-// //     // Create TTS service
-// //     const ttsService = new KokoroTTSService();
-// //     ttsServiceRef.current = ttsService;
-    
-// //     // Initialize the TTS service
-// //     const initTTS = async () => {
-// //       try {
-// //         setIsLoading(true);
-        
-// //         // Set TTS callbacks
-// //         // TTS callback in initTTS
-// //         ttsService.setCallbacks(
-// //           // Text update callback - directly use the text that comes with the audio
-// //           (text: string) => {
-// //             console.log("TTS text update:", text.substring(0, 30) + "...");
-// //             console.log("Current text length:", textProcessingRef.current?.getProcessedText().length || 0);
-            
-// //             if (textProcessingRef.current) {
-// //               // Handle the new text chunk
-// //               textProcessingRef.current.handleTTSChunk(text);
-              
-// //               // Get the updated chunk index
-// //               const currentIndex = textProcessingRef.current.getCurrentChunkIndex();
-// //               setCurrentChunkIndex(currentIndex);
-              
-// //               // Update chunks state
-// //               const updatedChunks = textProcessingRef.current.updateChunkStatus(currentIndex, true);
-// //               setTextChunks(updatedChunks);
-              
-// //               // Only update displayed text if not paused
-// //               if (!isPaused) {
-// //                 const newText = textProcessingRef.current.getProcessedText();
-// //                 console.log("Setting displayed text, length:", newText.length);
-// //                 setDisplayedText(newText);
-                
-// //                 // Auto-scroll
-// //                 if (textContainerRef.current) {
-// //                   textContainerRef.current.scrollTop = textContainerRef.current.scrollHeight;
-// //                 }
-// //               }
-// //             }
-// //           },
-// //   // ... rest of callbacks remain the same
-// //           // Error callback
-// //           (error: string) => {
-// //             setErrorMessage(error);
-// //             setIsPlaying(false);
-// //           },
-// //           // Completion callback
-// //           () => {
-// //             setIsPlaying(false);
-// //             setPlaybackFinished(true);
-            
-// //             // Mark all chunks as processed
-// //             if (textProcessingRef.current) {
-// //               const updatedChunks = textProcessingRef.current.markAllChunksAsProcessed();
-// //               setTextChunks(updatedChunks);
-              
-// //               // Update displayed text with complete text
-// //               setDisplayedText(textProcessingRef.current.getProcessedText());
-// //             }
-// //           }
-// //         );
-        
-// //         // Initialize the service
-// //         await ttsService.initialize(
-// //           // Progress callback
-// //           (progress: number) => {
-// //             setLoadingProgress(progress);
-// //             // Update estimated time
-// //             const remainingTime = Math.ceil((100 - progress) / 10);
-// //             setEstimatedTime(remainingTime);
-// //           }
-// //         );
-        
-// //         setIsLoading(false);
-// //         setModelLoaded(true);
-// //       } catch (error) {
-// //         console.error('Error initializing TTS service:', error);
-// //         setErrorMessage('Failed to initialize TTS service');
-// //         setIsLoading(false);
-// //       }
-// //     };
-    
-// //     initTTS();
-    
-// //     // Cleanup
-// //     return () => {
-// //       cleanupPlayback();
-// //     };
-// //   }, [currentPageContent]);
-  
-// //   // Update displayed text when pause state changes
-// //   // Update displayed text when pause state changes
-// //   useEffect(() => {
-// //     if (textProcessingRef.current && isPlaying) {
-// //       // When paused, we keep the current text
-// //       // When unpaused, we update with the latest processed text
-// //       if (!isPaused) {
-// //         setDisplayedText(textProcessingRef.current.getProcessedText());
-        
-// //         // Auto-scroll when text updates
-// //         if (textContainerRef.current) {
-// //           textContainerRef.current.scrollTop = textContainerRef.current.scrollHeight;
-// //         }
-// //       }
-// //     }
-// //   }, [isPaused, isPlaying]);
-  
-// //   // Handle proper cleanup
-// //   const cleanupPlayback = () => {
-// //     console.log("Cleaning up playback");
-    
-// //     try {
-// //       // Stop playback if active
-// //       if (isPlaying) {
-// //         stopPlayback();
-// //       }
-      
-// //       // Dispose of TTS service
-// //       if (ttsServiceRef.current) {
-// //         try {
-// //           ttsServiceRef.current.dispose();
-// //         } catch (error) {
-// //           console.warn("Error disposing TTS service:", error);
-// //         }
-// //         ttsServiceRef.current = null;
-// //       }
-// //     } catch (error) {
-// //       console.error("Error during cleanup:", error);
-// //     }
-// //   };
-  
-// //   // Handle close
-// //   const handleClose = () => {
-// //     console.log("PlayMode closing");
-    
-// //     try {
-// //       cleanupPlayback();
-// //     } catch (error) {
-// //       console.error("Error during close:", error);
-// //     } finally {
-// //       // Always call parent's onClose
-// //       onClose();
-// //     }
-// //   };
-  
-// //   // Start TTS playback
-// //   // Start TTS playback
-// //   const startPlayback = async (fromChunkIndex = 0) => {
-// //     if (!ttsServiceRef.current || !textProcessingRef.current || (isPlaying && !isPaused)) return;
-    
-// //     try {
-// //       setIsPlaying(true);
-// //       setIsPaused(false);
-// //       setErrorMessage('');
-// //       setPlaybackFinished(false);
-// //       setCurrentChunkIndex(fromChunkIndex);
-      
-// //       // Reset chunk status
-// //       const updatedChunks = textProcessingRef.current.updateChunkStatus(fromChunkIndex, true);
-// //       setTextChunks(updatedChunks);
-      
-// //       // Reset processed text up to the starting chunk
-// //       textProcessingRef.current.resetProcessedText(fromChunkIndex);
-      
-// //       // Get text starting from the specified chunk
-// //       const textToPlay = textProcessingRef.current.getTextFromChunk(fromChunkIndex);
-      
-// //       // Update displayed text to initial state
-// //       setDisplayedText(textProcessingRef.current.getProcessedText());
-      
-// //       // Start playback
-// //       await ttsServiceRef.current.playText(textToPlay);
-// //     } catch (error) {
-// //       console.error('Error starting playback:', error);
-// //       setIsPlaying(false);
-// //       setErrorMessage('Failed to start playback');
-// //     }
-// //   };
-  
-// //   // Pause playback
-// //   const pausePlayback = () => {
-// //     if (!ttsServiceRef.current || !textProcessingRef.current) return;
-    
-// //     setIsPaused(true);
-    
-// //     // Update the current chunk to not be playing
-// //     const updatedChunks = textProcessingRef.current.updateChunkStatus(currentChunkIndex, false);
-// //     setTextChunks(updatedChunks);
-    
-// //     // Keep the text as is when paused
-// //     // We don't need to update displayed text
-    
-// //     ttsServiceRef.current.pause();
-// //   };
-
-// //   // Resume playback
-// //   const resumePlayback = () => {
-// //     if (!ttsServiceRef.current || !textProcessingRef.current) return;
-    
-// //     setIsPaused(false);
-    
-// //     // Update the current chunk to be playing
-// //     const updatedChunks = textProcessingRef.current.updateChunkStatus(currentChunkIndex, true);
-// //     setTextChunks(updatedChunks);
-    
-// //     // Text will continue updating as new chunks come in
-    
-// //     ttsServiceRef.current.resume();
-// //   };
-  
-// //   // Stop playback
-// //   const stopPlayback = () => {
-// //     if (!ttsServiceRef.current || !textProcessingRef.current) return;
-    
-// //     try {
-// //       setIsPlaying(false);
-// //       setIsPaused(false);
-// //       setCurrentChunkIndex(0);
-      
-// //       // Reset all chunks
-// //       const updatedChunks = textProcessingRef.current.resetChunks();
-// //       setTextChunks(updatedChunks);
-// //       setDisplayedText('');
-      
-// //       ttsServiceRef.current.stop();
-// //     } catch (error) {
-// //       console.error("Error stopping playback:", error);
-// //     }
-// //   };
-  
-// //   // Navigate forward
-// //   const handleForward = () => {
-// //     if (textProcessingRef.current && currentChunkIndex < textProcessingRef.current.getChunkCount() - 1) {
-// //       stopPlayback();
-// //       startPlayback(currentChunkIndex + 1);
-// //     }
-// //   };
-  
-// //   // Navigate backward
-// //   const handleBackward = () => {
-// //     if (currentChunkIndex > 0) {
-// //       stopPlayback();
-// //       startPlayback(currentChunkIndex - 1);
-// //     }
-// //   };
-  
-// //   // Update playback rate
-// //   const handleRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-// //     if (!ttsServiceRef.current) return;
-    
-// //     const newRate = parseFloat(e.target.value);
-// //     setPlaybackRate(newRate);
-// //     ttsServiceRef.current.setPlaybackRate(newRate);
-// //   };
-  
-// //   // Handlers for UI controls
-// //   const handlePlay = () => {
-// //     if (isPaused) {
-// //       resumePlayback();
-// //     } else {
-// //       startPlayback(currentChunkIndex);
-// //     }
-// //   };
-  
-// //   const handlePause = () => {
-// //     pausePlayback();
-// //   };
-  
-// //   const handleStop = () => {
-// //     stopPlayback();
-// //   };
-
-// //   return (
-// //     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-50">
-// //       <div
-// //         className={`
-// //           relative bg-white text-gray-900 rounded-lg shadow-lg transition-all duration-300 overflow-hidden 
-// //           ${!isPlaying
-// //             ? "w-[300px] h-[400px] sm:w-[650px] sm:max-h-[85%] sm:p-6"
-// //             : "w-full h-full sm:max-w-[800px] sm:h-[85%]"}
-// //         `}
-// //       >
-// //         {/* Always-visible Close Icon */}
-// //         <button
-// //           className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 z-50 focus:outline-none"
-// //           onClick={handleClose}
-// //           aria-label="Close"
-// //         >
-// //           ×
-// //         </button>
-
-// //         {playbackFinished && (
-// //           <div className="flex items-center justify-center p-4 bg-yellow-100 text-yellow-800">
-// //             Playback finished. Click "Stop" or "Close" to exit.
-// //           </div>
-// //         )}
-
-// //         {errorMessage ? (
-// //           <div className="flex flex-col items-center justify-center h-full">
-// //             <p className="mt-4 text-base sm:text-lg font-medium text-red-600">
-// //               {errorMessage}
-// //             </p>
-// //             <button 
-// //               onClick={handleClose}
-// //               className="mt-4 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md"
-// //             >
-// //               Close
-// //             </button>
-// //           </div>
-// //         ) : isLoading ? (
-// //           <div className="flex flex-col items-center justify-center h-full">
-// //             <div className="w-full max-w-md bg-gray-200 rounded-full h-2.5 mb-4">
-// //               <div className="bg-gray-700 h-2.5 rounded-full" style={{ width: `${loadingProgress}%` }}></div>
-// //             </div>
-// //             <p className="mt-4 text-base sm:text-lg font-medium">
-// //               Your audio will start in approximately {estimatedTime} seconds...
-// //             </p>
-// //           </div>
-// //         ) : !isPlaying ? (
-// //           <div className="flex flex-col items-center justify-center gap-4 relative h-full">
-// //             <h2 className="text-xl sm:text-2xl font-bold mb-4">Kokoro Audio Player</h2>
-// //             <button
-// //               onClick={handlePlay}
-// //               className="bg-gray-700 hover:bg-gray-800 text-white px-6 py-2 rounded-md shadow-md transition-colors focus:outline-none"
-// //               disabled={!modelLoaded}
-// //             >
-// //               {modelLoaded ? 'Start Audiobook' : 'Model Loading...'}
-// //             </button>
-            
-// //             <div className="mt-8 px-4">
-// //               <label htmlFor="rate-slider" className="block text-sm font-medium text-gray-700 mb-1">
-// //                 Speed: {playbackRate.toFixed(1)}x
-// //               </label>
-// //               <input
-// //                 type="range"
-// //                 id="rate-slider"
-// //                 min="0.5"
-// //                 max="2"
-// //                 step="0.1"
-// //                 value={playbackRate}
-// //                 onChange={handleRateChange}
-// //                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-// //               />
-// //             </div>
-            
-// //             <div className="mt-8 max-h-48 overflow-y-auto p-4 border border-gray-200 rounded bg-gray-50 w-full max-w-md">
-// //               <p className="text-sm text-gray-700">
-// //                 {textChunks.length > 0 ? textChunks[0].text + '...' : 'Loading text...'}
-// //               </p>
-// //             </div>
-// //           </div>
-// //         ) : (
-// //           <div
-// //             className="relative w-full h-full bg-[#f8f5e6] p-4 sm:p-8 overflow-y-auto"
-// //             ref={textContainerRef}
-// //           >
-// //             <p className="text-base sm:text-2xl leading-relaxed font-serif">
-// //               {displayedText}
-// //               {isPaused ? '' : 
-// //                 <span className="inline-block animate-pulse">|</span>
-// //               }
-// //             </p>
-// //           </div>
-// //         )}
-
-// //         {isPlaying && !errorMessage && (
-// //           <div className="absolute bottom-4 left-0 right-0 flex justify-center flex-wrap gap-4">
-// //             <button
-// //               onClick={handleBackward}
-// //               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none disabled:opacity-50"
-// //               disabled={currentChunkIndex <= 0}
-// //             >
-// //               ← Back
-// //             </button>
-            
-// //             {isPaused ? (
-// //               <button
-// //                 onClick={handlePlay}
-// //                 className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-// //               >
-// //                 ▶ Resume
-// //               </button>
-// //             ) : (
-// //               <button
-// //                 onClick={handlePause}
-// //                 className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-// //               >
-// //                 ⏸ Pause
-// //               </button>
-// //             )}
-            
-// //             <button
-// //               onClick={handleForward}
-// //               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none disabled:opacity-50"
-// //               disabled={textProcessingRef.current ? 
-// //                 currentChunkIndex >= textProcessingRef.current.getChunkCount() - 1 : true}
-// //             >
-// //               Forward →
-// //             </button>
-            
-// //             <button
-// //               onClick={handleStop}
-// //               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-// //             >
-// //               ⏹ Stop
-// //             </button>
-// //           </div>
-// //         )}
-        
-// //         {isPlaying && (
-// //           <div className="absolute top-4 right-12">
-// //             <div className="flex items-center">
-// //               <span className="mr-2 text-sm font-medium text-gray-700">
-// //                 Chunk: {currentChunkIndex + 1}/{textProcessingRef.current?.getChunkCount() || 0}
-// //               </span>
-// //               <select
-// //               value={playbackRate.toString()}
-// //               onChange={(e) => {
-// //                 const newRate = parseFloat(e.target.value);
-// //                 setPlaybackRate(newRate);
-// //                 if (ttsServiceRef.current) {
-// //                   ttsServiceRef.current.setPlaybackRate(newRate);
-// //                 }
-// //               }}
-// //               className="form-select rounded border-gray-300 text-sm"
-// //             >
-// //                 <option value="0.5">0.5x</option>
-// //                 <option value="0.75">0.75x</option>
-// //                 <option value="1">1x</option>
-// //                 <option value="1.25">1.25x</option>
-// //                 <option value="1.5">1.5x</option>
-// //                 <option value="1.75">1.75x</option>
-// //                 <option value="2">2x</option>
-// //               </select>
-// //             </div>
-// //           </div>
-// //         )}
-// //       </div>
-// //     </div>
-// //   );
-// // };
-
-// // export default KokoroPlayMode;
-
-
-
-
-// // src/components/Reader/KokoroPlayMode.tsx
-// import React, { useState, useEffect, useRef } from 'react';
-// import { KokoroTTSService } from '../../services/KokoroTTSService';
-// import { TextProcessingService } from '../../services/TextProcessingService';
-// import { TextChunk } from '../../types/TextProcessingTypes';
-// import './SimplePlayMode.css';
-
-// interface KokoroPlayModeProps {
-//   currentPageContent: string;
-//   onClose: () => void;
-// }
-
-// // Helper function to get windowed text view
-// const getWindowedText = (chunks: TextChunk[], currentIndex: number, windowSize: number = 3) => {
-//   // Calculate window boundaries
-//   const startIndex = Math.max(0, currentIndex - Math.floor(windowSize / 2));
-//   const endIndex = Math.min(chunks.length - 1, startIndex + windowSize - 1);
-  
-//   // Get chunks in the window
-//   const visibleChunks = chunks.slice(startIndex, endIndex + 1);
-  
-//   // Join chunk text
-//   return {
-//     text: visibleChunks.map(chunk => chunk.text).join(' '),
-//     windowStartIndex: startIndex,
-//     windowEndIndex: endIndex
-//   };
-// };
-
-// const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
-//   currentPageContent,
-//   onClose
-// }) => {
-//   // State
-//   const [isPlaying, setIsPlaying] = useState(false);
-//   const [isPaused, setIsPaused] = useState(false);
-//   const [isLoading, setIsLoading] = useState(false);
-//   const [loadingProgress, setLoadingProgress] = useState(0);
-//   const [playbackRate, setPlaybackRate] = useState(1.0);
-//   const [modelLoaded, setModelLoaded] = useState(false);
-//   const [errorMessage, setErrorMessage] = useState('');
-//   const [estimatedTime, setEstimatedTime] = useState(10);
-//   const [playbackFinished, setPlaybackFinished] = useState(false);
-  
-//   // Text chunk management
-//   const [textChunks, setTextChunks] = useState<TextChunk[]>([]);
-//   const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
-//   const [displayedText, setDisplayedText] = useState('');
-  
-//   // Window size for text display
-//   const [windowSize, setWindowSize] = useState(3);
-//   const [showFullText, setShowFullText] = useState(false);
-  
-//   // Refs
-//   const ttsServiceRef = useRef<KokoroTTSService | null>(null);
-//   const textProcessingRef = useRef<TextProcessingService | null>(null);
-//   const textContainerRef = useRef<HTMLDivElement>(null);
-  
-//   // Initialize services
-//   useEffect(() => {
-//     // Create text processing service
-//     const textProcessingService = new TextProcessingService();
-//     textProcessingRef.current = textProcessingService;
-    
-//     // Process the initial text
-//     const initialChunks = textProcessingService.processText(currentPageContent);
-//     setTextChunks(initialChunks);
-    
-//     // Create TTS service
-//     const ttsService = new KokoroTTSService();
-//     ttsServiceRef.current = ttsService;
-    
-//     // Initialize the TTS service
-//     const initTTS = async () => {
-//       try {
-//         setIsLoading(true);
-        
-//         // Set TTS callbacks
-//         ttsService.setCallbacks(
-//           // Text update callback - directly use the text that comes with the audio
-//           (text: string) => {
-//             console.log("TTS text update:", text.substring(0, 30) + "...");
-//             console.log("Current text length:", textProcessingRef.current?.getProcessedText().length || 0);
-            
-//             if (textProcessingRef.current) {
-//               // Handle the new text chunk
-//               textProcessingRef.current.handleTTSChunk(text);
-              
-//               // Get the updated chunk index
-//               const currentIndex = textProcessingRef.current.getCurrentChunkIndex();
-//               setCurrentChunkIndex(currentIndex);
-              
-//               // Update chunks state
-//               const updatedChunks = textProcessingRef.current.updateChunkStatus(currentIndex, true);
-//               setTextChunks(updatedChunks);
-              
-//               // Only update displayed text if not paused
-//               if (!isPaused) {
-//                 if (showFullText) {
-//                   // Show all text if fullText mode is enabled
-//                   const newText = textProcessingRef.current.getProcessedText();
-//                   setDisplayedText(newText);
-//                 } else {
-//                   // Show windowed text view
-//                   const { text: windowedText } = getWindowedText(updatedChunks, currentIndex, windowSize);
-//                   setDisplayedText(windowedText);
-//                 }
-                
-//                 // Auto-scroll
-//                 if (textContainerRef.current) {
-//                   textContainerRef.current.scrollTop = textContainerRef.current.scrollHeight;
-//                 }
-//               }
-//             }
-//           },
-//           // Error callback
-//           (error: string) => {
-//             setErrorMessage(error);
-//             setIsPlaying(false);
-//           },
-//           // Completion callback
-//           () => {
-//             setIsPlaying(false);
-//             setPlaybackFinished(true);
-            
-//             // Mark all chunks as processed
-//             if (textProcessingRef.current) {
-//               const updatedChunks = textProcessingRef.current.markAllChunksAsProcessed();
-//               setTextChunks(updatedChunks);
-              
-//               // Update displayed text based on mode
-//               if (showFullText) {
-//                 setDisplayedText(textProcessingRef.current.getProcessedText());
-//               } else {
-//                 // Show the last few chunks
-//                 const lastIndex = updatedChunks.length - 1;
-//                 const { text: windowedText } = getWindowedText(updatedChunks, lastIndex, windowSize);
-//                 setDisplayedText(windowedText);
-//               }
-//             }
-//           }
-//         );
-        
-//         // Initialize the service
-//         await ttsService.initialize(
-//           // Progress callback
-//           (progress: number) => {
-//             setLoadingProgress(progress);
-//             // Update estimated time
-//             const remainingTime = Math.ceil((100 - progress) / 10);
-//             setEstimatedTime(remainingTime);
-//           }
-//         );
-        
-//         setIsLoading(false);
-//         setModelLoaded(true);
-//       } catch (error) {
-//         console.error('Error initializing TTS service:', error);
-//         setErrorMessage('Failed to initialize TTS service');
-//         setIsLoading(false);
-//       }
-//     };
-    
-//     initTTS();
-    
-//     // Cleanup
-//     return () => {
-//       cleanupPlayback();
-//     };
-//   }, [currentPageContent, windowSize, showFullText]);
-  
-//   // Update displayed text when pause state changes
-//   useEffect(() => {
-//     if (textProcessingRef.current && isPlaying) {
-//       // When paused, we keep the current text
-//       // When unpaused, we update with the latest processed text
-//       if (!isPaused) {
-//         if (showFullText) {
-//           setDisplayedText(textProcessingRef.current.getProcessedText());
-//         } else {
-//           const { text: windowedText } = getWindowedText(textChunks, currentChunkIndex, windowSize);
-//           setDisplayedText(windowedText);
-//         }
-        
-//         // Auto-scroll when text updates
-//         if (textContainerRef.current) {
-//           textContainerRef.current.scrollTop = textContainerRef.current.scrollHeight;
-//         }
-//       }
-//     }
-//   }, [isPaused, isPlaying, showFullText, windowSize, textChunks, currentChunkIndex]);
-  
-//   // Handle proper cleanup
-//   const cleanupPlayback = () => {
-//     console.log("Cleaning up playback");
-    
-//     try {
-//       // Stop playback if active
-//       if (isPlaying) {
-//         stopPlayback();
-//       }
-      
-//       // Dispose of TTS service
-//       if (ttsServiceRef.current) {
-//         try {
-//           ttsServiceRef.current.dispose();
-//         } catch (error) {
-//           console.warn("Error disposing TTS service:", error);
-//         }
-//         ttsServiceRef.current = null;
-//       }
-//     } catch (error) {
-//       console.error("Error during cleanup:", error);
-//     }
-//   };
-  
-//   // Handle close
-//   const handleClose = () => {
-//     console.log("PlayMode closing");
-    
-//     try {
-//       cleanupPlayback();
-//     } catch (error) {
-//       console.error("Error during close:", error);
-//     } finally {
-//       // Always call parent's onClose
-//       onClose();
-//     }
-//   };
-  
-//   // Start TTS playback
-//   const startPlayback = async (fromChunkIndex = 0) => {
-//     if (!ttsServiceRef.current || !textProcessingRef.current || (isPlaying && !isPaused)) return;
-    
-//     try {
-//       setIsPlaying(true);
-//       setIsPaused(false);
-//       setErrorMessage('');
-//       setPlaybackFinished(false);
-//       setCurrentChunkIndex(fromChunkIndex);
-      
-//       // Reset chunk status
-//       const updatedChunks = textProcessingRef.current.updateChunkStatus(fromChunkIndex, true);
-//       setTextChunks(updatedChunks);
-      
-//       // Reset processed text up to the starting chunk
-//       textProcessingRef.current.resetProcessedText(fromChunkIndex);
-      
-//       // Get text starting from the specified chunk
-//       const textToPlay = textProcessingRef.current.getTextFromChunk(fromChunkIndex);
-      
-//       // Update displayed text to initial state
-//       if (showFullText) {
-//         setDisplayedText(textProcessingRef.current.getProcessedText());
-//       } else {
-//         const { text: windowedText } = getWindowedText(updatedChunks, fromChunkIndex, windowSize);
-//         setDisplayedText(windowedText);
-//       }
-      
-//       // Start playback
-//       await ttsServiceRef.current.playText(textToPlay);
-//     } catch (error) {
-//       console.error('Error starting playback:', error);
-//       setIsPlaying(false);
-//       setErrorMessage('Failed to start playback');
-//     }
-//   };
-  
-//   // Pause playback
-//   const pausePlayback = () => {
-//     if (!ttsServiceRef.current || !textProcessingRef.current) return;
-    
-//     setIsPaused(true);
-    
-//     // Update the current chunk to not be playing
-//     const updatedChunks = textProcessingRef.current.updateChunkStatus(currentChunkIndex, false);
-//     setTextChunks(updatedChunks);
-    
-//     // Keep the text as is when paused
-//     // We don't need to update displayed text
-    
-//     ttsServiceRef.current.pause();
-//   };
-
-//   // Resume playback
-//   const resumePlayback = () => {
-//     if (!ttsServiceRef.current || !textProcessingRef.current) return;
-    
-//     setIsPaused(false);
-    
-//     // Update the current chunk to be playing
-//     const updatedChunks = textProcessingRef.current.updateChunkStatus(currentChunkIndex, true);
-//     setTextChunks(updatedChunks);
-    
-//     // Text will continue updating as new chunks come in
-    
-//     ttsServiceRef.current.resume();
-//   };
-  
-//   // Stop playback
-//   const stopPlayback = () => {
-//     if (!ttsServiceRef.current || !textProcessingRef.current) return;
-    
-//     try {
-//       setIsPlaying(false);
-//       setIsPaused(false);
-//       setCurrentChunkIndex(0);
-      
-//       // Reset all chunks
-//       const updatedChunks = textProcessingRef.current.resetChunks();
-//       setTextChunks(updatedChunks);
-//       setDisplayedText('');
-      
-//       ttsServiceRef.current.stop();
-//     } catch (error) {
-//       console.error("Error stopping playback:", error);
-//     }
-//   };
-  
-//   // Navigate forward
-//   const handleForward = () => {
-//     if (textProcessingRef.current && currentChunkIndex < textProcessingRef.current.getChunkCount() - 1) {
-//       stopPlayback();
-//       startPlayback(currentChunkIndex + 1);
-//     }
-//   };
-  
-//   // Navigate backward
-//   const handleBackward = () => {
-//     if (currentChunkIndex > 0) {
-//       stopPlayback();
-//       startPlayback(currentChunkIndex - 1);
-//     }
-//   };
-  
-//   // Update playback rate
-//   const handleRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-//     if (!ttsServiceRef.current) return;
-    
-//     const newRate = parseFloat(e.target.value);
-//     setPlaybackRate(newRate);
-//     ttsServiceRef.current.setPlaybackRate(newRate);
-//   };
-  
-//   // Handlers for UI controls
-//   const handlePlay = () => {
-//     if (isPaused) {
-//       resumePlayback();
-//     } else {
-//       startPlayback(currentChunkIndex);
-//     }
-//   };
-  
-//   const handlePause = () => {
-//     pausePlayback();
-//   };
-  
-//   const handleStop = () => {
-//     stopPlayback();
-//   };
-  
-//   // Toggle between windowed and full text view
-//   const toggleTextView = () => {
-//     setShowFullText(!showFullText);
-    
-//     if (textProcessingRef.current) {
-//       if (!showFullText) {
-//         // Switching to full text view
-//         setDisplayedText(textProcessingRef.current.getProcessedText());
-//       } else {
-//         // Switching to windowed view
-//         const { text: windowedText } = getWindowedText(textChunks, currentChunkIndex, windowSize);
-//         setDisplayedText(windowedText);
-//       }
-//     }
-//   };
-  
-//   // Handle window size change
-//   const handleWindowSizeChange = (size: number) => {
-//     setWindowSize(size);
-    
-//     if (!showFullText && textProcessingRef.current) {
-//       const { text: windowedText } = getWindowedText(textChunks, currentChunkIndex, size);
-//       setDisplayedText(windowedText);
-//     }
-//   };
-
-//   // Calculate total progress percentage
-//   const progressPercentage = textProcessingRef.current && textProcessingRef.current.getChunkCount() > 0
-//     ? ((currentChunkIndex + 1) / textProcessingRef.current.getChunkCount()) * 100
-//     : 0;
-
-//   return (
-//     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-50">
-//       <div
-//         className={`
-//           relative bg-white text-gray-900 rounded-lg shadow-lg transition-all duration-300 overflow-hidden 
-//           ${!isPlaying
-//             ? "w-[300px] h-[400px] sm:w-[650px] sm:max-h-[85%] sm:p-6"
-//             : "w-full h-full sm:max-w-[800px] sm:h-[85%]"}
-//         `}
-//       >
-//         {/* Always-visible Close Icon */}
-//         <button
-//           className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 z-50 focus:outline-none"
-//           onClick={handleClose}
-//           aria-label="Close"
-//         >
-//           ×
-//         </button>
-
-//         {playbackFinished && (
-//           <div className="flex items-center justify-center p-4 bg-yellow-100 text-yellow-800">
-//             Playback finished. Click "Stop" or "Close" to exit.
-//           </div>
-//         )}
-
-//         {errorMessage ? (
-//           <div className="flex flex-col items-center justify-center h-full">
-//             <p className="mt-4 text-base sm:text-lg font-medium text-red-600">
-//               {errorMessage}
-//             </p>
-//             <button 
-//               onClick={handleClose}
-//               className="mt-4 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md"
-//             >
-//               Close
-//             </button>
-//           </div>
-//         ) : isLoading ? (
-//           <div className="flex flex-col items-center justify-center h-full">
-//             <div className="w-full max-w-md bg-gray-200 rounded-full h-2.5 mb-4">
-//               <div className="bg-gray-700 h-2.5 rounded-full" style={{ width: `${loadingProgress}%` }}></div>
-//             </div>
-//             <p className="mt-4 text-base sm:text-lg font-medium">
-//               Your audio will start in approximately {estimatedTime} seconds...
-//             </p>
-//           </div>
-//         ) : !isPlaying ? (
-//           <div className="flex flex-col items-center justify-center gap-4 relative h-full">
-//             <h2 className="text-xl sm:text-2xl font-bold mb-4">Kokoro Audio Player</h2>
-//             <button
-//               onClick={handlePlay}
-//               className="bg-gray-700 hover:bg-gray-800 text-white px-6 py-2 rounded-md shadow-md transition-colors focus:outline-none"
-//               disabled={!modelLoaded}
-//             >
-//               {modelLoaded ? 'Start Audiobook' : 'Model Loading...'}
-//             </button>
-            
-//             <div className="mt-8 px-4">
-//               <label htmlFor="rate-slider" className="block text-sm font-medium text-gray-700 mb-1">
-//                 Speed: {playbackRate.toFixed(1)}x
-//               </label>
-//               <input
-//                 type="range"
-//                 id="rate-slider"
-//                 min="0.5"
-//                 max="2"
-//                 step="0.1"
-//                 value={playbackRate}
-//                 onChange={handleRateChange}
-//                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-//               />
-//             </div>
-            
-//             <div className="mt-4 px-4">
-//               <label className="block text-sm font-medium text-gray-700 mb-1">
-//                 Sentences per view: {windowSize}
-//               </label>
-//               <div className="flex gap-2">
-//                 <button 
-//                   onClick={() => handleWindowSizeChange(1)}
-//                   className={`px-2 py-1 rounded ${windowSize === 1 ? 'bg-gray-700 text-white' : 'bg-gray-200'}`}
-//                 >
-//                   1
-//                 </button>
-//                 <button 
-//                   onClick={() => handleWindowSizeChange(3)}
-//                   className={`px-2 py-1 rounded ${windowSize === 3 ? 'bg-gray-700 text-white' : 'bg-gray-200'}`}
-//                 >
-//                   3
-//                 </button>
-//                 <button 
-//                   onClick={() => handleWindowSizeChange(5)}
-//                   className={`px-2 py-1 rounded ${windowSize === 5 ? 'bg-gray-700 text-white' : 'bg-gray-200'}`}
-//                 >
-//                   5
-//                 </button>
-//               </div>
-//             </div>
-            
-//             <div className="mt-8 max-h-48 overflow-y-auto p-4 border border-gray-200 rounded bg-gray-50 w-full max-w-md">
-//               <p className="text-sm text-gray-700">
-//                 {textChunks.length > 0 ? textChunks[0].text + '...' : 'Loading text...'}
-//               </p>
-//             </div>
-//           </div>
-//         ) : (
-//           <div className="flex flex-col h-full">
-//             {/* Progress bar */}
-//             <div className="w-full bg-gray-200 h-2">
-//               <div 
-//                 className="bg-gray-700 h-2 transition-all duration-300" 
-//                 style={{ width: `${progressPercentage}%` }}
-//               ></div>
-//             </div>
-            
-//             {/* Text display area */}
-//             <div
-//               className="relative flex-grow w-full bg-[#f8f5e6] p-4 sm:p-8 overflow-y-auto"
-//               ref={textContainerRef}
-//             >
-//               <p className="text-base sm:text-2xl leading-relaxed font-serif">
-//                 {displayedText}
-//                 {isPaused ? '' : 
-//                   <span className="inline-block animate-pulse">|</span>
-//                 }
-//               </p>
-//             </div>
-            
-//             {/* View toggle */}
-//             <div className="flex justify-center py-2 bg-gray-100">
-//               <button
-//                 onClick={toggleTextView}
-//                 className="text-sm text-gray-700 hover:text-gray-900 underline"
-//               >
-//                 {showFullText ? 'Show only current sentences' : 'Show all text'}
-//               </button>
-              
-//               {!showFullText && (
-//                 <div className="ml-4 flex items-center gap-2">
-//                   <span className="text-sm text-gray-700">Sentences:</span>
-//                   <div className="flex gap-1">
-//                     <button 
-//                       onClick={() => handleWindowSizeChange(1)}
-//                       className={`px-2 py-0 text-xs rounded ${windowSize === 1 ? 'bg-gray-700 text-white' : 'bg-gray-200'}`}
-//                     >
-//                       1
-//                     </button>
-//                     <button 
-//                       onClick={() => handleWindowSizeChange(3)}
-//                       className={`px-2 py-0 text-xs rounded ${windowSize === 3 ? 'bg-gray-700 text-white' : 'bg-gray-200'}`}
-//                     >
-//                       3
-//                     </button>
-//                     <button 
-//                       onClick={() => handleWindowSizeChange(5)}
-//                       className={`px-2 py-0 text-xs rounded ${windowSize === 5 ? 'bg-gray-700 text-white' : 'bg-gray-200'}`}
-//                     >
-//                       5
-//                     </button>
-//                   </div>
-//                 </div>
-//               )}
-//             </div>
-//           </div>
-//         )}
-
-//         {isPlaying && !errorMessage && (
-//           <div className="absolute bottom-4 left-0 right-0 flex justify-center flex-wrap gap-4">
-//             <button
-//               onClick={handleBackward}
-//               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none disabled:opacity-50"
-//               disabled={currentChunkIndex <= 0}
-//             >
-//               ← Back
-//             </button>
-            
-//             {isPaused ? (
-//               <button
-//                 onClick={handlePlay}
-//                 className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-//               >
-//                 ▶ Resume
-//               </button>
-//             ) : (
-//               <button
-//                 onClick={handlePause}
-//                 className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-//               >
-//                 ⏸ Pause
-//               </button>
-//             )}
-            
-//             <button
-//               onClick={handleForward}
-//               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none disabled:opacity-50"
-//               disabled={textProcessingRef.current ? 
-//                 currentChunkIndex >= textProcessingRef.current.getChunkCount() - 1 : true}
-//             >
-//               Forward →
-//             </button>
-            
-//             <button
-//               onClick={handleStop}
-//               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-//             >
-//               ⏹ Stop
-//             </button>
-//           </div>
-//         )}
-        
-//         {isPlaying && (
-//           <div className="absolute top-4 right-12">
-//             <div className="flex items-center">
-//               <span className="mr-2 text-sm font-medium text-gray-700">
-//                 Chunk: {currentChunkIndex + 1}/{textProcessingRef.current?.getChunkCount() || 0}
-//               </span>
-//               <select
-//                 value={playbackRate.toString()}
-//                 onChange={(e) => {
-//                   const newRate = parseFloat(e.target.value);
-//                   setPlaybackRate(newRate);
-//                   if (ttsServiceRef.current) {
-//                     ttsServiceRef.current.setPlaybackRate(newRate);
-//                   }
-//                 }}
-//                 className="form-select rounded border-gray-300 text-sm"
-//               >
-//                 <option value="0.5">0.5x</option>
-//                 <option value="0.75">0.75x</option>
-//                 <option value="1">1x</option>
-//                 <option value="1.25">1.25x</option>
-//                 <option value="1.5">1.5x</option>
-//                 <option value="1.75">1.75x</option>
-//                 <option value="2">2x</option>
-//               </select>
-//             </div>
-//           </div>
-//         )}
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default KokoroPlayMode;
-
-
-
 // src/components/Reader/KokoroPlayMode.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { KokoroTTSService } from '../../services/KokoroTTSService';
@@ -3565,8 +51,9 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [modelLoaded, setModelLoaded] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [estimatedTime, setEstimatedTime] = useState(10);
   const [windowSize, setWindowSize] = useState(3);
+
+  
   
   // Text segment state
   const [segments, setSegments] = useState<TextSegment[]>([]);
@@ -3574,10 +61,17 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [playbackFinished, setPlaybackFinished] = useState(false);
+  const [autoPlay, setAutoPlay] = useState(true);
+  
+  // Voice selection state
+  const [availableVoices, setAvailableVoices] = useState<string[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>('');
   
   // Refs
   const ttsServiceRef = useRef<KokoroTTSService | null>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
+  const autoPlayRef = useRef<boolean>(true);
+  const isStoppingRef = useRef<boolean>(false);
   
   // Initialize TTS service and prepare segments
   useEffect(() => {
@@ -3585,6 +79,10 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
     const ttsService = new KokoroTTSService();
     ttsServiceRef.current = ttsService;
     
+    // Initialize the TTS service
+    // In KokoroPlayMode.tsx
+    // Inside the useEffect where we initialize the TTS service
+
     // Initialize the TTS service
     const initTTS = async () => {
       try {
@@ -3623,12 +121,14 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
           },
           // Error callback
           (error: string) => {
+            console.error("TTS error:", error);
             setErrorMessage(error);
             setIsPlaying(false);
           },
-          // Completion callback
+          // Completion callback - THIS IS KEY FOR CONTINUOUS PLAYBACK
           () => {
-            console.log("TTS service completion callback");
+            console.log("TTS segment completed, current index:", currentSegmentIndex);
+            
             // Mark current segment as played
             if (segments.length > 0) {
               const updatedSegments = [...segments];
@@ -3639,29 +139,66 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
               };
               setSegments(updatedSegments);
               
-              // Move to next segment if available
-              if (currentSegmentIndex < segments.length - 1) {
-                setCurrentSegmentIndex(prev => prev + 1);
-                playSegment(currentSegmentIndex + 1);
+              // Check if we should automatically advance to the next segment
+              if (autoPlayRef.current && !isStoppingRef.current) {
+                const nextIndex = currentSegmentIndex + 1;
+                
+                if (nextIndex < segments.length) {
+                  console.log("Advancing to next segment:", nextIndex);
+                  
+                  // Use a direct function call to update state and play next segment
+                  // This ensures that the state is updated before we attempt to play
+                  playNextSegment(nextIndex);
+                } else {
+                  console.log("Reached end of content");
+                  setPlaybackFinished(true);
+                  setIsPlaying(false);
+                }
+              } else if (isStoppingRef.current) {
+                console.log("Playback was manually stopped");
+                isStoppingRef.current = false;
               } else {
-                // All segments played
-                setIsPlaying(false);
-                setPlaybackFinished(true);
+                console.log("Auto-advance disabled, waiting for user input");
               }
             }
           }
         );
         
-        // Initialize the service
+        // // Set voices loaded callback separately using the new method
+        // ttsService.setVoicesLoadedCallback((voices: string[]) => {
+        //   console.log("Voices loaded:", voices);
+        //   setAvailableVoices(voices);
+        //   if (voices.length > 0) {
+        //     setSelectedVoice(voices[0]);
+        //     ttsService.setVoice(voices[0]);
+        //   }
+        // });
+        
+        // Initialize the service with only the progress callback
         await ttsService.initialize(
           // Progress callback
           (progress: number) => {
             setLoadingProgress(progress);
-            // Update estimated time
-            const remainingTime = Math.ceil((100 - progress) / 10);
-            setEstimatedTime(remainingTime);
           }
         );
+        
+    // Now that the model is loaded, get available voices
+        // We do this after initialization to avoid type errors
+        try {
+          // Use type assertion to call the new method
+          const voices = (ttsService as any).getVoices();
+          console.log("Available voices:", voices);
+          setAvailableVoices(voices);
+          if (voices.length > 0) {
+            setSelectedVoice(voices[0]);
+          }
+        } catch (error) {
+          console.warn("Could not get voices:", error);
+          // Fallback to default voices
+          const fallbackVoices = ['af_heart', 'af_bella', 'af_sky', 'af_nicole', 'am_michael', 'bf_emma'];
+          setAvailableVoices(fallbackVoices);
+          setSelectedVoice(fallbackVoices[0]);
+        }
         
         setIsLoading(false);
         setModelLoaded(true);
@@ -3683,6 +220,11 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
     };
   }, []);
 
+  // Update autoPlayRef when autoPlay changes
+  useEffect(() => {
+    autoPlayRef.current = autoPlay;
+  }, [autoPlay]);
+  
   // Update segments if window size changes
   useEffect(() => {
     if (modelLoaded && !isPlaying) {
@@ -3710,11 +252,60 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
     setCurrentSegmentIndex(0);
   };
   
+  // Handle voice change
+  // Add a handle voice change function
+  const handleVoiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newVoice = e.target.value;
+    setSelectedVoice(newVoice);
+    console.log("Voice changed to:", newVoice);
+  };
+  
+  // Direct function to advance to the next segment
+  // This is called directly from the completion callback
+  const playNextSegment = (nextIndex: number) => {
+    setCurrentSegmentIndex(nextIndex);
+    
+    // Small delay to ensure state updates
+    setTimeout(() => {
+      if (ttsServiceRef.current && autoPlayRef.current && !isStoppingRef.current) {
+        // Play the next segment
+        const nextSegment = segments[nextIndex];
+        if (nextSegment) {
+          console.log("Playing next segment:", nextIndex, nextSegment.text.substring(0, 30) + "...");
+          
+          // Update UI
+          const updatedSegments = [...segments];
+          updatedSegments[nextIndex] = {
+            ...nextSegment,
+            isPlaying: true
+          };
+          setSegments(updatedSegments);
+          
+          // Scroll text container to top for new segment
+          if (textContainerRef.current) {
+            textContainerRef.current.scrollTop = 0;
+          }
+          
+          // Play the text
+          ttsServiceRef.current.setPlaybackRate(playbackRate);
+          ttsServiceRef.current.playText(nextSegment.text).catch(error => {
+            console.error("Error playing next segment:", error);
+            setErrorMessage(`Failed to play segment ${nextIndex + 1}`);
+            setIsPlaying(false);
+          });
+        }
+      }
+    }, 250);
+  };
+  
   // Function to play a specific segment
   const playSegment = async (segmentIndex: number) => {
     if (!ttsServiceRef.current || segmentIndex < 0 || segmentIndex >= segments.length) return;
     
     try {
+      // Reset the stopping flag
+      isStoppingRef.current = false;
+      
       // Get the segment to play
       const segment = segments[segmentIndex];
       
@@ -3727,6 +318,7 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
       setCurrentSegmentIndex(segmentIndex);
       setIsPlaying(true);
       setIsPaused(false);
+      setPlaybackFinished(false);
       
       // Update segment status
       const updatedSegments = [...segments];
@@ -3749,11 +341,23 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
       
       setSegments(updatedSegments);
       
+      // Scroll to top
+      if (textContainerRef.current) {
+        textContainerRef.current.scrollTop = 0;
+      }
+      
       // Set playback rate
       ttsServiceRef.current.setPlaybackRate(playbackRate);
       
+      // // Make sure the voice is set
+      // if (selectedVoice) {
+      //   ttsServiceRef.current.setVoice(selectedVoice);
+      // }
+      
       // Play the segment text
-      await ttsServiceRef.current.playText(segment.text);
+      console.log(`Playing segment ${segmentIndex} with voice ${selectedVoice}:`, segment.text.substring(0, 30) + "...");
+          // Use type assertion to call the modified method
+      await (ttsServiceRef.current as any).playText(segment.text, selectedVoice);
     } catch (error) {
       console.error('Error playing segment:', error);
       setErrorMessage(`Failed to play segment ${segmentIndex + 1}`);
@@ -3790,6 +394,9 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
   const stopPlayback = () => {
     if (!ttsServiceRef.current) return;
     
+    // Set flag to prevent auto-advance in completion callback
+    isStoppingRef.current = true;
+    
     ttsServiceRef.current.stop();
     setIsPlaying(false);
     setIsPaused(false);
@@ -3813,6 +420,9 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
     console.log("Cleaning up playback");
     
     try {
+      // Set stopping flag
+      isStoppingRef.current = true;
+      
       // Stop any active playback
       if (isPlaying) {
         stopPlayback();
@@ -3864,6 +474,11 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
     }
   };
   
+  // Toggle auto play mode
+  const toggleAutoPlay = () => {
+    setAutoPlay(!autoPlay);
+  };
+  
   // Handlers for UI controls
   const handlePlay = () => {
     if (!isPlaying) {
@@ -3903,191 +518,406 @@ const KokoroPlayMode: React.FC<KokoroPlayModeProps> = ({
     ? ((currentSegmentIndex + 1) / segments.length) * 100
     : 0;
 
+  // Get a display name for voice
+  const getVoiceName = (voiceId: string) => {
+    // Convert voice ID to a friendly name
+    // e.g., 'af_heart' -> 'Heart (Female)'
+    
+    const parts = voiceId.split('_');
+    if (parts.length === 2) {
+      let gender = parts[0] === 'af' ? 'Female' : parts[0] === 'am' ? 'Male' : '';
+      let name = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+      
+      return `${name} ${gender ? `(${gender})` : ''}`;
+    }
+    
+    return voiceId;
+  };
+
   return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div
         className={`
-          relative bg-white text-gray-900 rounded-lg shadow-lg transition-all duration-300 overflow-hidden 
+          relative bg-white rounded-xl shadow-xl transition-all duration-300 ease-out overflow-hidden
           ${!isPlaying
-            ? "w-[300px] h-[400px] sm:w-[650px] sm:max-h-[85%] sm:p-6"
-            : "w-full h-full sm:max-w-[800px] sm:h-[85%]"}
+            ? "w-[90%] max-w-md mx-4 max-h-[85vh]"
+            : "w-[95%] max-w-4xl mx-4 h-[90%]"}
         `}
       >
-        {/* Always-visible Close Icon */}
+        {/* Modern Close Button */}
         <button
-          className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 z-50 focus:outline-none"
+          className="absolute top-4 right-4 z-50 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
           onClick={handleClose}
           aria-label="Close"
         >
-          ×
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
 
         {playbackFinished && (
-          <div className="flex items-center justify-center p-4 bg-yellow-100 text-yellow-800">
-            Playback finished. Click "Stop" or "Close" to exit.
+          <div className="flex items-center justify-center p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
+            <div className="flex items-center gap-2 text-green-700">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span className="font-medium">Playback completed successfully!</span>
+            </div>
           </div>
         )}
 
         {errorMessage ? (
-          <div className="flex flex-col items-center justify-center h-full">
-            <p className="mt-4 text-base sm:text-lg font-medium text-red-600">
+          <div className="flex flex-col items-center justify-center h-full p-8">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Something went wrong</h3>
+            <p className="text-gray-600 text-center mb-6 max-w-md">
               {errorMessage}
             </p>
             <button 
               onClick={handleClose}
-              className="mt-4 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md"
+              className="px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-medium transition-colors duration-200"
             >
               Close
             </button>
           </div>
         ) : isLoading ? (
-          <div className="flex flex-col items-center justify-center h-full">
-            <div className="w-full max-w-md bg-gray-200 rounded-full h-2.5 mb-4">
-              <div className="bg-gray-700 h-2.5 rounded-full" style={{ width: `${loadingProgress}%` }}></div>
+          <div className="flex flex-col items-center justify-center h-full p-8">
+            <div className="w-16 h-16 bg-amber-600 rounded-xl flex items-center justify-center mb-6 animate-pulse">
+              <svg className="w-8 h-8 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
             </div>
-            <p className="mt-4 text-base sm:text-lg font-medium">
-              Your audio will start in approximately {estimatedTime} seconds...
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading AI Voice Model</h3>
+            <p className="text-gray-600 text-center mb-6 max-w-sm text-sm">
+              Downloading and initializing the Kokoro TTS model. This may take a few moments on first use.
             </p>
+            <div className="w-full max-w-xs bg-gray-200 rounded-full h-2 mb-2">
+              <div 
+                className="bg-amber-600 h-2 rounded-full transition-all duration-300 ease-out" 
+                style={{ width: `${loadingProgress}%` }}
+              ></div>
+            </div>
+            <p className="text-sm text-gray-500">{loadingProgress}% complete</p>
           </div>
         ) : !isPlaying ? (
-          <div className="flex flex-col items-center justify-center gap-4 relative h-full">
-            <h2 className="text-xl sm:text-2xl font-bold mb-4">Kokoro Audio Player</h2>
-            <button
-              onClick={() => startPlayback(0)}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-6 py-2 rounded-md shadow-md transition-colors focus:outline-none"
-              disabled={!modelLoaded}
-            >
-              {!modelLoaded ? 'Model Loading...' : 'Start Audiobook'}
-            </button>
-            
-            <div className="mt-8 px-4">
-              <label htmlFor="rate-slider" className="block text-sm font-medium text-gray-700 mb-1">
-                Speed: {playbackRate.toFixed(1)}x
-              </label>
-              <input
-                type="range"
-                id="rate-slider"
-                min="0.5"
-                max="2"
-                step="0.1"
-                value={playbackRate}
-                onChange={handleRateChange}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-              />
+          <div className="p-6 max-h-[80vh] overflow-y-auto">
+            {/* Compact Header */}
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-amber-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-1">Offline Audiobook</h2>
+              <p className="text-sm text-gray-600">AI-powered text-to-speech</p>
             </div>
-            
-            <div className="mt-4 px-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sentences per segment: {windowSize}
-              </label>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => handleWindowSizeChange(1)}
-                  className={`px-2 py-1 rounded ${windowSize === 1 ? 'bg-gray-700 text-white' : 'bg-gray-200'}`}
-                >
-                  1
-                </button>
-                <button 
-                  onClick={() => handleWindowSizeChange(3)}
-                  className={`px-2 py-1 rounded ${windowSize === 3 ? 'bg-gray-700 text-white' : 'bg-gray-200'}`}
-                >
-                  3
-                </button>
-                <button 
-                  onClick={() => handleWindowSizeChange(5)}
-                  className={`px-2 py-1 rounded ${windowSize === 5 ? 'bg-gray-700 text-white' : 'bg-gray-200'}`}
-                >
-                  5
-                </button>
+
+            {/* Main Action Button */}
+            <div className="text-center mb-6">
+              <button
+                onClick={() => startPlayback(0)}
+                className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!modelLoaded}
+              >
+                <span className="flex items-center gap-2">
+                  {!modelLoaded ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Loading Model...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Start Audiobook
+                    </>
+                  )}
+                </span>
+              </button>
+            </div>
+
+            {/* Compact Settings Grid */}
+            <div className="grid grid-cols-1 gap-4 mb-6">
+              {/* Voice Selection */}
+              {availableVoices.length > 0 && (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <label htmlFor="voice-select" className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Voice
+                  </label>
+                  <select
+                    id="voice-select"
+                    value={selectedVoice}
+                    onChange={handleVoiceChange}
+                    className="w-full p-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white text-sm"
+                  >
+                    {availableVoices.map(voice => (
+                      <option key={voice} value={voice}>
+                        {getVoiceName(voice)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Playback Speed */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <label htmlFor="rate-slider" className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Speed: {playbackRate.toFixed(1)}x
+                </label>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500">0.5x</span>
+                  <input
+                    type="range"
+                    id="rate-slider"
+                    min="0.5"
+                    max="2"
+                    step="0.1"
+                    value={playbackRate}
+                    onChange={handleRateChange}
+                    className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                  <span className="text-xs text-gray-500">2.0x</span>
+                </div>
+              </div>
+
+              {/* Segment Size & Auto-advance in one row */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Segment
+                  </label>
+                  <div className="flex gap-1">
+                    {[1, 3, 5].map(size => (
+                      <button 
+                        key={size}
+                        onClick={() => handleWindowSizeChange(size)}
+                        className={`flex-1 py-1.5 px-2 rounded text-xs font-medium transition-all duration-200 ${
+                          windowSize === size 
+                            ? 'bg-amber-600 text-white' 
+                            : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Auto
+                  </label>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="auto-play"
+                      checked={autoPlay}
+                      onChange={toggleAutoPlay}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-amber-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                  </label>
+                </div>
               </div>
             </div>
-            
-            <div className="mt-8 max-h-48 overflow-y-auto p-4 border border-gray-200 rounded bg-gray-50 w-full max-w-md">
-              <p className="text-sm text-gray-700">
-                {segments.length > 0 ? segments[0].text + '...' : 'Loading text...'}
-              </p>
+
+            {/* Compact Content Preview */}
+            <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+              <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
+                <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                Preview
+              </h4>
+              <div className="max-h-20 overflow-y-auto">
+                <p className="text-xs text-gray-700 leading-relaxed">
+                  {segments.length > 0 ? segments[0].text.substring(0, 150) + '...' : 'Loading content...'}
+                </p>
+              </div>
             </div>
           </div>
         ) : (
           <div className="flex flex-col h-full">
-            {/* Progress bar */}
-            <div className="w-full bg-gray-200 h-2">
-              <div 
-                className="bg-gray-700 h-2 transition-all duration-300" 
-                style={{ width: `${progressPercentage}%` }}
-              ></div>
+            {/* Compact Header with progress */}
+            <div className="bg-amber-600 text-white p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Audiobook Player</h3>
+                    <p className="text-amber-100 text-sm">Segment {currentSegmentIndex + 1} of {segments.length}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  {/* Voice indicator */}
+                  <div className="flex items-center gap-2 bg-white/20 rounded-md px-2 py-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span className="text-xs font-medium">{getVoiceName(selectedVoice)}</span>
+                  </div>
+                  
+                  {/* Auto-advance indicator */}
+                  <div className="flex items-center gap-2 bg-white/20 rounded-md px-2 py-1">
+                    <div className={`w-1.5 h-1.5 rounded-full ${autoPlay ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+                    <span className="text-xs font-medium">{autoPlay ? 'Auto' : 'Manual'}</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Progress bar */}
+              <div className="w-full bg-white/20 rounded-full h-1.5 mb-1">
+                <div 
+                  className="bg-white h-1.5 rounded-full transition-all duration-300 ease-out" 
+                  style={{ width: `${progressPercentage}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-xs text-amber-100">
+                <span>{Math.round(progressPercentage)}% complete</span>
+                <span>{segments.length - currentSegmentIndex - 1} remaining</span>
+              </div>
             </div>
             
             {/* Text display area */}
             <div
-              className="relative flex-grow w-full bg-[#f8f5e6] p-4 sm:p-8 overflow-y-auto"
+              className="relative flex-grow w-full bg-amber-50 p-6 overflow-y-auto"
               ref={textContainerRef}
             >
-              <p className="text-base sm:text-2xl leading-relaxed font-serif">
-                <span className={segments[currentSegmentIndex]?.isPlaying ? 'current-segment' : ''}>
-                  {getCurrentSegmentText()}
-                </span>
-                {isPlaying && !isPaused && <span className="inline-block animate-pulse">|</span>}
-              </p>
+              <div className="max-w-3xl mx-auto">
+                <div className="bg-white/90 rounded-xl p-6 shadow-sm border border-amber-200">
+                  <p className="text-base sm:text-lg leading-relaxed font-serif text-gray-800">
+                    <span className={segments[currentSegmentIndex]?.isPlaying ? 'text-amber-700 font-medium' : 'text-gray-700'}>
+                      {getCurrentSegmentText()}
+                    </span>
+                    {isPlaying && !isPaused && (
+                      <span className="inline-block w-0.5 h-5 bg-amber-600 ml-1 animate-pulse"></span>
+                    )}
+                  </p>
+                </div>
+              </div>
             </div>
             
-            {/* Segment indicator */}
-            <div className="py-2 bg-gray-100 text-center text-sm text-gray-700">
-              Segment {currentSegmentIndex + 1} of {segments.length}
-            </div>
-          </div>
-        )}
-
-        {isPlaying && !errorMessage && (
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center flex-wrap gap-4">
-            <button
-              onClick={handlePrevious}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none disabled:opacity-50"
-              disabled={currentSegmentIndex <= 0}
-            >
-              ← Previous
-            </button>
-            
-            <button
-              onClick={handlePlay}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-            >
-              {isPaused ? '▶ Resume' : isPlaying ? '⏸ Pause' : '▶ Play'}
-            </button>
-            
-            <button
-              onClick={handleNext}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none disabled:opacity-50"
-              disabled={currentSegmentIndex >= segments.length - 1}
-            >
-              Next →
-            </button>
-            
-            <button
-              onClick={handleStop}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow-md transition-colors focus:outline-none flex items-center gap-2"
-            >
-              ⏹ Stop
-            </button>
-          </div>
-        )}
-        
-        {isPlaying && (
-          <div className="absolute top-4 right-12">
-            <div className="flex items-center">
-              <select
-                value={playbackRate.toString()}
-                onChange={handleRateChange}
-                className="form-select rounded border-gray-300 text-sm"
-              >
-                <option value="0.5">0.5x</option>
-                <option value="0.75">0.75x</option>
-                <option value="1">1x</option>
-                <option value="1.25">1.25x</option>
-                <option value="1.5">1.5x</option>
-                <option value="1.75">1.75x</option>
-                <option value="2">2x</option>
-              </select>
+            {/* Compact Control Bar */}
+            <div className="bg-white border-t border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                {/* Playback Controls */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePrevious}
+                    className="w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={currentSegmentIndex <= 0}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  
+                  <button
+                    onClick={handlePlay}
+                    className="w-12 h-12 bg-amber-600 hover:bg-amber-700 text-white rounded-lg flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg"
+                  >
+                    {isPaused ? (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6l4-3-4-3z" />
+                      </svg>
+                    )}
+                  </button>
+                  
+                  <button
+                    onClick={handleNext}
+                    className="w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={currentSegmentIndex >= segments.length - 1}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  
+                  <button
+                    onClick={handleStop}
+                    className="w-10 h-10 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg flex items-center justify-center transition-all duration-200"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10h6v4H9z" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Settings Controls */}
+                <div className="flex items-center gap-3">
+                  {/* Voice selector */}
+                  {availableVoices.length > 0 && (
+                    <select
+                      value={selectedVoice}
+                      onChange={handleVoiceChange}
+                      className="px-2 py-1 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                    >
+                      {availableVoices.map(voice => (
+                        <option key={voice} value={voice}>
+                          {getVoiceName(voice)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  
+                  {/* Playback speed */}
+                  <select
+                    value={playbackRate.toString()}
+                    onChange={handleRateChange}
+                    className="px-2 py-1 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                  >
+                    <option value="0.5">0.5x</option>
+                    <option value="0.75">0.75x</option>
+                    <option value="1">1x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                    <option value="1.75">1.75x</option>
+                    <option value="2">2x</option>
+                  </select>
+                  
+                  {/* Auto-play toggle */}
+                  <button
+                    onClick={toggleAutoPlay}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
+                      autoPlay 
+                        ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full ${autoPlay ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                    {autoPlay ? 'Auto' : 'Manual'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -1,0 +1,491 @@
+Okay, let's implement the `useEffect`-based approach for loading pages. This will make your `BookContext` more declarative and robust.
+
+Here's the modified `BookContext.tsx`. I've focused on the changes related to `openBook`, `loadPage`, navigation, and the new `useEffect` hook for page loading.
+
+**Key Changes:**
+
+1.  **`currentPageToLoad` State:** A new state `currentPageToLoad` is introduced. This represents the page index we *intend* to load. `openBook` and navigation functions will set this.
+2.  **`useEffect` for Page Loading:** This effect listens to changes in `currentBook`, `bookZip`, `htmlFiles`, and `currentPageToLoad`. When all are valid, it calls `loadPage`.
+3.  **`openBook` Refactor:** It now focuses on setting up the book's data (`bookZip`, `htmlFiles`, `toc`, etc.) and then setting `currentPageToLoad`. It no longer directly calls `await loadPage`.
+4.  **Navigation Functions Refactor:** `nextPage`, `prevPage`, `navigateToTocItem` now update `currentPageToLoad`.
+5.  **`loadPage` Stability:** `loadPage` is wrapped in `useCallback` to ensure its reference is stable for the `useEffect` dependency array. Its dependencies are carefully listed.
+6.  **`findChapterForPage` Stability:** Also wrapped in `useCallback`.
+7.  **Parameter Consistency:** `loadPage` will now consistently be called by the `useEffect` using the stable state values.
+
+```typescript
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'; // Added useCallback
+import localforage from 'localforage';
+import JSZip from 'jszip';
+import { DOMParser } from 'xmldom';
+import { getDirectoryPath, resolveRelativePath } from '../utils/pathUtils';
+import { processHtmlContent, extractTextFromHtml } from '../utils/textExtraction';
+import { BookData, TOCItem } from '@/types/books';
+
+// Configure localforage (assuming it's correctly set up)
+localforage.config({
+  name: "EbookReaderApp",
+  storeName: "bookStorage"
+});
+
+interface BookContextValue {
+  // Library state
+  books: BookData[];
+  addBook: (file: File) => Promise<void>;
+  removeBook: (bookId: string) => Promise<void>;
+
+  // Current book state
+  currentBook: BookData | null;
+  isReading: boolean;
+  isLoading: boolean;
+  bookTitle: string;
+  bookAuthor: string;
+  currentPageDisplay: number; // Renamed from currentPage for clarity, reflects actually loaded page
+  totalPages: number;
+  currentContent: string;
+  currentPageText: string;
+  toc: TOCItem[];
+
+  // Book actions
+  openBook: (book: BookData) => Promise<void>;
+  closeBook: () => void;
+  nextPage: () => void;
+  prevPage: () => void;
+  navigateToTocItem: (item: TOCItem) => void;
+
+  // Book details (can be removed if not needed publicly, as zip/htmlFiles are internal now)
+  // htmlFiles: string[];
+  // opfPath: string;
+
+  // Play mode
+  isPlayModeVisible: boolean;
+  togglePlayMode: () => void;
+}
+
+const BookContext = createContext<BookContextValue | undefined>(undefined);
+
+export const useBook = (): BookContextValue => {
+  const context = useContext(BookContext);
+  if (context === undefined) {
+    throw new Error('useBook must be used within a BookProvider');
+  }
+  return context;
+};
+
+interface BookProviderProps {
+  children: ReactNode;
+}
+
+export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
+  const [books, setBooks] = useState<BookData[]>([]);
+  const [currentBook, setCurrentBook] = useState<BookData | null>(null);
+  const [isReading, setIsReading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [bookTitle, setBookTitle] = useState<string>('');
+  const [bookAuthor, setBookAuthor] = useState<string>('');
+
+  const [currentPageDisplay, setCurrentPageDisplay] = useState<number>(0); // Represents the *actually loaded* page index for UI
+  const [currentPageToLoad, setCurrentPageToLoad] = useState<number>(0); // Represents the page index we *want* to load
+
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [currentContent, setCurrentContent] = useState<string>('');
+  const [currentPageText, setCurrentPageText] = useState<string>('');
+  const [toc, setToc] = useState<TOCItem[]>([]);
+  const [bookZip, setBookZip] = useState<JSZip | null>(null);
+  const [opfPath, setOpfPath] = useState<string>(''); // Still useful for resolving paths within EPUB
+  const [htmlFiles, setHtmlFiles] = useState<string[]>([]); // Spine: order of HTML files
+
+  const [isPlayModeVisible, setIsPlayModeVisible] = useState<boolean>(false);
+
+  // Load books from localforage on initial render (useEffect for this remains the same)
+  useEffect(() => {
+    // ... (your existing localforage book loading logic)
+  }, []);
+
+  // Save books to localforage when they change (useEffect for this remains the same)
+  useEffect(() => {
+    // ... (your existing localforage book saving logic)
+  }, [books]);
+
+
+  const findChapterForPage = useCallback((pageIndex: number, tocItems: TOCItem[], currentHtmlFiles: string[]): TOCItem | null => {
+    if (!currentHtmlFiles || currentHtmlFiles.length === 0 || pageIndex < 0 || pageIndex >= currentHtmlFiles.length) {
+      return null;
+    }
+    for (let i = 0; i < tocItems.length; i++) {
+      const tocItem = tocItems[i];
+      const itemFilePath = tocItem.href.split('#')[0];
+      if (currentHtmlFiles[pageIndex].endsWith(itemFilePath)) {
+        return tocItem;
+      }
+      // Could add logic to check children if it's a nested TOC structure and more precise matching is needed
+    }
+    return null;
+  }, []);
+
+
+  const loadPage = useCallback(async (pageIndexToLoad: number, zipToUse: JSZip, filesToUse: string[]) => {
+    console.log('Attempting to load page:', {
+      pageIndexToLoad,
+      zipExists: !!zipToUse,
+      filesLength: filesToUse.length,
+    });
+
+    if (!zipToUse || pageIndexToLoad < 0 || pageIndexToLoad >= filesToUse.length) {
+      console.error('Invalid page load conditions in loadPage:', {
+        zipExists: !!zipToUse,
+        pageIndexToLoad,
+        filesLength: filesToUse.length,
+      });
+      setCurrentContent('<div>Error: Could not load page. Invalid conditions.</div>'); // Provide feedback
+      setCurrentPageText('');
+      return;
+    }
+
+    setIsLoading(true); // Indicate loading for the page content
+    try {
+      const filePath = filesToUse[pageIndexToLoad];
+      const htmlContent = await zipToUse.file(filePath)?.async('text');
+
+      if (!htmlContent) {
+        throw new Error(`Could not load HTML content for page ${pageIndexToLoad} (${filePath})`);
+      }
+
+      const fileDir = getDirectoryPath(filePath);
+      // Ensure processHtmlContent can handle if zipToUse or filePath might be needed
+      // for resolving internal resources differently in your utility.
+      const processedHtml = processHtmlContent(htmlContent, fileDir /*, zipToUse, filePath */);
+
+      setCurrentContent(processedHtml);
+      setCurrentPageDisplay(pageIndexToLoad); // Update the display page
+      const extractedText = extractTextFromHtml(processedHtml);
+      setCurrentPageText(extractedText);
+
+      if (currentBook) {
+        const currentChapter = findChapterForPage(pageIndexToLoad, toc, htmlFiles);
+        setBooks(prevBooks =>
+          prevBooks.map(b =>
+            b.id === currentBook.id
+              ? { ...b, currentPage: pageIndexToLoad, lastChapter: currentChapter }
+              : b
+          )
+        );
+      }
+
+      // Delayed DOM manipulation for images and EPUB CSS (if not stripped by processHtmlContent)
+      setTimeout(() => {
+        const contentElement = document.querySelector('.epub-content');
+        if (contentElement) {
+          contentElement.innerHTML = processedHtml; // Re-apply if needed, or ensure React handles updates properly
+
+          const images = contentElement.querySelectorAll('img[src^="data:image/png;base64,IMAGE_PLACEHOLDER_"]');
+          images.forEach(async (img: Element) => {
+            const src = (img as HTMLImageElement).src;
+            const imagePath = src.replace('data:image/png;base64,IMAGE_PLACEHOLDER_', '');
+            try {
+              const imageBlob = await zipToUse.file(imagePath)?.async('blob');
+              if (imageBlob) {
+                (img as HTMLImageElement).src = URL.createObjectURL(imageBlob);
+              } else {
+                console.warn(`Image not found in zip: ${imagePath}`);
+                (img as HTMLImageElement).alt = `Image not found: ${imagePath}`; // Add alt text
+              }
+            } catch (error) {
+              console.error(`Error loading image: ${imagePath}`, error);
+            }
+          });
+
+          const links = contentElement.querySelectorAll('link[href^="data:text/css;base64,CSS_PLACEHOLDER_"]');
+          links.forEach(async (link: Element) => {
+            const href = (link as HTMLLinkElement).href;
+            const cssPath = href.replace('data:text/css;base64,CSS_PLACEHOLDER_', '');
+            try {
+              const cssContent = await zipToUse.file(cssPath)?.async('text');
+              if (cssContent) {
+                const style = document.createElement('style');
+                style.textContent = cssContent;
+                link.parentNode?.replaceChild(style, link);
+              } else {
+                 console.warn(`CSS not found in zip: ${cssPath}`);
+                 link.parentNode?.removeChild(link); // Remove placeholder if CSS not found
+              }
+            } catch (error) {
+              console.error(`Error loading CSS: ${cssPath}`, error);
+            }
+          });
+        }
+      }, 100);
+
+    } catch (error) {
+      console.error('Error in loadPage:', error);
+      setCurrentContent(`<div>Error loading page content: ${(error as Error).message}</div>`);
+      setCurrentPageText('');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentBook, toc, htmlFiles, findChapterForPage, setCurrentBooks /* if setBooks comes from props, add here */]); // Added dependencies for useCallback
+
+  // useEffect to load page content when all dependencies are ready
+  useEffect(() => {
+    if (currentBook && bookZip && htmlFiles.length > 0 && currentPageToLoad >= 0 && currentPageToLoad < htmlFiles.length) {
+      loadPage(currentPageToLoad, bookZip, htmlFiles);
+    } else if (!currentBook) {
+      // If book is closed or not ready, clear content
+      setCurrentContent('');
+      setCurrentPageText('');
+      setCurrentPageDisplay(0); // Reset display page
+    }
+    // Do not add loadPage to dependencies if it causes infinite loops without proper useCallback.
+    // If loadPage is memoized with useCallback and its own dependencies are correct, it's safe.
+  }, [currentBook, bookZip, htmlFiles, currentPageToLoad, loadPage]);
+
+
+  const addBook = async (file: File): Promise<void> => {
+    // ... (your existing addBook logic - no changes needed here for page loading)
+  };
+
+  const removeBook = async (bookId: string): Promise<void> => {
+    // ... (your existing removeBook logic)
+  };
+
+  const openBook = async (book: BookData): Promise<void> => {
+    setIsLoading(true); // Global loading for opening book
+    // Reset previous book states
+    closeBook(false); // Pass false to prevent resetting global isLoading if openBook sets it
+
+    setBookTitle(book.title);
+    setBookAuthor(book.author);
+    setCurrentBook(book); // Set currentBook state
+
+    try {
+      const zip = new JSZip();
+      const loadedZipContent = await zip.loadAsync(book.file);
+      setBookZip(loadedZipContent); // State update will be picked up by useEffect
+
+      const containerXml = await loadedZipContent.file('META-INF/container.xml')?.async('text');
+      if (!containerXml) throw new Error('Invalid EPUB: container.xml not found');
+      const parser = new DOMParser();
+      const containerDoc = parser.parseFromString(containerXml, 'application/xml');
+      const rootfiles = containerDoc.getElementsByTagName('rootfile');
+      if (rootfiles.length === 0) throw new Error('Invalid EPUB: No rootfile found');
+      const currentOpfPath = rootfiles[0].getAttribute('full-path') || '';
+      setOpfPath(currentOpfPath);
+
+      const opfContent = await loadedZipContent.file(currentOpfPath)?.async('text');
+      if (!opfContent) throw new Error('Invalid EPUB: OPF file not found');
+      const opfDoc = parser.parseFromString(opfContent, 'application/xml');
+
+      const spine = opfDoc.getElementsByTagName('spine')[0];
+      const itemrefs = spine.getElementsByTagName('itemref');
+      const manifest = opfDoc.getElementsByTagName('manifest')[0];
+      const items = manifest.getElementsByTagName('item');
+      const currentFileOrder: string[] = [];
+      const opfDir = getDirectoryPath(currentOpfPath);
+      for (let i = 0; i < itemrefs.length; i++) {
+        const idref = itemrefs[i].getAttribute('idref');
+        for (let j = 0; j < items.length; j++) {
+          if (items[j].getAttribute('id') === idref) {
+            const href = items[j].getAttribute('href') || '';
+            currentFileOrder.push(resolveRelativePath(opfDir, href)); // Ensure path is resolved from OPF dir
+            break;
+          }
+        }
+      }
+      setHtmlFiles(currentFileOrder); // State update
+      setTotalPages(currentFileOrder.length);
+
+      // Extract TOC (Simplified - adapt your existing extractToc logic)
+      // Pass loadedZipContent, currentOpfPath, items, spine if your extractToc needs them
+      const extractedToc = await extractTocLogic(loadedZipContent, currentOpfPath, items, spine, parser, currentFileOrder);
+      setToc(extractedToc);
+
+      if (currentFileOrder.length > 0) {
+        let pageIdxToLoadInitially = book.currentPage || 0;
+        if (book.lastChapter && extractedToc.length > 0) {
+          const chapterFilePath = book.lastChapter.href.split('#')[0];
+          const pageIndexFromChapter = currentFileOrder.findIndex(file => file.endsWith(chapterFilePath));
+          if (pageIndexFromChapter !== -1) {
+            pageIdxToLoadInitially = pageIndexFromChapter;
+          }
+        }
+        // Boundary check for the initial page to load
+        if (pageIdxToLoadInitially < 0 || pageIdxToLoadInitially >= currentFileOrder.length) {
+            pageIdxToLoadInitially = 0;
+        }
+        setCurrentPageToLoad(pageIdxToLoadInitially); // Set the desired page, useEffect will handle loading
+        setCurrentPageDisplay(pageIdxToLoadInitially); // Also set display to avoid brief mismatch
+      } else {
+        console.warn('No HTML files found in EPUB spine.');
+        setCurrentContent('<div>No content found in this book.</div>');
+        setHtmlFiles([]); // Ensure it's empty
+      }
+
+      setBooks(prevBooks =>
+        prevBooks.map(b =>
+          b.id === book.id ? { ...b, lastRead: new Date().toISOString() } : b
+        )
+      );
+      setIsReading(true);
+    } catch (error) {
+      console.error('Error opening EPUB file:', error);
+      setCurrentBook(null); // Reset currentBook on error
+      setBookZip(null);
+      setHtmlFiles([]);
+      setToc([]);
+      setCurrentContent(`<div>Error opening book: ${(error as Error).message}</div>`);
+      setIsReading(false);
+      // Consider re-throwing or providing user feedback
+    } finally {
+      setIsLoading(false); // Global loading for opening book
+    }
+  };
+
+  // Dummy extractTocLogic - replace with your actual TOC extraction
+  const extractTocLogic = async (zip: JSZip, opfPathVal: string, manifestItems: HTMLCollectionOf<Element>, spineEl: Element, domParser: DOMParser, fileOrderArr: string[]): Promise<TOCItem[]> => {
+      // Your full TOC extraction logic here...
+      // This is a placeholder. Use your existing robust TOC extraction.
+      // For example:
+      // const tocPath = findTocPath(manifestItems, spineEl, getDirectoryPath(opfPathVal));
+      // if (tocPath) {
+      //    const tocContent = await zip.file(tocPath)?.async('text');
+      //    if (tocContent) return parseTocContent(tocContent, domParser, tocPath);
+      // }
+      // Fallback to spine
+      return fileOrderArr.map((filePath, i) => ({
+          id: `spine-toc-${i}`,
+          label: filePath.substring(filePath.lastIndexOf('/') + 1).replace(/\.[^/.]+$/, "") || `Chapter ${i + 1}`,
+          href: filePath.substring(getDirectoryPath(opfPathVal).length), // Make href relative to OPF dir
+          children: []
+      }));
+  };
+
+
+  const closeBook = (resetGlobalLoading = true): void => {
+    setCurrentBook(null);
+    setBookZip(null);
+    setOpfPath('');
+    setHtmlFiles([]);
+    setToc([]);
+    setCurrentContent('');
+    setIsReading(false);
+    setBookTitle('');
+    setBookAuthor('');
+    setIsPlayModeVisible(false);
+    setCurrentPageText('');
+    setCurrentPageToLoad(0); // Reset desired page
+    setCurrentPageDisplay(0); // Reset displayed page
+    if (resetGlobalLoading) setIsLoading(false);
+  };
+
+  const nextPage = (): void => {
+    if (currentPageToLoad < totalPages - 1) {
+      setCurrentPageToLoad(prev => prev + 1);
+    }
+  };
+
+  const prevPage = (): void => {
+    if (currentPageToLoad > 0) {
+      setCurrentPageToLoad(prev => prev - 1);
+    }
+  };
+
+  const navigateToTocItem = (item: TOCItem): void => {
+    if (!bookZip || htmlFiles.length === 0) return;
+
+    if (item.href.startsWith('#')) {
+      const fragment = item.href.substring(1);
+      const element = document.getElementById(fragment);
+      if (element) element.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
+    let [filePathPart, fragment] = item.href.split('#');
+    filePathPart = filePathPart.split('?')[0];
+
+    const opfDir = getDirectoryPath(opfPath);
+    let fileIndex = -1;
+
+    // Try direct match, then relative from OPF, then just filename
+    const possiblePaths = [
+        filePathPart, // If href is already relative to root or absolute-like within zip
+        resolveRelativePath(opfDir, filePathPart), // Resolve relative to OPF
+    ];
+
+    for (const p of possiblePaths) {
+        fileIndex = htmlFiles.findIndex(file => file === p || file.endsWith('/' + p.substring(p.lastIndexOf('/') + 1)));
+        if (fileIndex !== -1) break;
+    }
+    // Last resort, just match filename if others fail
+    if (fileIndex === -1) {
+        const fileNameOnly = filePathPart.substring(filePathPart.lastIndexOf('/') + 1);
+        fileIndex = htmlFiles.findIndex(file => file.endsWith('/' + fileNameOnly));
+    }
+
+
+    if (fileIndex !== -1) {
+      setCurrentPageToLoad(fileIndex);
+      if (fragment) {
+        // Scrolling to fragment should happen after content is loaded and rendered
+        // The `loadPage`'s `setTimeout` for DOM manipulation could be a place,
+        // or another useEffect watching `currentContent` and the fragment.
+        setTimeout(() => {
+          const element = document.getElementById(fragment);
+          if (element) element.scrollIntoView({ behavior: 'smooth' });
+        }, 300); // Adjust delay as needed
+      }
+    } else {
+        console.warn(`Could not find file for TOC item href: ${item.href} (resolved to ${filePathPart})`);
+    }
+  };
+
+
+  const togglePlayMode = (): void => {
+    setIsPlayModeVisible(!isPlayModeVisible);
+  };
+
+  const value: BookContextValue = {
+    books,
+    addBook,
+    removeBook,
+    currentBook,
+    isReading,
+    isLoading,
+    bookTitle,
+    bookAuthor,
+    currentPageDisplay, // Use this for UI
+    totalPages,
+    currentContent,
+    currentPageText,
+    toc,
+    openBook,
+    closeBook,
+    nextPage,
+    prevPage,
+    navigateToTocItem,
+    isPlayModeVisible,
+    togglePlayMode,
+  };
+
+  return (
+    <BookContext.Provider value={value}>
+      {children}
+    </BookContext.Provider>
+  );
+};
+```
+
+**To Integrate and Test:**
+
+1.  **Replace your existing `BookContext.tsx`** with the code above.
+2.  **Review `extractTocLogic`:** I've put a placeholder for `extractTocLogic`. You'll need to integrate your actual, more complex TOC parsing logic there. Make sure it correctly uses the parameters passed to it (like `loadedZipContent`, `currentOpfPath`, etc.) instead of relying on stale state.
+3.  **Test `processHtmlContent`:** Ensure this utility function doesn't have hidden dependencies on `BookContext` state that it shouldn't. If it needs to resolve paths within the zip for images/CSS *during its processing step*, you might need to pass `zipToUse` and the current `filePath` to it from `loadPage`.
+4.  **Image/CSS Placeholders:** The `IMAGE_PLACEHOLDER_` and `CSS_PLACEHOLDER_` logic within `loadPage`'s `setTimeout` block remains. Double-check that the paths extracted (e.g., `imagePath`, `cssPath`) are correct relative to the EPUB root for `zipToUse.file(...)` to find them. The `resolveRelativePath` utility might be useful if these placeholders are relative paths.
+5.  **ESLint `exhaustive-deps`:** If you have this ESLint rule enabled (highly recommended), it will guide you on the dependency arrays for `useCallback` and `useEffect`.
+6.  **Thorough Testing:**
+    *   Opening a book (should load the correct initial page).
+    *   Navigating with `nextPage`/`prevPage`.
+    *   Navigating with TOC clicks.
+    *   Closing and reopening books.
+    *   Opening books with saved positions.
+    *   Edge cases (empty EPUBs, EPUBs with missing files - though error handling for this is basic here).
+
+This approach separates the *intent* to load a page (by setting `currentPageToLoad`) from the *action* of loading it (handled by `useEffect` and `loadPage`), which is a more robust pattern in React for managing asynchronous operations and state.

@@ -9,6 +9,11 @@ export interface BookData {
   file: File;
   lastRead: string;
   totalPages: number;
+  progress?: number; // NEW: reading progress percentage (0-100)
+  isDownloading?: boolean; // NEW: indicates if book is currently downloading
+  isProcessing?: boolean; // NEW: prevents multiple rapid clicks/actions
+  downloadFailed?: boolean; // NEW: indicates if book download failed
+  revision?: number; // NEW: logical revision counter for conflict resolution
 }
 
 export interface TOCItem {

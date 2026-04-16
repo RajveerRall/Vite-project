@@ -1,0 +1,1128 @@
+[Usage Tracking] Initialized successfully
+index-CiVdAYsJ.js:52 [useBookStorage] Loading books from storage
+index-CiVdAYsJ.js:52 [LocalBookRepository] Loading books from storage
+index-CiVdAYsJ.js:52 [BookContext Cleanup Check] Condition variables: {userId: 'null', isInitialLoadComplete: false, hasExplicitlySignedOut: false, cleanupCompleted: false, conditionMet: false}
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Triggered. States: {currentBookName: undefined, bookZipExists: false, htmlFilesCount: 0, currentPageToLoad: 0, tocCount: 0, …}
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Conditions NOT MET or book not in reading state.
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Cleaned up content for closed/non-reading book.
+index-CiVdAYsJ.js:28 [AuthContext] Current state: {user: 'none', isAuthenticated: false, authInitialized: false, hasExplicitlySignedOut: false}
+index-CiVdAYsJ.js:137 [Auth Deep Link] getLaunchUrl url = 
+index-CiVdAYsJ.js:28 [AuthContext] Current state: {user: 'none', isAuthenticated: false, authInitialized: true, hasExplicitlySignedOut: false}
+index-CiVdAYsJ.js:28 [AuthContext] onAuthStateChange: INITIAL_SESSION null
+index-CiVdAYsJ.js:52 [LocalBookRepository] Found 2 books with prefix: "book_metadata_"
+index-CiVdAYsJ.js:52 [LocalBookRepository] Loaded: All Tomorrows, page: 1, chapter: To Mars
+(index):124 [Analytics] Amplitude initialized successfully
+index-CiVdAYsJ.js:52 [LocalBookRepository] Cover regenerated for "All Tomorrows": Success
+index-CiVdAYsJ.js:52 [LocalBookRepository] Loaded: 1984, page: 0, chapter: none
+index-CiVdAYsJ.js:52 [LocalBookRepository] Cover regenerated for "1984": Success
+index-CiVdAYsJ.js:52 [Perf] localforage-load-all-1762878389574: 143.81494140625 ms
+index-CiVdAYsJ.js:52 [LocalBookRepository] Successfully loaded 2 books
+index-CiVdAYsJ.js:52 [useBookStorage] Successfully loaded 2 books
+index-CiVdAYsJ.js:52 [Perf] localforage-load-1762878389574: 144.298828125 ms
+index-CiVdAYsJ.js:52 [BookContext Cleanup Check] Condition variables: {userId: 'null', isInitialLoadComplete: true, hasExplicitlySignedOut: false, cleanupCompleted: false, conditionMet: false}
+index-CiVdAYsJ.js:52 [useBookStorage] Saving 2 books to storage
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saving 2 books
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: All Tomorrows, page: 1, chapter: To Mars
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: 1984, page: 0, chapter: none
+index-CiVdAYsJ.js:52 [LocalBookRepository] All books saved successfully
+index-CiVdAYsJ.js:52 [useBookStorage] Books saved successfully
+index-CiVdAYsJ.js:52 [AnonymousUsageLimit] Current usage: {usedMinutes: 0, remainingMinutes: 10, percentageUsed: '0.0%'}
+index-CiVdAYsJ.js:21 [Analytics] Sending test event to Amplitude
+index-CiVdAYsJ.js:137 [Header] Opening auth modal
+index-CiVdAYsJ.js:52 [AuthForm] Starting sign-in process...
+index-CiVdAYsJ.js:52 [AuthForm] Calling signIn...
+index-CiVdAYsJ.js:28 [AuthContext] Cleared sign-out flag before email/password sign-in
+index-CiVdAYsJ.js:28 [AuthContext] onAuthStateChange: SIGNED_IN {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6Imp4VmRaVXpUYmkvVVdXb1…HNlfQ.uEeO02xJ9nmKkS0wHKsOSqpBgmxfjyYuH-j_Emlol0Q', token_type: 'bearer', expires_in: 3600, expires_at: 1762882001, refresh_token: '42nlhn56s6ia', …}
+index-CiVdAYsJ.js:28 [Auth] Converting anonymous session to user (OAuth): anon_1762878277991_nu0s8oai3
+index-CiVdAYsJ.js:52 [Subscription] Fetching subscription info for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [Subscription] Fetching usage limit for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [useBookStorage] Loading books from storage
+index-CiVdAYsJ.js:52 [LocalBookRepository] Loading books from storage
+index-CiVdAYsJ.js:52 [BookContext Cleanup Check] Condition variables: {userId: '779b1ab8-c732-421b-8225-a1cfb113eeed', isInitialLoadComplete: true, hasExplicitlySignedOut: false, cleanupCompleted: false, conditionMet: false}
+index-CiVdAYsJ.js:52 [BookContext] User signed in, resetting cleanup guard
+index-CiVdAYsJ.js:52 [BookContext Save] Books unchanged, skipping save
+index-CiVdAYsJ.js:52 [BookContext] Triggering sync for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [useBookSync] 🚀 Starting sync - User authenticated: {userId: '779b1ab8-c732-421b-8225-a1cfb113eeed'}
+index-CiVdAYsJ.js:52 [useBookSync] Fetching books from cloud repository...
+index-CiVdAYsJ.js:52 [CloudBookRepository] Fetching user books from Supabase... {userId: '779b1ab8-c732-421b-8225-a1cfb113eeed'}
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Triggered. States: {currentBookName: undefined, bookZipExists: false, htmlFilesCount: 0, currentPageToLoad: 0, tocCount: 0, …}
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Conditions NOT MET or book not in reading state.
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Cleaned up content for closed/non-reading book.
+index-CiVdAYsJ.js:28 [AuthContext] Current state: {user: 'jawangana@gmail.com', isAuthenticated: true, authInitialized: true, hasExplicitlySignedOut: false}
+index-CiVdAYsJ.js:52 [SubscriptionService] Access token obtained, length: 1305
+index-CiVdAYsJ.js:52 [SubscriptionService] Fetching profile via REST API...
+index-CiVdAYsJ.js:52 [REST API] Fetching profiles: https://fnnzwnamzhpdjfhozouh.supabase.co/rest/v1/profiles?select=tts_minutes_limit%2Ctts_minutes_used%2Csubscription_minutes_used%2Clast_reset_date%2Cprepaid_minutes%2Csubscription_id&id=eq.779b1ab8-c...
+index-CiVdAYsJ.js:52 [CloudBookRepository] Getting access token...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [CloudBookRepository] Using REST API for books fetch...
+index-CiVdAYsJ.js:52 [CloudBookRepository] REST API URL: https://fnnzwnamzhpdjfhozouh.supabase.co/rest/v1/books?select=*&user_id=eq.779b1ab8-c732-421b-8225-a1cfb113eeed&order=last_read.desc...
+index-CiVdAYsJ.js:52 [BookContext Save] Skipping save during sync to prevent race conditions
+index-CiVdAYsJ.js:52 [LocalBookRepository] Found 0 books with prefix: "user_779b1ab8-c732-421b-8225-a1cfb113eeed_book_metadata_"
+index-CiVdAYsJ.js:52 [Perf] localforage-load-all-1762878396469: 57.3251953125 ms
+index-CiVdAYsJ.js:52 [LocalBookRepository] Successfully loaded 0 books
+index-CiVdAYsJ.js:52 [useBookStorage] Successfully loaded 0 books
+index-CiVdAYsJ.js:52 [Perf] localforage-load-1762878396469: 57.9169921875 ms
+index-CiVdAYsJ.js:52 [BookContext Save] Skipping save during sync to prevent race conditions
+index-CiVdAYsJ.js:28 [AuthContext] Creating DodoPayments customer via Edge Function for user: jawangana@gmail.com
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 355ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: {has_limit: true, minutes_limit: 360, prepaid_minutes: 0, subscription_minutes_used: 69.5, minutes_used: 69.5, …}
+index-CiVdAYsJ.js:52 [Subscription] Usage limit data received: {has_limit: true, minutes_limit: 360, prepaid_minutes: 0, subscription_minutes_used: 69.5, minutes_used: 69.5, …}
+index-CiVdAYsJ.js:52 [REST API] Success for profiles: 1 row(s)
+index-CiVdAYsJ.js:52 [SubscriptionService] Profile data received: {tts_minutes_limit: 0, tts_minutes_used: 6452, subscription_minutes_used: 4170, last_reset_date: '2025-11-03T20:32:50.668402+00:00', prepaid_minutes: 0, …}
+index-CiVdAYsJ.js:52 [SubscriptionService] REST API fetch completed in 387ms
+index-CiVdAYsJ.js:52 [Subscription] Subscription info data received: {user_id: '779b1ab8-c732-421b-8225-a1cfb113eeed', profile: {…}, subscription: null, product: null}
+index-CiVdAYsJ.js:52 [CloudBookRepository] Successfully fetched 10 books via REST API
+index-CiVdAYsJ.js:52 [useBookSync] Retrieved 10 books from Supabase
+index-CiVdAYsJ.js:52 [BookSyncService] 📊 Books analysis:
+index-CiVdAYsJ.js:52 [BookSyncService] - Already local: 0 books
+index-CiVdAYsJ.js:52 [BookSyncService] - Need download: 10 books
+index-CiVdAYsJ.js:52 [BookSyncService] 📦 Created 10 placeholder books + 1 default books
+index-CiVdAYsJ.js:52 [BookSyncService] [1/10] Starting download: "Dark Matter"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Starting download for: "Dark Matter"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying direct fetch from file_url...
+index-CiVdAYsJ.js:52 [BookSyncService] [2/10] Starting download: "A Mathematician's Lament"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Starting download for: "A Mathematician's Lament"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying direct fetch from file_url...
+index-CiVdAYsJ.js:52 [BookSyncService] [3/10] Starting download: "The Way of Kings"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Starting download for: "The Way of Kings"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying direct fetch from file_url...
+index-CiVdAYsJ.js:52 [BookSyncService] [4/10] Starting download: "Shadows of Self"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Starting download for: "Shadows of Self"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying direct fetch from file_url...
+index-CiVdAYsJ.js:52 [BookSyncService] [5/10] Starting download: "All Tomorrows"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Starting download for: "All Tomorrows"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying direct fetch from file_url...
+index-CiVdAYsJ.js:52 [BookSyncService] [6/10] Starting download: "The Wealth of Nations Books I-III"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Starting download for: "The Wealth of Nations Books I-III"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying direct fetch from file_url...
+index-CiVdAYsJ.js:52 [BookSyncService] [7/10] Starting download: "The Gentleman Bastard"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Starting download for: "The Gentleman Bastard"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying direct fetch from file_url...
+index-CiVdAYsJ.js:52 [BookSyncService] [8/10] Starting download: "Dopamine Nation: Finding Balance in the Age of Indulgence"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Starting download for: "Dopamine Nation: Finding Balance in the Age of Indulgence"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying direct fetch from file_url...
+index-CiVdAYsJ.js:52 [BookSyncService] [9/10] Starting download: "9f7c908b86256dd110e53086d3d50099"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Starting download for: "9f7c908b86256dd110e53086d3d50099"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying direct fetch from file_url...
+index-CiVdAYsJ.js:52 [BookSyncService] [10/10] Starting download: "Stolen Focus"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Starting download for: "Stolen Focus"
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying direct fetch from file_url...
+index-CiVdAYsJ.js:28 [Auth] Successfully converted anonymous usage (OAuth): {error: 'Session not found', success: false}
+index-CiVdAYsJ.js:52 [AnonymousSession] Session marked as converted
+index-CiVdAYsJ.js:28 [Auth] Converting anonymous session to user: anon_1762878277991_nu0s8oai3
+index-CiVdAYsJ.js:28 [AuthContext] Creating DodoPayments customer via Edge Function for user: jawangana@gmail.com
+index-CiVdAYsJ.js:28 [Auth] Successfully converted anonymous usage: {error: 'Session not found', success: false}
+index-CiVdAYsJ.js:52 [AnonymousSession] Session marked as converted
+index-CiVdAYsJ.js:21 [Analytics] Identifying user in Amplitude: 779b1ab8-c732-421b-8225-a1cfb113eeed {user_id: '779b1ab8-c732-421b-8225-a1cfb113eeed', email: 'jawangana@gmail.com', sign_in_method: 'email', platform: 'web', auth_event: 'sign_in', …}
+index-CiVdAYsJ.js:21 [Analytics] Failed to identify user in Amplitude: TypeError: window.amplitude.setUserProperties is not a function
+    at hw (index-CiVdAYsJ.js:21:37514)
+    at p (index-CiVdAYsJ.js:28:10290)
+    at async g (index-CiVdAYsJ.js:52:71288)
+hw @ index-CiVdAYsJ.js:21
+p @ index-CiVdAYsJ.js:28
+await in p
+g @ index-CiVdAYsJ.js:52
+xf @ vendor-DNwLDkkI.js:29
+Nf @ vendor-DNwLDkkI.js:29
+zf @ vendor-DNwLDkkI.js:29
+ui @ vendor-DNwLDkkI.js:29
+Ws @ vendor-DNwLDkkI.js:29
+(anonymous) @ vendor-DNwLDkkI.js:29
+So @ vendor-DNwLDkkI.js:32
+ms @ vendor-DNwLDkkI.js:29
+Rl @ vendor-DNwLDkkI.js:29
+Xu @ vendor-DNwLDkkI.js:29
+Wf @ vendor-DNwLDkkI.js:29Understand this warning
+index-CiVdAYsJ.js:52 [AuthForm] Sign-in successful, calling onSuccess...
+index-CiVdAYsJ.js:137 [Header] AuthForm onSuccess called, closing modal
+index-CiVdAYsJ.js:52 [AuthForm] Setting loading to false
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/92fb395b-5a7c-4d03-a9e8-a2534e72e6e5.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] file_url fetch failed: 400
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying public URL for bucket book-files: 779b1ab8-c732-421b-8225-a1cfb113eeed/92fb395b-5a7c-4d03-a9e8-a2534e72e6e5.epub
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/6c49c218-b05c-4d57-bcbb-889e8c336e2a.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] file_url fetch failed: 400
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying public URL for bucket book-files: 779b1ab8-c732-421b-8225-a1cfb113eeed/6c49c218-b05c-4d57-bcbb-889e8c336e2a.epub
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/62db84bb-7898-46f1-91f8-e2beb91a479b.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] file_url fetch failed: 400
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying public URL for bucket book-files: 779b1ab8-c732-421b-8225-a1cfb113eeed/62db84bb-7898-46f1-91f8-e2beb91a479b.epub
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/da68c6f2-8ff4-4f53-b216-0423665b85e6.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] file_url fetch failed: 400
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying public URL for bucket book-files: 779b1ab8-c732-421b-8225-a1cfb113eeed/da68c6f2-8ff4-4f53-b216-0423665b85e6.epub
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/a882ad89-b031-48bf-b245-27f9cc16b782.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] file_url fetch failed: 400
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying public URL for bucket book-files: 779b1ab8-c732-421b-8225-a1cfb113eeed/a882ad89-b031-48bf-b245-27f9cc16b782.epub
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/d7eaef35-6444-4906-b603-2215786cd286.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] file_url fetch failed: 400
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying public URL for bucket book-files: 779b1ab8-c732-421b-8225-a1cfb113eeed/d7eaef35-6444-4906-b603-2215786cd286.epub
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/9eda48e0-d666-48c6-aa33-b3dc7b309a6b.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] file_url fetch failed: 400
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying public URL for bucket book-files: 779b1ab8-c732-421b-8225-a1cfb113eeed/9eda48e0-d666-48c6-aa33-b3dc7b309a6b.epub
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/fc5aa249-83a8-4f08-b939-a070804ba562.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] file_url fetch failed: 400
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying public URL for bucket book-files: 779b1ab8-c732-421b-8225-a1cfb113eeed/fc5aa249-83a8-4f08-b939-a070804ba562.epub
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/8987fb3f-544e-4ed6-9c19-6a8e722cb525.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] file_url fetch failed: 400
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying public URL for bucket book-files: 779b1ab8-c732-421b-8225-a1cfb113eeed/8987fb3f-544e-4ed6-9c19-6a8e722cb525.epub
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/465d3917-6df5-4504-8d50-fa3ed94b88e7.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] file_url fetch failed: 400
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying public URL for bucket book-files: 779b1ab8-c732-421b-8225-a1cfb113eeed/465d3917-6df5-4504-8d50-fa3ed94b88e7.epub
+index-CiVdAYsJ.js:28 [AuthContext] Successfully created DodoPayments customer: {customerId: 'cus_g56tJBPMHhrckK1RN9mGz', userId: '779b1ab8-c732-421b-8225-a1cfb113eeed'}
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/92fb395b-5a7c-4d03-a9e8-a2534e72e6e5.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+await in downloadBookFile
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] Direct fetch failed, trying Storage REST API...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying Storage REST API for bucket book-files...
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/a882ad89-b031-48bf-b245-27f9cc16b782.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+await in downloadBookFile
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] Direct fetch failed, trying Storage REST API...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying Storage REST API for bucket book-files...
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/da68c6f2-8ff4-4f53-b216-0423665b85e6.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+await in downloadBookFile
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] Direct fetch failed, trying Storage REST API...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying Storage REST API for bucket book-files...
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/62db84bb-7898-46f1-91f8-e2beb91a479b.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+await in downloadBookFile
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] Direct fetch failed, trying Storage REST API...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying Storage REST API for bucket book-files...
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/d7eaef35-6444-4906-b603-2215786cd286.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+await in downloadBookFile
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] Direct fetch failed, trying Storage REST API...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying Storage REST API for bucket book-files...
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/6c49c218-b05c-4d57-bcbb-889e8c336e2a.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+await in downloadBookFile
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] Direct fetch failed, trying Storage REST API...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying Storage REST API for bucket book-files...
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/9eda48e0-d666-48c6-aa33-b3dc7b309a6b.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+await in downloadBookFile
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] Direct fetch failed, trying Storage REST API...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying Storage REST API for bucket book-files...
+index-CiVdAYsJ.js:28 [AuthContext] Successfully created DodoPayments customer: {customerId: 'cus_g56tJBPMHhrckK1RN9mGz', userId: '779b1ab8-c732-421b-8225-a1cfb113eeed'}
+index-CiVdAYsJ.js:21 [Analytics] gtag not found. Event "add_book_start" was not tracked in GA.
+jt @ index-CiVdAYsJ.js:21
+y @ index-CiVdAYsJ.js:52
+xf @ vendor-DNwLDkkI.js:29
+Nf @ vendor-DNwLDkkI.js:29
+zf @ vendor-DNwLDkkI.js:29
+ui @ vendor-DNwLDkkI.js:29
+Ws @ vendor-DNwLDkkI.js:29
+(anonymous) @ vendor-DNwLDkkI.js:29
+So @ vendor-DNwLDkkI.js:32
+ms @ vendor-DNwLDkkI.js:29
+Rl @ vendor-DNwLDkkI.js:29
+Xu @ vendor-DNwLDkkI.js:29
+Wf @ vendor-DNwLDkkI.js:29Understand this warning
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in GTM: add_book_start {method: 'browse_click'}
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in Amplitude: add_book_start {method: 'browse_click'}
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/465d3917-6df5-4504-8d50-fa3ed94b88e7.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+await in downloadBookFile
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] Direct fetch failed, trying Storage REST API...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying Storage REST API for bucket book-files...
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/fc5aa249-83a8-4f08-b939-a070804ba562.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+await in downloadBookFile
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] Direct fetch failed, trying Storage REST API...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying Storage REST API for bucket book-files...
+index-CiVdAYsJ.js:52  GET https://fnnzwnamzhpdjfhozouh.supabase.co/storage/v1/object/public/book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/8987fb3f-544e-4ed6-9c19-6a8e722cb525.epub 400 (Bad Request)
+downloadBookFile @ index-CiVdAYsJ.js:52
+await in downloadBookFile
+(anonymous) @ index-CiVdAYsJ.js:52
+syncBooksProgressive @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] Direct fetch failed, trying Storage REST API...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [CloudBookRepository] Trying Storage REST API for bucket book-files...
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Downloaded via Storage REST API (book-files): 849524 bytes
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Successfully downloaded "9f7c908b86256dd110e53086d3d50099" (849524 bytes) via storage_rest_api in 2.9s
+index-CiVdAYsJ.js:52 [useBookSync] Progress: 9/10 books downloaded
+index-CiVdAYsJ.js:52 [BookSyncService] ✅ [9/10] "9f7c908b86256dd110e53086d3d50099" downloaded successfully
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Downloaded via Storage REST API (book-files): 2190653 bytes
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Successfully downloaded "The Wealth of Nations Books I-III" (2190653 bytes) via storage_rest_api in 3.8s
+index-CiVdAYsJ.js:52 [useBookSync] Progress: 6/10 books downloaded
+index-CiVdAYsJ.js:52 [BookSyncService] ✅ [6/10] "The Wealth of Nations Books I-III" downloaded successfully
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Downloaded via Storage REST API (book-files): 411060 bytes
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Successfully downloaded "Stolen Focus" (411060 bytes) via storage_rest_api in 3.8s
+index-CiVdAYsJ.js:52 [useBookSync] Progress: 10/10 books downloaded
+index-CiVdAYsJ.js:52 [BookSyncService] ✅ [10/10] "Stolen Focus" downloaded successfully
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Downloaded via Storage REST API (book-files): 560452 bytes
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Successfully downloaded "Dark Matter" (560452 bytes) via storage_rest_api in 3.9s
+index-CiVdAYsJ.js:52 [useBookSync] Progress: 1/10 books downloaded
+index-CiVdAYsJ.js:52 [BookSyncService] ✅ [1/10] "Dark Matter" downloaded successfully
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Downloaded via Storage REST API (book-files): 685984 bytes
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Successfully downloaded "A Mathematician's Lament" (685984 bytes) via storage_rest_api in 4.1s
+index-CiVdAYsJ.js:52 [useBookSync] Progress: 2/10 books downloaded
+index-CiVdAYsJ.js:52 [BookSyncService] ✅ [2/10] "A Mathematician's Lament" downloaded successfully
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Downloaded via Storage REST API (book-files): 1900180 bytes
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Successfully downloaded "All Tomorrows" (1900180 bytes) via storage_rest_api in 4.7s
+index-CiVdAYsJ.js:52 [useBookSync] Progress: 5/10 books downloaded
+index-CiVdAYsJ.js:52 [BookSyncService] ✅ [5/10] "All Tomorrows" downloaded successfully
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Downloaded via Storage REST API (book-files): 2017676 bytes
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Successfully downloaded "Shadows of Self" (2017676 bytes) via storage_rest_api in 4.7s
+index-CiVdAYsJ.js:52 [useBookSync] Progress: 4/10 books downloaded
+index-CiVdAYsJ.js:52 [BookSyncService] ✅ [4/10] "Shadows of Self" downloaded successfully
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Downloaded via Storage REST API (book-files): 4646063 bytes
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Successfully downloaded "The Gentleman Bastard" (4646063 bytes) via storage_rest_api in 5.0s
+index-CiVdAYsJ.js:52 [useBookSync] Progress: 7/10 books downloaded
+index-CiVdAYsJ.js:52 [BookSyncService] ✅ [7/10] "The Gentleman Bastard" downloaded successfully
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Downloaded via Storage REST API (book-files): 5543056 bytes
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Successfully downloaded "Dopamine Nation: Finding Balance in the Age of Indulgence" (5543056 bytes) via storage_rest_api in 5.1s
+index-CiVdAYsJ.js:52 [useBookSync] Progress: 8/10 books downloaded
+index-CiVdAYsJ.js:52 [BookSyncService] ✅ [8/10] "Dopamine Nation: Finding Balance in the Age of Indulgence" downloaded successfully
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Downloaded via Storage REST API (book-files): 11796694 bytes
+index-CiVdAYsJ.js:52 [CloudBookRepository] ✅ Successfully downloaded "The Way of Kings" (11796694 bytes) via storage_rest_api in 5.8s
+index-CiVdAYsJ.js:52 [useBookSync] Progress: 3/10 books downloaded
+index-CiVdAYsJ.js:52 [BookSyncService] ✅ [3/10] "The Way of Kings" downloaded successfully
+index-CiVdAYsJ.js:52 [DefaultBookService] Default book already exists in library
+index-CiVdAYsJ.js:52 [useBookSync] 🎉 Sync complete
+index-CiVdAYsJ.js:52 [useBookSync] 📊 Results: 10 new books downloaded
+index-CiVdAYsJ.js:52 [useBookSync] Sync state reset (finally block)
+index-CiVdAYsJ.js:52 [BookContext] Books changed after sync, updating state
+index-CiVdAYsJ.js:52 [useBookStorage] Saving 12 books to storage
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saving 12 books
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: All Tomorrows, page: 1, chapter: To Mars
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: 1984, page: 0, chapter: none
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: Dark Matter, page: 12, chapter: Section0008.xhtml
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: A Mathematician's Lament, page: 10, chapter: part0009
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: The Way of Kings, page: 11, chapter: 9780765326355_fm02
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: Shadows of Self, page: 22, chapter: index_split_021
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: All Tomorrows, page: 1, chapter: 01_en#sigil_toc_id_1
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: The Wealth of Nations Books I-III, page: 19, chapter: book1_split_005
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: The Gentleman Bastard, page: 21, chapter: Lync_9780553902716_epub_c05_r1.htm
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: Dopamine Nation: Finding Balance in the Age of Indulgence, page: 7, chapter: 08_Chapter_1_Our_Masturb.xhtml
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: 9f7c908b86256dd110e53086d3d50099, page: 0, chapter: none
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: Stolen Focus, page: 0, chapter: none
+index-CiVdAYsJ.js:52 [LocalBookRepository] All books saved successfully
+index-CiVdAYsJ.js:52 [useBookStorage] Books saved successfully
+index-CiVdAYsJ.js:21 [Analytics] gtag not found. Event "add_book_start" was not tracked in GA.
+jt @ index-CiVdAYsJ.js:21
+v @ index-CiVdAYsJ.js:52
+xf @ vendor-DNwLDkkI.js:29
+Nf @ vendor-DNwLDkkI.js:29
+zf @ vendor-DNwLDkkI.js:29
+ui @ vendor-DNwLDkkI.js:29
+Ws @ vendor-DNwLDkkI.js:29
+(anonymous) @ vendor-DNwLDkkI.js:29
+So @ vendor-DNwLDkkI.js:32
+ms @ vendor-DNwLDkkI.js:29
+Rl @ vendor-DNwLDkkI.js:29
+Xu @ vendor-DNwLDkkI.js:29
+Wf @ vendor-DNwLDkkI.js:29Understand this warning
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in GTM: add_book_start {method: 'browse_click'}
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in Amplitude: add_book_start {method: 'browse_click'}
+index-CiVdAYsJ.js:52 [CloudBookRepository] Starting sync for "All Tomorrows"
+index-CiVdAYsJ.js:21 [Analytics] gtag not found. Event "add_book" was not tracked in GA.
+jt @ index-CiVdAYsJ.js:21
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+v @ index-CiVdAYsJ.js:52
+xf @ vendor-DNwLDkkI.js:29
+Nf @ vendor-DNwLDkkI.js:29
+zf @ vendor-DNwLDkkI.js:29
+ui @ vendor-DNwLDkkI.js:29
+Ws @ vendor-DNwLDkkI.js:29
+(anonymous) @ vendor-DNwLDkkI.js:29
+So @ vendor-DNwLDkkI.js:32
+ms @ vendor-DNwLDkkI.js:29
+Rl @ vendor-DNwLDkkI.js:29
+Xu @ vendor-DNwLDkkI.js:29
+Wf @ vendor-DNwLDkkI.js:29Understand this warning
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in GTM: add_book {method: 'upload', book_title: 'All Tomorrows', book_author: 'Nemo Ramjet', book_id: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', has_cover: true, …}
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in Amplitude: add_book {method: 'upload', book_title: 'All Tomorrows', book_author: 'Nemo Ramjet', book_id: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', has_cover: true, …}
+index-CiVdAYsJ.js:52 [Library] Auto-opening uploaded book: All Tomorrows
+index-CiVdAYsJ.js:52 [openBook] Opening: All Tomorrows
+index-CiVdAYsJ.js:28 [SupabaseUpload] Uploading to bucket: book-files, path: 779b1ab8-c732-421b-8225-a1cfb113eeed/1f51f5ca-1bb7-4fb9-bead-11882f3b60be.epub (1900180 bytes)
+index-CiVdAYsJ.js:52 [useBookStorage] Saving 13 books to storage
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saving 13 books
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Triggered. States: {currentBookName: 'All Tomorrows', bookZipExists: false, htmlFilesCount: 0, currentPageToLoad: 0, tocCount: 0, …}
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Conditions NOT MET or book not in reading state.
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Cleaned up content for closed/non-reading book.
+kokoroWakeup-BxPp5KXV.js:1 [Kokoro Wakeup] Triggered wake-up call
+index-CiVdAYsJ.js:52 [openBook] Detected adapter for All Tomorrows - A Billion Year Chronicle of the Myriad Species and Varying Fortunes of Man (2008) (Nemo Ramjet) (Z-Library).epub: epub
+index-CiVdAYsJ.js:52 [Performance] Loading ZIP for All Tomorrows...
+index-CiVdAYsJ.js:52 [Performance] ZIP loaded, processing EPUB structure...
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: All Tomorrows, page: 1, chapter: To Mars
+index-CiVdAYsJ.js:52 [Performance] Extracting table of contents...
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Triggered. States: {currentBookName: 'All Tomorrows', bookZipExists: false, htmlFilesCount: 9, currentPageToLoad: 0, tocCount: 0, …}
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Conditions NOT MET or book not in reading state.
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Cleaned up content for closed/non-reading book.
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: 1984, page: 0, chapter: none
+index-CiVdAYsJ.js:52 [openBook] Book restoration data - currentPage: 0, lastChapter: none
+index-CiVdAYsJ.js:52 [openBook] Using saved currentPage: 0
+index-CiVdAYsJ.js:52 [openBook] Final fallback: Using saved currentPage: 0
+index-CiVdAYsJ.js:52 [openBook] No valid saved position found, starting from beginning
+index-CiVdAYsJ.js:52 [openBook] Successfully prepared: All Tomorrows. Page to load: 0 (total pages: 9)
+index-CiVdAYsJ.js:21 [Analytics] gtag not found. Event "book_navigation" was not tracked in GA.
+jt @ index-CiVdAYsJ.js:21
+openBook @ index-CiVdAYsJ.js:52
+await in openBook
+v @ index-CiVdAYsJ.js:52
+await in v
+xf @ vendor-DNwLDkkI.js:29
+Nf @ vendor-DNwLDkkI.js:29
+zf @ vendor-DNwLDkkI.js:29
+ui @ vendor-DNwLDkkI.js:29
+Ws @ vendor-DNwLDkkI.js:29
+(anonymous) @ vendor-DNwLDkkI.js:29
+So @ vendor-DNwLDkkI.js:32
+ms @ vendor-DNwLDkkI.js:29
+Rl @ vendor-DNwLDkkI.js:29
+Xu @ vendor-DNwLDkkI.js:29
+Wf @ vendor-DNwLDkkI.js:29Understand this warning
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in GTM: book_navigation {method: 'open_book', book_id: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', book_title: 'All Tomorrows', target_page: 0, has_url_page_param: false}
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in Amplitude: book_navigation {method: 'open_book', book_id: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', book_title: 'All Tomorrows', target_page: 0, has_url_page_param: false}
+index-CiVdAYsJ.js:21 [Analytics] gtag not found. Event "open_book" was not tracked in GA.
+jt @ index-CiVdAYsJ.js:21
+openBook @ index-CiVdAYsJ.js:52
+await in openBook
+v @ index-CiVdAYsJ.js:52
+await in v
+xf @ vendor-DNwLDkkI.js:29
+Nf @ vendor-DNwLDkkI.js:29
+zf @ vendor-DNwLDkkI.js:29
+ui @ vendor-DNwLDkkI.js:29
+Ws @ vendor-DNwLDkkI.js:29
+(anonymous) @ vendor-DNwLDkkI.js:29
+So @ vendor-DNwLDkkI.js:32
+ms @ vendor-DNwLDkkI.js:29
+Rl @ vendor-DNwLDkkI.js:29
+Xu @ vendor-DNwLDkkI.js:29
+Wf @ vendor-DNwLDkkI.js:29Understand this warning
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in GTM: open_book {book_title: 'All Tomorrows', book_author: 'Nemo Ramjet', book_id: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', total_pages: 9, starting_page: 0, …}
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in Amplitude: open_book {book_title: 'All Tomorrows', book_author: 'Nemo Ramjet', book_id: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', total_pages: 9, starting_page: 0, …}
+index-CiVdAYsJ.js:52 [Performance] Opening All Tomorrows: 33.446044921875 ms
+index-CiVdAYsJ.js:52 [Performance] Book All Tomorrows opened successfully
+index-CiVdAYsJ.js:52 [ReaderState] Saved state: {bookId: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', page: 0}
+index-CiVdAYsJ.js:21 [Analytics] gtag not found. Event "page_navigation" was not tracked in GA.
+jt @ index-CiVdAYsJ.js:21
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this warning
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in GTM: page_navigation {method: 'page_change', book_id: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', book_title: 'All Tomorrows', page_number: 0, total_pages: 9}
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in Amplitude: page_navigation {method: 'page_change', book_id: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', book_title: 'All Tomorrows', page_number: 0, total_pages: 9}
+index-CiVdAYsJ.js:52 [BookContext Save] Books unchanged, skipping save
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Triggered. States: {currentBookName: 'All Tomorrows', bookZipExists: true, htmlFilesCount: 9, currentPageToLoad: 0, tocCount: 52, …}
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Conditions MET. Calling loadPageCallback.
+index-CiVdAYsJ.js:52 [loadPageCallback ENTER] pageIdxToLoad: 0, zipExists: true, filesLength: 9
+index-CiVdAYsJ.js:52 [loadPageCallback] Loading file: OEBPS/Text/cover.xhtml
+index-CiVdAYsJ.js:52 [loadPageCallback] HTML fetched for OEBPS/Text/cover.xhtml, length: 612
+index-CiVdAYsJ.js:52 [loadPageCallback] HTML processed for OEBPS/Text/cover.xhtml
+index-CiVdAYsJ.js:27 [EPUB Clean] Removing text node: {text: '\n\n\n\n\n  ', length: 7}
+index-CiVdAYsJ.js:27 [EPUB Clean] Removed 0 elements and 1 text nodes from content
+index-CiVdAYsJ.js:27 [EPUB Clean] Remaining content preview: {length: 22, preview: 'Cover\n\n\n\n  \n    \n  \n\n\n', hasArrows: false, hasHtmlEntities: false}
+index-CiVdAYsJ.js:52 [loadPageCallback] HTML cleaned for OEBPS/Text/cover.xhtml
+index-CiVdAYsJ.js:28 [Deep Clean] Content cleaned aggressively
+index-CiVdAYsJ.js:28 [Deep Clean] Remaining content preview: {length: 13, preview: 'Cover\n    \n  ', hasArrows: false, hasHtmlEntities: false, hasCssRules: false}
+index-CiVdAYsJ.js:28 [Deep Clean] Content too short after cleaning, using fallback cleaning
+xg @ index-CiVdAYsJ.js:28
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this warning
+index-CiVdAYsJ.js:52 [loadPageCallback] HTML deep cleaned for OEBPS/Text/cover.xhtml
+index-CiVdAYsJ.js:27 [extractTextFromHtml] Content too short after cleaning, using fallback extraction
+yg @ index-CiVdAYsJ.js:27
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this warning
+index-CiVdAYsJ.js:27 [DEBUG] extractTextFromHtml: {originalLength: 423, extractedLength: 5, extractedPreview: 'Cover', hasHtmlTags: false, tempDivChildren: 2, …}
+index-CiVdAYsJ.js:52 [DEBUG] extractTextFromHtml result: {originalLength: 612, extractedLength: 5, extractedPreview: 'Cover', hasHtmlTags: false}
+index-CiVdAYsJ.js:52 [loadPageCallback] Saving progress - page: 0, chapter: none, bookId: 1f51f5ca-1bb7-4fb9-bead-11882f3b60be
+index-CiVdAYsJ.js:52 [loadPageCallback EXIT] pageIdxToLoad: 0
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: Dark Matter, page: 12, chapter: Section0008.xhtml
+index-CiVdAYsJ.js:52 [BookContext Save] Save already in progress, skipping
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderWrapper] Book is already open and reading, proceeding
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderWrapper] BookId changed, resetting restoration flag
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf] AudioContext initialized: running
+ReaderWrapper-B4Eb9kPG.js:74 [AdaptiveStrategy] Selected: seamless playback
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: false, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+cover_01.jpg:1  GET https://yoread.com/Images/cover_01.jpg 404 (Not Found)
+Image
+wg @ index-CiVdAYsJ.js:27
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][Voice Ref Sync] selectedVoiceRef updated to: en-US-BrianMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][Speed Ref Sync] ttsSpeedRef updated to: 1x
+ReaderWrapper-B4Eb9kPG.js:74 [TTS] Split text into 1 chunks: {textLength: 5, firstChunk: 'Cover', lastChunk: 'Cover'}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][Voice Change Effect] selectedVoice changed to: en-US-BrianMultilingualNeural, isSpeaking: false, isPaused: false, isProcessing: false
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][playChunkRef] Synchronized playChunkRef with playChunk function
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf] Playback rate set to 1x (handled by TTS API, Web Audio rate = 1.0)
+ReaderWrapper-B4Eb9kPG.js:74 [TTS] Chunk change effect triggered: {currentChunkIndex: null, chunksLength: 0, hasCurrentPageText: true}
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: {scrollTop: 0, scrollHeight: 1157, clientHeight: 669, scrollableHeight: 488, element: 'reader-main', …}
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: false, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][playChunkRef] Synchronized playChunkRef with playChunk function
+ReaderWrapper-B4Eb9kPG.js:74 [TTS] Chunk change effect triggered: {currentChunkIndex: null, chunksLength: 1, hasCurrentPageText: true}
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: A Mathematician's Lament, page: 10, chapter: part0009
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: The Way of Kings, page: 11, chapter: 9780765326355_fm02
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: Shadows of Self, page: 22, chapter: index_split_021
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: All Tomorrows, page: 1, chapter: 01_en#sigil_toc_id_1
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: The Wealth of Nations Books I-III, page: 19, chapter: book1_split_005
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: The Gentleman Bastard, page: 21, chapter: Lync_9780553902716_epub_c05_r1.htm
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: Dopamine Nation: Finding Balance in the Age of Indulgence, page: 7, chapter: 08_Chapter_1_Our_Masturb.xhtml
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: 9f7c908b86256dd110e53086d3d50099, page: 0, chapter: none
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: Stolen Focus, page: 0, chapter: none
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: All Tomorrows, page: 0, chapter: none
+index-CiVdAYsJ.js:52 [LocalBookRepository] All books saved successfully
+index-CiVdAYsJ.js:52 [useBookStorage] Books saved successfully
+index-CiVdAYsJ.js:52 [useBookSync] Updated progress for book 1f51f5ca-1bb7-4fb9-bead-11882f3b60be: page 0
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+ReaderWrapper-B4Eb9kPG.js:74 [MobileTOCDrawer] useEffect triggered: {openByDefault: false, tocLength: 52, isTocDrawerOpen: false}
+index-CiVdAYsJ.js:28 [SupabaseUpload] Successfully uploaded to book-files/779b1ab8-c732-421b-8225-a1cfb113eeed/1f51f5ca-1bb7-4fb9-bead-11882f3b60be.epub
+index-CiVdAYsJ.js:28 [SupabaseUpload] Uploading to bucket: book-covers, path: 779b1ab8-c732-421b-8225-a1cfb113eeed/1f51f5ca-1bb7-4fb9-bead-11882f3b60be-cover.jpg (34585 bytes)
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][haltPlayback] Clearing 0 buffered audio URLs
+index-CiVdAYsJ.js:52 [navigateToTocItem] To href: OEBPS/Text/01_en.html#sigil_toc_id_9 (pathPart: OEBPS/Text/01_en.html)
+index-CiVdAYsJ.js:21 [Analytics] gtag not found. Event "use_feature" was not tracked in GA.
+jt @ index-CiVdAYsJ.js:21
+navigateToTocItem @ index-CiVdAYsJ.js:52
+(anonymous) @ ReaderWrapper-B4Eb9kPG.js:74
+onClick @ ReaderWrapper-B4Eb9kPG.js:70
+xf @ vendor-DNwLDkkI.js:29
+Nf @ vendor-DNwLDkkI.js:29
+zf @ vendor-DNwLDkkI.js:29
+ui @ vendor-DNwLDkkI.js:29
+Ws @ vendor-DNwLDkkI.js:29
+(anonymous) @ vendor-DNwLDkkI.js:29
+So @ vendor-DNwLDkkI.js:32
+ms @ vendor-DNwLDkkI.js:29
+Rl @ vendor-DNwLDkkI.js:29
+Xu @ vendor-DNwLDkkI.js:29
+Wf @ vendor-DNwLDkkI.js:29Understand this warning
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in GTM: use_feature {feature_name: 'table_of_contents', chapter_title: 'Man Extinguished', book_title: 'All Tomorrows', book_id: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', target_page: 2, …}
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in Amplitude: use_feature {feature_name: 'table_of_contents', chapter_title: 'Man Extinguished', book_title: 'All Tomorrows', book_id: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', target_page: 2, …}
+index-CiVdAYsJ.js:52 [navigateToTocItem] Found file at index: 1. Loading.
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Triggered. States: {currentBookName: 'All Tomorrows', bookZipExists: true, htmlFilesCount: 9, currentPageToLoad: 1, tocCount: 52, …}
+index-CiVdAYsJ.js:52 [useEffect PageLoad] Conditions MET. Calling loadPageCallback.
+index-CiVdAYsJ.js:52 [loadPageCallback ENTER] pageIdxToLoad: 1, zipExists: true, filesLength: 9
+index-CiVdAYsJ.js:52 [loadPageCallback] Loading file: OEBPS/Text/01_en.html
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+index-CiVdAYsJ.js:52 [loadPageCallback] HTML fetched for OEBPS/Text/01_en.html, length: 25412
+index-CiVdAYsJ.js:52 [loadPageCallback] HTML processed for OEBPS/Text/01_en.html
+index-CiVdAYsJ.js:27 [EPUB Clean] Removing text node: {text: '\n\n\n\n', length: 4}
+index-CiVdAYsJ.js:27 [EPUB Clean] Removed 0 elements and 1 text nodes from content
+index-CiVdAYsJ.js:27 [EPUB Clean] Remaining content preview: {length: 21081, preview: '\n\n\n\n  \n\n  Nemo Ramjet "Alltomorrows"\n\n\n\n  Nemo Ram… Fortunes of Man\n\n  Nemo Ramjet\n\n  \n  \n\n  \n\n  \n\n ', hasArrows: false, hasHtmlEntities: false}
+index-CiVdAYsJ.js:52 [loadPageCallback] HTML cleaned for OEBPS/Text/01_en.html
+index-CiVdAYsJ.js:28 [Deep Clean] Content cleaned aggressively
+index-CiVdAYsJ.js:28 [Deep Clean] Remaining content preview: {length: 20959, preview: '\n  \n  Nemo Ramjet "Alltomorrows"\n  Nemo Ramjet\n  A…of Man\n  Nemo Ramjet\n  \n  \n  After millennia of e', hasArrows: false, hasHtmlEntities: false, hasCssRules: false}
+index-CiVdAYsJ.js:52 [loadPageCallback] HTML deep cleaned for OEBPS/Text/01_en.html
+index-CiVdAYsJ.js:27 [DEBUG] extractTextFromHtml: {originalLength: 24755, extractedLength: 20412, extractedPreview: 'Nemo Ramjet "Alltomorrows"\n  Nemo Ramjet\n  Alltomo…Nemo Ramjet\n  After millennia of earthbound forep', hasHtmlTags: false, tempDivChildren: 83, …}
+index-CiVdAYsJ.js:52 [DEBUG] extractTextFromHtml result: {originalLength: 25447, extractedLength: 20412, extractedPreview: 'Nemo Ramjet "Alltomorrows"\n  Nemo Ramjet\n  Alltomo…Nemo Ramjet\n  After millennia of earthbound forep', hasHtmlTags: false}
+index-CiVdAYsJ.js:52 [loadPageCallback] Saving progress - page: 1, chapter: To Mars, bookId: 1f51f5ca-1bb7-4fb9-bead-11882f3b60be
+index-CiVdAYsJ.js:52 [loadPageCallback EXIT] pageIdxToLoad: 1
+about:blank:1  GET about:blank net::ERR_UNKNOWN_URL_SCHEME
+Image
+wg @ index-CiVdAYsJ.js:27
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+od @ vendor-DNwLDkkI.js:32
+yt @ vendor-DNwLDkkI.js:32
+Ii @ vendor-DNwLDkkI.js:32
+pt @ vendor-DNwLDkkI.js:30
+(anonymous) @ vendor-DNwLDkkI.js:32Understand this error
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+ReaderWrapper-B4Eb9kPG.js:74 [TTS] Split text into 200 chunks: {textLength: 20412, firstChunk: 'Nemo Ramjet "Alltomorrows"\n  Nemo Ramjet\n  Alltomorrows\n  All Tomorrows\n  A Billion Year Chronicle o', lastChunk: '110'}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][playChunkRef] Synchronized playChunkRef with playChunk function
+ReaderWrapper-B4Eb9kPG.js:74 [TTS] Chunk change effect triggered: {currentChunkIndex: null, chunksLength: 1, hasCurrentPageText: true}
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: {scrollTop: 0, scrollHeight: 1157, clientHeight: 653, scrollableHeight: 504, element: 'reader-main', …}
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+index-CiVdAYsJ.js:52 [ReaderState] Saved state: {bookId: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', page: 1}
+index-CiVdAYsJ.js:21 [Analytics] gtag not found. Event "page_navigation" was not tracked in GA.
+jt @ index-CiVdAYsJ.js:21
+(anonymous) @ index-CiVdAYsJ.js:52
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this warning
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in GTM: page_navigation {method: 'page_change', book_id: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', book_title: 'All Tomorrows', page_number: 1, total_pages: 9}
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in Amplitude: page_navigation {method: 'page_change', book_id: '1f51f5ca-1bb7-4fb9-bead-11882f3b60be', book_title: 'All Tomorrows', page_number: 1, total_pages: 9}
+index-CiVdAYsJ.js:52 [useBookStorage] Saving 13 books to storage
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saving 13 books
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+about:blank:1  GET about:blank net::ERR_UNKNOWN_URL_SCHEME
+Image
+(anonymous) @ vendor-DNwLDkkI.js:29
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+Pe @ vendor-DNwLDkkI.js:32
+Fa @ vendor-DNwLDkkI.js:32
+od @ vendor-DNwLDkkI.js:32
+yt @ vendor-DNwLDkkI.js:32
+Ua @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this error
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][playChunkRef] Synchronized playChunkRef with playChunk function
+ReaderWrapper-B4Eb9kPG.js:74 [TTS] Chunk change effect triggered: {currentChunkIndex: null, chunksLength: 200, hasCurrentPageText: true}
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: All Tomorrows, page: 1, chapter: To Mars
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: 1984, page: 0, chapter: none
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: Dark Matter, page: 12, chapter: Section0008.xhtml
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: A Mathematician's Lament, page: 10, chapter: part0009
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: The Way of Kings, page: 11, chapter: 9780765326355_fm02
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: Shadows of Self, page: 22, chapter: index_split_021
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: All Tomorrows, page: 1, chapter: 01_en#sigil_toc_id_1
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: The Wealth of Nations Books I-III, page: 19, chapter: book1_split_005
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: The Gentleman Bastard, page: 21, chapter: Lync_9780553902716_epub_c05_r1.htm
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: Dopamine Nation: Finding Balance in the Age of Indulgence, page: 7, chapter: 08_Chapter_1_Our_Masturb.xhtml
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: 9f7c908b86256dd110e53086d3d50099, page: 0, chapter: none
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: Stolen Focus, page: 0, chapter: none
+index-CiVdAYsJ.js:52 [LocalBookRepository] Saved book: All Tomorrows, page: 1, chapter: To Mars
+index-CiVdAYsJ.js:52 [LocalBookRepository] All books saved successfully
+index-CiVdAYsJ.js:52 [useBookStorage] Books saved successfully
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] Image processing check: {totalImages: 8, imagesToProcess: 8, sampleImageSrc: 'about:blank', sampleEpubSrc: 'OEBPS/Images/cover_01.jpg'}
+index-CiVdAYsJ.js:52 [navigateToTocItem] Fragment not found: #sigil_toc_id_9
+(anonymous) @ index-CiVdAYsJ.js:52
+setTimeout
+navigateToTocItem @ index-CiVdAYsJ.js:52
+(anonymous) @ ReaderWrapper-B4Eb9kPG.js:74
+onClick @ ReaderWrapper-B4Eb9kPG.js:70
+xf @ vendor-DNwLDkkI.js:29
+Nf @ vendor-DNwLDkkI.js:29
+zf @ vendor-DNwLDkkI.js:29
+ui @ vendor-DNwLDkkI.js:29
+Ws @ vendor-DNwLDkkI.js:29
+(anonymous) @ vendor-DNwLDkkI.js:29
+So @ vendor-DNwLDkkI.js:32
+ms @ vendor-DNwLDkkI.js:29
+Rl @ vendor-DNwLDkkI.js:29
+Xu @ vendor-DNwLDkkI.js:29
+Wf @ vendor-DNwLDkkI.js:29Understand this warning
+index-CiVdAYsJ.js:52 [useBookSync] Updated progress for book 1f51f5ca-1bb7-4fb9-bead-11882f3b60be: page 1
+index-CiVdAYsJ.js:28 [SupabaseUpload] Successfully uploaded to book-covers/779b1ab8-c732-421b-8225-a1cfb113eeed/1f51f5ca-1bb7-4fb9-bead-11882f3b60be-cover.jpg
+ui-DBlCbSA5.js:24  POST https://fnnzwnamzhpdjfhozouh.supabase.co/rest/v1/books?on_conflict=id 409 (Conflict)
+(anonymous) @ ui-DBlCbSA5.js:24
+(anonymous) @ ui-DBlCbSA5.js:24
+a @ ui-DBlCbSA5.js:24
+Promise.then
+c @ ui-DBlCbSA5.js:24
+(anonymous) @ ui-DBlCbSA5.js:24
+Vs @ ui-DBlCbSA5.js:24
+(anonymous) @ ui-DBlCbSA5.js:24
+then @ ui-DBlCbSA5.js:2Understand this error
+index-CiVdAYsJ.js:52 [CloudBookRepository] Error syncing book to cloud: Error: Supabase database error: duplicate key value violates unique constraint "books_user_title_unique"
+    at QA.saveBookMetadata (index-CiVdAYsJ.js:52:13328)
+    at async QA.syncBookToCloud (index-CiVdAYsJ.js:52:13745)
+    at async index-CiVdAYsJ.js:52:23899
+syncBookToCloud @ index-CiVdAYsJ.js:52
+await in syncBookToCloud
+(anonymous) @ index-CiVdAYsJ.js:52
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+v @ index-CiVdAYsJ.js:52
+xf @ vendor-DNwLDkkI.js:29
+Nf @ vendor-DNwLDkkI.js:29
+zf @ vendor-DNwLDkkI.js:29
+ui @ vendor-DNwLDkkI.js:29
+Ws @ vendor-DNwLDkkI.js:29
+(anonymous) @ vendor-DNwLDkkI.js:29
+So @ vendor-DNwLDkkI.js:32
+ms @ vendor-DNwLDkkI.js:29
+Rl @ vendor-DNwLDkkI.js:29
+Xu @ vendor-DNwLDkkI.js:29
+Wf @ vendor-DNwLDkkI.js:29Understand this error
+index-CiVdAYsJ.js:52 [useBookSync] Error syncing book to cloud: Error: Supabase database error: duplicate key value violates unique constraint "books_user_title_unique"
+    at QA.saveBookMetadata (index-CiVdAYsJ.js:52:13328)
+    at async QA.syncBookToCloud (index-CiVdAYsJ.js:52:13745)
+    at async index-CiVdAYsJ.js:52:23899
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+(anonymous) @ index-CiVdAYsJ.js:52
+await in (anonymous)
+v @ index-CiVdAYsJ.js:52
+xf @ vendor-DNwLDkkI.js:29
+Nf @ vendor-DNwLDkkI.js:29
+zf @ vendor-DNwLDkkI.js:29
+ui @ vendor-DNwLDkkI.js:29
+Ws @ vendor-DNwLDkkI.js:29
+(anonymous) @ vendor-DNwLDkkI.js:29
+So @ vendor-DNwLDkkI.js:32
+ms @ vendor-DNwLDkkI.js:29
+Rl @ vendor-DNwLDkkI.js:29
+Xu @ vendor-DNwLDkkI.js:29
+Wf @ vendor-DNwLDkkI.js:29Understand this error
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+index-CiVdAYsJ.js:52 [Subscription] Fetching usage limit for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 323ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: {has_limit: true, minutes_limit: 360, prepaid_minutes: 0, subscription_minutes_used: 69.5, minutes_used: 69.5, …}
+index-CiVdAYsJ.js:52 [Subscription] Usage limit data received: {has_limit: true, minutes_limit: 360, prepaid_minutes: 0, subscription_minutes_used: 69.5, minutes_used: 69.5, …}
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 319ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: {has_limit: true, minutes_limit: 360, prepaid_minutes: 0, subscription_minutes_used: 69.5, minutes_used: 69.5, …}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][handleTTS] TTS function called {isPaused: false, isSpeaking: false, hasCurrentPageText: true, chunksLength: 200, hasTextOverride: false}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][handleTTS] Selection check: {hasSelection: true, selectedText: 'none', selectionLength: 0, selectedTextType: 'string', hasOverride: false, …}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][handleTTS] No selection or resume index. Starting from beginning.
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][handleTTS] Starting playback from chunk 0
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Starting pre-fetch for chunks from index 0
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][Voice Change Effect] selectedVoice changed to: en-US-BrianMultilingualNeural, isSpeaking: false, isPaused: false, isProcessing: true
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf] Enqueued chunk #0 (duration: 16.68s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #0 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #0 with voice en-US-BrianMultilingualNeural
+index-CiVdAYsJ.js:137 [IDBStorage] Object store "deadLetterQueue" not found, falling back to localStorage
+e @ index-CiVdAYsJ.js:137
+getAll @ index-CiVdAYsJ.js:137
+await in getAll
+getDeadLetterQueueSize @ index-CiVdAYsJ.js:137
+updateMetrics @ index-CiVdAYsJ.js:137
+await in updateMetrics
+(anonymous) @ index-CiVdAYsJ.js:137
+setInterval
+Wy @ index-CiVdAYsJ.js:137
+Vy @ index-CiVdAYsJ.js:137
+Fg @ index-CiVdAYsJ.js:137
+(anonymous) @ index-CiVdAYsJ.js:137
+ol @ vendor-DNwLDkkI.js:32
+Xt @ vendor-DNwLDkkI.js:32
+(anonymous) @ vendor-DNwLDkkI.js:32
+E @ vendor-DNwLDkkI.js:17
+un @ vendor-DNwLDkkI.js:17Understand this warning
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf] Enqueued chunk #1 (duration: 12.43s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #1 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #1 with voice en-US-BrianMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf] Enqueued chunk #2 (duration: 12.00s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #2 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #2 with voice en-US-BrianMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf] Enqueued chunk #3 (duration: 10.78s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #3 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #3 with voice en-US-BrianMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Playing chunk #0 from BUFFER with voice en-US-BrianMultilingualNeural.
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Set src and playback rate: 1x for chunk #0
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Starting pre-fetch for chunks from index 1
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Starting pre-fetch for chunks from index 3
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][Voice Change Effect] selectedVoice changed to: en-US-BrianMultilingualNeural, isSpeaking: true, isPaused: false, isProcessing: false
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Audio started playing chunk #0
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][playChunkRef] Synchronized playChunkRef with playChunk function
+ReaderWrapper-B4Eb9kPG.js:74 [TTS] Chunk change effect triggered: {currentChunkIndex: 0, chunksLength: 200, hasCurrentPageText: true}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][TTS Repository] Page 1: Saved Index 0 for key ebookReaderProgress_All_Tomorrows_page1
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracting blob URLs from DOM: found 8 images
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted blob URL for OEBPS/Images/cover_01.jpg: blob:https://yoread.com/19f9a7ea-b42f-4d2f-90d3-cb...
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted blob URL for OEBPS/Images/01.jpg: blob:https://yoread.com/5653b9bb-becb-48f5-a586-bd...
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted blob URL for OEBPS/Images/02.jpg: blob:https://yoread.com/2ea32817-71be-4c0f-bbf1-ae...
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted blob URL for OEBPS/Images/03.jpg: blob:https://yoread.com/4e81017b-97f3-4c4f-9f12-81...
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted blob URL for OEBPS/Images/04.jpg: blob:https://yoread.com/ff9d2a23-ab94-4e7d-a41e-0e...
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted blob URL for OEBPS/Images/05.jpg: blob:https://yoread.com/328b7568-14fc-4bcb-b0e3-3c...
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted blob URL for OEBPS/Images/06.jpg: blob:https://yoread.com/36adf4e9-09ca-4eb0-8fb1-50...
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted blob URL for OEBPS/Images/07.jpg: blob:https://yoread.com/b69e34fd-b8fd-4b4b-89a8-39...
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted 8 blob URLs from DOM
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Input HTML images (currentContent): {count: 8, images: Array(8)}
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images BEFORE manipulation: {count: 8, images: Array(8)}
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Searching for chunk #0: {chunkTextPreview: 'Nemo Ramjet "Alltomorrows"\n  Nemo Ramjet\n  Alltomorrows\n  All Tomorrows\n  A Bill', normalizedChunkPreview: 'Nemo Ramjet "Alltomorrows" Nemo Ramjet Alltomorrows All Tomorrows A Billion Year', startFromPosition: 0, totalChunks: 200}
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images BEFORE highlighting operations: {count: 8}
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images AFTER highlighting operations: {count: 8, imagesRemoved: 0, images: Array(8)}
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images in serialized HTML string: {count: 8, images: Array(8), htmlLength: 25872}
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Output HTML images (highlightedHtml): {count: 8, images: Array(8), imagesRemoved: 0}
+ReaderWrapper-B4Eb9kPG.js:74 [DEBUG] Updated highlightedContent for chunk 0: {chunkIndex: 0, chunkLength: 324, chunkPreview: 'Nemo Ramjet "Alltomorrows"\n  Nemo Ramjet\n  Alltomo', highlightedContentLength: 25872, hasHighlightSpan: true, …}
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] Image processing check: {totalImages: 8, imagesToProcess: 0, sampleImageSrc: 'blob:https://yoread.com/19f9a7ea-b42f-4d2f-90d3-cb76b5684040', sampleEpubSrc: 'OEBPS/Images/cover_01.jpg'}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] All images already have blob URLs, skipping processing
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf] Enqueued chunk #4 (duration: 4.78s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #4 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #4 with voice en-US-BrianMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #4 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #4 with voice en-US-BrianMultilingualNeural
+index-CiVdAYsJ.js:52 [Subscription] Fetching usage limit for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 321ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: {has_limit: true, minutes_limit: 360, prepaid_minutes: 0, subscription_minutes_used: 69.5, minutes_used: 69.5, …}
+index-CiVdAYsJ.js:52 [Subscription] Usage limit data received: {has_limit: true, minutes_limit: 360, prepaid_minutes: 0, subscription_minutes_used: 69.5, minutes_used: 69.5, …}
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: ['sb-fnnzwnamzhpdjfhozouh-auth-token']
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 321ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: {has_limit: true, minutes_limit: 360, prepaid_minutes: 0, subscription_minutes_used: 69.5, minutes_used: 69.5, …}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][handleTTS] TTS function called {isPaused: false, isSpeaking: true, hasCurrentPageText: true, chunksLength: 200, hasTextOverride: false}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][handleTTS] Pausing current playback
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][pausePlayback] PAUSE CALLED - currentChunkIndex: 0, isSpeaking: true
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][pausePlayback] Saving resumeIndex: 0
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: {isVisible: true, hasSelectedText: false, isNativeMenuVisible: false, selectedTextPreview: ''}
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf][Voice Change Effect] selectedVoice changed to: en-US-BrianMultilingualNeural, isSpeaking: false, isPaused: true, isProcessing: false
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf] Enqueued chunk #5 (duration: 2.11s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #5 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #5 with voice en-US-BrianMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762878404298_kjglf] Enqueued chunk #6 (duration: 7.66s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #6 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #6 with voice en-US-BrianMultilingualNeural

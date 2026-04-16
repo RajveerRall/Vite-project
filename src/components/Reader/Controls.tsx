@@ -1,146 +1,507 @@
-// // src/components/Reader/Controls.tsx
-// import React from 'react';
-// import './Controls.css';
+import React, { useState, useMemo, useRef } from 'react';
+import { useFullCastUsage } from '../../hooks/useFullCastUsage';
+import { useSubscription } from '../../context/SubscriptionContext';
+import { useToast } from '../../context/ToastContext';
+import { trackEvent } from '../../lib/analytics';
+import { UsageLimitModal } from '../UsageLimitModal';
+import { UsageWarningToast } from '../UsageWarningToast';
+import {
+  Headphones,
+  PlayCircle, PauseCircle, RotateCcw,
+  Loader2, Square, SkipBack, SkipForward, Settings, Image as ImageIcon
+} from 'lucide-react';
+import InteractiveProgressBar from './InteractiveProgressBar';
+import SpeedControlDropdown from './SpeedControlDropdown';
+import MobileAIChatDrawer from './MobileAIChatDrawer';
+import PictureModeControls from './PictureModeControls';
+import { useSmoothProgress } from '../../hooks/tts/useSmoothProgress';
 
-// interface ControlsProps {
-//   currentPage: number;
-//   totalPages: number;
-//   onPrevious: () => void;
-//   onNext: () => void;
-//   onReadAloud: () => void;
-//   isReading: boolean;
-//   onAudiobook: () => void;
-//   isPlayModeActive: boolean;
-// }
-
-// const Controls: React.FC<ControlsProps> = ({
-//   currentPage,
-//   totalPages,
-//   onPrevious,
-//   onNext,
-//   onReadAloud,
-//   isReading,
-//   onAudiobook,
-//   isPlayModeActive
-// }) => {
-//   return (
-//     <div className="reader-controls">
-//       <button 
-//         onClick={onPrevious} 
-//         disabled={currentPage === 0}
-//         className="control-button previous-button"
-//       >
-//         Previous
-//       </button>
-      
-//       <span className="page-info">
-//         Page {currentPage + 1} of {totalPages}
-//       </span>
-      
-//       <button 
-//         onClick={onNext} 
-//         disabled={currentPage === totalPages - 1}
-//         className="control-button next-button"
-//       >
-//         Next
-//       </button>
-      
-//       <button 
-//         onClick={onReadAloud} 
-//         className={`control-button tts-button ${isReading ? 'active' : ''}`}
-//       >
-//         {isReading ? 'Stop TTS' : 'Read Aloud'}
-//       </button>
-      
-//       <button 
-//         onClick={onAudiobook} 
-//         className={`control-button audiobook-button ${isPlayModeActive ? 'active' : ''}`}
-//       >
-//         Audiobook Mode
-//       </button>
-//     </div>
-//   );
-// };
-
-// export default Controls;
-
-
-
-// src/components/Reader/Controls.tsx
-import React from 'react';
-import { ChevronLeft, ChevronRight, Headphones, PlayCircle, PauseCircle } from 'lucide-react';
+// Import the stylesheet. It will now handle all the appearance styling.
 import './Controls.css';
+import GeminiKeyModal from '../Settings/GeminiKeyModal';
 
-interface ControlsProps {
-  currentPage: number;
-  totalPages: number;
-  onPrevious: () => void;
-  onNext: () => void;
+export interface ControlsProps {
+  readingProgress: number;
   onReadAloud: () => void;
+  onStopTTS: () => void;
+  onPreviousSentence: () => void;
+  onNextSentence: () => void;
   isReading: boolean;
-  onAudiobook: () => void;
-  isPlayModeActive: boolean;
+  isPaused: boolean;
+  isProcessing: boolean;
+  canResume: boolean;
+  isReadButtonActive: boolean;
+  // Progress tracking
+  currentChunkIndex?: number | null;
+  totalChunks?: number;
+  // Speed control
+  ttsSpeed?: number;
+  onSpeedChange?: (speed: number) => void;
+  // Interactive Progress Bar handlers
+  onPreviewScroll?: (percentage: number) => void;
+  onSeekToPercentage?: (percentage: number) => void;
+  // Full Cast props
+  fullCastActive: boolean;
+  fullCastStatus: string;
+  fullCastBuffered: number;
+  fullCastNeedsTap: boolean;
+  fullCastPaused?: boolean;
+  onFullCastStop: () => void;
+  onFullCastPause?: () => void;
+  onFullCastResume?: () => void;
+  // Anonymous usage limit
+  anonymousLimit?: any;
+  // Buffering state
+  bufferedChunksCount?: number;
+  // Chapter summarization props
+  currentPageText?: string;
+  currentChapterTitle?: string;
+  bookId?: string;
+  onSummarizeChapter?: () => void;
+  // TTS for summary
+  onReadAloudSummary?: (text?: string) => void;
+  onFullCastGenerateImage?: () => Promise<void>;
+  // UI Context (for layout/visibility)
+  isMobile?: boolean;
+  theme?: 'light' | 'dark' | 'sepia';
+  // Settings
+  // Settings
+  onOpenSettings?: () => void;
+  // Buffering state (for displaying spinner)
+  isBuffering?: boolean;
+  downloadProgress?: number;
 }
 
 const Controls: React.FC<ControlsProps> = ({
-  currentPage,
-  totalPages,
-  onPrevious,
-  onNext,
+  readingProgress,
   onReadAloud,
+  onStopTTS,
+  onPreviousSentence,
+  onNextSentence,
   isReading,
-  onAudiobook,
-  isPlayModeActive
+  isPaused,
+  isProcessing,
+  canResume,
+  isReadButtonActive,
+  // Progress tracking
+  currentChunkIndex = null,
+  totalChunks = 0,
+  // Speed control
+  ttsSpeed = 1,
+  onSpeedChange,
+  // Interactive Progress Bar handlers
+  onPreviewScroll,
+  onSeekToPercentage,
+  // Full Cast props
+  fullCastActive,
+  fullCastStatus,
+  fullCastBuffered,
+  fullCastNeedsTap,
+  fullCastPaused,
+  onFullCastStop,
+  onFullCastPause,
+  onFullCastResume,
+  anonymousLimit,
+  currentPageText,
+  currentChapterTitle,
+  bookId,
+  onReadAloudSummary,
+  onFullCastGenerateImage,
+  isMobile,
+  theme,
+  onOpenSettings,
+  isBuffering = false, // Default to false
+  downloadProgress = 0
 }) => {
-  return (
-    <div className="reader-controls">
-      <div className="nav-controls">
-        <button 
-          onClick={onPrevious} 
-          disabled={currentPage === 0}
-          className="control-button icon-button"
-          aria-label="Previous page"
-          title="Previous page"
-        >
-          <ChevronLeft size={20} />
-        </button>
-        
-        <span className="page-info">
-          {currentPage + 1} / {totalPages}
-        </span>
-        
-        <button 
-          onClick={onNext} 
-          disabled={currentPage === totalPages - 1}
-          className="control-button icon-button"
-          aria-label="Next page"
-          title="Next page"
-        >
-          <ChevronRight size={20} />
-        </button>
+  const {
+    usedMinutes: fcUsed,
+    totalMinutes: fcTotal,
+    remainingMinutes: fcRemaining
+  } = useFullCastUsage();
+  const { isLimitExceeded } = useSubscription();
+  const { addToast } = useToast();
+  const [isAIChatDrawerOpen, setIsAIChatDrawerOpen] = useState(false);
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+
+  // Calculate raw chapter progress percentage (memoized)
+  const rawChapterProgress = useMemo(() => {
+    return totalChunks > 0 && currentChunkIndex !== null
+      ? Math.round(((currentChunkIndex + 1) / totalChunks) * 100)
+      : 0;
+  }, [currentChunkIndex, totalChunks]);
+
+  // Smooth progress animation for progress bar
+  const chapterProgress = useSmoothProgress({
+    currentValue: rawChapterProgress,
+    targetValue: rawChapterProgress,
+    duration: 200,
+    enabled: isReading || isPaused, // Only animate when TTS is active
+  });
+
+  // Determine which mode is active to hide other options
+  const isReadModeActive = isReading || isPaused || isProcessing || canResume;
+  const showStopButton = isReadModeActive;
+  // const isAudiobookModeActive = isPlayModeActive;
+
+  // Check if TTS is disabled due to limit (anonymous or authenticated)
+  const isDisabledDueToLimit = anonymousLimit?.isLimitReached || isLimitExceeded || false;
+
+  // Unified button state calculation (memoized for performance)
+  const buttonState = useMemo(() => {
+    if (isDisabledDueToLimit) {
+      return {
+        icon: 'disabled',
+        title: anonymousLimit?.isLimitReached
+          ? 'Free limit reached. Please sign up to continue.'
+          : 'TTS usage limit reached. Please upgrade your subscription to continue.',
+        disabled: true,
+      };
+    }
+
+    if (isProcessing && !isReading && !isPaused) {
+      return {
+        icon: 'loading',
+        title: 'Preparing audio...',
+        disabled: true,
+      };
+    }
+
+    if (isBuffering) {
+      return {
+        icon: 'loading',
+        title: 'Buffering audio...',
+        disabled: true,
+      };
+    }
+
+    if (isPaused) {
+      return {
+        icon: 'play',
+        title: 'Resume paused reading',
+        disabled: false,
+      };
+    }
+
+    if (isReading) {
+      return {
+        icon: 'pause',
+        title: 'Pause reading',
+        disabled: false,
+      };
+    }
+
+    if (canResume) {
+      return {
+        icon: 'resume',
+        title: 'Resume reading from last TTS position',
+        disabled: false,
+      };
+    }
+
+    return {
+      icon: 'play',
+      title: 'Read aloud (select text or from start of page)',
+      disabled: false,
+    };
+  }, [isDisabledDueToLimit, isProcessing, isReading, isPaused, canResume, anonymousLimit, isLimitExceeded]);
+
+  // Debounced click handler to prevent rapid clicks
+  const lastClickTimeRef = useRef<number>(0);
+  const DEBOUNCE_MS = 300;
+
+  // Handle read aloud button click - show toast if disabled due to anonymous limit
+  const handleReadAloudClick = () => {
+    // Debounce rapid clicks
+    const now = Date.now();
+    if (now - lastClickTimeRef.current < DEBOUNCE_MS) {
+      return;
+    }
+    lastClickTimeRef.current = now;
+
+    // If disabled due to anonymous limit, show toast
+    if (isDisabledDueToLimit && anonymousLimit?.isLimitReached) {
+      addToast('Sign up to listen for free', 'info');
+      return;
+    }
+    // If disabled due to authenticated limit, don't do anything (button will be disabled)
+    if (isDisabledDueToLimit && isLimitExceeded) {
+      return;
+    }
+    // Otherwise, proceed with normal TTS
+    onReadAloud();
+  };
+
+  // Show Full Cast controls when Full Cast is active
+  if (fullCastActive) {
+    return (
+      <PictureModeControls
+        theme={theme}
+        active={fullCastActive}
+        status={fullCastStatus}
+        buffered={fullCastBuffered}
+        needsTap={fullCastNeedsTap}
+        paused={fullCastPaused}
+        onPause={onFullCastPause}
+        onResume={onFullCastResume}
+        onStop={onFullCastStop}
+        currentChunkIndex={currentChunkIndex}
+        totalChunks={totalChunks}
+        onSeek={onSeekToPercentage}
+        onPreview={onPreviewScroll}
+      />
+    );
+  }
+
+  // Show Read Aloud music player controls when Read Aloud is active
+  if (isReadModeActive) {
+    return (
+      <div className="music-player-controls bg-white rounded-xl border border-gray-200 shadow-lg p-2">
+        {/* Progress Section */}
+        <div className="mb-2">
+          {/* Chapter Progress Bar */}
+          <InteractiveProgressBar
+            progress={chapterProgress}
+            downloadProgress={downloadProgress}
+            onPreview={onPreviewScroll || (() => { })}
+            onSeek={onSeekToPercentage || (() => { })}
+            isActive={!!(onPreviewScroll && onSeekToPercentage) && isReadModeActive && !isDisabledDueToLimit}
+          />
+        </div>
+
+        {/* Main Controls */}
+        <div className="flex items-center justify-between gap-3 md:gap-4">
+          {/* Left Side - Settings Button */}
+          <div className="w-10 md:w-12 flex items-center justify-center">
+            {onOpenSettings && (
+              <button
+                onClick={onOpenSettings}
+                className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
+                aria-label="Settings"
+                title="Settings"
+              >
+                <Settings size={18} className="md:text-[22px]" />
+              </button>
+            )}
+          </div>
+
+          {/* Center - Play Controls */}
+          <div className="flex items-center gap-3 md:gap-4">
+            {/* Previous Button */}
+            <button
+              onClick={onPreviousSentence}
+              className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="Previous sentence"
+              title="Previous sentence"
+              disabled={isProcessing}
+            >
+              <SkipBack size={18} className="text-gray-600 md:text-[22px]" />
+            </button>
+
+            {/* Main Play/Pause Button */}
+            <button
+              onClick={handleReadAloudClick}
+              className={`p-3 md:p-4 rounded-full flex items-center gap-2 transition-all duration-200 ${buttonState.disabled
+                ? 'bg-gray-300 cursor-not-allowed text-gray-500'
+                : isReadButtonActive
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+              aria-label={buttonState.title}
+              title={buttonState.title}
+              disabled={buttonState.disabled}
+            >
+              {buttonState.icon === 'loading' ? (
+                <>
+                  <Loader2 size={22} className="animate-spin md:text-[26px]" />
+                  <span className="text-xs font-medium"  >Loading</span>
+                </>
+              ) : buttonState.icon === 'play' ? (
+                <>
+                  <PlayCircle size={22} className="md:text-[26px]" />
+                  <span className="text-xs font-medium" >Play</span>
+                </>
+              ) : buttonState.icon === 'pause' ? (
+                <>
+                  <PauseCircle size={22} className="md:text-[26px]" />
+                  <span className="text-xs font-medium" >Pause</span>
+                </>
+              ) : buttonState.icon === 'resume' ? (
+                <>
+                  <RotateCcw size={22} className="md:text-[26px]" />
+                  <span className="text-xs font-medium"  >Resume</span>
+                </>
+              ) : (
+                <>
+                  <PlayCircle size={22} className="md:text-[26px]" />
+                  <span className="text-xs font-medium"  >Play</span>
+                </>
+              )}
+            </button>
+
+            {/* Next Button */}
+            <button
+              onClick={onNextSentence}
+              className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="Next sentence"
+              title="Next sentence"
+              disabled={isProcessing}
+            >
+              <SkipForward size={18} className="text-gray-600 md:text-[22px]" />
+            </button>
+          </div>
+
+          {/* Right Side - Speed Control and Stop Button */}
+          <div className="flex items-center gap-3 md:gap-4">
+            {/* Speed Control - Compact Dropdown */}
+            {onSpeedChange && (
+              <SpeedControlDropdown
+                currentSpeed={ttsSpeed}
+                onSpeedChange={onSpeedChange}
+                minSpeed={0.8}
+                maxSpeed={1.5}
+                speeds={[0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]}
+              />
+            )}
+
+            {/* Stop Button - Restored */}
+            {showStopButton && (
+              <button
+                onClick={onStopTTS}
+                className="p-1.5 md:p-2 rounded-full hover:bg-red-100 text-red-600 transition-colors"
+                aria-label="Stop TTS"
+                title="Stop TTS"
+              >
+                <Square size={18} className="md:text-[22px]" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
-      
-      <div className="audio-controls">
-        <button 
-          onClick={onReadAloud} 
-          className={`control-button icon-button ${isReading ? 'active' : ''}`}
-          aria-label={isReading ? 'Stop reading' : 'Read aloud'}
-          title={isReading ? 'Stop reading' : 'Read aloud'}
-        >
-          {isReading ? <PauseCircle size={20} /> : <PlayCircle size={20} />}
-          <span className="button-text">Read</span>
-        </button>
-        
-        <button 
-          onClick={onAudiobook} 
-          className={`control-button icon-button ${isPlayModeActive ? 'active' : ''}`}
-          aria-label="Audiobook mode"
-          title="Audiobook mode"
+    );
+  }
+
+  // Original Button Layout - When no TTS is active
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* Page Info */}
+      <div className="flex items-center gap-x-3 flex-shrink-0">
+        <span className="page-info px-4 py-2 rounded-lg text-sm font-medium">
+          {readingProgress}%
+        </span>
+      </div>
+
+      {/* Original Action Buttons */}
+      <div className="flex items-center gap-x-2 flex-shrink-0">
+        {/* AI Summary Button - Mobile Only */}
+        {/* AI Summary Button - Mobile Only - DISABLED requested by user */}
+        {/* {isMobile && (
+          <MobileAIChatDrawer
+            theme={theme || 'light'}
+            currentPageText={currentPageText}
+            currentChapterTitle={currentChapterTitle}
+            bookId={bookId}
+            onReadAloud={onReadAloudSummary}
+            isOpen={isAIChatDrawerOpen}
+            onOpenChange={setIsAIChatDrawerOpen}
+          />
+        )} */}
+
+
+        {/* Read Aloud Button */}
+        <button
+          onClick={handleReadAloudClick}
+          className={`control-button flex items-center gap-2 px-3 py-2 ${buttonState.disabled ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          aria-label={buttonState.title}
+          title={buttonState.title}
+          disabled={buttonState.disabled}
         >
           <Headphones size={20} />
-          <span className="button-text">Audiobook</span>
+          <span className="button-text text-sm font-medium">Read Aloud</span>
         </button>
+
+        {/* Audiobook Button - COMMENTED OUT */}
+        {/* {!isAudiobookModeActive && (
+          <button
+            onClick={onAudiobook}
+            className="control-button hidden md:flex items-center gap-2 px-3 py-2"
+            aria-label="Audiobook mode"
+            title="Audiobook mode"
+            disabled={isProcessing}
+          >
+            <Headphones size={20} />
+            <span className="button-text text-sm font-medium">Offline TTS</span>
+          </button>
+        )} */}
+
+        {/* Full Cast Button - Disabled by request */}
+        <button
+          className={`control-button flex items-center gap-2 px-3 py-2 transition-colors ${fullCastActive
+            ? 'bg-blue-50 border-blue-200 text-blue-700'
+            : 'hover:bg-gray-50'
+            }`}
+          onClick={async () => {
+            // Check quota if needed (but don't block guest access entirely)
+            if (fcTotal > 0 && fcUsed >= fcTotal) {
+              addToast('Picture Mode monthly limit reached (15 mins).', 'info');
+              return;
+            }
+
+            // check if api key exists
+            const { default: localforage } = await import('localforage');
+            const key = await localforage.getItem<string>('user_gemini_api_key');
+
+            if (!key) {
+              setIsKeyModalOpen(true);
+              return;
+            }
+
+            trackEvent('full_cast_start', {
+              used_minutes: fcUsed || 0,
+              total_minutes: fcTotal || 15,
+              remaining_minutes: fcRemaining
+            });
+
+            const event = new CustomEvent('full-cast-request');
+            window.dispatchEvent(event);
+          }}
+          title={`Picture Mode (Beta)`}
+          aria-label="Picture Mode"
+          disabled={isProcessing}
+        >
+          <ImageIcon size={20} className={fullCastActive ? 'animate-pulse' : ''} />
+          <span className="button-text text-sm font-medium">Picture Mode</span>
+        </button>
+
+        <GeminiKeyModal
+          isOpen={isKeyModalOpen}
+          onClose={() => setIsKeyModalOpen(false)}
+          onSuccess={() => {
+            const event = new CustomEvent('full-cast-request');
+            window.dispatchEvent(event);
+          }}
+        />
       </div>
+
+      {/* Show warning toast for anonymous users near limit */}
+      {anonymousLimit && anonymousLimit.isNearLimit && !anonymousLimit.isLimitReached && (
+        <UsageWarningToast
+          remainingMinutes={anonymousLimit.remainingMinutes}
+          percentageUsed={anonymousLimit.percentageUsed}
+          isCritical={anonymousLimit.isCritical}
+        />
+      )}
+
+      {/* Usage limit modal */}
+      {anonymousLimit && (
+        <UsageLimitModal
+          isOpen={anonymousLimit.showLimitModal}
+          onClose={() => anonymousLimit.setShowLimitModal(false)}
+          onSignIn={() => {
+            anonymousLimit.setShowLimitModal(false);
+          }}
+        />
+      )}
     </div>
   );
 };

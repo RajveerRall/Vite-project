@@ -1,0 +1,64 @@
+/**
+ * Subscription Plans Configuration
+ * Hardcoded plans with direct DodoPayments checkout links
+ * Plans don't change, so we hardcode them instead of fetching from database
+ */
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  minutes: number;
+  price: number;
+  currency?: string;
+  type: 'one-time' | 'subscription';
+  dodoProductId?: string; // DodoPayments product ID
+  dodoPriceId?: string; // DodoPayments price ID (for checkout)
+  checkoutUrl?: string; // Direct checkout URL (if available)
+  description?: string;
+}
+
+export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
+  {
+    id: 'pack-8-hours',
+    name: '8 Hours Reading Pack',
+    minutes: 480,
+    price: 0.99,
+    currency: 'usd',
+    type: 'one-time',
+    dodoProductId: 'pdt_DPzwTqAAvyzaIjITvPdS7',
+    checkoutUrl: 'https://test.checkout.dodopayments.com/buy/pdt_DPzwTqAAvyzaIjITvPdS7?quantity=1',
+    description: '8 hours of premium listening. Never expires.',
+  },
+  {
+    id: 'monthly-premium',
+    name: 'Premium Monthly Plan',
+    minutes: 3000, // 50 hours
+    price: 5.00,
+    currency: 'usd',
+    type: 'subscription',
+    dodoProductId: 'pdt_8iMQz734nklbq88QlyCBm',
+    checkoutUrl: 'https://test.checkout.dodopayments.com/buy/pdt_8iMQz734nklbq88QlyCBm?quantity=1',
+    description: '50 hours every month. Best value for daily listeners.',
+  },
+] as const;
+
+// Helper to get plans by type
+export function getPlansByType(type: 'one-time' | 'subscription'): SubscriptionPlan[] {
+  return SUBSCRIPTION_PLANS.filter(plan => plan.type === type);
+}
+
+// Helper to get plan by ID
+export function getPlanById(id: string): SubscriptionPlan | undefined {
+  return SUBSCRIPTION_PLANS.find(plan => plan.id === id);
+}
+
+// Helper to get subscription plans (excludes one-time packs)
+export function getSubscriptionPlans(): SubscriptionPlan[] {
+  return SUBSCRIPTION_PLANS.filter(plan => plan.type === 'subscription');
+}
+
+// Helper to get one-time packs
+export function getOneTimePacks(): SubscriptionPlan[] {
+  return SUBSCRIPTION_PLANS.filter(plan => plan.type === 'one-time');
+}
+

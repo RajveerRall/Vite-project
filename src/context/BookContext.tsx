@@ -1,791 +1,77 @@
-// // src/context/BookContext.tsx
-// import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-// import JSZip from 'jszip';
-// import { DOMParser } from 'xmldom';
-// // import { BookData, TOCItem } from '../types/book';
-// import { getDirectoryPath, resolveRelativePath } from '../utils/pathUtils';
-// import { processHtmlContent, extractTextFromHtml } from '../utils/textExtraction';
-// import { BookData, TOCItem } from '@/types/books';
-
-// interface BookContextValue {
-// // Library state
-// books: BookData[];
-// addBook: (file: File) => Promise<void>;
-// removeBook: (bookId: string) => void;
-
-// // Current book state
-// currentBook: BookData | null;
-// isReading: boolean;
-// isLoading: boolean;
-// bookTitle: string;
-// bookAuthor: string;
-// currentPage: number;
-// totalPages: number;
-// currentContent: string;
-// currentPageText: string;
-// toc: TOCItem[];
-
-// // Book actions
-// openBook: (book: BookData) => Promise<void>;
-// closeBook: () => void;
-// nextPage: () => void;
-// prevPage: () => void;
-// navigateToTocItem: (item: TOCItem) => void;
-
-// // Book details
-// htmlFiles: string[];
-// opfPath: string;
-
-// // Play mode
-// isPlayModeVisible: boolean;
-// togglePlayMode: () => void;
-// }
-
-// const BookContext = createContext<BookContextValue | undefined>(undefined);
-
-// export const useBook = (): BookContextValue => {
-// const context = useContext(BookContext);
-// if (context === undefined) {
-//   throw new Error('useBook must be used within a BookProvider');
-// }
-// return context;
-// };
-
-// interface BookProviderProps {
-// children: ReactNode;
-// }
-
-// export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
-// // Library state
-// const [books, setBooks] = useState<BookData[]>([]);
-
-// // Current book state
-// const [currentBook, setCurrentBook] = useState<BookData | null>(null);
-// const [isReading, setIsReading] = useState<boolean>(false);
-// const [isLoading, setIsLoading] = useState<boolean>(false);
-// const [bookTitle, setBookTitle] = useState<string>('');
-// const [bookAuthor, setBookAuthor] = useState<string>('');
-// const [currentPage, setCurrentPage] = useState<number>(0);
-// const [totalPages, setTotalPages] = useState<number>(0);
-// const [currentContent, setCurrentContent] = useState<string>('');
-// const [currentPageText, setCurrentPageText] = useState<string>('');
-// const [toc, setToc] = useState<TOCItem[]>([]);
-// const [bookZip, setBookZip] = useState<JSZip | null>(null);
-// const [opfPath, setOpfPath] = useState<string>('');
-// const [htmlFiles, setHtmlFiles] = useState<string[]>([]);
-
-// // Play mode state
-// const [isPlayModeVisible, setIsPlayModeVisible] = useState<boolean>(false);
-
-// // Load books from localStorage on initial render
-// useEffect(() => {
-//   const savedBooks = localStorage.getItem('ebooks');
-//   if (savedBooks) {
-//     try {
-//       setBooks(JSON.parse(savedBooks));
-//     } catch (e) {
-//       console.error("Error loading books from localStorage", e);
-//       setBooks([]);
-//     }
-//   }
-// }, []);
-
-// // Save books to localStorage when they change
-// useEffect(() => {
-//   if (books.length > 0) {
-//     try {
-//       // We need to serialize the books without the File objects
-//       const serializableBooks = books.map(book => {
-//         const { file, ...serializableBook } = book;
-//         return serializableBook;
-//       });
-//       localStorage.setItem('ebooks', JSON.stringify(serializableBooks));
-//     } catch (e) {
-//       console.error("Error saving books to localStorage", e);
-//     }
-//   }
-// }, [books]);
-
-// // Add a new book to the library
-// const addBook = async (file: File): Promise<void> => {
-//   if (file.name.split('.').pop()?.toLowerCase() !== 'epub') {
-//     throw new Error('Please upload an EPUB file');
-//   }
-
-//   setIsLoading(true);
-
-//   try {
-//     // Load the epub file using JSZip
-//     const zip = new JSZip();
-//     const content = await zip.loadAsync(file);
-    
-//     // Find the container.xml file
-//     const containerXml = await content.file('META-INF/container.xml')?.async('text');
-//     if (!containerXml) {
-//       throw new Error('Invalid EPUB: container.xml not found');
-//     }
-    
-//     // Parse the container.xml to find the OPF file
-//     const parser = new DOMParser();
-//     const containerDoc = parser.parseFromString(containerXml, 'application/xml');
-//     const rootfiles = containerDoc.getElementsByTagName('rootfile');
-    
-//     if (rootfiles.length === 0) {
-//       throw new Error('Invalid EPUB: No rootfile found in container.xml');
-//     }
-    
-//     // Get the path to the OPF file
-//     const opfPath = rootfiles[0].getAttribute('full-path') || '';
-    
-//     // Load the OPF file
-//     const opfContent = await content.file(opfPath)?.async('text');
-//     if (!opfContent) {
-//       throw new Error('Invalid EPUB: OPF file not found');
-//     }
-    
-//     // Parse the OPF file to get metadata
-//     const opfDoc = parser.parseFromString(opfContent, 'application/xml');
-    
-//     // Get the book title
-//     const titleElements = opfDoc.getElementsByTagName('dc:title');
-//     const title = titleElements.length > 0 
-//       ? titleElements[0].textContent || 'Unknown Title'
-//       : 'Unknown Title';
-    
-//     // Get the book author
-//     const creatorElements = opfDoc.getElementsByTagName('dc:creator');
-//     const author = creatorElements.length > 0
-//       ? creatorElements[0].textContent || 'Unknown Author'
-//       : 'Unknown Author';
-    
-//     // Generate a unique ID
-//     const id = Date.now().toString();
-    
-//     // Find the cover image
-//     let coverUrl = null;
-//     const metaTags = opfDoc.getElementsByTagName('meta');
-//     let coverId = '';
-    
-//     // Try to find the cover ID
-//     for (let i = 0; i < metaTags.length; i++) {
-//       const meta = metaTags[i];
-//       if (meta.getAttribute('name') === 'cover') {
-//         coverId = meta.getAttribute('content') || '';
-//         break;
-//       }
-//     }
-    
-//     // If we found a cover ID, find the actual file
-//     if (coverId) {
-//       const items = opfDoc.getElementsByTagName('item');
-//       for (let i = 0; i < items.length; i++) {
-//         const item = items[i];
-//         if (item.getAttribute('id') === coverId) {
-//           const href = item.getAttribute('href') || '';
-//           // Get the directory of the OPF file to resolve relative paths
-//           const opfDir = opfPath.substring(0, opfPath.lastIndexOf('/') + 1);
-//           const coverPath = opfDir + href;
-          
-//           // Get the cover image as a blob
-//           const coverBlob = await content.file(coverPath)?.async('blob');
-//           if (coverBlob) {
-//             coverUrl = URL.createObjectURL(coverBlob);
-//           }
-//           break;
-//         }
-//       }
-//     }
-    
-//     // Create a new book object
-//     const newBook: BookData = {
-//       id,
-//       title,
-//       author,
-//       coverUrl,
-//       currentPage: 0,
-//       file,
-//       lastRead: new Date().toISOString()
-//     };
-    
-//     // Add the book to our library
-//     setBooks(prevBooks => [...prevBooks, newBook]);
-    
-//   } catch (error) {
-//     console.error('Error processing EPUB file:', error);
-//     throw error;
-//   } finally {
-//     setIsLoading(false);
-//   }
-// };
-
-// // Remove a book from the library
-// const removeBook = (bookId: string): void => {
-//   // Find the book to remove its cover URL
-//   const book = books.find(b => b.id === bookId);
-//   if (book && book.coverUrl) {
-//     URL.revokeObjectURL(book.coverUrl);
-//   }
-  
-//   setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
-// };
-
-// // Open a book to read
-// const openBook = async (book: BookData): Promise<void> => {
-//   setIsLoading(true);
-//   setBookTitle(book.title);
-//   setBookAuthor(book.author);
-//   setCurrentPage(book.currentPage || 0);
-//   setCurrentBook(book);
-  
-//   try {
-//     // Load the epub file again
-//     const zip = new JSZip();
-//     const content = await zip.loadAsync(book.file);
-//     setBookZip(content);
-    
-//     // Find the container.xml file
-//     const containerXml = await content.file('META-INF/container.xml')?.async('text');
-//     if (!containerXml) {
-//       throw new Error('Invalid EPUB: container.xml not found');
-//     }
-    
-//     // Parse the container.xml to find the OPF file
-//     const parser = new DOMParser();
-//     const containerDoc = parser.parseFromString(containerXml, 'application/xml');
-//     const rootfiles = containerDoc.getElementsByTagName('rootfile');
-    
-//     if (rootfiles.length === 0) {
-//       throw new Error('Invalid EPUB: No rootfile found in container.xml');
-//     }
-    
-//     // Get the path to the OPF file
-//     const opf = rootfiles[0].getAttribute('full-path') || '';
-//     setOpfPath(opf);
-    
-//     // Load the OPF file
-//     const opfContent = await content.file(opf)?.async('text');
-//     if (!opfContent) {
-//       throw new Error('Invalid EPUB: OPF file not found');
-//     }
-    
-//     // Parse the OPF file
-//     const opfDoc = parser.parseFromString(opfContent, 'application/xml');
-    
-//     // Get the spine - this defines the reading order
-//     const spine = opfDoc.getElementsByTagName('spine')[0];
-//     const itemrefs = spine.getElementsByTagName('itemref');
-    
-//     // Get the manifest - this maps IDs to file paths
-//     const manifest = opfDoc.getElementsByTagName('manifest')[0];
-//     const items = manifest.getElementsByTagName('item');
-    
-//     // Map the spine items to their file paths
-//     const fileOrder: string[] = [];
-//     for (let i = 0; i < itemrefs.length; i++) {
-//       const idref = itemrefs[i].getAttribute('idref');
-//       for (let j = 0; j < items.length; j++) {
-//         if (items[j].getAttribute('id') === idref) {
-//           const href = items[j].getAttribute('href') || '';
-//           // Get the directory of the OPF file to resolve relative paths
-//           const opfDir = opf.substring(0, opf.lastIndexOf('/') + 1);
-//           fileOrder.push(opfDir + href);
-//           break;
-//         }
-//       }
-//     }
-    
-//     setHtmlFiles(fileOrder);
-//     setTotalPages(fileOrder.length);
-    
-//     // Extract table of contents
-//     const extractToc = async (): Promise<TOCItem[]> => {
-//       let tocPath = '';
-//       let tocItems: TOCItem[] = [];
-//       let tocFound = false;
-      
-//       // Method 1: Check for nav document (EPUB3)
-//       for (let i = 0; i < items.length; i++) {
-//         const item = items[i];
-//         const properties = item.getAttribute('properties');
-//         if (properties && properties.includes('nav')) {
-//           const href = item.getAttribute('href') || '';
-//           const opfDir = opf.substring(0, opf.lastIndexOf('/') + 1);
-//           tocPath = opfDir + href;
-          
-//           try {
-//             const tocContent = await content.file(tocPath)?.async('text');
-//             if (tocContent) {
-//               const tocDoc = parser.parseFromString(tocContent, 'text/html');
-//               const navs = tocDoc.getElementsByTagName('nav');
-              
-//               for (let i = 0; i < navs.length; i++) {
-//                 const nav = navs[i];
-//                 const type = nav.getAttribute('epub:type');
-//                 if (type === 'toc') {
-//                   const ol = nav.getElementsByTagName('ol')[0];
-//                   if (ol) {
-//                     const parseTocItems = (ol: Element): TOCItem[] => {
-//                       const items: TOCItem[] = [];
-//                       const lis = ol.getElementsByTagName('li');
-                      
-//                       for (let j = 0; j < lis.length; j++) {
-//                         const li = lis[j];
-//                         const a = li.getElementsByTagName('a')[0];
-//                         if (a) {
-//                           const href = a.getAttribute('href') || '';
-//                           const label = a.textContent || '';
-//                           const id = `toc-${j}`;
-                          
-//                           const item: TOCItem = {
-//                             id,
-//                             href,
-//                             label,
-//                             children: []
-//                           };
-                          
-//                           const nestedOl = li.getElementsByTagName('ol')[0];
-//                           if (nestedOl) {
-//                             item.children = parseTocItems(nestedOl);
-//                           }
-                          
-//                           items.push(item);
-//                         }
-//                       }
-                      
-//                       return items;
-//                     };
-                    
-//                     tocItems = parseTocItems(ol);
-//                     tocFound = true;
-//                     break;
-//                   }
-//                 }
-//               }
-//             }
-//           } catch (error) {
-//             console.error("Error parsing EPUB3 nav document:", error);
-//           }
-          
-//           break;
-//         }
-//       }
-      
-//       // Method 2: Check for NCX file (EPUB2)
-//       if (!tocFound) {
-//         const tocAttr = spine.getAttribute('toc');
-//         if (tocAttr) {
-//           for (let i = 0; i < items.length; i++) {
-//             const item = items[i];
-//             if (item.getAttribute('id') === tocAttr) {
-//               const href = item.getAttribute('href') || '';
-//               const opfDir = opf.substring(0, opf.lastIndexOf('/') + 1);
-//               tocPath = opfDir + href;
-//               break;
-//             }
-//           }
-//         } else {
-//           // Try media-type approach
-//           for (let i = 0; i < items.length; i++) {
-//             const item = items[i];
-//             if (item.getAttribute('media-type') === 'application/x-dtbncx+xml') {
-//               const href = item.getAttribute('href') || '';
-//               const opfDir = opf.substring(0, opf.lastIndexOf('/') + 1);
-//               tocPath = opfDir + href;
-//               break;
-//             }
-//           }
-//         }
-        
-//         if (tocPath) {
-//           try {
-//             const ncxContent = await content.file(tocPath)?.async('text');
-//             if (ncxContent) {
-//               const ncxDoc = parser.parseFromString(ncxContent, 'application/xml');
-//               const navPoints = ncxDoc.getElementsByTagName('navPoint');
-              
-//               if (navPoints.length > 0) {
-//                 const processNavPoint = (navPoint: Element, index: number): TOCItem => {
-//                   const navLabel = navPoint.getElementsByTagName('navLabel')[0];
-//                   const text = navLabel?.getElementsByTagName('text')[0]?.textContent || '';
-//                   const content = navPoint.getElementsByTagName('content')[0];
-//                   const src = content?.getAttribute('src') || '';
-                  
-//                   return {
-//                     id: `toc-${index}`,
-//                     label: text,
-//                     href: src,
-//                     children: []
-//                   };
-//                 };
-                
-//                 // Create all items
-//                 const tempItems: TOCItem[] = [];
-//                 const navPointMap = new Map<string, TOCItem>();
-                
-//                 for (let i = 0; i < navPoints.length; i++) {
-//                   const navPoint = navPoints[i];
-//                   const id = navPoint.getAttribute('id') || '';
-//                   const item = processNavPoint(navPoint, i);
-//                   navPointMap.set(id, item);
-//                   tempItems.push(item);
-//                 }
-                
-//                 // Build hierarchy
-//                 for (let i = 0; i < navPoints.length; i++) {
-//                   const navPoint = navPoints[i];
-//                   const id = navPoint.getAttribute('id') || '';
-//                   const parentNode = navPoint.parentNode as Element;
-                  
-//                   if (parentNode && parentNode.nodeName === 'navPoint') {
-//                     const parentId = parentNode.getAttribute('id') || '';
-//                     const parentItem = navPointMap.get(parentId);
-//                     const childItem = navPointMap.get(id);
-                    
-//                     if (parentItem && childItem) {
-//                       parentItem.children.push(childItem);
-//                       // Remove from top level
-//                       const index = tempItems.findIndex(item => item.id === childItem.id);
-//                       if (index !== -1) {
-//                         tempItems.splice(index, 1);
-//                       }
-//                     }
-//                   }
-//                 }
-                
-//                 tocItems = tempItems;
-//                 tocFound = true;
-//               }
-//             }
-//           } catch (error) {
-//             console.error("Error parsing EPUB2 NCX file:", error);
-//           }
-//         }
-//       }
-      
-//       // Method 3: Create from spine if no TOC found
-//       if (!tocFound) {
-//         for (let i = 0; i < fileOrder.length; i++) {
-//           const filePath = fileOrder[i];
-//           const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
-//           const label = fileName.replace(/\.x?html?$/, '').replace(/[-_]/g, ' ');
-          
-//           tocItems.push({
-//             id: `toc-${i}`,
-//             label: label.charAt(0).toUpperCase() + label.slice(1), // Capitalize first letter
-//             href: filePath.substring(opf.substring(0, opf.lastIndexOf('/') + 1).length),
-//             children: []
-//           });
-//         }
-//       }
-      
-//       return tocItems;
-//     };
-    
-//     // Set the TOC
-//     const tocItems = await extractToc();
-//     setToc(tocItems);
-    
-//     // Load the first HTML file
-//     if (fileOrder.length > 0) {
-//       await loadPage(book.currentPage || 0);
-//     } else {
-//       throw new Error('No HTML files found in the EPUB');
-//     }
-    
-//     // Update the last read date for this book
-//     setBooks(prevBooks => 
-//       prevBooks.map(b => 
-//         b.id === book.id 
-//           ? { ...b, lastRead: new Date().toISOString() } 
-//           : b
-//       )
-//     );
-    
-//     // Switch to reading view
-//     setIsReading(true);
-//   } catch (error) {
-//     console.error('Error opening EPUB file:', error);
-//     throw error;
-//   } finally {
-//     setIsLoading(false);
-//   }
-// };
-
-// // Load a specific page
-// const loadPage = async (pageIndex: number): Promise<void> => {
-//   if (!bookZip || pageIndex < 0 || pageIndex >= htmlFiles.length) {
-//     return;
-//   }
-  
-//   try {
-//     // Load the HTML content
-//     const htmlContent = await bookZip.file(htmlFiles[pageIndex])?.async('text');
-//     if (!htmlContent) {
-//       throw new Error(`Could not load page ${pageIndex}`);
-//     }
-    
-//     // Get the directory of the HTML file to resolve relative paths
-//     const fileDir = getDirectoryPath(htmlFiles[pageIndex]);
-    
-//     // Process the HTML to fix relative paths
-//     const processedHtml = processHtmlContent(htmlContent, fileDir);
-    
-//     setCurrentContent(processedHtml);
-//     setCurrentPage(pageIndex);
-    
-//     // Extract text for SimplePlayMode
-//     const extractedText = extractTextFromHtml(processedHtml);
-//     setCurrentPageText(extractedText);
-    
-//     // Update the current page in the books array
-//     if (currentBook) {
-//       setBooks(prevBooks => 
-//         prevBooks.map(b => 
-//           b.id === currentBook.id 
-//             ? { ...b, currentPage: pageIndex } 
-//             : b
-//         )
-//       );
-//     }
-    
-//     // After rendering the content, load any images
-//     setTimeout(() => {
-//       const content = document.querySelector('.epub-content');
-//       if (content) {
-//         const images = content.querySelectorAll('img[src^="data:image/png;base64,IMAGE_PLACEHOLDER_"]');
-//         images.forEach(async (img: Element) => {
-//           const src = (img as HTMLImageElement).src;
-//           const imagePath = src.replace('data:image/png;base64,IMAGE_PLACEHOLDER_', '');
-          
-//           try {
-//             const imageBlob = await bookZip.file(imagePath)?.async('blob');
-//             if (imageBlob) {
-//               const imageUrl = URL.createObjectURL(imageBlob);
-//               (img as HTMLImageElement).src = imageUrl;
-//             }
-//           } catch (error) {
-//             console.error(`Error loading image: ${imagePath}`, error);
-//           }
-//         });
-        
-//         const links = content.querySelectorAll('link[href^="data:text/css;base64,CSS_PLACEHOLDER_"]');
-//         links.forEach(async (link: Element) => {
-//           const href = (link as HTMLLinkElement).href;
-//           const cssPath = href.replace('data:text/css;base64,CSS_PLACEHOLDER_', '');
-          
-//           try {
-//             const cssContent = await bookZip.file(cssPath)?.async('text');
-//             if (cssContent) {
-//               // Create a new style element with the CSS content
-//               const style = document.createElement('style');
-//               style.textContent = cssContent;
-//               link.parentNode?.replaceChild(style, link);
-//             }
-//           } catch (error) {
-//             console.error(`Error loading CSS: ${cssPath}`, error);
-//           }
-//         });
-//       }
-//     }, 100);
-    
-//   } catch (error) {
-//     console.error('Error loading page:', error);
-//     throw error;
-//   }
-// };
-
-// // Navigate to the next page
-// const nextPage = (): void => {
-//   if (currentPage < totalPages - 1) {
-//     loadPage(currentPage + 1);
-//   }
-// };
-
-// // Navigate to the previous page
-// const prevPage = (): void => {
-//   if (currentPage > 0) {
-//     loadPage(currentPage - 1);
-//   }
-// };
-
-// // Navigate to a specific TOC item
-// const navigateToTocItem = (item: TOCItem): void => {
-//   // Handle fragment-only hrefs
-//   if (item.href.startsWith('#')) {
-//     const fragment = item.href.substring(1);
-//     const element = document.getElementById(fragment);
-//     if (element) {
-//       element.scrollIntoView({ behavior: 'smooth' });
-//     }
-//     return;
-//   }
-  
-//   // Split to get file path and optional fragment
-//   let [filePath, fragment] = item.href.split('#');
-  
-//   // Remove any query parameters
-//   filePath = filePath.split('?')[0];
-  
-//   // Normalize the path (handle ../ and ./)
-//   const opfDir = getDirectoryPath(opfPath);
-  
-//   // Try multiple approaches to find the correct file
-  
-//   // Approach 1: Direct match
-//   let fileIndex = htmlFiles.findIndex(file => file.endsWith(filePath));
-  
-//   // Approach 2: Try with the OPF directory
-//   if (fileIndex === -1 && !filePath.startsWith('/')) {
-//     const fullPath = opfDir + filePath;
-//     fileIndex = htmlFiles.findIndex(file => file === fullPath);
-//   }
-  
-//   // Approach 3: Try resolving relative paths
-//   if (fileIndex === -1) {
-//     const resolvedPath = resolveRelativePath(opfDir, filePath);
-//     fileIndex = htmlFiles.findIndex(file => file === resolvedPath);
-//   }
-  
-//   // Approach 4: Just match the filename
-//   if (fileIndex === -1) {
-//     const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
-//     fileIndex = htmlFiles.findIndex(file => file.endsWith('/' + fileName));
-//   }
-  
-//   if (fileIndex !== -1) {
-//     loadPage(fileIndex);
-    
-//     // If there's a fragment, scroll to it after loading
-//     if (fragment) {
-//       setTimeout(() => {
-//         const element = document.getElementById(fragment);
-//         if (element) {
-//           element.scrollIntoView({ behavior: 'smooth' });
-//         }
-//       }, 300);
-//     }
-//   }
-// };
-
-// // Close the book and return to the library
-// const closeBook = (): void => {
-//   // Reset all book state
-//   setCurrentBook(null);
-//   setBookZip(null);
-//   setOpfPath('');
-//   setHtmlFiles([]);
-//   setToc([]);
-//   setCurrentContent('');
-//   setIsReading(false);
-//   setBookTitle('');
-//   setBookAuthor('');
-//   setIsPlayModeVisible(false);
-//   setCurrentPageText('');
-// };
-
-// // Toggle PlayMode visibility
-// const togglePlayMode = (): void => {
-//   setIsPlayModeVisible(!isPlayModeVisible);
-// };
-
-// const value: BookContextValue = {
-//   // Library state
-//   books,
-//   addBook,
-//   removeBook,
-  
-//   // Current book state
-//   currentBook,
-//   isReading,
-//   isLoading,
-//   bookTitle,
-//   bookAuthor,
-//   currentPage,
-//   totalPages,
-//   currentContent,
-//   currentPageText,
-//   toc,
-  
-//   // Book actions
-//   openBook,
-//   closeBook,
-//   nextPage,
-//   prevPage,
-//   navigateToTocItem,
-  
-//   // Book details
-//   htmlFiles,
-//   opfPath,
-  
-//   // Play mode
-//   isPlayModeVisible,
-//   togglePlayMode
-// };
-
-// return (
-//   <BookContext.Provider value={value}>
-//     {children}
-//   </BookContext.Provider>
-// );
-// };
-
-
-
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import localforage from 'localforage';
+// src/context/BookContext.tsx
+import { trackEvent } from '../lib/analytics';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import localforage from 'localforage'; // Phase 3: Still needed for cleanup operations
 import JSZip from 'jszip';
-import { DOMParser } from 'xmldom';
+// Dynamic import for xmldom to avoid blocking initial page load
+// const { DOMParser } = await import('xmldom');
 import { getDirectoryPath, resolveRelativePath } from '../utils/pathUtils';
-import { processHtmlContent, extractTextFromHtml } from '../utils/textExtraction';
-import { BookData, TOCItem } from '@/types/books';
+import { getDOMParser } from './book/domParser';
+// import { regenerateCoverUrl } from './book/storage'; // Phase 2: No longer needed directly (handled by repository)
 
-// Configure localforage for book storage
-localforage.config({
-  name: "EbookReaderApp",
-  storeName: "bookStorage"
-});
+// getDOMParser moved to ./book/domParser
+// import { processHtmlContent, extractTextFromHtml, cleanEpubContent, deepCleanEpubContent } from '../utils/textExtraction';
+import { BookData, TOCItem } from '@/types/books'; // Ensure BookData includes all necessary fields like lastChapter
+import { useAuth } from "./AuthContext";
+// import { imageBlobUrlCache, imageDimensionsCache } from '../utils/imageCache';
+// import { supabase, uploadFile, deleteFile, getFileUrl, type BookRecord } from '../lib/supabase'; // Switch to dynamic import
+// import { generateUUID } from '../lib/utils'; // Phase 2: No longer needed directly (handled by hooks)
+import { registerAdapter, getAdapterForFile } from './book/formats';
+import { epubAdapter } from './book/formats/epubAdapter';
+// import { pdfAdapter } from './book/formats/pdfAdapter';
+import { mobiAdapter } from './book/formats/mobiAdapter';
+import { ContentDetectionService } from '../services/books/ContentDetectionService';
+// import { saveReaderState } from '../utils/readerState'; // Phase 3: Now handled by useBookNavigation hook
 
+// Phase 2: Import custom hooks
+import { useBookStorage } from '../hooks/books/useBookStorage';
+import { useBookSync } from '../hooks/books/useBookSync';
+import { useBookLibrary } from '../hooks/books/useBookLibrary';
+import { useBookNavigation } from '../hooks/books/useBookNavigation';
+
+// Phase 3: CloudBookRecord moved to CloudBookRepository.ts
+
+// Phase 3: LocalForage config moved to LocalBookRepository
+
+// ... (BookContextValue interface - should be the same as the last full version I provided)
 interface BookContextValue {
-  // Library state
   books: BookData[];
-  addBook: (file: File) => Promise<void>;
+  addBook: (file: File) => Promise<BookData>;
   removeBook: (bookId: string) => Promise<void>;
-
-  // Current book state
   currentBook: BookData | null;
   isReading: boolean;
+  isClosing: boolean; // Track when book is being closed
   isLoading: boolean;
+  isPageLoading: boolean;
+  isInitialLoadComplete: boolean; // Track if initial book load from storage is complete
   bookTitle: string;
   bookAuthor: string;
-  currentPage: number;
+  currentPageDisplay: number;
   totalPages: number;
   currentContent: string;
   currentPageText: string;
   toc: TOCItem[];
-
-  // Book actions
   openBook: (book: BookData) => Promise<void>;
-  closeBook: () => void;
+  closeBook: (resetGlobalLoading?: boolean) => void; // Added optional param
   nextPage: () => void;
   prevPage: () => void;
   navigateToTocItem: (item: TOCItem) => void;
-
-  // Book details
   htmlFiles: string[];
   opfPath: string;
-
-  // Play mode
   isPlayModeVisible: boolean;
   togglePlayMode: () => void;
+  isSyncingFromCloud: boolean; // Add loading state for cloud sync
+  // NEW: derived current chapter title for display
+  currentChapterTitle: string;
 }
+
 
 const BookContext = createContext<BookContextValue | undefined>(undefined);
 
 export const useBook = (): BookContextValue => {
   const context = useContext(BookContext);
-  if (context === undefined) {
-    throw new Error('useBook must be used within a BookProvider');
-  }
+  if (context === undefined) throw new Error('useBook must be used within a BookProvider');
   return context;
 };
 
@@ -793,1285 +79,1251 @@ interface BookProviderProps {
   children: ReactNode;
 }
 
-export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
-  // Library state
-  const [books, setBooks] = useState<BookData[]>([]);
+/**
+ * Helper to find the current chapter based on the page index
+ */
+const findChapterForPage = (pageIndex: number, currentToc: TOCItem[], currentHtmlFiles: string[]): TOCItem | null => {
+  if (!currentHtmlFiles || currentHtmlFiles.length === 0 || !currentToc || currentToc.length === 0 || pageIndex < 0 || pageIndex >= currentHtmlFiles.length) return null;
+  const currentFile = currentHtmlFiles[pageIndex];
+  if (!currentFile) return null;
+  const searchInToc = (items: TOCItem[]): TOCItem | null => {
+    for (const tocItem of items) {
+      if (tocItem.href) {
+        const itemFilePath = tocItem.href.split('#')[0];
+        if (currentFile.endsWith(itemFilePath)) return tocItem;
+      }
+      if (tocItem.children?.length) {
+        const foundInChildren = searchInToc(tocItem.children);
+        if (foundInChildren) return foundInChildren;
+      }
+    }
+    return null;
+  };
+  return searchInToc(currentToc);
+};
 
-  // Current book state
+/**
+ * Helper to calculate reading progress percentage
+ */
+const calculateProgress = (currentPage: number, totalPages: number): number => {
+  if (totalPages <= 1) return currentPage >= 1 ? 100 : 0;
+  const percentage = Math.round((currentPage / (totalPages - 1)) * 100);
+  return Math.max(0, Math.min(100, percentage));
+};
+
+export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
+  // Register format adapters once
+  useEffect(() => {
+    try {
+      registerAdapter(epubAdapter);
+      // registerAdapter(pdfAdapter);
+      registerAdapter(mobiAdapter);
+    } catch { }
+  }, []);
+  const { isAuthenticated, user, hasExplicitlySignedOut } = useAuth();
+  const userId = user?.id;
+  const navigate = useNavigate();
+  const [isClosing, setIsClosing] = useState<boolean>(false); // Track when book is being closed to prevent reopening
+
+  // Phase 2: Use custom hooks for storage and sync
+  const {
+    books: storageBooks,
+    setBooks,
+    isLoading,
+    isInitialLoadComplete,
+    setIsInitialLoadComplete,
+    saveBooks: saveBooksToStorage,
+  } = useBookStorage(userId);
+
+  const {
+    isSyncingFromCloud,
+    syncBookToCloud,
+    syncProgressToCloud,
+    flushProgressSync,
+    removeBookFromCloud,
+  } = useBookSync(userId, isAuthenticated, isInitialLoadComplete);
+
+  // Use storage books as the source of truth
+  const books = storageBooks;
+
+  // Reading state (not handled by hooks)
   const [currentBook, setCurrentBook] = useState<BookData | null>(null);
   const [isReading, setIsReading] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isPageLoading, setIsPageLoading] = useState<boolean>(false);
   const [bookTitle, setBookTitle] = useState<string>('');
   const [bookAuthor, setBookAuthor] = useState<string>('');
-  const [currentPage, setCurrentPage] = useState<number>(0);
+  const [currentPageDisplay, setCurrentPageDisplay] = useState<number>(0);
+  const [currentPageToLoad, setCurrentPageToLoad] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(0);
   const [currentContent, setCurrentContent] = useState<string>('');
   const [currentPageText, setCurrentPageText] = useState<string>('');
   const [toc, setToc] = useState<TOCItem[]>([]);
-  const [bookZip, setBookZip] = useState<JSZip | null>(null);
+  const [bookZip, setBookZip] = useState<any | null>(null); // Changed type to any
   const [opfPath, setOpfPath] = useState<string>('');
   const [htmlFiles, setHtmlFiles] = useState<string[]>([]);
-
-  // Play mode state
   const [isPlayModeVisible, setIsPlayModeVisible] = useState<boolean>(false);
 
-  // Load books from localforage on initial render
+  // Phase 3: Default book refs removed - now handled by DefaultBookService
+  // Track reading session start time for analytics
+  const readingStartTimestamp = useRef<number | null>(null);
+  // Guard ref to prevent infinite loop in sign-out cleanup
+  const cleanupCompletedRef = useRef<boolean>(false);
+
+  // Phase 2: Use custom hooks for library operations (after ALL state declarations)
+  const { addBook: addBookToLibrary, removeBook: removeBookFromLibrary } = useBookLibrary(
+    books,
+    posts => setBooks(posts),
+    () => { }, // Placeholder for setIsBookOperationLoading which was removed
+    isAuthenticated,
+    syncBookToCloud
+  );
+
+  // Phase 2: Use navigation hook (after ALL state declarations)
+  useBookNavigation(isReading, currentBook, currentPageDisplay, totalPages);
+  // Adapter session for non-EPUB formats (single active book at a time)
+  const currentAdapterSessionRef = useRef<{
+    bookId: string;
+    adapterId: string;
+    loadPage: (index: number) => Promise<{ html: string; text: string }>;
+    getToc: () => Promise<TOCItem[]>;
+    dispose?: () => void;
+  } | null>(null);
+
+  // NEW: Derive currentChapterTitle from the current book's lastChapter label
+  const currentChapterTitle = useMemo(() => {
+    if (!currentBook) return '';
+    const fresh = books.find(b => b.id === currentBook.id);
+    const label = (fresh?.lastChapter as any)?.label || (currentBook.lastChapter as any)?.label;
+    return typeof label === 'string' ? label : '';
+  }, [books, currentBook]);
+
+  // Phase 2: Storage is now handled by useBookStorage hook
+  // The hook automatically loads books on mount and when userId changes
+
+  // *** FIXED: Clean up user-specific data when user signs out ***
+  // This effect now includes safeguards to prevent clearing books during page refresh
+  // when the user is just temporarily unauthenticated
   useEffect(() => {
-    const loadBooks = async () => {
-      try {
-        // Retrieve all stored book metadata keys
-        const keys = await localforage.keys();
-        const bookMetadataKeys = keys.filter(key => key.startsWith('book_metadata_'));
-        
-        // Load each book's metadata
-        const loadedBooks: BookData[] = [];
-        for (const key of bookMetadataKeys) {
-          const bookId = key.replace('book_metadata_', '');
-          
-          // Retrieve metadata
-          const metadata = await localforage.getItem(key);
-          
-          // Retrieve file
-          const fileKey = `book_file_${bookId}`;
-          const file = await localforage.getItem(fileKey);
-          
-          if (metadata && file) {
-            loadedBooks.push({
-              ...(metadata as Omit<BookData, 'file'>),
-              file: file as File
-            });
+    // DEBUG: Log condition variables to diagnose inconsistent behavior
+    console.log('[BookContext Cleanup Check] Condition variables:', {
+      userId: userId || 'null',
+      isInitialLoadComplete,
+      hasExplicitlySignedOut,
+      cleanupCompleted: cleanupCompletedRef.current,
+      conditionMet: !userId && isInitialLoadComplete && hasExplicitlySignedOut && !cleanupCompletedRef.current
+    });
+
+    // FIXED: Only run cleanup if user has EXPLICITLY signed out
+    // Also check if cleanup has already completed to prevent infinite loop
+    if (!userId && isInitialLoadComplete && hasExplicitlySignedOut && !cleanupCompletedRef.current) {
+      console.log('[BookContext Cleanup] Starting cleanup process...');
+      // Mark cleanup as started to prevent re-running
+      cleanupCompletedRef.current = true;
+
+      // Add a delay to prevent clearing books during page refresh
+      // This gives the auth context time to restore the user's session
+      const timeoutId = setTimeout(async () => {
+        if (!userId) {
+          // FIXED: Don't reset state if we're on the reader route and a book is open
+          // This prevents the loader from appearing unnecessarily during auth state changes
+          const isOnReaderRoute = window.location.pathname.startsWith('/reader');
+          if (isOnReaderRoute && isReading && currentBook) {
+            console.log('[BookContext] Book is open and reading on reader route, skipping cleanup that would reset isInitialLoadComplete');
+            cleanupCompletedRef.current = false; // Reset flag so cleanup can run later
+            return; // Skip cleanup to preserve reading state
           }
+
+          // The hasExplicitlySignedOut flag is already checked in the outer useEffect condition
+          // If we're here, it means the user has explicitly signed out
+          // No need for additional "hasUploadedBooks" safeguards
+          console.log('[BookContext] User confirmed signed out after delay, clearing user-specific books');
+
+          const clearUserData = async () => {
+            try {
+              // Clear all books from state
+              setBooks([]);
+
+              // Clear ALL user-specific keys from localforage (including current user's keys)
+              const allKeys = await localforage.keys();
+              console.log('[BookContext] All keys in storage:', allKeys);
+
+              // Remove any keys that start with 'user_' (user-specific data)
+              const userKeys = allKeys.filter(key =>
+                key.startsWith('user_') &&
+                (key.includes('book_metadata_') || key.includes('book_file_'))
+              );
+
+              console.log('[BookContext] Found user-specific keys to remove:', userKeys);
+
+              for (const key of userKeys) {
+                await localforage.removeItem(key);
+                console.log(`[BookContext] Removed user key: ${key}`);
+              }
+
+              // *** FIXED: Remove ALL book keys when user signs out, except the default book ***
+              // When userId is undefined (signed out), we need to clear all books
+              const allBookKeys = allKeys.filter(key =>
+                key.includes('book_metadata_') || key.includes('book_file_')
+              );
+
+              console.log('[BookContext] Found all book keys to process:', allBookKeys);
+
+              for (const key of allBookKeys) {
+                // Check if this is the default book (1984) - preserve it
+                if (key.startsWith('book_metadata_')) {
+                  const metadata = await localforage.getItem(key) as BookData;
+                  if (metadata && metadata.title === '1984') {
+                    console.log(`[BookContext] Preserving default book key: ${key}`);
+                    continue; // Keep the default book
+                  }
+                }
+
+                // Remove all other book keys
+                await localforage.removeItem(key);
+                console.log(`[BookContext] Removed book key: ${key}`);
+              }
+
+              // Clear current book state
+              setCurrentBook(null);
+              setIsReading(false);
+              setBookZip(null);
+              setOpfPath('');
+              setHtmlFiles([]);
+              setToc([]);
+              setCurrentContent('');
+              setBookTitle('');
+              setBookAuthor('');
+              setIsPlayModeVisible(false);
+              setCurrentPageText('');
+              setCurrentPageToLoad(0);
+              setCurrentPageDisplay(0);
+              setTotalPages(0);
+
+              console.log('[BookContext] User data cleared, ready for new user or default book');
+
+              // *** NEW: Load the default book after clearing user data ***
+              // This ensures users always see the default book when signed out
+              const { DefaultBookService } = await import('../services/books/DefaultBookService');
+              const defaultBook = await DefaultBookService.loadDefaultBook();
+              if (defaultBook) {
+                setBooks([defaultBook]);
+                console.log('[BookContext] Default book loaded after sign-out cleanup');
+                // OPTIMIZED: Only set isInitialLoadComplete once at the end
+                // No need to toggle false/true - just set it to true after cleanup completes
+                setIsInitialLoadComplete(true);
+              } else {
+                // Even if default book failed to load, set isInitialLoadComplete to true
+                // to prevent infinite loader state
+                setIsInitialLoadComplete(true);
+              }
+            } catch (error) {
+              console.error('[BookContext] Error clearing user data:', error);
+              // Ensure isInitialLoadComplete is set even on error
+              setIsInitialLoadComplete(true);
+            }
+          };
+
+          clearUserData();
+        } else {
+          console.log('[BookContext] User re-authenticated during delay, skipping book cleanup');
+          cleanupCompletedRef.current = false; // Reset flag if user re-authenticated
         }
-        
-        // Set the books in state
-        setBooks(loadedBooks);
-      } catch (error) {
-        console.error("Error loading books from storage", error);
-      }
-    };
+      }, 2000); // 2 second delay to allow auth context to restore session
 
-    loadBooks();
-  }, []);
-
-  // Save books to localforage when they change
-  useEffect(() => {
-    const saveBooks = async () => {
-      try {
-        // Remove any existing keys first
-        const keys = await localforage.keys();
-        const bookMetadataKeys = keys.filter(key => 
-          key.startsWith('book_metadata_') || key.startsWith('book_file_')
-        );
-        
-        for (const key of bookMetadataKeys) {
-          await localforage.removeItem(key);
-        }
-
-        // Save each book's metadata and file
-        for (const book of books) {
-          // Save metadata
-          await localforage.setItem(`book_metadata_${book.id}`, {
-            id: book.id,
-            title: book.title,
-            author: book.author,
-            coverUrl: book.coverUrl,
-            currentPage: book.currentPage,
-            lastRead: book.lastRead
-          });
-          
-          // Save file
-          await localforage.setItem(`book_file_${book.id}`, book.file);
-        }
-      } catch (error) {
-        console.error("Error saving books to storage", error);
-      }
-    };
-
-    if (books.length > 0) {
-      saveBooks();
+      // Cleanup timeout if userId changes before delay completes
+      return () => {
+        clearTimeout(timeoutId);
+        // If effect re-runs before timeout completes, reset the flag
+        cleanupCompletedRef.current = false;
+      };
     }
+  }, [userId, isInitialLoadComplete, hasExplicitlySignedOut]);
+
+  // Reset cleanup guard when user signs in (userId becomes defined)
+  // This allows cleanup to run again if user signs out again later
+  useEffect(() => {
+    if (userId) {
+      cleanupCompletedRef.current = false;
+      console.log('[BookContext] User signed in, resetting cleanup guard');
+    }
+  }, [userId]);
+
+  // =================================================================
+  // PASTE THIS ENTIRE BLOCK INTO YOUR BookContext.tsx FILE
+  // =================================================================
+
+  // Phase 3: Save books to storage when books array changes
+  // Use ref to prevent save/load loops
+  const isSavingRef = useRef(false);
+  const lastSavedBooksRef = useRef<string>('');
+
+  useEffect(() => {
+    // This is a safety check. It prevents the app from saving an empty
+    // book list when it first starts, before it has loaded your library.
+    if (!isInitialLoadComplete) {
+      return;
+    }
+
+    // Don't save during sync to prevent race conditions
+    if (isSyncingFromCloud) {
+      console.log('[BookContext Save] Skipping save during sync to prevent race conditions');
+      return;
+    }
+
+    // Don't save if user is signing out (userId is undefined) and books are already cleared
+    if (!userId && books.length === 0) {
+      console.log('[BookContext Save] Skipping save - user signing out, books already cleared');
+      return;
+    }
+
+    // Prevent save/load loops: only save if books actually changed
+    const booksKey = JSON.stringify(books.map(b => ({ id: b.id, currentPage: b.currentPage, lastChapter: b.lastChapter })));
+    if (lastSavedBooksRef.current === booksKey) {
+      return;
+    }
+
+    // Prevent concurrent saves
+    if (isSavingRef.current) {
+      console.log('[BookContext Save] Save already in progress, skipping');
+      return;
+    }
+
+    isSavingRef.current = true;
+    lastSavedBooksRef.current = booksKey;
+
+    // Save books using the hook's save function
+    saveBooksToStorage(books, true)
+      .then(() => {
+        isSavingRef.current = false;
+      })
+      .catch(error => {
+        console.error('[BookContext Save] Error saving books:', error);
+        isSavingRef.current = false;
+        lastSavedBooksRef.current = ''; // Reset to allow retry
+      });
+  }, [books, isInitialLoadComplete, isSyncingFromCloud, userId, saveBooksToStorage]);
+
+  // Cleanup blob URLs when component unmounts to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      books.forEach(book => {
+        if (book.coverUrl?.startsWith('blob:')) {
+          URL.revokeObjectURL(book.coverUrl);
+        }
+      });
+    };
+  }, []); // Empty dependency array means this runs only on unmount
+
+  // Phase 3: Cloud sync is handled by useBookSync hook
+  const booksRef = useRef(books);
+
+  // Keep booksRef in sync with books
+  useEffect(() => {
+    booksRef.current = books;
   }, [books]);
 
-  // // Add a new book to the library
-  // const addBook = async (file: File): Promise<void> => {
-  //   if (file.name.split('.').pop()?.toLowerCase() !== 'epub') {
-  //     throw new Error('Please upload an EPUB file');
+  // // Trigger sync when user signs in and initial load completes
+  // useEffect(() => {
+  //   // Only sync once per authentication session
+  //   const syncKey = userId && isInitialLoadComplete ? `${userId}-${isInitialLoadComplete}` : null;
+
+  //   if (isAuthenticated && userId && isInitialLoadComplete && syncHasRunRef.current !== syncKey) {
+  //     console.log('[BookContext] Triggering sync for user:', userId);
+  //     syncHasRunRef.current = syncKey;
+
+  //     // Use ref to get current books without causing dependency issues
+  //     const currentBooks = booksRef.current;
+  //     syncBooks(currentBooks)
+  //       .then(syncedBooks => {
+  //         // Thoroughly check if books changed (including progress/page)
+  //         const booksChanged =
+  //           syncedBooks.length !== currentBooks.length ||
+  //           syncedBooks.some((b, i) =>
+  //             b.id !== currentBooks[i]?.id ||
+  //             b.currentPage !== currentBooks[i]?.currentPage ||
+  //             b.progress !== currentBooks[i]?.progress ||
+  //             b.lastRead !== currentBooks[i]?.lastRead
+  //           );
+
+  //         if (booksChanged) {
+  //           console.log('[BookContext] Books changed after sync, updating state');
+  //           setBooks(syncedBooks);
+  //         } else {
+  //           console.log('[BookContext] No changes after sync, skipping update');
+  //         }
+  //       })
+  //       .catch(error => {
+  //         console.error('[BookContext] Sync error:', error);
+  //         // Reset sync flag on error so it can retry
+  //         syncHasRunRef.current = null;
+  //       });
   //   }
 
-  //   setIsLoading(true);
-
-  //   try {
-  //     // Load the epub file using JSZip
-  //     const zip = new JSZip();
-  //     const content = await zip.loadAsync(file);
-      
-  //     // Find the container.xml file
-  //     const containerXml = await content.file('META-INF/container.xml')?.async('text');
-  //     if (!containerXml) {
-  //       throw new Error('Invalid EPUB: container.xml not found');
-  //     }
-      
-  //     // Parse the container.xml to find the OPF file
-  //     const parser = new DOMParser();
-  //     const containerDoc = parser.parseFromString(containerXml, 'application/xml');
-  //     const rootfiles = containerDoc.getElementsByTagName('rootfile');
-      
-  //     if (rootfiles.length === 0) {
-  //       throw new Error('Invalid EPUB: No rootfile found in container.xml');
-  //     }
-      
-  //     // Get the path to the OPF file
-  //     const opfPath = rootfiles[0].getAttribute('full-path') || '';
-      
-  //     // Load the OPF file
-  //     const opfContent = await content.file(opfPath)?.async('text');
-  //     if (!opfContent) {
-  //       throw new Error('Invalid EPUB: OPF file not found');
-  //     }
-      
-  //     // Parse the OPF file to get metadata
-  //     const opfDoc = parser.parseFromString(opfContent, 'application/xml');
-      
-  //     // Get the book title
-  //     const titleElements = opfDoc.getElementsByTagName('dc:title');
-  //     const title = titleElements.length > 0 
-  //       ? titleElements[0].textContent || 'Unknown Title'
-  //       : 'Unknown Title';
-      
-  //     // Get the book author
-  //     const creatorElements = opfDoc.getElementsByTagName('dc:creator');
-  //     const author = creatorElements.length > 0
-  //       ? creatorElements[0].textContent || 'Unknown Author'
-  //       : 'Unknown Author';
-      
-  //     // Generate a unique ID
-  //     const id = Date.now().toString();
-      
-  //     // Find the cover image
-  //     let coverUrl = null;
-  //     const metaTags = opfDoc.getElementsByTagName('meta');
-  //     let coverId = '';
-      
-  //     // Try to find the cover ID
-  //     for (let i = 0; i < metaTags.length; i++) {
-  //       const meta = metaTags[i];
-  //       if (meta.getAttribute('name') === 'cover') {
-  //         coverId = meta.getAttribute('content') || '';
-  //         break;
-  //       }
-  //     }
-      
-  //     // If we found a cover ID, find the actual file
-  //     if (coverId) {
-  //       const items = opfDoc.getElementsByTagName('item');
-  //       for (let i = 0; i < items.length; i++) {
-  //         const item = items[i];
-  //         if (item.getAttribute('id') === coverId) {
-  //           const href = item.getAttribute('href') || '';
-  //           // Get the directory of the OPF file to resolve relative paths
-  //           const opfDir = opfPath.substring(0, opfPath.lastIndexOf('/') + 1);
-  //           const coverPath = opfDir + href;
-            
-  //           // Get the cover image as a blob
-  //           const coverBlob = await content.file(coverPath)?.async('blob');
-  //           if (coverBlob) {
-  //             coverUrl = URL.createObjectURL(coverBlob);
-  //           }
-  //           break;
-  //         }
-  //       }
-  //     }
-      
-  //     // Create a new book object
-  //     const newBook: BookData = {
-  //       id,
-  //       title,
-  //       author,
-  //       coverUrl,
-  //       currentPage: 0,
-  //       file,
-  //       lastRead: new Date().toISOString()
-  //     };
-      
-  //     // Add the book to our library
-  //     setBooks(prevBooks => [...prevBooks, newBook]);
-      
-  //   } catch (error) {
-  //     console.error('Error processing EPUB file:', error);
-  //     throw error;
-  //   } finally {
-  //     setIsLoading(false);
+  //   // Reset sync flag when user changes (signs out or different user signs in)
+  //   if (!isAuthenticated || !userId) {
+  //     syncHasRunRef.current = null;
   //   }
-  // };
+  // }, [isAuthenticated, userId, isInitialLoadComplete, syncBooks, setBooks]); // syncBooks is stable from useCallback
 
+  // // Trigger sync when user signs in and initial load completes
+  // useEffect(() => {
+  //   // Only sync once per authentication session
+  //   const syncKey = userId && isInitialLoadComplete ? `${userId}-${isInitialLoadComplete}` : null;
 
-  // Add a new book to the library
-  const addBook = async (file: File): Promise<void> => {
-    if (file.name.split('.').pop()?.toLowerCase() !== 'epub') {
-      throw new Error('Please upload an EPUB file');
-    }
+  //   if (isAuthenticated && userId && isInitialLoadComplete && syncHasRunRef.current !== syncKey) {
+  //     console.log('[BookContext] Triggering sync for user:', userId);
+  //     syncHasRunRef.current = syncKey;
 
-    setIsLoading(true);
+  //     // Use ref to get current books without causing dependency issues
+  //     const currentBooks = booksRef.current;
+  //     syncBooks(currentBooks)
+  //       .then(cloudBooks => {
+  //         // CONFLICT RESOLUTION: Merge cloud books with local books
+  //         // We prioritize the version with the most recent 'lastRead' timestamp or higher progress
+  //         const mergedBooks = [...cloudBooks];
+  //         let hasMergeChanges = false;
 
-    try {
-      // Load the epub file using JSZip
-      const zip = new JSZip();
-      const content = await zip.loadAsync(file);
-      
-      // Find the container.xml file
-      const containerXml = await content.file('META-INF/container.xml')?.async('text');
-      if (!containerXml) {
-        throw new Error('Invalid EPUB: container.xml not found');
-      }
-      
-      // Parse the container.xml to find the OPF file
-      const parser = new DOMParser();
-      const containerDoc = parser.parseFromString(containerXml, 'application/xml');
-      const rootfiles = containerDoc.getElementsByTagName('rootfile');
-      
-      if (rootfiles.length === 0) {
-        throw new Error('Invalid EPUB: No rootfile found in container.xml');
-      }
-      
-      // Get the path to the OPF file
-      const opfPath = rootfiles[0].getAttribute('full-path') || '';
-      
-      // Load the OPF file
-      const opfContent = await content.file(opfPath)?.async('text');
-      if (!opfContent) {
-        throw new Error('Invalid EPUB: OPF file not found');
-      }
-      
-      // Parse the OPF file to get metadata
-      const opfDoc = parser.parseFromString(opfContent, 'application/xml');
-      
-      // Get the book title
-      const titleElements = opfDoc.getElementsByTagName('dc:title');
-      const title = titleElements.length > 0 
-        ? titleElements[0].textContent || 'Unknown Title'
-        : 'Unknown Title';
-      
-      // Get the book author
-      const creatorElements = opfDoc.getElementsByTagName('dc:creator');
-      const author = creatorElements.length > 0
-        ? creatorElements[0].textContent || 'Unknown Author'
-        : 'Unknown Author';
-      
-      // Generate a unique ID
-      const id = Date.now().toString();
-      
-      // Find the cover image
-      let coverUrl = null;
-      let coverBlob: Blob | null = null;
-      const metaTags = opfDoc.getElementsByTagName('meta');
-      let coverId = '';
-      
-      // Try to find the cover ID
-      for (let i = 0; i < metaTags.length; i++) {
-        const meta = metaTags[i];
-        if (meta.getAttribute('name') === 'cover') {
-          coverId = meta.getAttribute('content') || '';
-          break;
-        }
-      }
-      
-      // If we found a cover ID, find the actual file
-      // If we found a cover ID, find the actual file
-      if (coverId) {
-        const items = opfDoc.getElementsByTagName('item');
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i];
-          if (item.getAttribute('id') === coverId) {
-            const href = item.getAttribute('href') || '';
-            // Get the directory of the OPF file to resolve relative paths
-            const opfDir = opfPath.substring(0, opfPath.lastIndexOf('/') + 1);
-            const coverPath = opfDir + href;
-            
-            // Get the cover image as a blob
-            const potentialCoverBlob = await content.file(coverPath)?.async('blob');
-            
-            // Only proceed if blob exists
-            if (potentialCoverBlob) {
-              // Convert blob to base64
-              coverUrl = await new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  resolve(reader.result as string);
-                };
-                reader.readAsDataURL(potentialCoverBlob);
-              });
-            }
-            break;
-          }
-        }
-      }
-      
-      // Create a new book object
-      const newBook: BookData = {
-        id,
-        title,
-        author,
-        coverUrl, // Now this is a base64 string or null
-        currentPage: 0,
-        totalPages: 0,
-        file,
-        lastRead: new Date().toISOString(),
-        lastChapter: undefined // Optional, can be omitted
-      };
-      
-      // Add the book to our library
-      setBooks(prevBooks => [...prevBooks, newBook]);
-      
-    } catch (error) {
-      console.error('Error processing EPUB file:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  //         // Check for local books that might have newer progress than cloud
+  //         currentBooks.forEach(localBook => {
+  //           const cloudMatchIndex = mergedBooks.findIndex(b => b.id === localBook.id);
 
-  // Remove a book from the library
-  const removeBook = async (bookId: string): Promise<void> => {
-    // Find the book to remove its cover URL
-    const book = books.find(b => b.id === bookId);
-    if (book && book.coverUrl) {
-      URL.revokeObjectURL(book.coverUrl);
-    }
-    
-    // Remove from localforage
-    try {
-      await localforage.removeItem(`book_metadata_${bookId}`);
-      await localforage.removeItem(`book_file_${bookId}`);
-    } catch (error) {
-      console.error('Error removing book from storage', error);
-    }
-    
-    // Remove from state
-    setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
-  };
+  //           if (cloudMatchIndex !== -1) {
+  //             const cloudBook = mergedBooks[cloudMatchIndex];
 
-  // // Open a book to read
-  // const openBook = async (book: BookData): Promise<void> => {
-  //   setIsLoading(true);
-  //   setBookTitle(book.title);
-  //   setBookAuthor(book.author);
-  //   setCurrentPage(book.currentPage || 0);
-  //   setCurrentBook(book);
-    
-  //   try {
-  //     // Load the epub file again
-  //     const zip = new JSZip();
-  //     const content = await zip.loadAsync(book.file);
-  //     setBookZip(content);
-      
-  //     // Find the container.xml file
-  //     const containerXml = await content.file('META-INF/container.xml')?.async('text');
-  //     if (!containerXml) {
-  //       throw new Error('Invalid EPUB: container.xml not found');
-  //     }
-      
-  //     // Parse the container.xml to find the OPF file
-  //     const parser = new DOMParser();
-  //     const containerDoc = parser.parseFromString(containerXml, 'application/xml');
-  //     const rootfiles = containerDoc.getElementsByTagName('rootfile');
-      
-  //     if (rootfiles.length === 0) {
-  //       throw new Error('Invalid EPUB: No rootfile found in container.xml');
-  //     }
-      
-  //     // Get the path to the OPF file
-  //     const opf = rootfiles[0].getAttribute('full-path') || '';
-  //     setOpfPath(opf);
-      
-  //     // Load the OPF file
-  //     const opfContent = await content.file(opf)?.async('text');
-  //     if (!opfContent) {
-  //       throw new Error('Invalid EPUB: OPF file not found');
-  //     }
-      
-  //     // Parse the OPF file
-  //     const opfDoc = parser.parseFromString(opfContent, 'application/xml');
-      
-  //     // Get the spine - this defines the reading order
-  //     const spine = opfDoc.getElementsByTagName('spine')[0];
-  //     const itemrefs = spine.getElementsByTagName('itemref');
-      
-  //     // Get the manifest - this maps IDs to file paths
-  //     const manifest = opfDoc.getElementsByTagName('manifest')[0];
-  //     const items = manifest.getElementsByTagName('item');
-      
-  //     // Map the spine items to their file paths
-  //     const fileOrder: string[] = [];
-  //     for (let i = 0; i < itemrefs.length; i++) {
-  //       const idref = itemrefs[i].getAttribute('idref');
-  //       for (let j = 0; j < items.length; j++) {
-  //         if (items[j].getAttribute('id') === idref) {
-  //           const href = items[j].getAttribute('href') || '';
-  //           // Get the directory of the OPF file to resolve relative paths
-  //           const opfDir = opf.substring(0, opf.lastIndexOf('/') + 1);
-  //           fileOrder.push(opfDir + href);
-  //           break;
-  //         }
-  //       }
-  //     }
-      
-  //     setHtmlFiles(fileOrder);
-  //     setTotalPages(fileOrder.length);
-      
-  //     // Extract table of contents (keep your existing TOC extraction logic)
-  //     // Extract table of contents
-  //     const extractToc = async (): Promise<TOCItem[]> => {
-  //       let tocPath = '';
-  //       let tocItems: TOCItem[] = [];
-  //       let tocFound = false;
-        
-  //       // Method 1: Check for nav document (EPUB3)
-  //       for (let i = 0; i < items.length; i++) {
-  //         const item = items[i];
-  //         const properties = item.getAttribute('properties');
-  //         if (properties && properties.includes('nav')) {
-  //           const href = item.getAttribute('href') || '';
-  //           const opfDir = opf.substring(0, opf.lastIndexOf('/') + 1);
-  //           tocPath = opfDir + href;
-            
-  //           try {
-  //             const tocContent = await content.file(tocPath)?.async('text');
-  //             if (tocContent) {
-  //               const tocDoc = parser.parseFromString(tocContent, 'text/html');
-  //               const navs = tocDoc.getElementsByTagName('nav');
-                
-  //               for (let i = 0; i < navs.length; i++) {
-  //                 const nav = navs[i];
-  //                 const type = nav.getAttribute('epub:type');
-  //                 if (type === 'toc') {
-  //                   const ol = nav.getElementsByTagName('ol')[0];
-  //                   if (ol) {
-  //                     const parseTocItems = (ol: Element): TOCItem[] => {
-  //                       const items: TOCItem[] = [];
-  //                       const lis = ol.getElementsByTagName('li');
-                        
-  //                       for (let j = 0; j < lis.length; j++) {
-  //                         const li = lis[j];
-  //                         const a = li.getElementsByTagName('a')[0];
-  //                         if (a) {
-  //                           const href = a.getAttribute('href') || '';
-  //                           const label = a.textContent || '';
-  //                           const id = `toc-${j}`;
-                            
-  //                           const item: TOCItem = {
-  //                             id,
-  //                             href,
-  //                             label,
-  //                             children: []
-  //                           };
-                            
-  //                           const nestedOl = li.getElementsByTagName('ol')[0];
-  //                           if (nestedOl) {
-  //                             item.children = parseTocItems(nestedOl);
-  //                           }
-                            
-  //                           items.push(item);
-  //                         }
-  //                       }
-                        
-  //                       return items;
-  //                     };
-                      
-  //                     tocItems = parseTocItems(ol);
-  //                     tocFound = true;
-  //                     break;
-  //                   }
-  //                 }
-  //               }
+  //             // Compare timestamps if available
+  //             const localTime = localBook.lastRead ? new Date(localBook.lastRead).getTime() : 0;
+  //             const cloudTime = cloudBook.lastRead ? new Date(cloudBook.lastRead).getTime() : 0;
+
+  //             // If local is significantly newer (e.g. > 5 seconds difference to avoid clock skew)
+  //             // OR if local has further progress (and timestamps are close/missing)
+  //             const isLocalNewer = localTime > cloudTime + 5000;
+  //             const isLocalAhead = localBook.currentPage > cloudBook.currentPage;
+
+  //             if (isLocalNewer || (Math.abs(localTime - cloudTime) < 5000 && isLocalAhead)) {
+  //               console.log(`[BookContext] Keeping local progress for "${localBook.title}" (Local: pg ${localBook.currentPage}, Cloud: pg ${cloudBook.currentPage})`);
+  //               // Keep the local version's progress data but allow other metadata updates from cloud if needed
+  //               mergedBooks[cloudMatchIndex] = {
+  //                 ...cloudBook, // Base on cloud book (for URLs, etc)
+  //                 ...localBook, // Overwrite with local progress
+  //                 // Ensure file/cover URLs are valid (cloud URLs might be fresher/signed)
+  //                 // If local has blob URL and cloud has http URL, we might want to keep cloud URL 
+  //                 // UNLESS we are currently reading it.
+  //                 // For simplicity, we assume local state is the source of truth for reading position.
+  //               };
+  //               hasMergeChanges = true;
   //             }
-  //           } catch (error) {
-  //             console.error("Error parsing EPUB3 nav document:", error);
-  //           }
-            
-  //           break;
-  //         }
-  //       }
-
-
-  // Open a book to read
-  const openBook = async (book: BookData): Promise<void> => {
-    setIsLoading(true);
-    setBookTitle(book.title);
-    setBookAuthor(book.author);
-    setCurrentPage(book.currentPage || 0);
-    setCurrentBook(book);
-    
-    try {
-      // Load the epub file again
-      const zip = new JSZip();
-      const content = await zip.loadAsync(book.file);
-      setBookZip(content);
-      
-      // Find the container.xml file
-      const containerXml = await content.file('META-INF/container.xml')?.async('text');
-      if (!containerXml) {
-        throw new Error('Invalid EPUB: container.xml not found');
-      }
-      
-      // Parse the container.xml to find the OPF file
-      const parser = new DOMParser();
-      const containerDoc = parser.parseFromString(containerXml, 'application/xml');
-      const rootfiles = containerDoc.getElementsByTagName('rootfile');
-      
-      if (rootfiles.length === 0) {
-        throw new Error('Invalid EPUB: No rootfile found in container.xml');
-      }
-      
-      // Get the path to the OPF file
-      const opf = rootfiles[0].getAttribute('full-path') || '';
-      setOpfPath(opf);
-      
-      // Load the OPF file
-      const opfContent = await content.file(opf)?.async('text');
-      if (!opfContent) {
-        throw new Error('Invalid EPUB: OPF file not found');
-      }
-      
-      // Parse the OPF file
-      const opfDoc = parser.parseFromString(opfContent, 'application/xml');
-      
-      // Get the spine - this defines the reading order
-      const spine = opfDoc.getElementsByTagName('spine')[0];
-      const itemrefs = spine.getElementsByTagName('itemref');
-      
-      // Get the manifest - this maps IDs to file paths
-      const manifest = opfDoc.getElementsByTagName('manifest')[0];
-      const items = manifest.getElementsByTagName('item');
-      
-      // Map the spine items to their file paths
-      const fileOrder: string[] = [];
-      for (let i = 0; i < itemrefs.length; i++) {
-        const idref = itemrefs[i].getAttribute('idref');
-        for (let j = 0; j < items.length; j++) {
-          if (items[j].getAttribute('id') === idref) {
-            const href = items[j].getAttribute('href') || '';
-            // Get the directory of the OPF file to resolve relative paths
-            const opfDir = opf.substring(0, opf.lastIndexOf('/') + 1);
-            fileOrder.push(opfDir + href);
-            break;
-          }
-        }
-      }
-      
-      // Set the HTML files array
-      setHtmlFiles(fileOrder);
-      setTotalPages(fileOrder.length);
-      
-      // Extract table of contents
-      const extractToc = async (): Promise<TOCItem[]> => {
-        // Existing TOC extraction code ...
-        // (keeping the implementation the same)
-        let tocPath = '';
-        let tocItems: TOCItem[] = [];
-        let tocFound = false;
-        
-        // Method 1: Check for nav document (EPUB3)
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i];
-          const properties = item.getAttribute('properties');
-          if (properties && properties.includes('nav')) {
-            const href = item.getAttribute('href') || '';
-            const opfDir = opf.substring(0, opf.lastIndexOf('/') + 1);
-            tocPath = opfDir + href;
-            
-            try {
-              const tocContent = await content.file(tocPath)?.async('text');
-              if (tocContent) {
-                const tocDoc = parser.parseFromString(tocContent, 'text/html');
-                const navs = tocDoc.getElementsByTagName('nav');
-                
-                for (let i = 0; i < navs.length; i++) {
-                  const nav = navs[i];
-                  const type = nav.getAttribute('epub:type');
-                  if (type === 'toc') {
-                    const ol = nav.getElementsByTagName('ol')[0];
-                    if (ol) {
-                      const parseTocItems = (ol: Element): TOCItem[] => {
-                        const items: TOCItem[] = [];
-                        const lis = ol.getElementsByTagName('li');
-                        
-                        for (let j = 0; j < lis.length; j++) {
-                          const li = lis[j];
-                          const a = li.getElementsByTagName('a')[0];
-                          if (a) {
-                            const href = a.getAttribute('href') || '';
-                            const label = a.textContent || '';
-                            const id = `toc-${j}`;
-                            
-                            const item: TOCItem = {
-                              id,
-                              href,
-                              label,
-                              children: []
-                            };
-                            
-                            const nestedOl = li.getElementsByTagName('ol')[0];
-                            if (nestedOl) {
-                              item.children = parseTocItems(nestedOl);
-                            }
-                            
-                            items.push(item);
-                          }
-                        }
-                        
-                        return items;
-                      };
-                      
-                      tocItems = parseTocItems(ol);
-                      tocFound = true;
-                      break;
-                    }
-                  }
-                }
-              }
-            } catch (error) {
-              console.error("Error parsing EPUB3 nav document:", error);
-            }
-            
-            break;
-          }
-        }
-        
-        // Method 2: Check for NCX file (EPUB2)
-        if (!tocFound) {
-          const tocAttr = spine.getAttribute('toc');
-          if (tocAttr) {
-            for (let i = 0; i < items.length; i++) {
-              const item = items[i];
-              if (item.getAttribute('id') === tocAttr) {
-                const href = item.getAttribute('href') || '';
-                const opfDir = opf.substring(0, opf.lastIndexOf('/') + 1);
-                tocPath = opfDir + href;
-                break;
-              }
-            }
-          } else {
-            // Try media-type approach
-            for (let i = 0; i < items.length; i++) {
-              const item = items[i];
-              if (item.getAttribute('media-type') === 'application/x-dtbncx+xml') {
-                const href = item.getAttribute('href') || '';
-                const opfDir = opf.substring(0, opf.lastIndexOf('/') + 1);
-                tocPath = opfDir + href;
-                break;
-              }
-            }
-          }
-          
-          if (tocPath) {
-            try {
-              const ncxContent = await content.file(tocPath)?.async('text');
-              if (ncxContent) {
-                const ncxDoc = parser.parseFromString(ncxContent, 'application/xml');
-                const navPoints = ncxDoc.getElementsByTagName('navPoint');
-                
-                if (navPoints.length > 0) {
-                  const processNavPoint = (navPoint: Element, index: number): TOCItem => {
-                    const navLabel = navPoint.getElementsByTagName('navLabel')[0];
-                    const text = navLabel?.getElementsByTagName('text')[0]?.textContent || '';
-                    const content = navPoint.getElementsByTagName('content')[0];
-                    const src = content?.getAttribute('src') || '';
-                    
-                    return {
-                      id: `toc-${index}`,
-                      label: text,
-                      href: src,
-                      children: []
-                    };
-                  };
-                  
-                  // Create all items
-                  const tempItems: TOCItem[] = [];
-                  const navPointMap = new Map<string, TOCItem>();
-                  
-                  for (let i = 0; i < navPoints.length; i++) {
-                    const navPoint = navPoints[i];
-                    const id = navPoint.getAttribute('id') || '';
-                    const item = processNavPoint(navPoint, i);
-                    navPointMap.set(id, item);
-                    tempItems.push(item);
-                  }
-                  
-                  // Build hierarchy
-                  for (let i = 0; i < navPoints.length; i++) {
-                    const navPoint = navPoints[i];
-                    const id = navPoint.getAttribute('id') || '';
-                    const parentNode = navPoint.parentNode as Element;
-                    
-                    if (parentNode && parentNode.nodeName === 'navPoint') {
-                      const parentId = parentNode.getAttribute('id') || '';
-                      const parentItem = navPointMap.get(parentId);
-                      const childItem = navPointMap.get(id);
-                      
-                      if (parentItem && childItem) {
-                        parentItem.children.push(childItem);
-                        // Remove from top level
-                        const index = tempItems.findIndex(item => item.id === childItem.id);
-                        if (index !== -1) {
-                          tempItems.splice(index, 1);
-                        }
-                      }
-                    }
-                  }
-                  
-                  tocItems = tempItems;
-                  tocFound = true;
-                }
-              }
-            } catch (error) {
-              console.error("Error parsing EPUB2 NCX file:", error);
-            }
-          }
-        }
-        
-      //   // Method 3: Create from spine if no TOC found
-      //   if (!tocFound) {
-      //     for (let i = 0; i < fileOrder.length; i++) {
-      //       const filePath = fileOrder[i];
-      //       const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
-      //       const label = fileName.replace(/\.x?html?$/, '').replace(/[-_]/g, ' ');
-            
-      //       tocItems.push({
-      //         id: `toc-${i}`,
-      //         label: label.charAt(0).toUpperCase() + label.slice(1), // Capitalize first letter
-      //         href: filePath.substring(opf.substring(0, opf.lastIndexOf('/') + 1).length),
-      //         children: []
-      //       });
-      //     }
-      //   }
-        
-      //   return tocItems;
-      // };
-
-
-      // Method 3: Create from spine if no TOC found
-      if (!tocFound) {
-          for (let i = 0; i < fileOrder.length; i++) {
-            const filePath = fileOrder[i];
-            const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
-            const label = fileName.replace(/\.x?html?$/, '').replace(/[-_]/g, ' ');
-            
-            tocItems.push({
-              id: `toc-${i}`,
-              label: label.charAt(0).toUpperCase() + label.slice(1), // Capitalize first letter
-              href: filePath.substring(opf.substring(0, opf.lastIndexOf('/') + 1).length),
-              children: []
-            });
-          }
-        }
-        
-        return tocItems;
-      };
-      
-      // Set the TOC
-      const tocItems = await extractToc();
-      setToc(tocItems);
-      
-      // // // // Load the first HTML file
-      // if (fileOrder.length > 0) {
-      //   await loadPage(book.currentPage || 0);
-      // } else {
-      //   throw new Error('No HTML files found in the EPUB');
-      // }
-
-
-
-      // // Update the last read date for this book
-      // // setBooks(prevBooks => 
-      // //   prevBooks.map(b => 
-      // //     b.id === book.id 
-      // //       ? { ...b, lastRead: new Date().toISOString() } 
-      // //       : b
-      // //   )
-      // // );
-
-      //     // Determine the page to load
-      // let pageToLoad = book.currentPage || 0;
-
-      //   // If there's a last chapter, find its corresponding page
-      //   if (book.lastChapter) {
-      //     const chapterIndex = toc.findIndex(item => 
-      //       item.id === book.lastChapter?.id
-      //     );
-
-      //     if (chapterIndex !== -1) {
-      //       // Find the first page that matches the chapter's file
-      //       const chapterFilePath = book.lastChapter?.href.split('#')[0];
-      //       const pageIndex = htmlFiles.findIndex(file => 
-      //         file.endsWith(chapterFilePath || '')
-      //       );
-
-      //       if (pageIndex !== -1) {
-      //         pageToLoad = pageIndex;
-      //       }
-      //     }
-      //   }
-
-      //   // Load the appropriate page
-      //   if (htmlFiles.length > 0) {
-      //     await loadPage(pageToLoad);
-      // } else {
-      //     throw new Error('No HTML files found in the EPUB');
-      // }
-
-          // CHECK HERE: We need to check fileOrder directly, not htmlFiles
-      if (fileOrder.length > 0) {
-        // Determine the page to load
-        let pageToLoad = book.currentPage || 0;
-
-        // If there's a last chapter, find its corresponding page
-        if (book.lastChapter) {
-          const chapterIndex = tocItems.findIndex(item => 
-            item.id === book.lastChapter?.id
-          );
-
-          if (chapterIndex !== -1) {
-            // Find the first page that matches the chapter's file
-            const chapterFilePath = book.lastChapter?.href.split('#')[0];
-            const pageIndex = fileOrder.findIndex(file => 
-              file.endsWith(chapterFilePath || '')
-            );
-
-            if (pageIndex !== -1) {
-              pageToLoad = pageIndex;
-            }
-          }
-        }
-
-        // Load the appropriate page using fileOrder directly
-        await loadPage(pageToLoad);
-      } else {
-        throw new Error('No HTML files found in the EPUB');
-      }
-
-
-      // Update the last read date and last chapter for this book
-      // Update the last read date and last chapter for this book
-      // setBooks(prevBooks => 
-      //   prevBooks.map(b => 
-      //     b.id === book.id 
-      //       ? { 
-      //           ...b, 
-      //           lastRead: new Date().toISOString(),
-      //           lastChapter: toc.length > 0 ? findChapterForPage(book.currentPage || 0) : undefined
-      //         } as BookData
-      //       : b
-      //   )
-      // );
-
-
-          // Update the last read date and last chapter for this book
-      setBooks(prevBooks => 
-        prevBooks.map(b => 
-          b.id === book.id 
-            ? { 
-                ...b, 
-                lastRead: new Date().toISOString(),
-                lastChapter: tocItems.length > 0 ? findChapterForPage(book.currentPage || 0) : undefined
-              } as BookData
-            : b
-        )
-      );
-      
-      // Switch to reading view
-      setIsReading(true);
-    } catch (error) {
-      console.error('Error opening EPUB file:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-
-  // Helper function to find the chapter for a given page
-  const findChapterForPage = (pageIndex: number): TOCItem | null => {
-    // Find the TOC item that corresponds to this page
-    for (let i = 0; i < toc.length; i++) {
-      const tocItem = toc[i];
-      
-      // Try to find the file path in the TOC item
-      const itemFilePath = tocItem.href.split('#')[0];
-      
-      // Check if the current page's file matches the TOC item's file
-      if (htmlFiles[pageIndex].endsWith(itemFilePath)) {
-        return tocItem;
-      }
-    }
-    
-    return null;
-  };
-
-  // // Load a specific page
-  // const loadPage = async (pageIndex: number): Promise<void> => {
-  //   if (!bookZip || pageIndex < 0 || pageIndex >= htmlFiles.length) {
-  //     return;
-  //   }
-    
-  //   try {
-  //     // Load the HTML content
-  //     const htmlContent = await bookZip.file(htmlFiles[pageIndex])?.async('text');
-  //     if (!htmlContent) {
-  //       throw new Error(`Could not load page ${pageIndex}`);
-  //     }
-      
-  //     // Get the directory of the HTML file to resolve relative paths
-  //     const fileDir = getDirectoryPath(htmlFiles[pageIndex]);
-      
-  //     // Process the HTML to fix relative paths
-  //     const processedHtml = processHtmlContent(htmlContent, fileDir);
-      
-  //     setCurrentContent(processedHtml);
-  //     setCurrentPage(pageIndex);
-    
-  //     // Extract text for SimplePlayMode
-  //     const extractedText = extractTextFromHtml(processedHtml);
-  //     setCurrentPageText(extractedText);
-
-  //     // Find the corresponding TOC item for this page
-  //     const currentChapter = findChapterForPage(pageIndex);
-
-  //     // // Update the current page in the books array
-  //     // if (currentBook) {
-  //     //   setBooks(prevBooks => 
-  //     //     prevBooks.map(b => 
-  //     //       b.id === currentBook.id 
-  //     //         ? { ...b, currentPage: pageIndex } 
-  //     //         : b
-  //     //     )
-  //     //   );
-  //     // }
-
-
-  //     // Update the current page in the books array
-  //     if (currentBook) {
-  //       setBooks(prevBooks => 
-  //         prevBooks.map(b => 
-  //           b.id === currentBook.id 
-  //             ? { 
-  //                 ...b, 
-  //                 currentPage: pageIndex,
-  //                 lastChapter: currentChapter // Save the current chapter
-  //               } 
-  //             : b
-  //         )
-  //       );
-  //     }
-        
-  //     // After rendering the content, load any images
-  //     setTimeout(() => {
-  //       const content = document.querySelector('.epub-content');
-  //       if (content) {
-  //         const images = content.querySelectorAll('img[src^="data:image/png;base64,IMAGE_PLACEHOLDER_"]');
-  //         images.forEach(async (img: Element) => {
-  //           const src = (img as HTMLImageElement).src;
-  //           const imagePath = src.replace('data:image/png;base64,IMAGE_PLACEHOLDER_', '');
-            
-  //           try {
-  //             const imageBlob = await bookZip.file(imagePath)?.async('blob');
-  //             if (imageBlob) {
-  //               const imageUrl = URL.createObjectURL(imageBlob);
-  //               (img as HTMLImageElement).src = imageUrl;
+  //           } else {
+  //             // Book exists locally but returned by sync (meaning it's not in cloud OR sync failed to return it)
+  //             // If it has a file object (newly uploaded), keep it.
+  //             if (localBook.file || localBook.coverUrl?.startsWith('blob:')) {
+  //                console.log(`[BookContext] Preserving local-only book "${localBook.title}" (pending sync?)`);
+  //                mergedBooks.push(localBook);
+  //                hasMergeChanges = true;
   //             }
-  //           } catch (error) {
-  //             console.error(`Error loading image: ${imagePath}`, error);
   //           }
   //         });
-          
-  //         const links = content.querySelectorAll('link[href^="data:text/css;base64,CSS_PLACEHOLDER_"]');
-  //         links.forEach(async (link: Element) => {
-  //           const href = (link as HTMLLinkElement).href;
-  //           const cssPath = href.replace('data:text/css;base64,CSS_PLACEHOLDER_', '');
-            
-  //           try {
-  //             const cssContent = await bookZip.file(cssPath)?.async('text');
-  //             if (cssContent) {
-  //               // Create a new style element with the CSS content
-  //               const style = document.createElement('style');
-  //               style.textContent = cssContent;
-  //               link.parentNode?.replaceChild(style, link);
-  //             }
-  //           } catch (error) {
-  //             console.error(`Error loading CSS: ${cssPath}`, error);
-  //           }
-  //         });
-  //       }
-  //     }, 100);
-      
-  //   } catch (error) {
-  //     console.error('Error loading page:', error);
-  //     throw error;
+
+  //         // Thoroughly check if books changed (including progress/page)
+  //         const finalBooks = hasMergeChanges ? mergedBooks : cloudBooks;
+
+  //         const booksChanged =
+  //           finalBooks.length !== currentBooks.length ||
+  //           finalBooks.some((b, i) =>
+  //             b.id !== currentBooks[i]?.id ||
+  //             b.currentPage !== currentBooks[i]?.currentPage ||
+  //             b.progress !== currentBooks[i]?.progress ||
+  //             b.lastRead !== currentBooks[i]?.lastRead
+  //           );
+
+  //         if (booksChanged) {
+  //           console.log('[BookContext] Books changed after sync/merge, updating state');
+  //           setBooks(finalBooks);
+  //         } else {
+  //           console.log('[BookContext] No changes after sync, skipping update');
+  //         }
+  //       })
+  //       .catch(error => {
+  //         console.error('[BookContext] Sync error:', error);
+  //         // Reset sync flag on error so it can retry
+  //         syncHasRunRef.current = null;
+  //       });
   //   }
-  // };
+
+  //   // Reset sync flag when user changes (signs out or different user signs in)
+  //   if (!isAuthenticated || !userId) {
+  //     syncHasRunRef.current = null;
+  //   }
+  // }, [isAuthenticated, userId, isInitialLoadComplete, syncBooks, setBooks]);
 
 
-  // Load a specific page
-  const loadPage = async (pageIndex: number): Promise<void> => {
-    // console.log('Loading page:', {
-    //   pageIndex,
-    //   bookZipExists: !!bookZip,
-    //   htmlFilesLength: htmlFiles.length
-    // });
 
-    // if (!bookZip || pageIndex < 0 || pageIndex >= htmlFiles.length) {
-    //   console.error('Invalid page load conditions');
-    //   return;
-    // }
+  // Trigger sync when user signs in and initial load completes
+  // Cloud sync is disabled in local mode.
+  // The useEffect that previously triggered syncBooks has been removed.
 
-    console.log('Loading page:', {
-      pageIndex,
-      bookZipExists: !!bookZip,
-      htmlFilesLength: htmlFiles.length
-    });
-  
-    if (!bookZip || pageIndex < 0 || pageIndex >= htmlFiles.length) {
-      console.error('Invalid page load conditions', {
-        bookZipExists: !!bookZip,
-        pageIndex,
-        htmlFilesLength: htmlFiles.length
-      });
+
+
+  // =================================================================
+
+  // Phase 3: Cleanup - removed commented code and duplicate functions
+  // All storage, sync, and library operations are now handled by hooks
+
+  // Use library hook for addBook
+  const addBook = addBookToLibrary;
+
+  // Import Service (would normally be at top, but for replacing context logic)
+  // Dynamically imported inside callback or assumed available if imported at top.
+  // We will assume I should add the import at the top in a separate step or just use it here if I imported it.
+  // Actually, I need to add the import first.
+
+
+
+
+
+  const loadPageCallback = useCallback(async (
+    pageIdxToLoad: number,
+    zipToUse: any,
+    filesInOrder: string[],
+    currentBookRef: BookData | null,
+    currentTocRef: TOCItem[]
+  ) => {
+    // console.log(`[loadPageCallback ENTER] pageIdxToLoad: ${pageIdxToLoad}`);
+    if (!zipToUse || !filesInOrder || filesInOrder.length === 0 || pageIdxToLoad < 0 || pageIdxToLoad >= filesInOrder.length) {
+      console.error(`[loadPageCallback ABORT] Invalid conditions`);
+      setCurrentContent('<div>Error: Could not load page.</div>');
+      setCurrentPageText('');
+      setIsPageLoading(false);
       return;
     }
-    
+
+    setIsPageLoading(true);
     try {
-      // Load the HTML content
-      const htmlContent = await bookZip.file(htmlFiles[pageIndex])?.async('text');
-      console.log('HTML Content:', {
-        contentLength: htmlContent?.length,
-        filePath: htmlFiles[pageIndex]
-      });
+      const filePath = filesInOrder[pageIdxToLoad];
 
-      if (!htmlContent) {
-        throw new Error(`Could not load page ${pageIndex}`);
-      }
-      
-      // Get the directory of the HTML file to resolve relative paths
-      const fileDir = getDirectoryPath(htmlFiles[pageIndex]);
-      
-      // Process the HTML to fix relative paths
-      const processedHtml = processHtmlContent(htmlContent, fileDir);
-      
-      console.log('Processed HTML:', {
-        length: processedHtml.length,
-        firstChars: processedHtml.slice(0, 200)
-      });
+      // Use the new Service to load content
+      // Note: We need to import BookContentService. 
+      // Since I cannot add imports easily in this chunk, I will use a dynamic import or assume it's imported.
+      // Better strategy: I will add the import in a separate step. Here I write the logic assuming it exists.
+      const { BookContentService } = await import('../services/books/BookContentService');
 
-      // Ensure content is not empty
-      if (!processedHtml.trim()) {
-        console.warn('Processed HTML is empty');
-      }
-      
-      // Set the content
-      setCurrentContent(processedHtml);
-      setCurrentPage(pageIndex);
-    
-      // Extract text for SimplePlayMode
-      const extractedText = extractTextFromHtml(processedHtml);
-      setCurrentPageText(extractedText);
+      const { displayContent, text } = await BookContentService.loadPage(zipToUse, filePath);
 
-      console.log('Extracted Text:', {
-        length: extractedText.length,
-        firstChars: extractedText.slice(0, 200)
-      });
+      console.log(`[loadPageCallback] Page loaded via Service: ${filePath}`);
 
-      // Find the corresponding TOC item for this page
-      const currentChapter = findChapterForPage(pageIndex);
+      setCurrentContent(displayContent); // Use deep cleaned content for display
+      setCurrentPageDisplay(pageIdxToLoad);
+      setCurrentPageText(text);
 
-      // Update the current page in the books array
-      if (currentBook) {
-        setBooks(prevBooks => 
-          prevBooks.map(b => 
-            b.id === currentBook.id 
-              ? { 
-                  ...b, 
-                  currentPage: pageIndex,
-                  lastChapter: currentChapter // Save the current chapter
-                } 
-              : b
+      if (currentBookRef) {
+        const chapterForPage = findChapterForPage(pageIdxToLoad, currentTocRef, filesInOrder);
+        const progress = calculateProgress(pageIdxToLoad, filesInOrder.length);
+        const nextRevision = (currentBookRef.revision || 0) + 1;
+
+        setBooks(prevBooks =>
+          prevBooks.map(b =>
+            b.id === currentBookRef.id ? {
+              ...b,
+              currentPage: pageIdxToLoad,
+              lastChapter: chapterForPage,
+              progress,
+              lastRead: new Date().toISOString(),
+              revision: nextRevision
+            } : b
           )
         );
+
+        syncProgressToCloud(currentBookRef.id, pageIdxToLoad, chapterForPage, progress, nextRevision);
       }
-          
-      // After rendering the content, load any images
-      setTimeout(() => {
-        const content = document.querySelector('.epub-content');
-        console.log('Content Element:', !!content);
 
-        if (content) {
-          // Explicitly set innerHTML
-          content.innerHTML = processedHtml;
-
-          const images = content.querySelectorAll('img[src^="data:image/png;base64,IMAGE_PLACEHOLDER_"]');
-          images.forEach(async (img: Element) => {
-            const src = (img as HTMLImageElement).src;
-            const imagePath = src.replace('data:image/png;base64,IMAGE_PLACEHOLDER_', '');
-            
-            try {
-              const imageBlob = await bookZip.file(imagePath)?.async('blob');
-              if (imageBlob) {
-                const imageUrl = URL.createObjectURL(imageBlob);
-                (img as HTMLImageElement).src = imageUrl;
-              }
-            } catch (error) {
-              console.error(`Error loading image: ${imagePath}`, error);
-            }
-          });
-          
-          const links = content.querySelectorAll('link[href^="data:text/css;base64,CSS_PLACEHOLDER_"]');
-          links.forEach(async (link: Element) => {
-            const href = (link as HTMLLinkElement).href;
-            const cssPath = href.replace('data:text/css;base64,CSS_PLACEHOLDER_', '');
-            
-            try {
-              const cssContent = await bookZip.file(cssPath)?.async('text');
-              if (cssContent) {
-                // Create a new style element with the CSS content
-                const style = document.createElement('style');
-                style.textContent = cssContent;
-                link.parentNode?.replaceChild(style, link);
-              }
-            } catch (error) {
-              console.error(`Error loading CSS: ${cssPath}`, error);
-            }
-          });
+      // Process images/CSS (Visuals)
+      // We can use the service helper or keep the simpler logic here if the service helper requires DOM elements
+      setTimeout(async () => {
+        const contentElement = document.querySelector('.epub-content') as HTMLElement;
+        if (contentElement) {
+          const { BookContentService } = await import('../services/books/BookContentService');
+          // Load CSS
+          await BookContentService.loadCssResources(zipToUse, contentElement);
+          // Load Images
+          await BookContentService.loadImages(zipToUse, contentElement);
         }
-      }, 100);
-      
+      }, 50);
+
     } catch (error) {
-      console.error('Error loading page:', error);
-      throw error;
+      console.error('[loadPageCallback ERROR]', error);
+      setCurrentContent(`<div>Error loading page: ${(error as Error).message}</div>`);
+      setCurrentPageText('');
+    } finally {
+      setIsPageLoading(false);
     }
-  };
+  }, [isAuthenticated, userId, syncProgressToCloud]);
 
-  // Navigate to the next page
-  const nextPage = (): void => {
-    if (currentPage < totalPages - 1) {
-      loadPage(currentPage + 1);
-    }
-  };
+  useEffect(() => { /* useEffect for Page Loading - supports adapter sessions */
+    console.log('[useEffect PageLoad] Triggered. States:', {
+      currentBookName: currentBook?.title, bookZipExists: !!bookZip, htmlFilesCount: htmlFiles.length,
+      currentPageToLoad, tocCount: toc.length, isReading
+    });
+    const session = currentAdapterSessionRef.current;
+    const useAdapter = !!(session && currentBook && session.bookId === currentBook.id && session.adapterId !== 'epub');
+    if (isReading && currentBook && htmlFiles && htmlFiles.length > 0 &&
+      currentPageToLoad >= 0 && currentPageToLoad < htmlFiles.length) {
+      if (useAdapter && session) {
+        (async () => {
+          try {
+            setIsPageLoading(true);
+            const { html, text } = await session.loadPage(currentPageToLoad);
+            setCurrentContent(html);
+            setCurrentPageDisplay(currentPageToLoad);
+            setCurrentPageText(text);
+            const chapterForPage = findChapterForPage(currentPageToLoad, toc, htmlFiles);
+            const progress = calculateProgress(currentPageToLoad, htmlFiles.length);
+            const nextRevision = (currentBook.revision || 0) + 1;
 
-  // Navigate to the previous page
-  const prevPage = (): void => {
-    if (currentPage > 0) {
-      loadPage(currentPage - 1);
-    }
-  };
-
-  // Navigate to a specific TOC item
-  const navigateToTocItem = (item: TOCItem): void => {
-    // Handle fragment-only hrefs
-    if (item.href.startsWith('#')) {
-      const fragment = item.href.substring(1);
-      const element = document.getElementById(fragment);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-      }
-      return;
-    }
-    
-    // Split to get file path and optional fragment
-    let [filePath, fragment] = item.href.split('#');
-    
-    // Remove any query parameters
-    filePath = filePath.split('?')[0];
-    
-    // Normalize the path (handle ../ and ./)
-    const opfDir = getDirectoryPath(opfPath);
-    
-    // Try multiple approaches to find the correct file
-    let fileIndex = htmlFiles.findIndex(file => file.endsWith(filePath));
-    
-    // Try with the OPF directory
-    if (fileIndex === -1 && !filePath.startsWith('/')) {
-      const fullPath = opfDir + filePath;
-      fileIndex = htmlFiles.findIndex(file => file === fullPath);
-    }
-    
-    // Try resolving relative paths
-    if (fileIndex === -1) {
-      const resolvedPath = resolveRelativePath(opfDir, filePath);
-      fileIndex = htmlFiles.findIndex(file => file === resolvedPath);
-    }
-    
-    // Just match the filename
-    if (fileIndex === -1) {
-      const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
-      fileIndex = htmlFiles.findIndex(file => file.endsWith('/' + fileName));
-    }
-    
-    if (fileIndex !== -1) {
-      loadPage(fileIndex);
-      
-      // If there's a fragment, scroll to it after loading
-      if (fragment) {
-        setTimeout(() => {
-          const element = document.getElementById(fragment);
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth' });
+            setBooks(prevBooks =>
+              prevBooks.map(b =>
+                b.id === currentBook.id ? {
+                  ...b,
+                  currentPage: currentPageToLoad,
+                  lastChapter: chapterForPage,
+                  progress,
+                  lastRead: new Date().toISOString(),
+                  revision: nextRevision
+                } : b
+              )
+            );
+            // Phase 2: Sync progress to cloud using hook
+            syncProgressToCloud(currentBook.id, currentPageToLoad, chapterForPage, progress, nextRevision);
+          } catch (e) {
+            console.error('[useEffect PageLoad Adapter ERROR]', e);
+            setCurrentContent(`<div>Error loading page: ${(e as Error).message}</div>`);
+            setCurrentPageText('');
+          } finally {
+            setIsPageLoading(false);
           }
-        }, 300);
+        })();
+      } else if (bookZip) {
+        console.log('[useEffect PageLoad] Conditions MET. Calling loadPageCallback.');
+        loadPageCallback(currentPageToLoad, bookZip, htmlFiles, currentBook, toc);
+      } else {
+        console.log('[useEffect PageLoad] No adapter session and no EPUB zip available.');
       }
+    } else {
+      console.log('[useEffect PageLoad] Conditions NOT MET or book not in reading state.');
+      if (!currentBook || !isReading) {
+        setCurrentContent(''); setCurrentPageText(''); setCurrentPageDisplay(0);
+        console.log('[useEffect PageLoad] Cleaned up content for closed/non-reading book.');
+      } else {
+        console.log('[useEffect PageLoad] Book open but other conditions failed.');
+      }
+    }
+  }, [currentBook, bookZip, htmlFiles, currentPageToLoad, loadPageCallback, toc, isReading]);
+
+  // Phase 3: Use library hook for removeBook with cloud cleanup
+  const removeBook = async (bookId: string): Promise<void> => {
+    // Remove from local state using library hook
+    await removeBookFromLibrary(bookId);
+
+    // Remove from cloud if user is signed in
+    if (isAuthenticated && userId) {
+      await removeBookFromCloud(bookId);
     }
   };
 
-  // Close the book and return to the library
-  const closeBook = (): void => {
-    // Reset all book state
-    setCurrentBook(null);
-    setBookZip(null);
-    setOpfPath('');
-    setHtmlFiles([]);
-    setToc([]);
-    setCurrentContent('');
-    setIsReading(false);
-    setBookTitle('');
-    setBookAuthor('');
-    setIsPlayModeVisible(false);
-    setCurrentPageText('');
+  const extractTocFromEntries = useCallback(async ( /* Unchanged */
+    zip: any, manifestItems: HTMLCollectionOf<Element>, spineElement: Element | null,
+    opfFileDirVal: string, xmlParser: DOMParser, fileOrderList: string[]
+  ): Promise<TOCItem[]> => {
+    let tocPath = ''; let tocItems: TOCItem[] = []; let tocFound = false;
+    const opfFileDir = opfFileDirVal;
+    for (let i = 0; i < manifestItems.length; i++) {
+      const item = manifestItems[i];
+      const properties = item.getAttribute('properties');
+      if (properties && properties.includes('nav')) {
+        const href = item.getAttribute('href');
+        if (href) {
+          tocPath = resolveRelativePath(opfFileDir, href);
+          try {
+            const navContent = await zip.file(tocPath)?.async('text');
+            if (navContent) {
+              const navDoc = xmlParser.parseFromString(navContent, 'application/xhtml+xml');
+              const navElements = navDoc.getElementsByTagName('nav');
+              for (let k = 0; k < navElements.length; k++) {
+                if (navElements[k].getAttribute('epub:type') === 'toc') {
+                  const ol = navElements[k].getElementsByTagName('ol')[0];
+                  if (ol) {
+                    const parseNavOl = (element: Element, currentNavDocPath: string): TOCItem[] => {
+                      const children: TOCItem[] = [];
+                      const listItems = Array.from(element.childNodes).filter(n => n.nodeName === 'li') as Element[];
+                      listItems.forEach((li, index) => {
+                        const anchor = li.getElementsByTagName('a')[0];
+                        if (anchor) {
+                          const tocHref = anchor.getAttribute('href') || '';
+                          const resolvedHref = resolveRelativePath(getDirectoryPath(currentNavDocPath), tocHref);
+                          const childItem: TOCItem = {
+                            id: `toc-nav-${resolvedHref}-${index}`,
+                            label: anchor.textContent?.trim() || 'Untitled',
+                            href: resolvedHref, children: [],
+                          };
+                          const nestedOl = li.getElementsByTagName('ol')[0];
+                          if (nestedOl) childItem.children = parseNavOl(nestedOl, currentNavDocPath);
+                          children.push(childItem);
+                        }
+                      }); return children;
+                    };
+                    tocItems = parseNavOl(ol, tocPath); tocFound = true; break;
+                  }
+                }
+              }
+            }
+          } catch (e) { console.error("Error parsing EPUB3 nav:", tocPath, e); }
+          if (tocFound) break;
+        }
+      }
+    }
+    if (!tocFound && spineElement) { /* NCX parsing - unchanged */
+      const tocId = spineElement.getAttribute('toc'); let ncxHref = '';
+      if (tocId) {
+        for (let i = 0; i < manifestItems.length; i++) {
+          if (manifestItems[i].getAttribute('id') === tocId) { ncxHref = manifestItems[i].getAttribute('href') || ''; break; }
+        }
+      } else {
+        for (let i = 0; i < manifestItems.length; i++) {
+          if (manifestItems[i].getAttribute('media-type') === 'application/x-dtbncx+xml') { ncxHref = manifestItems[i].getAttribute('href') || ''; break; }
+        }
+      }
+      if (ncxHref) {
+        tocPath = resolveRelativePath(opfFileDir, ncxHref);
+        try {
+          const ncxContent = await zip.file(tocPath)?.async('text');
+          if (ncxContent) {
+            const ncxDoc = xmlParser.parseFromString(ncxContent, 'application/xml');
+            const navMap = ncxDoc.getElementsByTagName('navMap')[0];
+            if (navMap) {
+              const parseNavPoints = (parentElement: Element, currentNcxDocPath: string): TOCItem[] => {
+                const children: TOCItem[] = [];
+                const navPoints = Array.from(parentElement.childNodes).filter(n => n.nodeName === 'navPoint') as Element[];
+                navPoints.forEach((navPoint) => {
+                  const navLabel = navPoint.getElementsByTagName('navLabel')[0]?.getElementsByTagName('text')[0]?.textContent?.trim() || 'Untitled';
+                  const contentSrc = navPoint.getElementsByTagName('content')[0]?.getAttribute('src') || '';
+                  const resolvedSrc = resolveRelativePath(getDirectoryPath(currentNcxDocPath), contentSrc);
+                  const item: TOCItem = {
+                    id: navPoint.getAttribute('id') || `toc-ncx-${resolvedSrc}`,
+                    label: navLabel, href: resolvedSrc,
+                    children: parseNavPoints(navPoint, currentNcxDocPath),
+                  }; children.push(item);
+                }); return children;
+              };
+              tocItems = parseNavPoints(navMap, tocPath); tocFound = true;
+            }
+          }
+        } catch (e) { console.error("Error parsing NCX:", tocPath, e); }
+      }
+    }
+    if (!tocFound || tocItems.length === 0) { /* Fallback to spine - unchanged */
+      tocItems = fileOrderList.map((filePath, index) => ({
+        id: `spine-toc-${index}`,
+        label: filePath.substring(filePath.lastIndexOf('/') + 1).replace(/\.[^/.]+$/, "") || `Chapter ${index + 1}`,
+        href: filePath, children: [],
+      }));
+    }
+    return tocItems;
+  }, []);
+
+  const openBook = async (book: BookData): Promise<void> => { /* Extended to support adapter sessions */
+    console.log(`[openBook] Opening: ${book.title}`);
+    console.time(`[Performance] Opening ${book.title}`);
+
+    setIsClosing(false);
+    setBookTitle(book.title); setBookAuthor(book.author); setCurrentBook(book);
+
+    // Fire-and-forget: warm up Kokoro via microserver to reduce cold starts
+    try {
+      const { triggerKokoroWakeup } = await import('../utils/kokoroWakeup');
+      triggerKokoroWakeup();
+    } catch { }
+    try {
+      // Determine if a non-EPUB adapter should handle this book
+      const adapter = await getAdapterForFile(book.file);
+      console.log(`[openBook] Detected adapter for ${book.file.name}:`, adapter?.id || 'none');
+      if (adapter && adapter.id !== 'epub') {
+        console.log(`[openBook] Using adapter: ${adapter.id}`);
+        const result = await adapter.open(book.file);
+        console.log(`[openBook] Adapter result meta:`, result.meta);
+        currentAdapterSessionRef.current = {
+          bookId: book.id,
+          adapterId: adapter.id,
+          loadPage: result.loadPage,
+          getToc: result.getToc,
+          dispose: result.dispose,
+        };
+
+        const fileOrder = Array.from({ length: Math.max(1, result.meta.totalPages || 0) }, (_, i) => `page-${i + 1}`);
+        setHtmlFiles(fileOrder); setTotalPages(fileOrder.length);
+        const extractedToc = await result.getToc();
+        console.log(`[openBook] Extracted TOC from adapter:`, extractedToc);
+        setToc(extractedToc);
+        // setBookZip(null); // Wait until end
+        // setIsReading(true); // Wait until end
+
+        // PRIORITY 1: URL parameter (if present) - highest priority
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlPageParam = urlParams.get('page');
+        let pageIdxToLoadInitially = 0;
+
+        if (urlPageParam !== null) {
+          const urlPage = parseInt(urlPageParam, 10);
+          if (!isNaN(urlPage) && urlPage >= 0 && urlPage < fileOrder.length) {
+            pageIdxToLoadInitially = urlPage;
+            console.log(`[openBook Adapter] Using URL page parameter: ${urlPage}`);
+          } else {
+            console.warn(`[openBook Adapter] Invalid URL page parameter: ${urlPageParam}, falling back to saved position`);
+          }
+        }
+
+        // PRIORITY 2: Use saved currentPage if no URL param
+        if (urlPageParam === null && book.currentPage != null && book.currentPage >= 0 && book.currentPage < fileOrder.length) {
+          pageIdxToLoadInitially = book.currentPage;
+          console.log(`[openBook Adapter] Using saved currentPage: ${book.currentPage}`);
+        }
+
+        // NEW PRIORITY: If starting from 0 and no progress, detect substantial page
+        if (pageIdxToLoadInitially === 0 && urlPageParam === null && !book.lastChapter && (!book.currentPage || book.currentPage === 0)) {
+          try {
+            const detectionIndex = await ContentDetectionService.findFirstSubstantialPage(
+              fileOrder,
+              async (path) => {
+                const idx = fileOrder.indexOf(path);
+                const p = await result.loadPage(idx);
+                return p.html;
+              },
+              extractedToc
+            );
+            if (detectionIndex !== 0) {
+              pageIdxToLoadInitially = detectionIndex;
+              console.log(`[openBook Adapter] Auto-skipped to substantial page: ${detectionIndex}`);
+            }
+          } catch (e) {
+            console.warn('[openBook Adapter] Substantial page detection failed:', e);
+          }
+        }
+
+        pageIdxToLoadInitially = Math.max(0, Math.min(pageIdxToLoadInitially, fileOrder.length - 1));
+        setCurrentPageToLoad(pageIdxToLoadInitially); setCurrentPageDisplay(pageIdxToLoadInitially);
+
+        // NOW set reading state to trigger effects with correct page
+        setBookZip(null);
+        setIsReading(true);
+
+        // Navigate to reader URL
+        navigate(`/reader/${book.id}?page=${pageIdxToLoadInitially}`);
+
+        // Track navigation event
+        trackEvent('book_navigation', {
+          method: 'open_book',
+          book_id: book.id,
+          book_title: book.title,
+          target_page: pageIdxToLoadInitially,
+          has_url_page_param: false
+        });
+        const progress = calculateProgress(pageIdxToLoadInitially, fileOrder.length);
+        setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? {
+          ...b,
+          lastRead: new Date().toISOString(),
+          totalPages: fileOrder.length,
+          currentPage: pageIdxToLoadInitially,
+          progress
+        } : b));
+        trackEvent('open_book', {
+          book_title: book.title,
+          book_author: book.author || 'Unknown',
+          book_id: book.id,
+          total_pages: fileOrder.length,
+          starting_page: pageIdxToLoadInitially,
+          has_last_chapter: !!book.lastChapter,
+          platform: 'web',
+          timestamp: new Date().toISOString()
+        });
+        readingStartTimestamp.current = Date.now();
+        console.timeEnd(`[Performance] Opening ${book.title}`);
+        console.log(`[Performance] Book ${book.title} opened successfully`);
+        return;
+      }
+      // Remove dynamic import - JSZip is now preloaded
+      console.log(`[Performance] Loading ZIP for ${book.title}...`);
+      const zip = new JSZip(); const loadedZip = await zip.loadAsync(book.file);
+      console.log(`[Performance] ZIP loaded, processing EPUB structure...`);
+      const containerXml = await loadedZip.file('META-INF/container.xml')?.async('text');
+      if (!containerXml) throw new Error('EPUB Load Error: META-INF/container.xml not found');
+      const DOMParser = await getDOMParser();
+      const parser = new DOMParser();
+      const containerDoc = parser.parseFromString(containerXml, 'application/xml');
+      const rootfiles = containerDoc.getElementsByTagName('rootfile');
+      if (rootfiles.length === 0) throw new Error('EPUB Load Error: No rootfile in container.xml');
+      const currentOpfPath = rootfiles[0].getAttribute('full-path') || ''; setOpfPath(currentOpfPath);
+      const opfFileDir = getDirectoryPath(currentOpfPath);
+      const opfContent = await loadedZip.file(currentOpfPath)?.async('text');
+      if (!opfContent) throw new Error(`EPUB Load Error: OPF file not found at ${currentOpfPath}`);
+      const opfDoc = parser.parseFromString(opfContent, 'application/xml');
+      const manifestElement = opfDoc.getElementsByTagName('manifest')[0];
+      const spineElement = opfDoc.getElementsByTagName('spine')[0];
+      if (!manifestElement || !spineElement) throw new Error('EPUB Load Error: Missing manifest or spine.');
+      const manifestItems = manifestElement.getElementsByTagName('item'); const spineItemRefs = spineElement.getElementsByTagName('itemref');
+      const currentFileOrder: string[] = [];
+      for (let i = 0; i < spineItemRefs.length; i++) {
+        const idref = spineItemRefs[i].getAttribute('idref');
+        for (let j = 0; j < manifestItems.length; j++) {
+          if (manifestItems[j].getAttribute('id') === idref) {
+            const href = manifestItems[j].getAttribute('href');
+            if (href) currentFileOrder.push(resolveRelativePath(opfFileDir, href));
+            else console.warn(`Manifest item ${idref} has no href.`);
+            break;
+          }
+        }
+      }
+      if (currentFileOrder.length === 0) throw new Error("EPUB Load Error: No content files in spine.");
+      setHtmlFiles(currentFileOrder); setTotalPages(currentFileOrder.length);
+      console.log(`[Performance] Extracting table of contents...`);
+
+      // Defer TOC extraction slightly to improve perceived performance
+      const extractedToc = await new Promise<TOCItem[]>((resolve) => {
+        setTimeout(async () => {
+          const toc = await extractTocFromEntries(loadedZip, manifestItems, spineElement, opfFileDir, parser, currentFileOrder);
+          resolve(toc);
+        }, 0); // Allow UI to update first
+      });
+
+      setToc(extractedToc);
+      // setBookZip(loadedZip); setIsReading(true); // Wait until end
+
+      // IMPROVED: Better logic for determining the initial page to load
+      // PRIORITY 1: URL parameter (if present) - highest priority
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlPageParam = urlParams.get('page');
+      let pageIdxToLoadInitially = 0; // Default to first page
+
+      if (urlPageParam !== null) {
+        const urlPage = parseInt(urlPageParam, 10);
+        if (!isNaN(urlPage) && urlPage >= 0 && urlPage < currentFileOrder.length) {
+          pageIdxToLoadInitially = urlPage;
+          console.log(`[openBook] Using URL page parameter: ${urlPage}`);
+        } else {
+          console.warn(`[openBook] Invalid URL page parameter: ${urlPageParam}, falling back to saved position`);
+        }
+      }
+
+      const urlChapterParam = urlParams.get('chapter');
+      if (pageIdxToLoadInitially === 0 && urlChapterParam) {
+        console.log(`[openBook] Found URL chapter parameter: ${urlChapterParam}`);
+        // Logic similar to lastChapter matching
+        const chapterPath = urlChapterParam.split('#')[0];
+        const pageIndexFromChapterParam = currentFileOrder.findIndex(file => {
+          // Strategy 1: Exact match
+          if (file === chapterPath) return true;
+          // Strategy 2: File ends with the chapter path
+          if (file.endsWith('/' + chapterPath)) return true;
+          // Strategy 3: Chapter path ends with the file name
+          const fileName = file.split('/').pop() || '';
+          const chapterFileName = chapterPath.split('/').pop() || '';
+          if (fileName === chapterFileName && fileName.length > 0) return true;
+          return false;
+        });
+
+        if (pageIndexFromChapterParam !== -1) {
+          pageIdxToLoadInitially = pageIndexFromChapterParam;
+          console.log(`[openBook] Matched URL chapter param to page: ${pageIdxToLoadInitially}`);
+        } else {
+          console.warn(`[openBook] Could not match URL chapter param: ${urlChapterParam}`);
+        }
+      }
+
+      // PRIORITY 2: If no URL param (page or chapter), try to use the lastChapter if it exists and is valid
+      if (urlPageParam === null && urlChapterParam === null) {
+        console.log(`[openBook] Book restoration data - currentPage: ${book.currentPage}, lastChapter: ${book.lastChapter?.label || 'none'}`);
+
+        // First, try to use the lastChapter if it exists and is valid
+        if (book.lastChapter?.href && extractedToc.length > 0) {
+          console.log(`[openBook] Attempting to restore from lastChapter: ${book.lastChapter.href}`);
+          const chapterPath = book.lastChapter.href.split('#')[0];
+
+          // Try multiple matching strategies for better compatibility
+          let pageIndexFromChapter = currentFileOrder.findIndex(file => {
+            // Strategy 1: Exact match
+            if (file === chapterPath) return true;
+            // Strategy 2: File ends with the chapter path
+            if (file.endsWith('/' + chapterPath)) return true;
+            // Strategy 3: Chapter path ends with the file name (reverse match)
+            const fileName = file.split('/').pop() || '';
+            const chapterFileName = chapterPath.split('/').pop() || '';
+            if (fileName === chapterFileName && fileName.length > 0) return true;
+            // Strategy 4: Both paths normalized (remove leading ./ or ../)
+            const normalizedFile = file.replace(/^\.\.?\//g, '');
+            const normalizedChapter = chapterPath.replace(/^\.\.?\//g, '');
+            if (normalizedFile === normalizedChapter) return true;
+            return false;
+          });
+
+          if (pageIndexFromChapter !== -1) {
+            pageIdxToLoadInitially = pageIndexFromChapter;
+            console.log(`[openBook] Successfully matched lastChapter to page index: ${pageIndexFromChapter}`);
+          } else {
+            console.warn(`[openBook] Could not match lastChapter "${chapterPath}" to any file in currentFileOrder:`, currentFileOrder);
+            // Fallback to currentPage if lastChapter matching fails
+            if (book.currentPage != null && book.currentPage >= 0 && book.currentPage < currentFileOrder.length) {
+              pageIdxToLoadInitially = book.currentPage;
+              console.log(`[openBook] Falling back to saved currentPage: ${book.currentPage}`);
+            }
+          }
+        }
+
+        // PRIORITY 3: If no lastChapter was found/used and no URL param, use currentPage
+        if (pageIdxToLoadInitially === 0 && book.currentPage != null && book.currentPage >= 0 && book.currentPage < currentFileOrder.length) {
+          pageIdxToLoadInitially = book.currentPage;
+          console.log(`[openBook] Using saved currentPage: ${book.currentPage}`);
+        }
+      }
+
+      // Final fallback: if we still have pageIdxToLoadInitially === 0 and no URL param was set
+      if (pageIdxToLoadInitially === 0 && urlPageParam === null && urlChapterParam === null && book.currentPage != null && book.currentPage >= 0 && book.currentPage < currentFileOrder.length) {
+        pageIdxToLoadInitially = book.currentPage;
+        console.log(`[openBook] Final fallback: Using saved currentPage: ${book.currentPage}`);
+      }
+
+      if (pageIdxToLoadInitially === 0 && urlPageParam === null && urlChapterParam === null && !book.lastChapter && (!book.currentPage || book.currentPage === 0)) {
+        console.log(`[openBook] No valid saved position found, attempting to detect substantial page...`);
+        try {
+          const detectionIndex = await ContentDetectionService.findFirstSubstantialPage(
+            currentFileOrder,
+            async (path) => {
+              const content = await loadedZip.file(path)?.async('text');
+              return content || '';
+            },
+            extractedToc
+          );
+          if (detectionIndex !== 0) {
+            pageIdxToLoadInitially = detectionIndex;
+            console.log(`[openBook] Auto-skipped to substantial page: ${detectionIndex}`);
+          }
+        } catch (e) {
+          console.warn('[openBook] Substantial page detection failed:', e);
+        }
+      }
+
+      // Ensure the page index is within valid bounds
+      pageIdxToLoadInitially = Math.max(0, Math.min(pageIdxToLoadInitially, currentFileOrder.length - 1));
+
+      setCurrentPageToLoad(pageIdxToLoadInitially); setCurrentPageDisplay(pageIdxToLoadInitially);
+      console.log(`[openBook] Successfully prepared: ${book.title}. Page to load: ${pageIdxToLoadInitially} (total pages: ${currentFileOrder.length})`);
+
+      // NOW set reading state to trigger effects with correct page
+      setBookZip(loadedZip);
+      setIsReading(true);
+
+      // Navigate to reader URL
+      navigate(`/reader/${book.id}?page=${pageIdxToLoadInitially}`);
+
+      // Track navigation event
+      trackEvent('book_navigation', {
+        method: 'open_book',
+        book_id: book.id,
+        book_title: book.title,
+        target_page: pageIdxToLoadInitially,
+        has_url_page_param: false
+      });
+
+      const progress = calculateProgress(pageIdxToLoadInitially, currentFileOrder.length);
+      setBooks(prevBooks => prevBooks.map(b => b.id === book.id ? {
+        ...b,
+        lastRead: new Date().toISOString(),
+        currentPage: pageIdxToLoadInitially,
+        progress
+      } : b));
+      // 4. TRACK THE EVENT AND START THE TIMER
+      trackEvent('open_book', {
+        book_title: book.title,
+        book_author: book.author || 'Unknown',
+        book_id: book.id,
+        total_pages: currentFileOrder.length,
+        starting_page: pageIdxToLoadInitially,
+        has_last_chapter: !!book.lastChapter,
+        platform: 'web',
+        timestamp: new Date().toISOString()
+      });
+      readingStartTimestamp.current = Date.now(); // Start the timer
+      console.timeEnd(`[Performance] Opening ${book.title}`);
+      console.log(`[Performance] Book ${book.title} opened successfully`);
+    } catch (error) {
+      console.timeEnd(`[Performance] Opening ${book.title}`);
+      console.error(`[Performance] Failed to open ${book.title}:`, error);
+      console.error('[openBook ERROR]', error);
+      // Cleanup state on error without calling closeBook (which navigates away)
+      setIsReading(false);
+      setCurrentBook(null);
+      setBookZip(null);
+
+      alert(`Error opening book: ${(error as Error).message}`);
+    } finally {
+
+    }
   };
 
-  // Toggle PlayMode visibility
+  const closeBook = (_resetGlobalLoading = true): void => { /* Unchanged */
+    // CRITICAL: Set closing flag FIRST to prevent ReaderWrapper from reopening
+    setIsClosing(true);
+    console.log('[closeBook] Setting isClosing flag to true');
+    console.log('[closeBook Debug] Current Book when closing:', currentBook?.id);
+    console.log('[closeBook Debug] isReading when closing:', isReading);
+
+    // Ensure any pending progress is synced before closing (fire-and-forget)
+    if (currentBook && isAuthenticated) {
+      flushProgressSync().catch((error) => {
+        console.error('[closeBook] Error flushing progress sync:', error);
+      });
+    }
+
+    // 5. TRACK THE EVENT AND CALCULATE DURATION
+    if (readingStartTimestamp.current && currentBook) {
+      const endTime = Date.now();
+      const durationInSeconds = Math.round((endTime - readingStartTimestamp.current) / 1000);
+
+      trackEvent('close_book', {
+        book_title: currentBook.title,
+        book_author: currentBook.author || 'Unknown',
+        book_id: currentBook.id,
+        reading_duration_seconds: durationInSeconds,
+        final_page: currentPageDisplay,
+        total_pages_read: currentPageDisplay + 1,
+        platform: 'web',
+        timestamp: new Date().toISOString()
+      });
+
+      readingStartTimestamp.current = null; // Reset the timer
+    }
+    console.log("[closeBook] Closing book."); setIsReading(false); setCurrentBook(null); setBookZip(null);
+    console.log('[closeBook Debug] After state reset: isReading:', isReading, 'currentBook:', currentBook);
+    setOpfPath(''); setHtmlFiles([]); setToc([]); setCurrentContent(''); setBookTitle('');
+    setBookAuthor(''); setIsPlayModeVisible(false); setCurrentPageText('');
+    setCurrentPageToLoad(0); setCurrentPageDisplay(0);
+
+    setIsPageLoading(false);
+
+    // Navigate back to library
+    navigate('/');
+
+    // Reset closing flag after navigation completes
+    setTimeout(() => {
+      setIsClosing(false);
+      console.log('[closeBook] Reset isClosing flag to false');
+    }, 150); // Slightly longer timeout to ensure navigation completes
+
+    // Track navigation event
+    trackEvent('book_navigation', {
+      method: 'close_book',
+      book_id: currentBook?.id || 'unknown',
+      book_title: currentBook?.title || 'unknown',
+      target_page: 'library',
+      final_page: currentPageDisplay
+    });
+  };
+
+  const nextPage = (): void => { /* Unchanged */
+
+
+    if (isReading && currentPageToLoad < totalPages - 1) {
+      // 6. TRACK PAGE TURNS
+      trackEvent('turn_page', {
+        direction: 'next',
+        page_number: currentPageToLoad + 1,
+        book_title: currentBook?.title || 'Unknown',
+        book_id: currentBook?.id || 'Unknown',
+        total_pages: totalPages,
+        progress_percentage: Math.round(((currentPageToLoad + 1) / totalPages) * 100),
+        platform: 'web',
+        timestamp: new Date().toISOString()
+      });
+      console.log(`[nextPage] current: ${currentPageToLoad}, total: ${totalPages}`);
+      setCurrentPageToLoad(prev => prev + 1);
+    }
+  };
+  const prevPage = (): void => { /* Unchanged */
+    if (isReading && currentPageToLoad > 0) {
+
+      // 6. TRACK PAGE TURNS
+      trackEvent('turn_page', {
+        direction: 'previous',
+        page_number: currentPageToLoad - 1,
+        book_title: currentBook?.title || 'Unknown',
+        book_id: currentBook?.id || 'Unknown',
+        total_pages: totalPages,
+        progress_percentage: Math.round(((currentPageToLoad - 1) / totalPages) * 100),
+        platform: 'web',
+        timestamp: new Date().toISOString()
+      });
+      console.log(`[prevPage] current: ${currentPageToLoad}`);
+      setCurrentPageToLoad(prev => prev - 1);
+    }
+  };
+  const navigateToTocItem = (item: TOCItem): void => { /* Unchanged */
+    if (!isReading || !htmlFiles || htmlFiles.length === 0) {
+
+      console.warn("[navigateToTocItem] Aborted: Not reading or no HTML files."); return;
+    }
+    const [pathPart, fragment] = item.href.split('#');
+    console.log(`[navigateToTocItem] To href: ${item.href} (pathPart: ${pathPart})`);
+    const fileIndex = htmlFiles.findIndex(file => file === pathPart);
+    if (fileIndex !== -1) {
+      // THIS is the point of success. Track the event here.
+      trackEvent('use_feature', {
+        feature_name: 'table_of_contents',
+        chapter_title: item.label,
+        book_title: currentBook?.title || 'Unknown',
+        book_id: currentBook?.id || 'Unknown',
+        target_page: fileIndex + 1,
+        total_pages: totalPages,
+        platform: 'web',
+        timestamp: new Date().toISOString()
+      });
+      console.log(`[navigateToTocItem] Found file at index: ${fileIndex}. Loading.`);
+      setCurrentPageToLoad(fileIndex);
+      if (fragment) {
+        setTimeout(() => { /* fragment scrolling - unchanged */
+          const element = document.getElementById(fragment);
+          if (element) element.scrollIntoView({ behavior: 'smooth' });
+          else console.warn(`[navigateToTocItem] Fragment not found: #${fragment}`);
+        }, 350);
+      }
+    } else { console.warn(`[navigateToTocItem] Could not find file for TOC item: ${item.href}`); }
+  };
+
+  // const togglePlayMode = (): void => setIsPlayModeVisible(!isPlayModeVisible); /* Unchanged */
+
   const togglePlayMode = (): void => {
+    // 8. TRACK TEXT-TO-SPEECH USAGE
+    if (!isPlayModeVisible) { // Only track when the user STARTS it
+      trackEvent('use_feature', {
+        feature_name: 'text_to_speech',
+        book_title: currentBook?.title || 'Unknown',
+        book_id: currentBook?.id || 'Unknown',
+        current_page: currentPageDisplay,
+        total_pages: totalPages,
+        platform: 'web',
+        timestamp: new Date().toISOString()
+      });
+    }
     setIsPlayModeVisible(!isPlayModeVisible);
   };
 
+  // URL synchronization: Update URL when page changes
+  // Phase 3: Navigation URL sync is handled by useBookNavigation hook
+  // Removed duplicate effect to avoid conflicts
+
   const value: BookContextValue = {
-    // Library state
-    books,
-    addBook,
-    removeBook,
-    
-    // Current book state
-    currentBook,
-    isReading,
-    isLoading,
-    bookTitle,
-    bookAuthor,
-    currentPage,
-    totalPages,
-    currentContent,
-    currentPageText,
-    toc,
-    
-    // Book actions
-    openBook,
-    closeBook,
-    nextPage,
-    prevPage,
-    navigateToTocItem,
-    
-    // Book details
-    htmlFiles,
-    opfPath,
-    
-    // Play mode
-    isPlayModeVisible,
-    togglePlayMode
+    books, addBook, removeBook,
+    currentBook, isReading, isClosing, isLoading, isPageLoading, isInitialLoadComplete, bookTitle, bookAuthor,
+    currentPageDisplay, totalPages, currentContent, currentPageText, toc,
+    openBook, closeBook, nextPage, prevPage, navigateToTocItem,
+    htmlFiles, opfPath,
+    isPlayModeVisible, togglePlayMode,
+    isSyncingFromCloud, // Add loading state
+    currentChapterTitle,
   };
 
   return (
@@ -2079,4 +1331,4 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children }) => {
       {children}
     </BookContext.Provider>
   );
-  };
+};
