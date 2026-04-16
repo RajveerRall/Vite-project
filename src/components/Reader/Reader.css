@@ -1,0 +1,2345 @@
+/* src/components/Reader/Reader.css */
+.reader {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-x: hidden;
+  /* Prevent horizontal overflow */
+  max-width: 100vw;
+  /* Ensure it doesn't exceed viewport width */
+}
+
+/* Header layout improvements */
+.reader-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #fff;
+  padding: 0.75rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  /* Higher than controls or other elements */
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.reader-header.reader-ui-hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reader-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.reader-center {
+  flex: 2;
+  text-align: center;
+}
+
+.reader-right {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.book-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.book-author {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.controls-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.tts-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.tts-toggle-label {
+  color: #666;
+}
+
+.tts-toggle-button {
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tts-toggle-button.kokoro-active {
+  background-color: #4a69bd;
+  color: var(--reader-text, #1f2937);
+}
+
+.tts-toggle-button.basic-active {
+  background-color: #6c757d;
+  color: var(--reader-text, #1f2937);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .reader-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.5rem 1rem;
+  }
+
+  .reader-left,
+  .reader-center,
+  .reader-right {
+    margin-bottom: 0.5rem;
+  }
+
+  .reader-right {
+    justify-content: center;
+  }
+
+  .controls-container {
+    align-items: center;
+    width: 100%;
+  }
+}
+
+.reader-nav {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.reader-nav h2 {
+  margin: 0 0 0 1rem;
+  font-size: 1.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-nav .author {
+  margin-left: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.back-button {
+  background-color: transparent;
+  border: none;
+  color: #4a69bd;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.5rem 0;
+  transition: color 0.3s;
+}
+
+.back-button:hover {
+  color: #3867a9;
+}
+
+.reader-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  /* Needed for absolute positioning of indicators */
+  background-color: transparent;
+  /* Removed grey fallback background to prevent flicker in dark mode */
+  max-width: 100vw;
+  /* Prevent horizontal overflow */
+}
+
+.reader-sidebar {
+  width: 350px;
+  background-color: #fff;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+  padding: 1rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  /* Enable smooth scrolling */
+  -webkit-overflow-scrolling: touch;
+  transition: width 0.3s ease, padding 0.3s ease, border-width 0.3s ease;
+}
+
+/* Disable transition during drag */
+.reader-sidebar.dragging {
+  transition: none;
+}
+
+/* Collapsed state */
+.reader-sidebar.collapsed {
+  width: 0;
+  padding: 0;
+  overflow: hidden;
+  border-right: none;
+}
+
+/* Visual feedback during drag */
+.reader-sidebar.will-collapse {
+  opacity: 0.7;
+}
+
+.reader-sidebar.will-expand {
+  opacity: 1;
+}
+
+/* Sidebar header with toggle button */
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.sidebar-header .toc-heading {
+  margin: 0;
+  font-size: 1.1rem;
+  flex: 1;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* Toggle button in header */
+.sidebar-toggle-btn {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.sidebar-toggle-btn:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.sidebar-toggle-btn:active {
+  background-color: #e0e0e0;
+}
+
+/* Hide header when collapsed */
+.reader-sidebar.collapsed .sidebar-header {
+  display: none;
+}
+
+/* Hide TableOfContents heading when in sidebar (we show it in sidebar-header instead) */
+.reader-sidebar .toc-container .toc-heading {
+  display: none;
+}
+
+/* Draggable handle - positioned on the right edge */
+.sidebar-drag-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  transition: background-color 0.2s;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.sidebar-drag-handle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-drag-handle:active {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Visual indicator inside the handle */
+.drag-handle-indicator {
+  width: 3px;
+  height: 40px;
+  background-color: #ccc;
+  border-radius: 2px;
+  transition: background-color 0.2s;
+  pointer-events: none;
+}
+
+.sidebar-drag-handle:hover .drag-handle-indicator {
+  background-color: #999;
+}
+
+.sidebar-drag-handle:active .drag-handle-indicator {
+  background-color: #666;
+}
+
+/* When sidebar is collapsed, show handle on the left */
+.reader-sidebar.collapsed .sidebar-drag-handle {
+  right: auto;
+  left: 0;
+  width: 12px;
+}
+
+.reader-sidebar.collapsed .sidebar-drag-handle:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Floating toggle button when sidebar is collapsed */
+.sidebar-float-toggle {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  padding: 1rem 0.75rem;
+  cursor: pointer;
+  z-index: 100;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+}
+
+.sidebar-float-toggle:hover {
+  background-color: #f0f0f0;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(-50%) translateX(2px);
+}
+
+.sidebar-float-toggle:active {
+  background-color: #e0e0e0;
+  transform: translateY(-50%) translateX(1px);
+}
+
+.sidebar-float-toggle .arrow-icon {
+  color: #666;
+  transition: color 0.2s;
+}
+
+.sidebar-float-toggle:hover .arrow-icon {
+  color: #333;
+}
+
+/* Hide floating toggle on mobile (sidebar is already hidden) */
+@media (max-width: 768px) {
+  .sidebar-float-toggle {
+    display: none;
+  }
+}
+
+/* ===== NEW SIDE PANEL STYLES ===== */
+
+/* Side Panel Bar - Vertical icon bar */
+.side-panel-bar {
+  width: 60px;
+  background-color: #fff;
+  border-right: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+/* Side Panel Icon Button */
+.side-panel-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.side-panel-icon:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.side-panel-icon.active {
+  background-color: #4a69bd;
+  color: #fff;
+}
+
+.side-panel-icon.active:hover {
+  background-color: #3867a9;
+}
+
+/* Side Panel Content - Sliding content panel */
+.side-panel-content {
+  width: 350px;
+  background-color: #fff;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+  padding: 1rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+  transition: width 0.3s ease, padding 0.3s ease, border-width 0.3s ease;
+}
+
+/* Disable transition during drag */
+.side-panel-content.dragging {
+  transition: none;
+}
+
+/* Collapsed state */
+.side-panel-content.collapsed {
+  width: 0;
+  padding: 0;
+  overflow: hidden;
+  border-right: none;
+}
+
+/* Visual feedback during drag */
+.side-panel-content.will-collapse {
+  opacity: 0.7;
+}
+
+.side-panel-content.will-expand {
+  opacity: 1;
+}
+
+/* Side Panel Content Header */
+.side-panel-content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.side-panel-content-title {
+  margin: 0;
+  font-size: 1.1rem;
+  flex: 1;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* Close button in header */
+.side-panel-close-btn {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.side-panel-close-btn:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.side-panel-close-btn:active {
+  background-color: #e0e0e0;
+}
+
+/* Side Panel Content Body */
+.side-panel-content-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide TableOfContents heading when in side panel */
+.side-panel-content .toc-container .toc-heading {
+  display: none;
+}
+
+/* Draggable handle - positioned on the right edge */
+.side-panel-drag-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  transition: background-color 0.2s;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.side-panel-drag-handle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.side-panel-drag-handle:active {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Use the same drag handle indicator styles */
+.side-panel-drag-handle .drag-handle-indicator {
+  width: 3px;
+  height: 40px;
+  background-color: #ccc;
+  border-radius: 2px;
+  transition: background-color 0.2s;
+  pointer-events: none;
+}
+
+.side-panel-drag-handle:hover .drag-handle-indicator {
+  background-color: #999;
+}
+
+.side-panel-drag-handle:active .drag-handle-indicator {
+  background-color: #666;
+}
+
+/* When content panel is collapsed, show handle on the left */
+.side-panel-content.collapsed .side-panel-drag-handle {
+  right: auto;
+  left: 0;
+  width: 12px;
+}
+
+.side-panel-content.collapsed .side-panel-drag-handle:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* AI Chat Panel */
+.ai-chat-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+}
+
+.ai-chat-placeholder {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.ai-chat-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.ai-chat-message {
+  font-size: 1.1rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.ai-chat-description {
+  font-size: 0.9rem;
+  color: #999;
+  line-height: 1.5;
+}
+
+.ai-chat-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+.ai-chat-summary {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+.ai-chat-paragraph {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--reader-text, #333);
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.ai-chat-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.ai-chat-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.ai-chat-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+/* Hide side panel on mobile */
+@media (max-width: 768px) {
+
+  .side-panel-bar,
+  .side-panel-content {
+    display: none;
+  }
+}
+
+.reader-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto !important;
+  /* Force scroll */
+  overflow-x: hidden;
+  /* Prevent horizontal scroll causing layout issues */
+  align-items: center;
+  /* Space for fixed header */
+  padding-top: 80px;
+  /* Minimal bottom padding to prevent content from being hidden behind bottom controls */
+  padding-bottom: 20px;
+
+  /* Ensure content fills available space */
+  justify-content: flex-start;
+
+  /* Scrollbar will be visible on this container */
+
+  /* Mobile smooth scrolling */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  /* Prevent pull-to-refresh on mobile */
+  /* Smooth transition when sidebar opens/closes */
+  transition: width 0.3s ease;
+}
+
+.picture-mode-active .reader-main {
+  padding-bottom: 200px;
+}
+
+.picture-mode-active .epub-content {
+  margin-bottom: 40px;
+}
+
+/* Desktop Side-by-Side Optimization */
+@media (min-width: 768px) {
+  .reader.picture-mode-active {
+    flex-direction: row;
+  }
+
+  .picture-mode-active .integrated-scene-view {
+    /* Styles handled in IntegratedSceneView.css, but this ensures flex item behavior */
+    flex: 0 0 50%;
+    height: 100vh;
+  }
+
+  .picture-mode-active .reader-container {
+    flex: 1;
+    /* Takes remaining 50% */
+    height: 100vh;
+  }
+
+  /* Reset padding for side-by-side as controls aren't covering text in the same way */
+  .picture-mode-active .reader-main {
+    padding-bottom: 120px;
+    /* Standard padding */
+  }
+}
+
+/* Bottom Controls Styling */
+.reader-bottom-controls {
+  /* Ensure controls are always on top */
+  z-index: 50;
+}
+
+.reader-bottom-controls-desktop {
+  /* Ensure desktop controls are always on top */
+  z-index: 50;
+}
+
+/* Mobile content padding to prevent overlap with bottom controls */
+@media (max-width: 768px) {
+  .reader-main {
+    padding-top: 130px;
+    /* Offset for taller mobile stacked header */
+    padding-bottom: 30px;
+    /* Reduced from 100px */
+  }
+
+  .epub-content {
+    padding-bottom: 2rem;
+  }
+}
+
+/* Handle very short content better */
+.epub-content:has(img[data-epub-src*="cover"]),
+.epub-content:has(img[data-epub-src*="1.png"]) {
+  /* Reduce padding for cover pages and very short content */
+  padding-bottom: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Alternative approach for browsers that don't support :has() */
+.epub-content[data-short-content="true"] {
+  padding-bottom: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Additional spacing adjustments for very short content */
+.epub-content[data-short-content="true"] {
+  /* Reduce overall padding for short content */
+  padding: 1rem;
+  margin: 0.5rem;
+
+  /* Center content vertically when it's very short */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: auto;
+  /* Remove fixed height constraint */
+}
+
+/* Ensure images in short content are properly sized */
+.epub-content[data-short-content="true"] img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+/* Ensure PDF images allow scrolling */
+.epub-content img[data-epub-src$=".pdf-page.png"],
+.epub-content img[src*="blob:"] {
+  max-width: 100%;
+  height: auto !important;
+  /* Allow natural height for scrolling */
+  max-height: none !important;
+  /* Remove height constraint */
+  display: block;
+}
+
+/* Bottom Controls Enhanced Styling */
+.reader-bottom-controls {
+  backdrop-filter: blur(10px);
+  background-color: var(--reader-sidebar-bg, rgba(255, 255, 255, 0.95));
+  transition: all 0.3s ease;
+}
+
+.reader-bottom-controls-desktop {
+  backdrop-filter: blur(10px);
+  background-color: var(--reader-sidebar-bg, rgba(255, 255, 255, 0.95));
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Generic hidden state for any floating UI elements */
+.reader-ui-hidden .floating-read-button,
+.floating-read-button.reader-ui-hidden {
+  transform: scale(0.8);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reader-bottom-controls.reader-ui-hidden,
+.reader-bottom-controls-desktop.reader-ui-hidden {
+  transform: translateY(150%) translateX(0) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Fix for desktop centered controls */
+.reader-bottom-controls-desktop.reader-ui-hidden {
+  transform: translateY(150%) translateX(-50%) !important;
+}
+
+
+/* Ensure content doesn't get hidden behind controls */
+.reader-container {
+  /* Remove padding-bottom from container - let individual elements handle spacing */
+  padding-bottom: 0;
+}
+
+/* TOC styles */
+.toc-container {
+  margin-bottom: 1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  /* Allow flex child to shrink below content size */
+}
+
+.toc-heading {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+  flex-shrink: 0;
+  /* Prevent heading from shrinking */
+}
+
+.toc-list {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  /* Allow flex child to shrink below content size */
+  /* Enable smooth scrolling */
+  -webkit-overflow-scrolling: touch;
+}
+
+.toc-item {
+  margin-bottom: 0.5rem;
+}
+
+.toc-button {
+  background: none;
+  border: none;
+  color: #4a69bd;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-align: left;
+  padding: 0.25rem 0;
+  width: 100%;
+  transition: color 0.2s;
+}
+
+.toc-button:hover {
+  color: #3867a9;
+  text-decoration: underline;
+}
+
+.toc-children {
+  margin-top: 0.25rem;
+  padding-left: 1rem;
+}
+
+.no-toc {
+  color: #666;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+/* Search styles */
+.search-container {
+  display: flex;
+  padding: 1rem;
+  gap: 0.5rem;
+  background-color: #fff;
+  border-bottom: 1px solid #ddd;
+  width: 100%;
+  max-width: 800px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.search-button,
+.clear-button {
+  padding: 0.5rem 1rem;
+  background-color: #4a69bd;
+  color: var(--reader-button-text, #f8fafc);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.clear-button {
+  background-color: #6c757d;
+}
+
+.search-button:hover {
+  background-color: #3867a9;
+}
+
+.clear-button:hover {
+  background-color: #5a6268;
+}
+
+/* Content area */
+/* .epub-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  background-color: #fff;
+  margin: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-family: Georgia, 'Times New Roman', Times, serif;
+  line-height: 1.6;
+  max-width: 800px;
+  width: 100%;
+}*/
+
+
+.epub-content {
+  /* Remove flex: 1 to allow natural height expansion */
+  /* Remove overflow-y: auto - parent container handles scrolling */
+  overflow: visible;
+  /* Explicitly prevent scrolling on this element */
+  overflow-y: visible;
+  /* Ensure vertical overflow is visible */
+  padding: 20px;
+  /* Warm off-white background */
+  background-color: #fcf8f0;
+
+  margin: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  /* Subtle shadow for depth */
+
+  max-width: 800px;
+  width: 100%;
+
+  /* Ensure proper spacing without excessive height */
+  min-height: auto;
+  /* Remove fixed height constraint */
+
+  /* SUPPRESS MOBILE FEEDBACK */
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+/* Ensure no scrollbar on epub-content even if global styles apply */
+.reader .epub-content {
+  overflow: visible;
+  overflow-y: visible;
+}
+
+.epub-content h1 {
+  color: #333333;
+  /* Dark grey for titles */
+  font-family: 'Georgia', serif;
+  /* Serif font for titles */
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.epub-content h2 {
+  /* For subtitles or chapter names */
+  color: #605c5c;
+  font-family: 'Arial', sans-serif;
+  text-align: center;
+  font-size: 0.9em;
+  margin-bottom: 30px;
+}
+
+.epub-content h3,
+.epub-content h4,
+.epub-content h5,
+.epub-content h6 {
+  text-align: center;
+  margin: 1.5rem 0 1rem;
+  font-family: 'Georgia', serif;
+}
+
+.epub-content p {
+  color: #4a4a4a;
+  /* Softer dark grey for body text */
+  font-family: 'Merriweather', serif;
+  /* Serif font for body text */
+  font-size: 1.1em;
+  line-height: 1.6;
+  margin-bottom: 1em;
+  text-align: justify;
+  /* Justify text for a book-like feel */
+}
+
+
+.epub-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  /* Prevent layout shift during image load/reload */
+  object-fit: contain;
+  /* Smooth transition for opacity changes */
+  transition: opacity 0.2s ease;
+  /* Ensure images maintain their space even when loading */
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Adjust margins for mobile responsiveness */
+@media (max-width: 768px) {
+  .epub-content {
+    padding: 15px;
+    /* Smaller padding on mobile */
+  }
+
+  .epub-content p {
+    font-size: 1em;
+    /* Slightly smaller font on mobile */
+  }
+}
+
+/* Search highlighting */
+.search-highlight {
+  background-color: #ffeb3b;
+  padding: 0 2px;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.loading-spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #4a69bd;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.loading-text {
+  text-align: center;
+}
+
+.loading-primary {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.loading-secondary {
+  font-size: 14px;
+  color: #666;
+  font-style: italic;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .reader-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .reader-sidebar {
+    display: none;
+  }
+
+  .epub-content {
+    padding: 1rem;
+    margin: 0.5rem;
+    max-width: 100%;
+    /* Ensure content doesn't overflow on mobile */
+    word-wrap: break-word;
+    /* Prevent long words from causing overflow */
+    overflow-x: hidden;
+    /* Prevent horizontal scrolling */
+    overflow-y: visible;
+    /* Ensure vertical overflow is visible - parent handles scrolling */
+  }
+
+  /* Mobile adjustments for short content */
+  .epub-content[data-short-content="true"] {
+    padding: 0.75rem;
+    margin: 0.25rem;
+    min-height: calc(100vh - 250px);
+  }
+}
+
+/* Mobile Header Layout */
+.reader-header-mobile {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reader-header-mobile .book-title {
+  font-size: 1.125rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--reader-text);
+}
+
+.reader-header-mobile .book-author {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  margin: 0;
+  color: var(--reader-text-secondary);
+}
+
+.reader-header-mobile .controls-container-mobile {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Ensure controls don't overflow on mobile */
+.reader-header-mobile .controls-container-mobile>* {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Mobile action buttons */
+.reader-header-mobile .action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Action button styling with text labels */
+.settings-button,
+.scroll-highlight-button,
+.mobile-toc-button {
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.settings-button:hover,
+.scroll-highlight-button:hover,
+.mobile-toc-button:hover {
+  border-color: rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.settings-button:active,
+.scroll-highlight-button:active,
+.mobile-toc-button:active {
+  transform: translateY(0);
+}
+
+/* Hide desktop header on mobile */
+@media (max-width: 767px) {
+  .reader-header-desktop {
+    display: none !important;
+  }
+
+  .reader-header-mobile {
+    display: flex !important;
+  }
+}
+
+/* Show desktop header on larger screens */
+@media (min-width: 768px) {
+  .reader-header-desktop {
+    display: flex !important;
+  }
+
+  .reader-header-mobile {
+    display: none !important;
+  }
+}
+
+
+.tts-highlight {
+  background-color: #fffb91;
+  border-radius: 3px;
+  transition: background-color 0.3s ease;
+}
+
+
+/* .highlight class removed - now using .tts-highlight for TTS highlighting */
+
+/* Hide any remaining headers, titles, and navigation elements in the content */
+.epub-content h1,
+.epub-content h2,
+.epub-content h3,
+.epub-content h4,
+.epub-content h5,
+.epub-content h6,
+.epub-content .title,
+.epub-content .chapter-title,
+.epub-content .book-title,
+.epub-content .epub-title,
+.epub-content .chapter-heading,
+.epub-content .section-title,
+.epub-content .page-title,
+.epub-content .header,
+.epub-content .navigation,
+.epub-content .nav,
+.epub-content .toc,
+.epub-content .table-of-contents,
+.epub-content .breadcrumb,
+.epub-content .breadcrumbs,
+.epub-content .page-header,
+.epub-content .content-header,
+.epub-content .epub-header,
+.epub-content .epub-chapter-title,
+.epub-content .epub-section,
+.epub-content .epub-page,
+.epub-content .epub-navigation,
+.epub-content .epub-toc,
+.epub-content .epub-breadcrumb,
+.epub-content .content-header,
+.epub-content .chapter-header,
+.epub-content .section-header,
+.epub-content .page-header,
+.epub-content .article-header,
+.epub-content .story-header {
+  display: none !important;
+}
+
+/* Hide any remaining CSS rules, metadata, or unwanted content */
+.epub-content style,
+.epub-content script,
+.epub-content meta,
+.epub-content link {
+  display: none !important;
+}
+
+/* Hide any remaining CSS rules, metadata, or unwanted content */
+.epub-content style,
+.epub-content script,
+.epub-content meta,
+.epub-content link {
+  display: none !important;
+}
+
+/* Additional aggressive hiding for problematic content */
+.epub-content *[class*="css"],
+.epub-content *[class*="style"],
+.epub-content *[class*="meta"],
+.epub-content *[id*="css"],
+.epub-content *[id*="style"],
+.epub-content *[id*="meta"] {
+  display: none !important;
+}
+
+/* Additional aggressive hiding for problematic content */
+.epub-content *[class*="css"],
+.epub-content *[class*="style"],
+.epub-content *[class*="meta"],
+.epub-content *[id*="css"],
+.epub-content *[id*="style"],
+.epub-content *[id*="meta"] {
+  display: none !important;
+}
+
+/* Mobile TOC Drawer Styles */
+.mobile-toc-button {
+  display: none;
+  background: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.mobile-toc-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.toc-drawer-backdrop {
+  backdrop-filter: blur(2px);
+}
+
+.ai-chat-drawer-backdrop {
+  backdrop-filter: blur(2px);
+}
+
+.toc-drawer {
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-chat-drawer {
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ensure TOC content is scrollable */
+.toc-drawer .toc-list {
+  max-height: none;
+  overflow: visible;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+  .mobile-toc-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-ai-chat-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .reader-sidebar {
+    display: none;
+  }
+
+  .reader-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .reader-center {
+    text-align: center;
+  }
+
+  .book-title {
+    font-size: 1.1rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .book-author {
+    font-size: 0.85rem;
+  }
+
+  .reader-main {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .epub-content {
+    max-width: 100%;
+    padding: 1rem;
+  }
+}
+
+/* Enhanced Loading Overlay Styles */
+.enhanced-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.98) 0%,
+      rgba(248, 250, 252, 0.96) 50%,
+      rgba(240, 245, 251, 0.98) 100%);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.enhanced-loading-overlay .floating-elements {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  opacity: 0.15;
+}
+
+.enhanced-loading-overlay .floating-book {
+  position: absolute;
+  font-size: 2rem;
+  animation: float 8s ease-in-out infinite;
+}
+
+.enhanced-loading-overlay .book-1 {
+  top: 15%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.enhanced-loading-overlay .book-2 {
+  top: 70%;
+  right: 15%;
+  animation-delay: 2s;
+}
+
+.enhanced-loading-overlay .book-3 {
+  bottom: 25%;
+  left: 20%;
+  animation-delay: 4s;
+}
+
+.enhanced-loading-overlay .book-4 {
+  top: 40%;
+  right: 30%;
+  animation-delay: 6s;
+}
+
+.enhanced-loading-overlay .loading-content {
+  text-align: center;
+  animation: slideUp 0.8s ease-out 0.2s both;
+}
+
+.enhanced-loading-overlay .spinner-container {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 2rem;
+}
+
+.enhanced-loading-overlay .spinner-outer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 3px solid #e3f2fd;
+  border-top: 3px solid #1976d2;
+  border-right: 3px solid #42a5f5;
+  border-radius: 50%;
+  animation: spin 2s linear infinite;
+}
+
+.enhanced-loading-overlay .spinner-inner {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  width: 70px;
+  height: 70px;
+  border: 2px solid #bbdefb;
+  border-bottom: 2px solid #2196f3;
+  border-left: 2px solid #64b5f6;
+  border-radius: 50%;
+  animation: spin 1.5s linear infinite reverse;
+}
+
+.enhanced-loading-overlay .spinner-dot {
+  position: absolute;
+  top: 35px;
+  left: 35px;
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(45deg, #1976d2, #42a5f5);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.enhanced-loading-overlay .book-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.8rem;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+.enhanced-loading-overlay .progress-section {
+  margin: 1.5rem 0;
+  width: 250px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.enhanced-loading-overlay .progress-bar {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  background: #e3f2fd;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.enhanced-loading-overlay .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.enhanced-loading-overlay .progress-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.6),
+      transparent);
+  animation: shine 2s ease-in-out infinite;
+}
+
+.enhanced-loading-overlay .progress-text {
+  font-size: 12px;
+  color: #1976d2;
+  font-weight: 600;
+}
+
+.enhanced-loading-overlay .text-section {
+  max-width: 320px;
+}
+
+.enhanced-loading-overlay .primary-text {
+  font-size: 22px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 4px;
+  animation: textPulse 3s ease-in-out infinite;
+}
+
+.enhanced-loading-overlay .secondary-text {
+  font-size: 15px;
+  color: #666;
+  margin-bottom: 1rem;
+  min-height: 20px;
+  opacity: 0.9;
+}
+
+.enhanced-loading-overlay .dots-container {
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+
+.enhanced-loading-overlay .dot {
+  display: inline-block;
+  margin: 0 2px;
+  font-size: 8px;
+  color: #1976d2;
+  animation: dotBounce 1.4s ease-in-out infinite both;
+}
+
+.enhanced-loading-overlay .dot-1 {
+  animation-delay: 0s;
+}
+
+.enhanced-loading-overlay .dot-2 {
+  animation-delay: 0.2s;
+}
+
+.enhanced-loading-overlay .dot-3 {
+  animation-delay: 0.4s;
+}
+
+/* Enhanced Loading Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+
+  25% {
+    transform: translateY(-20px) rotate(5deg) scale(1.1);
+  }
+
+  50% {
+    transform: translateY(10px) rotate(-3deg) scale(0.9);
+  }
+
+  75% {
+    transform: translateY(-5px) rotate(2deg) scale(1.05);
+  }
+}
+
+@keyframes textPulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes dotBounce {
+
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+
+  40% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+
+  100% {
+    left: 100%;
+  }
+}
+
+/* Mobile optimizations for enhanced loader */
+@media (max-width: 768px) {
+  .enhanced-loading-overlay .spinner-container {
+    width: 80px;
+    height: 80px;
+  }
+
+  .enhanced-loading-overlay .spinner-inner {
+    top: 12px;
+    left: 12px;
+    width: 56px;
+    height: 56px;
+  }
+
+  .enhanced-loading-overlay .spinner-dot {
+    top: 28px;
+    left: 28px;
+    width: 24px;
+    height: 24px;
+  }
+
+  .enhanced-loading-overlay .book-icon {
+    font-size: 1.4rem;
+  }
+
+  .enhanced-loading-overlay .primary-text {
+    font-size: 20px;
+  }
+
+  .enhanced-loading-overlay .progress-section {
+    width: 200px;
+  }
+}
+
+/* Background Audio Controls Styles */
+.background-audio-controls {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.background-audio-controls.theme-dark {
+  background: #1f2937;
+  border-color: #374151;
+  color: #e2e8f0;
+}
+
+.background-audio-controls.theme-sepia {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.controls-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 2.5rem;
+  height: 2.5rem;
+}
+
+.control-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.play-pause-btn {
+  background: #3b82f6;
+  border-color: #2563eb;
+  color: var(--reader-button-text, #f8fafc);
+  min-width: 3rem;
+  height: 3rem;
+}
+
+/* Dark theme specific button colors */
+.background-audio-controls.theme-dark .play-pause-btn {
+  background: var(--reader-highlight, #4b5563);
+  border-color: var(--reader-accent, #6b7280);
+  color: #e2e8f0;
+}
+
+.play-pause-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.background-btn.enabled {
+  background: #10b981;
+  border-color: #059669;
+  color: var(--reader-button-text, #f8fafc);
+}
+
+.progress-container {
+  margin-bottom: 1rem;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 0.5rem;
+  background: #e5e7eb;
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.3s ease;
+}
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.volume-slider {
+  flex: 1;
+  height: 0.25rem;
+  background: #e5e7eb;
+  border-radius: 0.125rem;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.settings-panel {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.setting-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.setting-group label {
+  font-weight: 500;
+  color: #374151;
+}
+
+.setting-select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  background: white;
+  color: #374151;
+}
+
+.chunk-skip-controls {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.skip-btn {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  font-size: 0.75rem;
+  min-width: 2rem;
+}
+
+.skip-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.skip-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.feature-status .status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.feature-status .status.enabled {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.feature-status .status.disabled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Mobile responsive for background audio */
+@media (max-width: 768px) {
+  .background-audio-controls {
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+  }
+
+  .controls-main {
+    gap: 0.25rem;
+  }
+
+  .control-btn {
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0.25rem;
+  }
+
+  .play-pause-btn {
+    min-width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .progress-info {
+    font-size: 0.75rem;
+  }
+}
+
+/* Simple Loading Overlay Styles */
+.simple-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.simple-loading-content {
+  text-align: center;
+  max-width: 400px;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.simple-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #92400e;
+  border-radius: 50%;
+  animation: simple-spin 1s linear infinite;
+  margin: 0 auto 1.5rem;
+}
+
+.simple-progress-section {
+  margin: 1.5rem 0;
+  width: 250px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.simple-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.simple-progress-fill {
+  height: 100%;
+  background: #92400e;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.simple-progress-text {
+  font-size: 12px;
+  color: #92400e;
+  font-weight: 600;
+}
+
+.simple-text-section {
+  max-width: 320px;
+}
+
+.simple-primary-text {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.simple-secondary-text {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 0;
+}
+
+@keyframes simple-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Simple Suspense Loader Styles */
+.simple-suspense-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.simple-suspense-content {
+  text-align: center;
+  max-width: 400px;
+  padding: 2rem;
+}
+
+.simple-suspense-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #92400e;
+  border-radius: 50%;
+  animation: simple-spin 1s linear infinite;
+  margin: 0 auto 1.5rem;
+}
+
+.simple-suspense-text {
+  max-width: 320px;
+}
+
+.simple-suspense-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.simple-suspense-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 0;
+}
+
+/* Scroll highlight button styling */
+.scroll-highlight-button {
+  transition: all 0.2s ease;
+}
+
+.scroll-highlight-button:hover {
+  transform: scale(1.05);
+}
+
+.scroll-highlight-button:active {
+  transform: scale(0.95);
+}
+
+/* Mobile Controls Styling */
+@media (max-width: 640px) {
+  .controls-container {
+    max-width: 100vw;
+    overflow-x: auto;
+    padding: 0 0.5rem;
+  }
+
+  .controls-container>* {
+    min-width: 0;
+    flex-shrink: 1;
+  }
+
+  /* Ensure buttons don't overflow */
+  .controls-container button {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+  }
+
+  /* Stack controls vertically on very small screens */
+  @media (max-width: 480px) {
+    .controls-container {
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+  }
+}
+
+/* Medium screen optimizations for action buttons */
+@media (max-width: 640px) and (min-width: 481px) {
+
+  .settings-button,
+  .scroll-highlight-button,
+  .mobile-toc-button {
+    padding: 0.5rem 1rem !important;
+  }
+
+  .settings-button span,
+  .scroll-highlight-button span,
+  .mobile-toc-button span {
+    font-size: 0.875rem !important;
+  }
+}
+
+/* Additional mobile optimizations */
+@media (max-width: 480px) {
+  .reader-header-mobile {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .reader-header-mobile .book-title {
+    font-size: 1rem;
+  }
+
+  .reader-header-mobile .book-author {
+    font-size: 0.8rem;
+  }
+
+  /* Ensure action buttons don't overflow */
+  .reader-header-mobile .action-buttons {
+    gap: 0.25rem;
+  }
+
+  .reader-header-mobile .action-buttons button {
+    padding: 0.5rem;
+    min-width: 44px;
+    /* Ensure touch targets are large enough */
+  }
+
+  /* Compact button styling for very small screens */
+  .settings-button,
+  .scroll-highlight-button,
+  .mobile-toc-button {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  .settings-button span,
+  .scroll-highlight-button span,
+  .mobile-toc-button span {
+    font-size: 0.75rem !important;
+  }
+}
+
+/* Bottom Controls Button Styling */
+.reader-bottom-controls .control-button,
+.reader-bottom-controls-desktop .control-button {
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  min-height: 44px;
+  /* Ensure touch targets are large enough */
+}
+
+/* Force button text to be visible */
+.reader-bottom-controls .control-button .button-text,
+.reader-bottom-controls-desktop .control-button .button-text {
+  display: inline !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  white-space: nowrap !important;
+}
+
+.reader-bottom-controls .control-button:hover,
+.reader-bottom-controls-desktop .control-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.reader-bottom-controls .control-button:active,
+.reader-bottom-controls-desktop .control-button:active {
+  transform: translateY(0);
+}
+
+/* Page info styling */
+.page-info {
+  background-color: var(--reader-hover, #f3f4f6);
+  border: 1px solid var(--reader-border, #e5e7eb);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  color: var(--reader-text, #374151);
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Responsive adjustments for bottom controls */
+@media (max-width: 640px) {
+
+  .reader-bottom-controls .control-button,
+  .reader-bottom-controls-desktop .control-button {
+    padding: 0.375rem 0.5rem !important;
+    /* Reduced padding for smaller buttons */
+    min-height: 36px !important;
+    /* Reduced minimum height */
+  }
+
+  .reader-bottom-controls .button-text,
+  .reader-bottom-controls-desktop .button-text {
+    font-size: 0.7rem !important;
+    /* Slightly smaller font */
+    display: inline !important;
+    /* Ensure text is always visible */
+  }
+
+  .page-info {
+    padding: 0.25rem 0.5rem;
+    /* Reduced padding */
+    font-size: 0.7rem;
+    /* Smaller font */
+    min-width: 50px;
+    /* Reduced minimum width */
+  }
+}
+
+/* Ensure button text is always visible on all screen sizes */
+.reader-bottom-controls .button-text,
+.reader-bottom-controls-desktop .button-text {
+  display: inline !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Extra small mobile optimizations */
+@media (max-width: 480px) {
+
+  .reader-bottom-controls .control-button,
+  .reader-bottom-controls-desktop .control-button {
+    padding: 0.25rem 0.375rem !important;
+    /* Even smaller padding */
+    min-height: 32px !important;
+    /* Smaller height for very small screens */
+  }
+
+  .reader-bottom-controls .button-text,
+  .reader-bottom-controls-desktop .button-text {
+    font-size: 0.65rem !important;
+    /* Smaller font for very small screens */
+  }
+
+  .page-info {
+    padding: 0.2rem 0.375rem !important;
+    /* Minimal padding */
+    font-size: 0.65rem !important;
+    /* Smaller font */
+    min-width: 45px !important;
+    /* Minimal width */
+  }
+}
+
+/* Speed slider styles */
+.settings-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.settings-slider::-webkit-slider-track {
+  background: #e5e7eb;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #f59e0b;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.settings-slider::-webkit-slider-thumb:hover {
+  background: #d97706;
+  transform: scale(1.1);
+}
+
+.settings-slider::-moz-range-track {
+  background: #e5e7eb;
+  height: 8px;
+  border-radius: 4px;
+  border: none;
+}
+
+.settings-slider::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #f59e0b;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.settings-slider::-moz-range-thumb:hover {
+  background: #d97706;
+  transform: scale(1.1);
+}

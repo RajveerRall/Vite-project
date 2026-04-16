@@ -1,0 +1,93 @@
+/* src/components/Reader/PageNavigationIndicator.css */
+/* Visual indicators for page navigation */
+
+.page-nav-indicator {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(74, 105, 189, 0.9);
+  color: white;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  z-index: 100;
+  pointer-events: none;
+  animation: fadeInSlide 0.3s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+.page-nav-indicator-top {
+  top: 80px; /* Below header */
+}
+
+.page-nav-indicator-bottom {
+  bottom: 100px; /* Above bottom controls */
+}
+
+.page-nav-icon {
+  width: 20px;
+  height: 20px;
+  animation: bounce 1.5s ease-in-out infinite;
+}
+
+.page-nav-text {
+  white-space: nowrap;
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Theme support */
+.theme-dark .page-nav-indicator {
+  background: rgba(55, 65, 81, 0.95);
+  color: var(--reader-text);
+}
+
+.theme-sepia .page-nav-indicator {
+  background: rgba(139, 105, 20, 0.9);
+  color: white;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .page-nav-indicator {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+  }
+  
+  .page-nav-icon {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .page-nav-indicator-top {
+    top: 10px;
+  }
+  
+  .page-nav-indicator-bottom {
+    bottom: 80px; /* Above bottom controls */
+  }
+}
+

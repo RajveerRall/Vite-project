@@ -1,0 +1,44 @@
+{
+  "name": "YoRead - Free Online Ebook Reader",
+  "short_name": "YoRead",
+  "description": "YoRead is a free AI-powered ebook reader that converts EPUB files to audiobooks using advanced text-to-speech technology. Transform any ebook into a free AI audiobook instantly!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4a69bd",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/yologo.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/yologo.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/yologo.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/yologo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/yologo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": [
+    "books",
+    "education",
+    "productivity"
+  ],
+  "lang": "en",
+  "dir": "ltr"
+}

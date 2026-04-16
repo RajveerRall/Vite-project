@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "supabase": "https://esm.sh/@supabase/supabase-js@2.38.4",
+    "dodopayments": "https://esm.sh/dodopayments@2.4.1"
+  }
+}
+

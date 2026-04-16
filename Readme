@@ -1,0 +1,179 @@
+# Modular Structure for the Ebook Reader Application
+
+This document provides an overview of the modular structure created for the ebook reader application. The goal was to break down the monolithic `App.tsx` file into smaller, more manageable components and modules.
+
+## Directory Structure
+
+```
+src/
+├── components/
+│   ├── Library/
+│   │   ├── BookCard.tsx          # Individual book card component
+│   │   ├── BookGrid.tsx          # Grid of all books
+│   │   ├── RecentlyRead.tsx      # Recently read books section
+│   │   ├── Library.css           # Styles for library components
+│   │   └── index.tsx             # Main Library component
+│   ├── Reader/
+│   │   ├── Controls.tsx          # Navigation and playback controls
+│   │   ├── SearchBar.tsx         # Search functionality
+│   │   ├── TableOfContents.tsx   # TOC sidebar
+│   │   ├── SimplePlayMode.tsx    # Audiobook playback overlay
+│   │   ├── Reader.css            # Styles for reader components
+│   │   └── index.tsx             # Main Reader component
+├── context/
+│   └── BookContext.tsx           # Context for book state management
+├── hooks/
+│   ├── useTextToSpeech.ts        # Custom hook for TTS functionality
+│   └── useLocalStorage.ts        # Custom hook for localStorage
+├── types/
+│   └── book.ts                   # TypeScript interfaces
+├── utils/
+│   ├── pathUtils.ts              # Utilities for path handling
+│   └── textExtraction.ts         # Utilities for text processing
+└── App.tsx                       # Simplified main application file
+```
+
+## Key Components and Their Responsibilities
+
+1. **App.tsx**
+   - Very simplified, just renders either the Library or Reader based on state
+   - Provides the BookProvider context to the application
+
+2. **BookContext.tsx**
+   - Central state management for the application
+   - Handles EPUB loading, parsing, and navigation
+   - Manages the library of books
+
+3. **Library Components**
+   - Handling display of the book collection
+   - Managing book uploads
+   - Showing recently read books
+
+4. **Reader Components**
+   - Displaying the current book content
+   - Providing navigation controls
+   - Implementing search functionality
+   - Handling the table of contents
+
+5. **PlayMode Component**
+   - Enhanced audiobook functionality
+   - Voice selection and rate control
+   - Text display during playback
+
+## Custom Hooks
+
+1. **useTextToSpeech**
+   - Provides TTS functionality with voice selection
+   - Handles playing, pausing, and stopping speech
+   - Manages the available voice list
+
+## Utility Functions
+
+1. **pathUtils.ts**
+   - Functions for resolving relative paths in EPUB files
+   - Helper functions for extracting file and directory names
+
+2. **textExtraction.ts**
+   - Functions for extracting plain text from HTML content
+   - Processing HTML to fix relative paths for images and CSS
+
+## Benefits of This Modular Structure
+
+1. **Better Organization**
+   - Code is logically grouped by functionality
+   - Easier to locate specific functionality
+   - Smaller files that are easier to understand
+
+2. **Reusability**
+   - Components can be reused across different parts of the app
+   - Utility functions provide standardized behavior
+   - Custom hooks abstract complex logic
+
+3. **Maintainability**
+   - Easier to fix bugs since code is isolated
+   - Simpler to add new features
+   - Testing can be performed on individual components
+
+4. **Performance Optimizations**
+   - Context API allows for more efficient re-renders
+   - Components can be memoized more easily
+   - Code splitting becomes more straightforward
+
+## Implementation Plan
+
+To migrate from the current monolithic structure to this modular approach:
+
+1. **Create the Foundation**
+   - Set up the directory structure
+   - Create the basic type definitions
+   - Implement utility functions
+
+2. **Implement Core State Management**
+   - Build the BookContext
+   - Add basic functionality for book loading and navigation
+
+3. **Build UI Components**
+   - Create the Library components
+   - Implement the Reader components
+   - Add the SimplePlayMode component
+
+4. **Integrate and Refine**
+   - Connect all components together
+   - Test the entire flow
+   - Refine and optimize
+
+## Additional Considerations
+
+1. **State Management Alternatives**
+   - While using Context is a good approach, alternatives like Redux or Zustand could be considered for more complex state requirements
+   - Local state could be used for UI-specific concerns
+
+2. **Web Workers**
+   - For heavy processing of EPUB files, consider using Web Workers to avoid blocking the main thread
+   - This would be especially useful for large books
+
+3. **Lazy Loading**
+   - Components like SimplePlayMode could be lazy-loaded since they're not needed immediately
+   - This would improve initial load performance
+
+4. **Future Expandability**
+   - This structure makes it easy to add new features like:
+     - User settings (font size, theme, etc.)
+     - Bookmarks and annotations
+     - Sharing capabilities
+     - Advanced TTS with synchronized highlighting
+
+## Example Usage
+
+The new streamlined App.tsx:
+
+```jsx
+// src/App.tsx
+import React from 'react';
+import { BookProvider, useBook } from './context/BookContext';
+import Library from './components/Library';
+import Reader from './components/Reader';
+import './App.css';
+
+const AppContent = () => {
+  const { isReading } = useBook();
+  
+  return (
+    <div className="app">
+      {isReading ? <Reader /> : <Library />}
+    </div>
+  );
+};
+
+const App = () => {
+  return (
+    <BookProvider>
+      <AppContent />
+    </BookProvider>
+  );
+};
+
+export default App;
+```
+
+This approach provides a clean, maintainable, and extensible architecture for the ebook reader application.

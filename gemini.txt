@@ -1,0 +1,491 @@
+[Analytics] Tracking Event in GTM: page_navigation Object
+index-CiVdAYsJ.js:21 [Analytics] Tracking Event in Amplitude: page_navigation Object
+index-CiVdAYsJ.js:52 [BookContext Save] Books unchanged, skipping save
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+about:blank:1  Failed to load resource: net::ERR_UNKNOWN_URL_SCHEMEUnderstand this error
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][playChunkRef] Synchronized playChunkRef with playChunk function
+ReaderWrapper-B4Eb9kPG.js:74 [TTS] Chunk change effect triggered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] Image processing check: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] All images already have blob URLs, skipping processing
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 10
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 9
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 6
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 4
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 3
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 2
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 1
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 1
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 1
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [useBookSync] Updated progress for book 62db84bb-7898-46f1-91f8-e2beb91a479b: page 12
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+index-CiVdAYsJ.js:52 [Subscription] Fetching usage limit for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 550ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: Object
+index-CiVdAYsJ.js:52 [Subscription] Usage limit data received: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 395ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][handleTTS] TTS function called Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][handleTTS] Selection check: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][handleTTS] No selection or resume index. Starting from beginning.
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][handleTTS] Starting playback from chunk 0
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Starting pre-fetch for chunks from index 0
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][Voice Change Effect] selectedVoice changed to: en-US-AvaMultilingualNeural, isSpeaking: false, isPaused: false, isProcessing: true
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq] Enqueued chunk #0 (duration: 6.05s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #0 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #0 with voice en-US-AvaMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq] Enqueued chunk #1 (duration: 10.08s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #1 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #1 with voice en-US-AvaMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq] Enqueued chunk #2 (duration: 4.58s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #2 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #2 with voice en-US-AvaMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq] Enqueued chunk #3 (duration: 1.54s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #3 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #3 with voice en-US-AvaMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Playing chunk #0 from BUFFER with voice en-US-AvaMultilingualNeural.
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Set src and playback rate: 1x for chunk #0
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Starting pre-fetch for chunks from index 1
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Starting pre-fetch for chunks from index 3
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][Voice Change Effect] selectedVoice changed to: en-US-AvaMultilingualNeural, isSpeaking: true, isPaused: false, isProcessing: false
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Audio started playing chunk #0
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][playChunkRef] Synchronized playChunkRef with playChunk function
+ReaderWrapper-B4Eb9kPG.js:74 [TTS] Chunk change effect triggered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][TTS Repository] Page 12: Saved Index 0 for key ebookReaderProgress_Dark_Matter_page12
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracting blob URLs from DOM: found 1 images
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted blob URL for OEBPS/Images/img007.jpg: blob:https://yoread.com/1141b94a-693a-4790-a670-8b...
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted 1 blob URLs from DOM
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Input HTML images (currentContent): Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images BEFORE manipulation: Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Searching for chunk #0: Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images BEFORE highlighting operations: Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images AFTER highlighting operations: Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images in serialized HTML string: Object
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Output HTML images (highlightedHtml): Object
+ReaderWrapper-B4Eb9kPG.js:74 [DEBUG] Updated highlightedContent for chunk 0: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] Image processing check: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] All images already have blob URLs, skipping processing
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq] Enqueued chunk #4 (duration: 1.80s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #4 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #4 with voice en-US-AvaMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #4 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #4 with voice en-US-AvaMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq] Enqueued chunk #5 (duration: 1.61s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #5 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #5 with voice en-US-AvaMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq] Enqueued chunk #6 (duration: 5.09s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #6 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #6 with voice en-US-AvaMultilingualNeural
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Audio ended for chunk #0, advancing to chunk #1
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Auto-advance flag set to true
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] playChunkRef.current is available, calling playChunkRef.current(1)
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Playing chunk #1 from BUFFER with voice en-US-AvaMultilingualNeural.
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Set src and playback rate: 1x for chunk #1
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Starting pre-fetch for chunks from index 2
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Starting pre-fetch for chunks from index 4
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Audio started playing chunk #1
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][playChunkRef] Synchronized playChunkRef with playChunk function
+ReaderWrapper-B4Eb9kPG.js:74 [TTS] Chunk change effect triggered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][TTS Repository] Page 12: Saved Index 99 for key ebookReaderProgress_Dark_Matter_page12
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracting blob URLs from DOM: found 1 images
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted blob URL for OEBPS/Images/img007.jpg: blob:https://yoread.com/1141b94a-693a-4790-a670-8b...
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted 1 blob URLs from DOM
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Input HTML images (currentContent): Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images BEFORE manipulation: Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Searching for chunk #1: Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images BEFORE highlighting operations: Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images AFTER highlighting operations: Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images in serialized HTML string: Object
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Output HTML images (highlightedHtml): Object
+ReaderWrapper-B4Eb9kPG.js:74 [DEBUG] Updated highlightedContent for chunk 1: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Auto-advance flag cleared
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] Image processing check: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] All images already have blob URLs, skipping processing
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:137 [TTS Usage] Recorded successfully: Object
+ReaderWrapper-B4Eb9kPG.js:74 [TTS Usage] Recorded successfully via enhanced tracker
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq] Enqueued chunk #7 (duration: 1.13s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #7 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #7 with voice en-US-AvaMultilingualNeural
+index-CiVdAYsJ.js:52 [Subscription] Fetching usage limit for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [Subscription] Fetching subscription info for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [SubscriptionService] Access token obtained, length: 1305
+index-CiVdAYsJ.js:52 [SubscriptionService] Fetching profile via REST API...
+index-CiVdAYsJ.js:52 [REST API] Fetching profiles: https://fnnzwnamzhpdjfhozouh.supabase.co/rest/v1/profiles?select=tts_minutes_limit%2Ctts_minutes_used%2Csubscription_minutes_used%2Clast_reset_date%2Cprepaid_minutes%2Csubscription_id&id=eq.779b1ab8-c...
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 322ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: Object
+index-CiVdAYsJ.js:52 [Subscription] Usage limit data received: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [REST API] Success for profiles: 1 row(s)
+index-CiVdAYsJ.js:52 [SubscriptionService] Profile data received: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] REST API fetch completed in 350ms
+index-CiVdAYsJ.js:52 [Subscription] Subscription info data received: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [SettingsWidget] Voice select changed to: en-US-AndrewNeural
+ReaderWrapper-B4Eb9kPG.js:74 [Reader] Voice change requested: en-US-AndrewNeural
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][Voice Ref Sync] selectedVoiceRef updated to: en-US-AndrewNeural
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][Voice Change Effect] selectedVoice changed to: en-US-AndrewNeural, isSpeaking: true, isPaused: false, isProcessing: false
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][Voice Change] Voice changed from en-US-AvaMultilingualNeural to en-US-AndrewNeural during active playback - clearing buffer
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][clearAudioBuffer] Clearing 8 buffered audio URLs due to voice change
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Audio ended for chunk #1, advancing to chunk #2
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Auto-advance flag set to true
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] playChunkRef.current is available, calling playChunkRef.current(2)
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Playing chunk #2 from NETWORK.
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Auto-advance flag cleared
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:137 [TTS Usage] Recorded successfully: Object
+ReaderWrapper-B4Eb9kPG.js:74 [TTS Usage] Recorded successfully via enhanced tracker
+index-CiVdAYsJ.js:52 [Subscription] Fetching usage limit for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [Subscription] Fetching subscription info for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [SubscriptionService] Access token obtained, length: 1305
+index-CiVdAYsJ.js:52 [SubscriptionService] Fetching profile via REST API...
+index-CiVdAYsJ.js:52 [REST API] Fetching profiles: https://fnnzwnamzhpdjfhozouh.supabase.co/rest/v1/profiles?select=tts_minutes_limit%2Ctts_minutes_used%2Csubscription_minutes_used%2Clast_reset_date%2Cprepaid_minutes%2Csubscription_id&id=eq.779b1ab8-c...
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 354ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: Object
+index-CiVdAYsJ.js:52 [Subscription] Usage limit data received: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [REST API] Success for profiles: 1 row(s)
+index-CiVdAYsJ.js:52 [SubscriptionService] Profile data received: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] REST API fetch completed in 374ms
+index-CiVdAYsJ.js:52 [Subscription] Subscription info data received: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][pausePlayback] PAUSE CALLED - currentChunkIndex: 1, isSpeaking: true
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][pausePlayback] Saving resumeIndex: 1
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][Next Sentence] Manual navigation: Moving from chunk 1 to 2
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Starting pre-fetch for chunks from index 2
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Playing chunk #2 from NETWORK.
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object\
+
+
+
+
+
+--------------------------------the tts keeps loading and didn't work
+
+
+
+
+[TTS] Chunk change effect triggered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][TTS Repository] Page 12: Saved Index 99 for key ebookReaderProgress_Dark_Matter_page12
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracting blob URLs from DOM: found 1 images
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted blob URL for OEBPS/Images/img007.jpg: blob:https://yoread.com/1141b94a-693a-4790-a670-8b...
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Extracted 1 blob URLs from DOM
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Input HTML images (currentContent): Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images BEFORE manipulation: Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Searching for chunk #1: Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images BEFORE highlighting operations: Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images AFTER highlighting operations: Object
+ReaderWrapper-B4Eb9kPG.js:74 [htmlHighlight] Images in serialized HTML string: Object
+ReaderWrapper-B4Eb9kPG.js:74 [useReaderTTS] Output HTML images (highlightedHtml): Object
+ReaderWrapper-B4Eb9kPG.js:74 [DEBUG] Updated highlightedContent for chunk 1: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Auto-advance flag cleared
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] Image processing check: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] All images already have blob URLs, skipping processing
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:137 [TTS Usage] Recorded successfully: Object
+ReaderWrapper-B4Eb9kPG.js:74 [TTS Usage] Recorded successfully via enhanced tracker
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq] Enqueued chunk #7 (duration: 1.13s)
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Pre-decoded chunk #7 for seamless playback
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Successfully buffered chunk #7 with voice en-US-AvaMultilingualNeural
+index-CiVdAYsJ.js:52 [Subscription] Fetching usage limit for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [Subscription] Fetching subscription info for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [SubscriptionService] Access token obtained, length: 1305
+index-CiVdAYsJ.js:52 [SubscriptionService] Fetching profile via REST API...
+index-CiVdAYsJ.js:52 [REST API] Fetching profiles: https://fnnzwnamzhpdjfhozouh.supabase.co/rest/v1/profiles?select=tts_minutes_limit%2Ctts_minutes_used%2Csubscription_minutes_used%2Clast_reset_date%2Cprepaid_minutes%2Csubscription_id&id=eq.779b1ab8-c...
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 322ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: Object
+index-CiVdAYsJ.js:52 [Subscription] Usage limit data received: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [REST API] Success for profiles: 1 row(s)
+index-CiVdAYsJ.js:52 [SubscriptionService] Profile data received: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] REST API fetch completed in 350ms
+index-CiVdAYsJ.js:52 [Subscription] Subscription info data received: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [SettingsWidget] Voice select changed to: en-US-AndrewNeural
+ReaderWrapper-B4Eb9kPG.js:74 [Reader] Voice change requested: en-US-AndrewNeural
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][Voice Ref Sync] selectedVoiceRef updated to: en-US-AndrewNeural
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][Voice Change Effect] selectedVoice changed to: en-US-AndrewNeural, isSpeaking: true, isPaused: false, isProcessing: false
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][Voice Change] Voice changed from en-US-AvaMultilingualNeural to en-US-AndrewNeural during active playback - clearing buffer
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][clearAudioBuffer] Clearing 8 buffered audio URLs due to voice change
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Audio ended for chunk #1, advancing to chunk #2
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Auto-advance flag set to true
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] playChunkRef.current is available, calling playChunkRef.current(2)
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Playing chunk #2 from NETWORK.
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Auto-advance flag cleared
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:137 [TTS Usage] Recorded successfully: Object
+ReaderWrapper-B4Eb9kPG.js:74 [TTS Usage] Recorded successfully via enhanced tracker
+index-CiVdAYsJ.js:52 [Subscription] Fetching usage limit for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [Subscription] Fetching subscription info for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+index-CiVdAYsJ.js:52 [SubscriptionService] Access token obtained, length: 1305
+index-CiVdAYsJ.js:52 [SubscriptionService] Fetching profile via REST API...
+index-CiVdAYsJ.js:52 [REST API] Fetching profiles: https://fnnzwnamzhpdjfhozouh.supabase.co/rest/v1/profiles?select=tts_minutes_limit%2Ctts_minutes_used%2Csubscription_minutes_used%2Clast_reset_date%2Cprepaid_minutes%2Csubscription_id&id=eq.779b1ab8-c...
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 354ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: Object
+index-CiVdAYsJ.js:52 [Subscription] Usage limit data received: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [REST API] Success for profiles: 1 row(s)
+index-CiVdAYsJ.js:52 [SubscriptionService] Profile data received: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] REST API fetch completed in 374ms
+index-CiVdAYsJ.js:52 [Subscription] Subscription info data received: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][pausePlayback] PAUSE CALLED - currentChunkIndex: 1, isSpeaking: true
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][pausePlayback] Saving resumeIndex: 1
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][Next Sentence] Manual navigation: Moving from chunk 1 to 2
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Starting pre-fetch for chunks from index 2
+ReaderWrapper-B4Eb9kPG.js:74 [playChunk] Playing chunk #2 from NETWORK.
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:28 [AuthContext] onAuthStateChange: SIGNED_IN Object
+index-CiVdAYsJ.js:28 [Auth] Converting anonymous session to user (OAuth): anon_1762853106868_wj84v7rci
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:28 [AuthContext] Current state: Object
+index-CiVdAYsJ.js:28 [AuthContext] Creating DodoPayments customer via Edge Function for user: jawangana@gmail.com
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 1
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 1
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 1
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][haltPlayback] Clearing 0 buffered audio URLs
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][TTS Repository] Page 12: Cleared progress for key ebookReaderProgress_Dark_Matter_page12
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][Voice Change Effect] selectedVoice changed to: en-US-AndrewNeural, isSpeaking: false, isPaused: false, isProcessing: false
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][playChunkRef] Synchronized playChunkRef with playChunk function
+ReaderWrapper-B4Eb9kPG.js:74 [TTS] Chunk change effect triggered: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+about:blank:1  Failed to load resource: net::ERR_UNKNOWN_URL_SCHEMEUnderstand this error
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] Image processing check: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderContent] All images already have blob URLs, skipping processing
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 1
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: Object
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+index-CiVdAYsJ.js:52 [Subscription] Fetching usage limit for user: 779b1ab8-c732-421b-8225-a1cfb113eeed
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 648ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: Object
+index-CiVdAYsJ.js:52 [Subscription] Usage limit data received: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] ========== STARTING REST API FETCH (Usage Limit) ==========
+index-CiVdAYsJ.js:52 [SubscriptionService] Getting access token for usage limit...
+index-CiVdAYsJ.js:28 [authToken] Reading access token from localStorage...
+index-CiVdAYsJ.js:28 [authToken] Found auth keys: Array(1)
+index-CiVdAYsJ.js:28 [authToken] Found access token in sb-fnnzwnamzhpdjfhozouh-auth-token
+index-CiVdAYsJ.js:28 [authToken] Using token from localStorage
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+index-CiVdAYsJ.js:52 [SubscriptionService] Usage limit RPC call completed in 335ms
+index-CiVdAYsJ.js:52 [SubscriptionService] Calculated usage limit: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][handleTTS] TTS function called Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][handleTTS] Selection check: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][handleTTS] No selection or resume index. Starting from beginning.
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][handleTTS] Starting playback from chunk 0
+ReaderWrapper-B4Eb9kPG.js:74 [Prefetch] Starting pre-fetch for chunks from index 0
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 [ReaderInstance_1762853123899_whacq][Voice Change Effect] selectedVoice changed to: en-US-AndrewNeural, isSpeaking: false, isPaused: false, isProcessing: true
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:70 [FloatingReadButton] Button not rendered: Object
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: {scrollTop: 24, scrollHeight: 89408, clientHeight: 752, scrollableHeight: 88656, element: 'reader-main', …}
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: {scrollTop: 199.1999969482422, scrollHeight: 89408, clientHeight: 752, scrollableHeight: 88656, element: 'reader-main', …}
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: {scrollTop: 356, scrollHeight: 89408, clientHeight: 752, scrollableHeight: 88656, element: 'reader-main', …}
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: {scrollTop: 394.3999938964844, scrollHeight: 89408, clientHeight: 752, scrollableHeight: 88656, element: 'reader-main', …}
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: {scrollTop: 384.79998779296875, scrollHeight: 89408, clientHeight: 752, scrollableHeight: 88656, element: 'reader-main', …}
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: {scrollTop: 164, scrollHeight: 89408, clientHeight: 752, scrollableHeight: 88656, element: 'reader-main', …}
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
+ReaderWrapper-B4Eb9kPG.js:74 Scroll Debug: {scrollTop: 120.80000305175781, scrollHeight: 89408, clientHeight: 752, scrollableHeight: 88656, element: 'reader-main', …}
+ReaderWrapper-B4Eb9kPG.js:74 Calculated percentage: 0
