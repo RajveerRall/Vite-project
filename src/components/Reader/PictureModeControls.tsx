@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlayCircle, PauseCircle, Square, Image as ImageIcon, Settings } from 'lucide-react';
+import { PlayCircle, PauseCircle, Square } from 'lucide-react';
 import InteractiveProgressBar from './InteractiveProgressBar';
 import './Controls.css';
 
@@ -18,7 +18,6 @@ interface PictureModeControlsProps {
     totalChunks?: number;
     onSeek?: (percentage: number) => void;
     onPreview?: (percentage: number) => void;
-    onOpenSettings?: () => void;
 }
 
 const PictureModeControls: React.FC<PictureModeControlsProps> = ({
@@ -33,8 +32,7 @@ const PictureModeControls: React.FC<PictureModeControlsProps> = ({
     currentChunkIndex,
     totalChunks = 0,
     onSeek,
-    onPreview,
-    onOpenSettings
+    onPreview
 }) => {
     // Calculate Full Cast Progress
     const progress = (totalChunks > 0 && typeof currentChunkIndex === 'number')
@@ -62,19 +60,7 @@ const PictureModeControls: React.FC<PictureModeControlsProps> = ({
             {/* Control Buttons Row */}
             <div className="flex items-center justify-between gap-2 px-1">
 
-                 {/* Left Side - Settings Button */}
-                 {onOpenSettings && (
-                     <div className="flex-shrink-0 flex items-center justify-center">
-                         <button
-                             onClick={onOpenSettings}
-                             className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
-                             aria-label="Settings"
-                             title="Settings"
-                         >
-                             <Settings size={18} className="md:text-[22px]" />
-                         </button>
-                     </div>
-                 )}
+
 
                 {/* Left: Status Indicator */}
                 <div className="flex items-center gap-2 text-sm text-gray-600 min-w-0 flex-1 ml-1.5">

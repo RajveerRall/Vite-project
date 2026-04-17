@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import InteractiveProgressBar from './InteractiveProgressBar';
 import SpeedControlDropdown from './SpeedControlDropdown';
-import MobileAIChatDrawer from './MobileAIChatDrawer';
 import PictureModeControls from './PictureModeControls';
 import { useSmoothProgress } from '../../hooks/tts/useSmoothProgress';
 
@@ -50,17 +49,17 @@ export interface ControlsProps {
   onFullCastPause?: () => void;
   onFullCastResume?: () => void;
   // Anonymous usage limit
-  anonymousLimit?: any;
+  anonymousLimit?: {
+    isLimitReached: boolean;
+    isNearLimit: boolean;
+    remainingMinutes: number;
+    percentageUsed: number;
+    isCritical: boolean;
+    showLimitModal: boolean;
+    setShowLimitModal: (show: boolean) => void;
+  };
   // Buffering state
   bufferedChunksCount?: number;
-  // Chapter summarization props
-  currentPageText?: string;
-  currentChapterTitle?: string;
-  bookId?: string;
-  onSummarizeChapter?: () => void;
-  // TTS for summary
-  onReadAloudSummary?: (text?: string) => void;
-  onFullCastGenerateImage?: () => Promise<void>;
   // UI Context (for layout/visibility)
   isMobile?: boolean;
   theme?: 'light' | 'dark' | 'sepia';
@@ -102,12 +101,6 @@ const Controls: React.FC<ControlsProps> = ({
   onFullCastPause,
   onFullCastResume,
   anonymousLimit,
-  currentPageText,
-  currentChapterTitle,
-  bookId,
-  onReadAloudSummary,
-  onFullCastGenerateImage,
-  isMobile,
   theme,
   onOpenSettings,
   isBuffering = false, // Default to false
@@ -120,7 +113,6 @@ const Controls: React.FC<ControlsProps> = ({
   } = useFullCastUsage();
   const { isLimitExceeded } = useSubscription();
   const { addToast } = useToast();
-  const [isAIChatDrawerOpen, setIsAIChatDrawerOpen] = useState(false);
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
 
   // Calculate raw chapter progress percentage (memoized)
@@ -203,7 +195,7 @@ const Controls: React.FC<ControlsProps> = ({
       title: 'Read aloud (select text or from start of page)',
       disabled: false,
     };
-  }, [isDisabledDueToLimit, isProcessing, isReading, isPaused, canResume, anonymousLimit, isLimitExceeded]);
+  }, [isDisabledDueToLimit, isProcessing, isReading, isPaused, canResume, anonymousLimit, isBuffering]);
 
   // Debounced click handler to prevent rapid clicks
   const lastClickTimeRef = useRef<number>(0);
@@ -248,7 +240,6 @@ const Controls: React.FC<ControlsProps> = ({
         totalChunks={totalChunks}
         onSeek={onSeekToPercentage}
         onPreview={onPreviewScroll}
-        onOpenSettings={onOpenSettings}
       />
     );
   }
@@ -271,19 +262,7 @@ const Controls: React.FC<ControlsProps> = ({
 
         {/* Main Controls */}
         <div className="flex items-center justify-between gap-3 md:gap-4">
-          {/* Left Side - Settings Button */}
-          <div className="w-10 md:w-12 flex-shrink-0 flex items-center justify-center">
-            {onOpenSettings && (
-              <button
-                onClick={onOpenSettings}
-                className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
-                aria-label="Settings"
-                title="Settings"
-              >
-                <Settings size={18} className="md:text-[22px]" />
-              </button>
-            )}
-          </div>
+
 
           {/* Center - Play Controls */}
           <div className="flex items-center gap-3 md:gap-4">
@@ -375,6 +354,16 @@ const Controls: React.FC<ControlsProps> = ({
                 <Square size={18} className="md:text-[22px]" />
               </button>
             )}
+
+            {/* Settings Button - Restored */}
+            <button
+              onClick={onOpenSettings}
+              className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
+              aria-label="Settings"
+              title="Settings"
+            >
+              <Settings size={18} className="md:text-[22px]" />
+            </button>
           </div>
         </div>
       </div>
@@ -408,6 +397,16 @@ const Controls: React.FC<ControlsProps> = ({
         )} */}
 
 
+        {/* Settings Button */}
+        <button
+          onClick={onOpenSettings}
+          className="control-button p-2 flex items-center justify-center transition-colors"
+          aria-label="Settings"
+          title="Settings"
+        >
+          <Settings size={20} />
+        </button>
+
         {/* Read Aloud Button */}
         <button
           onClick={handleReadAloudClick}
@@ -421,17 +420,7 @@ const Controls: React.FC<ControlsProps> = ({
           <span className="button-text text-sm font-medium">Read Aloud</span>
         </button>
 
-        {/* Global Settings Button */}
-        {onOpenSettings && (
-          <button
-            onClick={onOpenSettings}
-            className="control-button flex items-center justify-center p-2 rounded-full hover:bg-gray-100 transition-colors"
-            aria-label="Settings"
-            title="Settings"
-          >
-            <Settings size={20} />
-          </button>
-        )}
+
 
         {/* Audiobook Button - COMMENTED OUT */}
         {/* {!isAudiobookModeActive && (
